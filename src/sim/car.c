@@ -359,7 +359,8 @@ void Car_Init(Car *c, Obj *obj, int cls, const int32_t pos[3], int n, bool keep)
 /* The damage records (0x4d0 bytes per car, Damage_Alloc 0x4667c0; their contents are set up by the
    damage code, not ported: zero here). */
 static uint8_t damage[CAR_MAX][0x4d0];
-static int32_t dmg32(int car, uint32_t o) { const uint8_t *p = damage[car] + o; return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24); }
+uint8_t *Damage_Get(int n) { return damage[n >= 0 && n < CAR_MAX ? n : 0]; }
+static int32_t dmg32(int car, uint32_t o) { const uint8_t *p = Damage_Get(car) + o; return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24); }
 
 /* 0x4930e0: the ground height under each of the first n box corners (+0x270, through the cached
    triangle +0xa9e and the surface +0xac6, mapped by 0x51df58 to +0xaae), the ground normal to +0x4a4.

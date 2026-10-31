@@ -282,3 +282,16 @@
 00432b30	Car_WheelLoad	sim	high	Wheels on the ground and the mass per wheel
 004b9da0	Vec_RotateT	math	high	A vector times a matrix's transposed 3 x 3
 00433e80	Sim_HeadToHeadBalance	sim	low	Two-player catch-up on the final drive
+00493520	Car_Controls	sim	high	Inputs to throttle, brake, handbrake, gearbox and steering angle
+004932f0	Car_Boost	sim	med	Option 5's boost and option 0's effect; clears the handbrake input
+00493890	Car_ManualShift	sim	high	A manual gear request (up, down, reverse)
+00493a40	Car_ShiftHint	sim	high	The manual box's shift hint
+00493b30	Car_AutoShift	sim	high	The automatic gearbox
+00493ed0	Car_SteerAnalog	sim	high	Analog steering towards the target
+004943d0	Car_SteerLock	sim	high	The steering lock, lowered with speed
+00494110	Car_SteerDigital	sim	high	Digital steering with its build-up and return
+004945d0	Car_SteerRate	sim	high	The digital steering rate
+00494540	Car_SteerInput	sim	high	The digital steering input's build-up
+004946c0	Car_ThrottleRamp	sim	high	The digital throttle's quarter-sine ramp
+00494880	Car_BrakeRamp	sim	high	The digital brake's ramp
+00494960	Car_HandbrakeRamp	sim	high	The handbrake's ramp

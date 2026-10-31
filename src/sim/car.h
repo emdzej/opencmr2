@@ -23,6 +23,8 @@ static inline void CW8(Car *c, uint32_t o, uint8_t v) { c->s[o] = v; }
 static inline void CW16(Car *c, uint32_t o, uint16_t v) { c->s[o] = (uint8_t)v, c->s[o + 1] = (uint8_t)(v >> 8); }
 
 Car *Car_Get(int n);   /* 0x42b5f0 */
+uint8_t *Damage_Get(int n);   /* 0x469680: the car's 0x4d0-byte damage record */
+static inline int32_t DI32(const uint8_t *d, uint32_t o) { return (int32_t)((uint32_t)d[o] | d[o + 1] << 8 | d[o + 2] << 16 | (uint32_t)d[o + 3] << 24); }
 extern Car *g_car;     /* DAT_0053cc18: the car being worked on */
 
 /* The car table at 0x542630 (0x24 bytes per car): the port keeps its model objects here. */

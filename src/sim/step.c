@@ -1,5 +1,6 @@
 /* The car part of the simulation step (see step.h). */
 #include "sim/step.h"
+#include "sim/controls.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -147,7 +148,7 @@ void Sim_StepCars(const int16_t *list, int n)
     for (int i = n - 1; i >= 0; i--) {
         Car *c = Car_Get(list[i]);
         g_car = c;
-        PENDING_PASS(0x493520, "Car_WheelGround");
+        Car_Controls(c);
         for (uint32_t o = 0x88c; o > 0x87f; o -= 4) {
             CW32(c, o - 0x10, 0);
             CW32(c, o, 0);
