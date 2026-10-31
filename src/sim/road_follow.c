@@ -10,6 +10,7 @@
 #include "game/gstate.h"
 #include "pending.h"
 #include "sim/car_internal.h"
+#include "sim/free_body.h"
 #include <math.h>
 
 static void v3load(int32_t v[3], const Car *c, uint32_t o) { for (uint32_t k = 0; k < 3; k++) v[k] = CI32(c, o + 4 * k); }
@@ -109,7 +110,7 @@ static int32_t pos_bits(const Car *c, uint32_t j, int32_t mod)
    centred, at most 1.0, times +0x9c0) and their ground penetration (+0x928, at least +0xa08); in
    road-following mode the bump noise of the surface (+0x938, +0x948 from the corner coefficients
    +0x9c, +0xa0) */
-static void travel(Car *c)
+void Car_Travel(Car *c)
 {
     int32_t n[3], up[3];
     v3load(n, c, 0x48c);
@@ -268,7 +269,7 @@ void Car_RoadFollow(Car *c)
             CW32(c, 0x428, fx_mul(CI32(c, 0x428), k2));
         }
     }
-    travel(c);
+    Car_Travel(c);
     c->s[0xb2a] = eased;
     /* the orientation: the rows, turned about forward by the slide angle (+0xb18) */
     int16_t sl = (int16_t)(c->s[0xb18] | c->s[0xb19] << 8);
@@ -307,7 +308,7 @@ void Sim_CarsPost(const int16_t *list, int n)
         wheel_angles(c);
         for (uint32_t k = 0; k < 4; k++) CW16(c, 0xabe + 2 * k, (uint16_t)(c->s[0xaae + 2 * k] | c->s[0xaaf + 2 * k] << 8));
         if (!CI32(c, 0xc00)) Car_RoadFollow(c);
-        else PENDING_NOTE(0x42eae0, "Car_FreeBody");
+        else Car_FreeBody(c);
         PENDING_NOTE(0x432c20, "Car_PostBody");
         if (CI32(c, 0xbf8)) PENDING_NOTE(0x4283e0, "Car_Recover");
         if (fx_mul(gms32(0x519c90), 0xc0000) < CI32(c, 0xa80)) CW32(c, 0xbf8, 1);

@@ -319,7 +319,7 @@
 004669f0	Damage_Setup	damage	med	The damage set-up of every car (calls Damage_Reset)
 0042cd00	Sim_CarsPost	sim	high	After the car step: road following (0x42ce60) or free body (0x42eae0), and more
 0042ce60	Car_RoadFollow	sim	high	Keeps a car in road-following mode on the ground (4 KB)
-0042eae0	Car_FreeBody	sim	low	A free (loose) car's ground and collisions (3.4 KB)
+0042eae0	Car_FreeBody	sim	high	The loose car: ground contact on eight corners, landing and roll hits, handed back when upright and still
 004380c0	Car_Revs	sim	high	The engine revs from the driven wheels, the starter curve, the limiter
 004781d0	Car_SurfaceGrip	sim	high	The corners' grip coefficients from their surfaces, dry to wet
 004336f0	Car_WheelAngles	sim	high	The wheels' turn angles from their spins, and a bent wheel's wobble
@@ -361,3 +361,14 @@
 0048a1f0	Cars_Collide	sim	low	The car-to-car contacts
 00499750	Sparks_Add	fx	low	Sparks or particles from a scrape (uses rand)
 00466ef0	Car_Damage	sim	med	Damage from a hit: point, normal, kind
+0042f9d0	Car_FreeLift	sim	high	The loose body lifted out of the ground by its deepest free corner, or lowered onto the nearest
+0042fb20	Car_FreeSettle	sim	high	The loose body's rows against the ground: spin pulled and locked as an axis crosses, roll counters, hit
+00431220	Car_EaseRows	sim	high	Up and side rows eased towards the last step's, made square; orientation from them
+00432c20	Car_BodyPose	sim	med	The drawn body's matrix (+0x754) from the suspension's travel and the rows
+00428410	Fade_Start	sim	high	Starts a fade channel (per car): duration, callback, mode
+004283e0	Fade_OutIn	sim	high	Fade_Start with 12.5 steps, mode 3 (out, callback, in)
+00428740	Fade_Active	sim	high	A fade channel running
+00428760	Fade_Rising	sim	high	A fade channel running and past 0
+004284d0	Fade_Tick	sim	high	A fade channel's step; the callback at its end
+004285b0	Fade_Level	sim	high	A fade channel's level between steps, 0 to 1
+00431c50	Car_Recover	sim	high	The recovery fade's callback: the car put back on the centre line behind where it left
