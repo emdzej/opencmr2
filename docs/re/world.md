@@ -129,6 +129,26 @@ For a billboard, `Section_DrawBillboards` 0x49d040:
 is the runtime's). It resets each billboard's first texture to blend type 0, marks it blended (flag 8)
 within 200 units, and draws it with its matrix.
 
+## Sky and ground
+
+`Stage_LoadSkyGround` 0x46f060 loads four models under the world root, each made always active
+(`+0x180` = 0) with its mesh's `+0x2c` set to 0:
+- `TEMP.SKY`, the backdrop panorama (up to four of its objects);
+- the clouds: the larger of the stage's two conditions through the byte table at 0x51c688 picks
+  `Cloud_Light`, `Cloud_Med` or `Cloud_Heavy` (0, 1, 2). It mounts
+  `<dir>\Clouds\Pc\<name>.bfl` (`PcLow` with a detail option) and loads `<name>top.c3d` (its pass mask
+  set to 0) and `<name>.c3d`;
+- `TEMP.GRO`, the ground.
+
+`Sky_Follow` 0x46f330 moves them over the view's camera (or car) each frame, through `Obj_SetPosition`
+0x4ac480:
+- the sky, ground and clouds to 15 below it, plus height offsets from the stage (0x4928c0), the clouds
+  4 lower again in one stage;
+- the cloud top 20 below the clouds.
+
+They sit in cells like other world objects, so the update moves them into the camera's cell
+(`Obj_UpdateSection`), and `Section_DrawObjects` draws them with the z-buffer off, before the terrain.
+
 ## The world frame
 
 `World_Render` 0x49d3f0 draws one view, in this order:
@@ -166,7 +186,9 @@ It notes the object and record counts before each, which are the ranges those fi
 record stays reachable for the fields not yet understood. The update, commit, draw and view are
 ported, and so are the grid, the lookup, the corners, the visible list and the terrain draw
 (`src/world/section.c`) and `Stage_LoadC3d` (`src/world/stage.c`). The scenery and billboards are ported
-too (`Stage_LoadScenery`, `Section_DrawBillboards`, `Billboard_DrawQueued`). Still to come: the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
+too (`Stage_LoadScenery`, `Section_DrawBillboards`, `Billboard_DrawQueued`). So are the sky and ground
+(`Stage_LoadSkyGround`, `Sky_Follow`, `Obj_UpdateSection`, `Section_DrawObjects`). Still to come: the
+stage height offsets for the sky, the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
 under a turning stand and takes the view from a camera object, so a car on screen goes through these
 functions. `tests/d3d7_test.c` checks the 205's tree: world = local plus the stand's move, the float
 matrix, the inverse view, and all 672 triangles drawn through `Obj_Draw`. The stage viewer loads `TEMP.C3D` with

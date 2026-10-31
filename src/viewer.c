@@ -308,9 +308,17 @@ void viewer_frame(void)
         invert_rigid(&view, &inv);
         for (int i = 0; i < 16; i++) V.camera.world.m[i] = (int32_t)lrintf(inv.m[i / 4][i % 4] * 65536);
         V.camera.dirty = 1;
+        int32_t cp[3] = {V.camera.world.m[12], V.camera.world.m[13], V.camera.world.m[14]};
+        Sky_Follow(cp);
         Obj_Frame(&g_world, &V.camera);
         Section_BuildVisible(&V.camera);
         Billboard_SetCamera(&V.camera);
+        /* World_Render: the cell objects (sky, clouds, ground) unlit with the far plane at 150 */
+        Light_SetMode(5);
+        int32_t far = Proj_Far();
+        Proj_Set(0, 0, 0x960000, 0);
+        Section_DrawObjects(0);
+        Proj_Set(0, 0, far, 0);
         Light_SetMode(0);   /* World_Render's modes: 0 for the terrain, 1 for the scenery */
         Stage_DrawTerrain(&g_stage_mesh);
         Light_SetMode(1);

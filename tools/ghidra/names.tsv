@@ -198,3 +198,10 @@
 0049cbc0	Obj_CompareFar	world	med	qsort compare for the sorted object pass
 0049cc50	Billboard_DrawQueued	world	high	Draws the queued billboards far to near, blended within 200 units
 0049cd20	Obj_DrawQueued	world	high	Draws the queued objects sorted
+0046f060	Stage_LoadSkyGround	track	high	Loads TEMP.SKY, the clouds for the stage's conditions (Clouds\Pc or PcLow), TEMP.GRO
+0046ef50	Clouds_Path	track	high	Builds <dir>\Clouds\Pc|PcLow\Cloud_Light|Med|Heavy from the stage's conditions (table 0x51c688)
+0046f330	Sky_Follow	track	high	Moves the sky, ground and clouds over a view's position (15 lower, stage offsets; top 20 below)
+004ac480	Obj_SetPosition	world	high	Sets an object's local translation, clears inherit, marks it and its ancestors dirty
+004b2e40	Mesh_SetX2c	render	low	Sets a mesh record's +0x2c
+00405d00	Opt_LowDetailClouds	misc	low	Chooses the PcLow cloud set
+004928c0	Stage_SkyOffsets	track	low	Height offsets for the sky, ground and clouds

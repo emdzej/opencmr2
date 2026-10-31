@@ -23,3 +23,8 @@ bool Stage_LoadSht(void);              /* 0x472870 */
 void Stage_LoadScenery(void);          /* 0x471af0 */
 /* where TEMP.OBJ's and TEMP.SHT's objects and scenery records start in the tables */
 extern int g_obj_first, g_obj_scenery, g_sht_first, g_sht_scenery;
+extern Obj *g_sky, *g_cloud, *g_cloud_top, *g_ground;
+/* Stage_LoadSkyGround 0x46f060: TEMP.SKY, the clouds for the stage's conditions (Clouds\Pc or PcLow),
+   TEMP.GRO, all under the world. */
+void Stage_LoadSkyGround(int cond0, int cond1, bool low);
+void Sky_Follow(const int32_t pos[3]);   /* 0x46f330 (for a position) */

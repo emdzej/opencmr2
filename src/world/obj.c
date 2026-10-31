@@ -1,6 +1,7 @@
 /* Scene objects (see obj.h). */
 #include "world/obj.h"
 #include "render/mesh.h"
+#include "world/section.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -96,9 +97,7 @@ bool Obj_Active(const Obj *o)
     return true;
 }
 
-/* Obj_UpdateSection 0x4b8690 (the section an object is in, from its world position): step 5. Only
-   objects placed in a stage section call it; a model's objects have none. */
-static void update_section(Obj *o) { (void)o; }
+#include "world/section.h"
 
 /* Only objects with a parent and a kind of 0-3 are updated: a root keeps its world matrix as given. A
    parent of type 0xfd takes the child's local matrix as its world, an inheriting child takes its
@@ -112,7 +111,7 @@ void Obj_UpdateTree(Obj *o)
             if ((p->type & 0xff) == 0xfd) o->world = o->local;
             else if (o->inherit) o->world = p->world;
             else Mat_Mul(&o->world, &o->local, &p->world);
-            if (o->section != -1 && (o->type & 0xff) != 0xfd) update_section(o);
+            if (o->section != -1 && (o->type & 0xff) != 0xfd) Obj_UpdateSection(o);
             for (Obj *a = o; a; a = a->parent) a->dirty = 1;
         }
         if (o->child) Obj_UpdateTree(o->child);
@@ -175,6 +174,18 @@ void Obj_Draw(Obj *o, uint32_t pass)
         Mesh_Draw(o->model, o->mesh, 0, 0, 0);
     }
     if ((bit & o->mask) && o->child) Obj_DrawList(o->child, pass);
+}
+
+/* Obj_SetPosition 0x4ac480: the local translation (and for kinds 1 and 2 the fields at +0x10), the
+   inherit flag off, the object and its ancestors dirty. */
+void Obj_SetPosition(Obj *o, const int32_t pos[3])
+{
+    if (!o) return;
+    o->local.m[12] = pos[0];
+    o->local.m[13] = pos[1];
+    o->local.m[14] = pos[2];
+    o->inherit = 0;
+    for (; o; o = o->parent) o->dirty = 1;
 }
 
 void View_Set(Obj *cam)

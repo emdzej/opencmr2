@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include "exe.h"
 #include "render/tex.h"
+#include "render/rstate.h"
 #include <string.h>
 
 Section g_sec[SEC_MAX];
@@ -345,4 +346,68 @@ void Billboard_DrawQueued(void)
         Mesh_Draw(sc->model, sc->mesh, 1, 0, 0);
     }
     nqueued = 0;
+}
+
+void Obj_UpdateSection(Obj *o)
+{
+    if (g_nsec < 2) return;
+    int i = o->section;
+    int32_t x = o->world.m[12], z = o->world.m[14];
+    o->near[0] = o->near[1] = o->near[2] = -1;
+    if (i < 0 || i >= g_nsec) i = 0;
+    const Section *s = &g_sec[i];
+    if (x < s->x - g_sec_half || s->x + g_sec_half < x || z < s->z - g_sec_half || s->z + g_sec_half < z) {
+        int32_t p[3] = {x, o->world.m[13], z};
+        i = Section_Find(p);
+    }
+    s = &g_sec[i];
+    int row = g_sec_row, k = 0;
+    bool left = false, right = false;
+    const int32_t edge = 0x48000;   /* 4.5 */
+    if (x - edge < s->x - g_sec_half) {
+        left = true;
+        o->near[0] = (int16_t)(i - 1);
+        k = 1;
+    } else if (s->x + g_sec_half < x + edge) {
+        right = true;
+        o->near[0] = (int16_t)(i + 1);
+        k = 1;
+    }
+    if (s->z + g_sec_half < z + edge) {
+        o->near[k] = (int16_t)(i - row);
+        if (left) o->near[k + 1] = (int16_t)(i - row - 1);
+        else if (right) o->near[k + 1] = (int16_t)(i - row + 1);
+    } else if (!(s->z - g_sec_half <= z - edge)) {
+        o->near[k] = (int16_t)(row + i);
+        if (left) o->near[k + 1] = (int16_t)(row - 1 + i);
+        else if (right) o->near[k + 1] = (int16_t)(row + 1 + i);
+    }
+    if (i == o->section || i < 0 || i >= g_nsec) return;
+    if (o->section >= 0 && o->section < g_nsec) {
+        Section *old = &g_sec[o->section];
+        Obj *prev = NULL, *c = old->objs;
+        while (c && c != o) prev = c, c = c->section_next;
+        if (c) {
+            if (prev) prev->section_next = c->section_next;
+            else old->objs = c->section_next;
+            c->section_next = NULL;
+            old->nobjs--;
+        }
+    }
+    Obj **tail = &g_sec[i].objs;
+    while (*tail) tail = &(*tail)->section_next;
+    *tail = o;
+    g_sec[i].nobjs++;
+    o->section = (int16_t)i;
+}
+
+void Section_DrawObjects(uint32_t pass)
+{
+    Render_ZEnable(0);
+    Render_ZWrite(0);
+    for (int k = 0; k < g_nvisible; k++)
+        for (Obj *o = g_sec[g_visible[k]].objs; o; o = o->section_next)
+            if (!o->culled) Obj_Draw(o, pass);
+    Render_ZEnable(1);
+    Render_ZWrite(1);
 }

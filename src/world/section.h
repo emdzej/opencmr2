@@ -70,3 +70,9 @@ void Section_DrawBillboards(const Obj *camera);
 /* 0x49cc50: the queued billboards far to near (qsort on the distance in their mesh, +0x114), blended
    within 200 units. */
 void Billboard_DrawQueued(void);
+/* Obj_UpdateSection 0x4b8690: the cell of the object's world position (searched again only when it
+   has left its cell), up to three neighbouring cells within 4.5 units of an edge, and the move between
+   the cells' lists. */
+void Obj_UpdateSection(Obj *o);
+/* Section_DrawObjects 0x49ce40: the listed cells' objects (those with +0x180 clear), z-buffer off. */
+void Section_DrawObjects(uint32_t pass);
