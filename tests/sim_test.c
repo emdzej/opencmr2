@@ -9,6 +9,7 @@
 #include "sim/car.h"
 #include "sim/step.h"
 #include "sim/road_follow.h"
+#include "sim/progress.h"
 #include "vfs.h"
 #include "vfs_host.h"
 #include "world/obj.h"
@@ -55,6 +56,8 @@ int main(void)
     /* placed and settled on fra02's start line */
     char path[64] = "Game\\Tracks\\France\\fra02hi.bfl";
     if (Stage_Mount(path, "Game\\Tracks\\France\\frahit.bfl") && Stage_LoadHpc("fra02") && Stage_LoadCsp("fra02")) {
+        CHECK(Stage_LoadCat("fra02") && Cat_Points() == 492 && !Cat_Circuit());
+        printf("fra02.cat: %d points, finish at %d\n", Cat_Points(), Cat_FinishPoint());
         int32_t sp[3];
         uint16_t ang[3];
         Csp_StartPos(0, sp);
@@ -87,12 +90,14 @@ int main(void)
             c->s[0x1d2] = 63;
             Sim_StepCars(list, 1);
             Sim_CarsPost(list, 1);
+            Car_Progress(c);
             if (k % 25 == 24)
                 printf("  step %d: gear %d, revs %.3f, speed %.3f, position (%.2f, %.2f, %.2f)\n", k + 1, CI8(c, 0xb1e),
                        CI32(c, 0x7a4) / 65536.0, CI32(c, 0x778) / 65536.0, CI32(c, 0x2d0) / 65536.0, CI32(c, 0x2d4) / 65536.0,
                        CI32(c, 0x2d8) / 65536.0);
         }
         int32_t dx = CI32(c, 0x2d0) - x0, dz = CI32(c, 0x2d8) - z0;
+        printf("progress: %d points passed, %.1f%% of the stage\n", Car_PointsPassed(c), Car_StageShare(c) * 100.0 / 65536);
         CHECK(CI32(c, 0x778) > 0x1000 && (int64_t)dx * dx + (int64_t)dz * dz > (int64_t)0x40000 * 0x40000);
     }
     printf("sim_test: %s\n", fails ? "FAILED" : "ok");

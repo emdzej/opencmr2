@@ -159,6 +159,31 @@ Time-of-day records of 80 bytes, 48 per stage (12 times x 4 weather sets, see
 | +0x38-+0x3a | the high light colour (255, 255, 245) |
 | +0x48-+0x4d | six bytes, blended; the two records' average becomes the fog colours |
 
+## .cat
+
+The stage's centre line, read by `Stage_LoadCat` 0x420630: records of 0x2c bytes (fra02: 492).
+
+| Offset | Field |
+|---|---|
+| +0x00, +0x08 | x and z of the point (16.16; y is not used) |
+| +0x0c | a direction (fra02's first: (1.0, 0, 0)) |
+| +0x18 | flags; bit 0 on the finish point. The last flagged point + 1 is the finish (fra02: 484) |
+
+A stage whose first and finish points are within 50 units of each other is a circuit, and its length is
+the laps (bits 16-19 of the stage selection word) times the finish point.
+
+A car's progress (`Car_Progress` 0x420a30, a record of 0x18 bytes per car at 0x538aa8) steps to the next
+point once that point is behind the car along the line's tangent, or back to the previous one when that
+one is ahead. The tangent is the sum of the unit directions from the previous point and to the next. The
+points passed count towards the finish (`Car_StageShare` 0x421470). A human's car also searches 25
+points a step for the nearest one, and re-syncs to it every 26 steps.
+
+## fin.dat
+
+2,213 records of 0x30 bytes in fra02: wall segments along the stage's edges (two corners at y -1000 and
+1000, a normal), filed into the section grid by `Section_Init`. They hold the car on the stage; not
+ported yet.
+
 ## Surfaces
 
 The surface physics are named in the exe (pointer table at 0x519198 used by 0x41b460): `TARMAC`, `LOOSE`,

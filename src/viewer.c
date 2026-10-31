@@ -27,6 +27,8 @@
 #include "world/hpc.h"
 #include "sim/car.h"
 #include "sim/drive.h"
+#include "sim/progress.h"
+#include "game/mem.h"
 #include "vfs.h"
 #include <math.h>
 #include <stdio.h>
@@ -56,6 +58,7 @@ static struct {
     uint8_t *pfile;
     BflSlot ptex;
     Obj *parked, *cars[2];
+    int steps;                  /* the stage time, in 40 ms steps */
     bool autodrive;             /* --param drive=auto: full throttle (for headless checks) */
     float centre[MAX_MESH][3];   /* stage: each mesh's vertex centre, the fly-through's path */
 } V;
@@ -176,6 +179,8 @@ static bool park_car(const char *car, const char *stage)
     C3d_Build(&V.pm);
     V.parked = C3d_Objects(&V.pm, &g_world);
     if (!V.parked || !Stage_LoadHpc(stage) || !Stage_LoadCsp(stage)) return false;
+    Stage_LoadCat(stage);
+    gw32(0x52f2ac, gm32(0x52f2ac) | 1u << 14);   /* one human player (the race set-up's job) */
     CarSlot *s = Car_Slot(0);
     s->main = V.parked;
     s->second = Obj_FindType(V.parked, 5);
@@ -391,9 +396,12 @@ void viewer_frame(void)
             Drive_ReadInput(&held, &pressed);
             if (V.autodrive) held |= ACT_THROTTLE;
             for (int k = Drive_StepsDue((uint32_t)V.frame, 60.0); k > 0; k--) {
+                bool done = Car_StageShare(c) >= 0x10000;
+                if (done) held = ACT_BRAKE;   /* past the finish: the car brakes to a stop */
                 Car_RaceControls(c, held, pressed);
                 pressed = 0;
                 Drive_Step(list, 1);
+                if (!done) V.steps++;
             }
             Car_PoseSimple(c);
             float cx = CI32(c, 0x2d0) / 65536.0f, cy = CI32(c, 0x2d4) / 65536.0f, cz = CI32(c, 0x2d8) / 65536.0f;
@@ -402,8 +410,11 @@ void viewer_frame(void)
             fx /= fl, fz /= fl;
             look_at(cx - 7 * fx, cy + 2.5f, cz - 7 * fz, cx + 3 * fx, cy + 0.8f, cz + 3 * fz, &view);
             D3d_SetTransform(D3DTS_VIEW, &view);
-            snprintf(V.title, sizeof V.title, "%s  gear %d  %3.0f km/h", V.name, CI8(c, 0xb1e),
-                     CI32(c, 0x778) / 65536.0 * 25.0 * 3.6);
+            /* the stage time in 40 ms steps, the share of the stage done (the HUD is not ported) */
+            int cs = V.steps * 4;
+            snprintf(V.title, sizeof V.title, "%s  %d:%02d.%02d  %3d%%  gear %d  %3.0f km/h%s", V.name, cs / 6000,
+                     cs / 100 % 60, cs % 100, Car_StageShare(c) * 100 / 0x10000, CI8(c, 0xb1e),
+                     CI32(c, 0x778) / 65536.0 * 25.0 * 3.6, Car_StageShare(c) >= 0x10000 ? "  FINISH" : "");
         }
         D3DMATRIX inv;
         invert_rigid(&view, &inv);

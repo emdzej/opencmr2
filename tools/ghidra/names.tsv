@@ -331,3 +331,12 @@
 0047b640	Car_StartLineControls	race	med	The start line: handbrake held, revs blipped by rand(), automatic box off
 0047b000	Car_RaceControls	race	med	The race state's controls reader, automatic box on
 0049ead0	Input_Record	input	med	A player's input record (device, held and pressed action bits, axes)
+00420630	Stage_LoadCat	track	high	Loads <stage>.cat: the centre line, its finish point and circuit flag
+004201d0	Cat_Tangent	track	high	The centre line's unit direction at a point (cached for three points)
+00420a30	Car_Progress	race	high	A car's progress along the centre line
+004209f0	Cars_Progress	race	high	Car_Progress for every car (in Race_Update)
+00421230	Car_SegmentFrac	race	high	The share of the current centre-line segment covered
+00420850	Car_ProgressStart	race	high	A car's progress started at the nearest point (circuits)
+00421470	Car_StageShare	race	high	The share of the stage done, 1.0 at the finish
+00421530	Cat_Point	track	high	A centre-line point's x and z
+00406990	Gs_Laps	game	high	The laps, bits 16-19 of the stage selection word

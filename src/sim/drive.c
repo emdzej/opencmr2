@@ -4,6 +4,7 @@
 #include "game/gstate.h"
 #include "sim/road_follow.h"
 #include "sim/step.h"
+#include "sim/progress.h"
 #include <string.h>
 
 void Drive_ReadInput(uint32_t *held, uint32_t *pressed)
@@ -72,6 +73,7 @@ void Drive_Step(const int16_t *list, int n)
 {
     Sim_StepCars(list, n);
     Sim_CarsPost(list, n);
+    for (int i = n - 1; i >= 0; i--) Car_Progress(Car_Get(list[i]));   /* 0x4209f0 in Race_Update */
 }
 
 void Car_PoseSimple(Car *c)

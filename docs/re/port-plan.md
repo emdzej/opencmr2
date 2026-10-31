@@ -173,7 +173,8 @@ with them. Next:
   (`--param stage=fra02 --param car=205a1N`; arrows, space, A/Z; `--param drive=auto` holds the
   throttle), 25 steps a second from the frame count. The controls come from the digital path of
   0x47b0e0, with a stand-in for the key bindings (the front end's options). The pose is a stand-in for
-  Car_PoseInterp. Pending and logged:
+  Car_PoseInterp. The stage's centre line (`.cat`) and each car's progress along it are ported
+  (`src/sim/progress.c`), so the viewer times a run from the start to the finish. Pending and logged:
   - the free body 0x42eae0 (a loose car), 0x432c20, the recovery 0x4283e0, damage 0x46b4e0;
 
   - the rest of Sim_Step (0x43f630 for the second car list, 0x425950, 0x426fc0, 0x444c10 and
