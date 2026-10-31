@@ -299,4 +299,4 @@
 00437d70	Car_EngineTorqueReaction	sim	med	With no wheel down, the engine's speed change turns the body (+0x5d8)
 00435470	Car_Integrate	sim	high	Sums the corner and wheel forces, steps velocity and spin, moves and turns the body
 00436630	Car_BodyContacts	sim	low	Body corner contact forces (+0x5e8, +0x648)
-004373c0	Car_WheelForces	sim	low	Wheel forces into +0x648
+004373c0	Car_Tilt	sim	high	The push past 30 degrees of tilt and the slide that breaks a car loose

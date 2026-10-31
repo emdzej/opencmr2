@@ -4,6 +4,7 @@
    1.0), and the position and the rows moved by v dt - dv dt / 2. The angle step is converted to
    4,096 units through a double, 4096 / (2 pi 65536) at 0x511380, rounded to nearest (FISTP). */
 #include "sim/integrate.h"
+#include "sim/tilt.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -42,7 +43,7 @@ static int16_t to_units(int32_t v) { return (int16_t)(int64_t)llrint((double)v *
 void Car_Integrate(Car *c)
 {
     PENDING_NOTE(0x436630, "Car_BodyContacts");
-    PENDING_NOTE(0x4373c0, "Car_WheelForces");
+    Car_Tilt(c);
     if (!CI8(c, 0xb28) && CI32(c, 0xb74))   /* 0x437d70 */
         CW32(c, 0x5d8, CI32(c, 0x5d8) - fx_mul(CI32(c, 0x7a4) - CI32(c, 0x7a8), 0x1999));
     int32_t t[3] = {0, 0, 0}, f[3];
