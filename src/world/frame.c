@@ -9,6 +9,7 @@
 #include "render/twod.h"
 #include "render/view.h"
 #include "world/section.h"
+#include "world/relight.h"
 #include "world/stage.h"
 #include "world/tre.h"
 #include <stdlib.h>
@@ -94,8 +95,7 @@ static void flush_layer(int layer)
     Sprite_Flush(layer);
 }
 
-/* Not ported yet, in the order they are called: the cells' vertex relighting (FUN_004b3c00, per listed
-   cell), FUN_004b0480 (camera, pass), the cars' pass FUN_004af120 (camera,
+/* Not ported yet, in the order they are called: FUN_004b0480 (camera, pass), the cars' pass FUN_004af120 (camera,
    pass), the shared-array draw Render_DrawIndexed 0x4b1530, FUN_004b6240 (pass), FUN_004bc490 (0, 0, 0)
    over the 3D, and the frame statistics FUN_004b21e0 after the 2D. The 3D line queue (FUN_004bb4c0) is a
    debugging aid nothing fills in the release. */
@@ -113,6 +113,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
         if (g_sec_ready) {
             identity_world();
             Section_BuildVisible(cam);
+            for (int k = 0; k < g_nvisible; k++) Section_Relight(g_visible[k]);
         }
         Render_SetCull(Render_DefaultCull());
         Billboard_SetCamera(cam);

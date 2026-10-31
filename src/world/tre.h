@@ -12,7 +12,7 @@ extern int16_t g_tre_node[SEC_MAX];     /* 0x6e0204: a cell's node, -1 none */
 extern C3d g_tre;                       /* the port: the file as a model (vertex and polygon bases 0) */
 extern int g_tre_nodes, g_tre_items, g_tre_matched;
 extern const uint8_t *g_tre_xhi;   /* DAT_006dfe10: the .xhi, kept for the relighting */
-extern bool g_tre_lit;
+extern bool g_tre_have;   /* DAT_006dfd98 != 0: the shadow tables exist */
 
 /* Tre_Load 0x4b5620: the parse of data (NULL: no shadows, as at low scenery detail), the .xhi kept
    (0x6dfe10, not used yet). Needs the sections and the scenery. */

@@ -184,6 +184,67 @@ type 0x14, whichever side it is on. Within one unit, type 5 goes after type 0. T
 The two line queues (2D 0x4bb2b0, 3D 0x4bb4c0, filled by 0x4bb430) are debugging aids. Nothing fills
 them in the release.
 
+## Time of day
+
+The stage selection word (0x52f2ac) holds the rally in bits 0-4, in the order of the exe's prefix table
+at 0x51931c (FIN, GRE, FRA, SWE, AUS, KEN, ITA, UK, JAP), and the 0-based stage in bits 5-9. The stage
+id is `<prefix><stage + 1>`. Two modes (bits 24 and 26) take the time and weather from other tables
+instead.
+
+- **Start and end time** (0x407650, 0x407710): the two bytes at 0x516188 + (stage + rally x 12) x 2,
+  times 100 (fra02: 12:00 and 13:00). Rally 8, stage 12 in a rally is always 20:00.
+- **Weather** (0x407520): two conditions per stage index at 0x52f100, start and end. The exe holds
+  zeros, and the game fills them before a rally.
+- **Horizon records** (`Stage_LoadHorizons` 0x41fd30): 48 files of 80 bytes in the stage archive. The
+  names are the strings at 0x5196dc going down in steps of 12. There are 12 times (0x51b034: 5:00 to
+  24:00) in four sets: plain, `CLO`, `STO`, `BLI`.
+- **The record for a time** (0x461830):
+  - find the first listed time not before it; a time before 5:00 blends from 24:00, and minutes of 60
+    or more give no record;
+  - the weather condition picks two sets (0x51b0dc) and their mix (0x51b0f0);
+  - blend each set's records at the times before and after (`Hor_Blend` 0x461710), then blend the two
+    results by the minutes elapsed.
+- **The blend:** the seven i32 at +0x00 go linearly in 16.16. The bytes +0x1c-+0x47 and +0x48-+0x4d
+  use `b + (a - b) t`, keep the whole part and cap it at 255.
+- **What the race uses:** 0x460da0 keeps the start record's +0x30-+0x32 as the low light colour and
+  +0x38-+0x3a as the high one (without records: 200 and 255). The race start (0x45eca0) sets both.
+  fra02 at 12:00: low (106, 131, 164), high (255, 255, 245).
+
+The per-frame blend towards the end record (0x461c30, by the stage's progress) and the rest of the
+record (fog, sky colours) are not ported yet.
+
+## Stage lights
+
+There are two colours:
+- the low colour (`Light_SetLow` 0x4b3740), which is also the device ambient;
+- the high colour (`Light_SetHigh` 0x4b3f90).
+
+They make two ramps of 50 entries (0x4b3940), built when a colour has changed:
+- **The terrain ramp:** the low colour plus the difference times i x 0x539. Each channel's whole part
+  is clamped to 0-255 and the entry is opaque. The last step is just short of the high colour.
+- **The shadow ramp:** the shadow colour, with an alpha of the shadow alpha times the step.
+
+The shadow colour and alpha come from 0x4b4910:
+- **Alpha:** the summed channel differences times 0x55, capped at 1.0, then times 255.
+- **Colour, outside rally 3 (Sweden):** the alpha is doubled (capped at 255) and the colour is a sixth
+  of the low colour.
+- **Colour, in Sweden:** each low channel's excess over the smallest one.
+
+A vertex's 16.16 intensity in its mesh's +0x34 array picks an entry (`* 49 >> 16`).
+
+`Section_Relight` 0x4b3c00 runs for every listed cell each frame. A cell whose cached low and high
+colours differ from the current ones gets the following, and its buffers are uploaded again (0x4b2020):
+- the terrain mesh's vertices from the terrain ramp;
+- each scenery mesh: one colour from the record's +0x9c (0x4b2090), or per vertex when mesh flag 0x80
+  is set. A mesh shared by several records takes the last one's colour;
+- the tree shadows from the shadow ramp. With 0x5210c0 set (the exe's value), each tree's vertices are
+  scaled by its factor.
+
+The race start moves every cell's cached red 10 away, so the first pass relights them all (0x4b3f20).
+Not ported yet:
+- the fade of shadows near a car's lights (0x4b6ca0);
+- the shadows of sorted objects (0x4b50b0).
+
 ## Loading a stage
 
 `Stage_Load` 0x41f930 (the start-up of the game fills the math tables first, 0x4d08d0), in order:
@@ -210,8 +271,8 @@ ported, and so are the grid, the lookup, the corners, the visible list and the t
 too (`Stage_LoadScenery`, `Section_DrawBillboards`, `Billboard_DrawQueued`). So are the sky and ground
 (`Stage_LoadSkyGround`, `Sky_Follow`, `Obj_UpdateSection`, `Section_DrawObjects`). So is `World_Render`
 (`src/world/frame.c`), with the sorted pass and the triangle queues (`src/render/polyq.c`). `.tre` is parsed into its shadow
-meshes (`src/world/tre.c`). They are not drawn yet, because their colours come from the relighting,
-which needs the stage's light colours from the time-of-day code. The calls
+meshes (`src/world/tre.c`). The time of day and the horizons are in `src/world/tod.c`, and the lights
+and relighting in `src/world/relight.c`. The stage viewer lights a stage at its start time. The calls
 not ported yet are left out in order, and they are listed there. Still to come: the
 stage height offsets for the sky, the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
 under a turning stand and takes the view from a camera object, so a car on screen goes through these

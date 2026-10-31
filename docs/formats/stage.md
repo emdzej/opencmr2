@@ -128,6 +128,20 @@ writes off, between the terrain and the cars. Before that it steps a time-driven
 0x81680c grows by 0.004 per centisecond; 0x816810 swings between two bounds at a rate that depends on
 where it is). Nothing in the release reads either value.
 
+## .hor
+
+Time-of-day records of 80 bytes, 48 per stage (12 times x 4 weather sets, see
+[world.md](../re/world.md#time-of-day)). Known fields:
+
+| Offset | Field |
+|---|---|
+| +0x00 | 7 x i32 (16.16, blended linearly) |
+| +0x1c-+0x47 | colour bytes, blended as bytes |
+| +0x2f | changed by the weather (0x461a70) |
+| +0x30-+0x32 | the low light colour, R, G, B (fra02 12:00: 106, 131, 164) |
+| +0x38-+0x3a | the high light colour (255, 255, 245) |
+| +0x48-+0x4d | six bytes, blended; the two records' average becomes the fog colours |
+
 ## Surfaces
 
 The surface physics are named in the exe (pointer table at 0x519198 used by 0x41b460): `TARMAC`, `LOOSE`,

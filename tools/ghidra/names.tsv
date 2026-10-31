@@ -217,11 +217,11 @@
 004bb2b0	Line2d_Flush	render	med	Draws a 2D debug line layer (nothing fills it in the release)
 004bb430	Line3d_Add	render	med	Queues a 3D debug line
 004bb4c0	Line3d_Flush	render	med	Draws the 3D debug lines
-004b3c00	Section_Relight	world	low	Redoes a cell's vertex colours when the light colours change
+004b3c00	Section_Relight	world	high	Redoes a cell's vertex colours when the light colours change
 004b8540	Section_Free	world	med	Frees the sections, clears 0x72d56c
 004b5620	Tre_Load	render	high	Allocates the relighting state and parses .tre (tree shadows)
-004b3740	Light_SetAmbient	world	med	Sets the stage's low light colour (the ramp's start) and the shadow colour
-004b3f90	Light_SetSun	world	med	Sets the stage's high light colour (the ramp's end) and the shadow colour
+004b3740	Light_SetLow	world	med	Sets the stage's low light colour (the ramp's start) and the shadow colour
+004b3f90	Light_SetHigh	world	med	Sets the stage's high light colour (the ramp's end) and the shadow colour
 004b4910	Light_ShadowColour	world	med	Shadow colour and alpha from the two light colours
 004b3940	Light_BuildRamps	world	med	The 50-entry terrain and shadow colour ramps
 004b3ba0	Light_ShadowRamp	world	med	A shadow ramp colour for a 16.16 intensity
@@ -230,3 +230,18 @@
 004b2090	Mesh_SetColour	render	med	Sets every vertex colour of a mesh and uploads it
 004b6ca0	Tre_LightFade	world	low	Lowers the shadows of trees near a light source
 004bcc60	Overlay_Step	world	low	Steps two time-driven values nothing reads
+00461830	Hor_ForTime	world	high	The horizon record for a time and weather, blended from the 48 .hor files
+00461710	Hor_Blend	world	high	Blends two horizon records by a 16.16 factor
+004616c0	Hor_LerpByte	world	high	b + (a - b) t for a colour byte, capped at 255
+00460da0	Hor_Apply	world	med	Copies the start and end horizon records into the sky and light state
+0045eca0	Race_StartLights	world	med	Race-start sky and light set-up from the horizon state
+00407650	Tod_StartTime	world	high	The stage's start time (hhmm)
+00407710	Tod_EndTime	world	high	The stage's end time (hhmm)
+00407520	Tod_Weather	world	high	The stage's two weather conditions
+00406910	Tod_Rally	world	high	Rally index from the stage selection word
+00406930	Tod_Stage	world	high	Stage index from the stage selection word
+004918d0	Light_Defaults	world	med	White low and high light colours and the sun object
+00462cb0	Light_SetLowIfChanged	world	med	Sets the low light colour when it differs
+00492e30	Light_SetHighFor	world	med	Sets the high light colour (Sweden's shadow choice)
+004b3840	Light_GetLow	world	high	Returns the low light colour
+004b3f20	Light_RelightAll	world	high	Forces every cell to be relit

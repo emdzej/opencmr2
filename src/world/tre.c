@@ -3,6 +3,7 @@
 #include "render/d3d7.h"
 #include "render/mesh.h"
 #include "render/rstate.h"
+#include "world/relight.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,7 +12,7 @@ uint8_t *g_tre_mesh[SEC_MAX];
 int16_t g_tre_node[SEC_MAX];
 C3d g_tre;
 int g_tre_nodes, g_tre_items, g_tre_matched;
-static bool have;                 /* DAT_006dfd98 != 0 */
+bool g_tre_have;                  /* DAT_006dfd98 != 0 */
 const uint8_t *g_tre_xhi;         /* DAT_006dfe10 */
 static Scenery **item_scenery;    /* item +0x2c (a pointer in the original) */
 
@@ -29,13 +30,15 @@ void Tre_Free(void)
     }
     free(item_scenery);
     item_scenery = NULL;
-    have = false;
+    Relight_Free();
+    g_tre_have = false;
     g_tre_nodes = g_tre_items = g_tre_matched = 0;
 }
 
 void Tre_Load(uint8_t *data, uint32_t size, const uint8_t *xhi)
 {
     Tre_Free();
+    Relight_Alloc();
     if (data) Tre_Parse(data, size);
     if (xhi) g_tre_xhi = xhi;
 }
@@ -119,7 +122,7 @@ bool Tre_Parse(uint8_t *d, uint32_t size)
     }
     /* a shadow mesh for every node with a cell. Its flags are 0x402d plus the bits 0xffffe02d keeps of a
        stack value the original leaves there: the node loop's last offset, the node count times 0x14. */
-    have = true;
+    g_tre_have = true;
     uint32_t flags = ((n * 0x14) & 0xffffe02du) | 0x402du;
     for (uint32_t i = 0; i < n; i++) {
         uint8_t *nd = d + nodes + i * 0x14, *b = d + rd32(nd + 0x10);
@@ -144,18 +147,13 @@ bool Tre_Parse(uint8_t *d, uint32_t size)
     return true;
 }
 
-bool g_tre_lit;   /* the port: set once the cells' relighting runs (Section_Relight 0x4b3c00) */
-
 /* The original first steps a time-driven value (FUN_004bcc60, from the centisecond clock) that nothing
    in the release reads; the port leaves it out. */
 void Stage_DrawOverlay(void)
 {
     D3DMATRIX id = {{{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};   /* 0x5207b8 */
     D3d_SetTransform(D3DTS_WORLD, &id);
-    /* The file's shadow colours are white; the original always relights a cell (Section_Relight, from
-       the stage's light colours) before its shadows are drawn. Until that is ported, they are not
-       drawn. */
-    if (!have || !g_tre_lit) return;
+    if (!g_tre_have) return;
     Render_ZWrite(0);
     for (int k = 0; k < g_nvisible; k++) {
         uint8_t *me = g_tre_mesh[g_visible[k]];

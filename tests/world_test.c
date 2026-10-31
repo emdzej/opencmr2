@@ -13,6 +13,8 @@
 #include "world/frame.h"
 #include "world/stage.h"
 #include "world/tre.h"
+#include "world/tod.h"
+#include "world/relight.h"
 #include <stdio.h>
 
 static int fails;
@@ -35,6 +37,20 @@ int main(void)
     CHECK(g_sky && g_ground && g_cloud && g_cloud_top && g_cloud_top->mask == 0 && g_sky->sorted == 0);
     Section_Init(&g_world);
     Stage_LoadTre("fra02", true);
+    /* fra02 runs from 12:00 to 13:00 in clear weather: the 12:00 record as it is */
+    CHECK(Tod_Select("fra02") && Tod_Rally() == 2 && Tod_Stage() == 1);
+    CHECK(Tod_StartTime() == 1200 && Tod_EndTime() == 1300);
+    Stage_LoadHorizons();
+    Hor_Apply();
+    CHECK(g_hor_start && g_hor_end);
+    printf("fra02 lights: low %d %d %d, high %d %d %d, shadow %06x alpha %d\n", g_hor_low[0] >> 16, g_hor_low[1] >> 16,
+           g_hor_low[2] >> 16, g_hor_high[0] >> 16, g_hor_high[1] >> 16, g_hor_high[2] >> 16, g_shadow_rgb & 0xffffff, g_shadow_alpha >> 16);
+    CHECK(g_hor_low[0] == 106 << 16 && g_hor_high[2] == 245 << 16);
+    Tod_StartLights();
+    printf("ramps: %08x .. %08x, shadow %08x .. %08x\n", Light_TerrainRamp(0), Light_TerrainRamp(0x10000),
+           Light_ShadowRamp(0), Light_ShadowRamp(0x10000));
+    /* the ramp's last step is 49 x 0x539, just short of 1.0 */
+    CHECK(Light_TerrainRamp(0) == 0xff6a83a4u && Light_TerrainRamp(0x10000) == 0xfffefef4u);
     printf("fra02.tre: %d nodes, %d items, %d matched to scenery\n", g_tre_nodes, g_tre_items, g_tre_matched);
     CHECK(g_tre_nodes == 121 && g_tre_items == 1572 && g_tre_matched == 1572);
     int placed = 0;

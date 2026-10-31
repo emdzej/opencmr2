@@ -136,10 +136,10 @@ Movies are skipped at this point (the original lets a key skip them): the Bink d
 and the stage mesh with its section grid, visible cells and terrain draw (`Stage_LoadC3d`,
 `Section_Init`, `Section_BuildVisible`, `Stage_DrawTerrain`). Both viewers run on these. Next: the
 rest of `Stage_Load` 0x41f930 (horizons, BSP, `.hpc`, `.srf`, `fin.dat`, `.csp`, `.cat`, `.tsc`,
-`.tre`), the passes `World_Render` still leaves out (the per-cell relighting with the stage light colours,
-which the tree shadows from `.tre` wait for, the cars,
+`.tre`), the passes `World_Render` still leaves out (the cars,
 the indexed effects) and the time-step texture animation. `World_Render` itself, its sorted object
-pass and the triangle queues are done, and the stage viewer draws through it. The scenery (`TEMP.OBJ`,
+pass, the triangle queues, the tree shadows, the time of day with its horizon records and the stage
+lights with the cells' relighting are done, and the stage viewer draws through it. The scenery (`TEMP.OBJ`,
 `TEMP.SHT`) with its billboards, and the sky, clouds and ground, are done.
 
 

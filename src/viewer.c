@@ -23,6 +23,7 @@
 #include "world/section.h"
 #include "world/frame.h"
 #include "world/stage.h"
+#include "world/tod.h"
 #include "vfs.h"
 #include <math.h>
 #include <stdio.h>
@@ -157,7 +158,8 @@ bool viewer_init(const char *car, const char *stage)
             plat_log("viewer: no such stage");
             return false;
         }
-        if (!Stage_Mount(path, tex) || !Stage_LoadC3d() || (Stage_LoadScenery(), false)) {
+        if (!Stage_Mount(path, tex) || (Tod_Select(stage), Stage_LoadHorizons(), !Stage_LoadC3d()) ||
+            (Stage_LoadScenery(), false)) {
             plat_log("viewer: no such stage");
             return false;
         }
@@ -183,6 +185,8 @@ bool viewer_init(const char *car, const char *stage)
     } else {
         Section_Init(&g_world);
         Stage_LoadTre(stage, true);
+        Hor_Apply();         /* 0x460da0, later in Stage_Load */
+        Tod_StartLights();   /* the race start, 0x45eca0 */
     }
     build_meshes();
     if (!V.stage) {

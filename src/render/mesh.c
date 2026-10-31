@@ -48,6 +48,26 @@ void VB_FreePool(void)
 
 /* Into the first buffer with room (fill + count below 2,000); none: the message only, the part keeps
    its buffer fields. */
+/* 0x4b2020: the part's vertices copied into its buffer again (lock flags 0x821) */
+void Mesh_UploadVerts(const C3d *m, uint8_t *part)
+{
+    uint32_t b = rd32(part + 0x14), n = rd32(part + 0x10);
+    const uint8_t *v = C3d_Ref(m, part + 0x0c, m->verts);
+    if (b >= VB_POOL || !g_vb[b] || !v) return;
+    uint8_t *dst = D3dVB_Lock(g_vb[b]);
+    memcpy(dst + (size_t)rd32(part + 0x18) * C3D_VERTEX, v, (size_t)n * C3D_VERTEX);
+    D3dVB_Unlock(g_vb[b]);
+}
+
+/* 0x4b2090: every vertex's colour (+0x18), then the upload */
+void Mesh_SetColour(const C3d *m, uint8_t *part, uint32_t argb)
+{
+    uint8_t *v = (uint8_t *)C3d_Ref(m, part + 0x0c, m->verts);
+    uint32_t n = rd32(part + 0x10);
+    for (uint32_t k = 0; v && k < n; k++) wr32(v + (size_t)k * C3D_VERTEX + 0x18, argb);
+    Mesh_UploadVerts(m, part);
+}
+
 void Mesh_AddToVB(const C3d *m, uint8_t *part)
 {
     uint32_t n = rd32(part + 0x10);
