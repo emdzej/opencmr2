@@ -162,10 +162,11 @@ with them. Next:
   passes in order. The small ones are ported, and so is the controls pass 0x493520 (`src/sim/controls.c`:
   throttle, brake, handbrake, both gearboxes, digital and analog steering) and the integration
   0x435470 (`src/sim/integrate.c`, from the disassembly: the decompiler drops its position and angle
-  steps). Nine large ones, plus the integration's two force passes 0x436630 and 0x4373c0, are pending
-  and logged. Without them a stepped car falls under gravity:
+  steps). Also ported, from the disassembly: the tilt pass 0x4373c0, the steering body model 0x436630,
+  the suspension 0x43b100, the wheels' heading 0x434140 and the ground contact 0x4348c0. A placed car
+  now rests on the road (sim_test: 100 steps parked). Pending and logged:
   - grip 0x4781d0, damage 0x46b4e0, aero 0x434f50;
-  - suspension 0x43b100, drive 0x4348c0, tyres 0x434140, collisions 0x437dc0;
+  - collisions 0x437dc0;
   - engine 0x438460, gearbox 0x4380c0.
 - the surface grip 0x4781d0;
 - `Car_PoseInterp` 0x42bf70, which sets the models from the pose buffers; the viewer stands in for it

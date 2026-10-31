@@ -69,13 +69,13 @@ int main(void)
         printf("step: %d passes pending, gravity %.1f, wheels on the ground %d\n", g_pending_passes,
                CI32(c, 0x6ac) / 65536.0, c->s[0xb28]);
         CHECK(CI32(c, 0x2e8) != 0 && CI32(c, 0x6ac) < 0);
-        /* without the wheel and contact forces (pending) the integration lets the car fall: gravity
-           0.3 x 0.2 per step on the velocity */
+        /* parked: the ground holds it (Car_GroundContact), over four seconds of steps */
         int32_t y0 = CI32(c, 0x2d4);
-        for (int k = 0; k < 4; k++) Sim_StepCars(list, 1);
-        printf("after 5 steps: y %.4f (from %.4f), vy %.4f, speed %.4f\n", CI32(c, 0x2d4) / 65536.0, y0 / 65536.0,
-               CI32(c, 0x40c) / 65536.0, CI32(c, 0x778) / 65536.0);
-        CHECK(CI32(c, 0x40c) < 0 && CI32(c, 0x2d4) < y0);
+        for (int k = 0; k < 100; k++) Sim_StepCars(list, 1);
+        int32_t dy = CI32(c, 0x2d4) - y0;
+        printf("after 101 steps parked: y %.4f (from %.4f), speed %.4f, on the ground %d\n", CI32(c, 0x2d4) / 65536.0,
+               y0 / 65536.0, CI32(c, 0x778) / 65536.0, c->s[0xb28]);
+        CHECK((dy < 0 ? -dy : dy) < 0x0800 && CI32(c, 0x778) < 0x0800);
     }
     printf("sim_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
