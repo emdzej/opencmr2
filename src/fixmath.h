@@ -29,3 +29,11 @@ void Mat_Inverse(FxMat *out, const FxMat *m);                      /* 0x4ba440 *
 uint32_t Fx_Sqrt(uint32_t x);   /* the inline table square root: sqrt of a 16.16 value, in 16.16 */
 /* 0x4ba3b0: v (in place, and out) turned by m about the point c (only its x and y are used). */
 void Vec_RotateAbout(FxVec *out, FxVec *v, const FxVec *c, const FxMat *m);
+/* The game's inline normalisation: v times 2^32 / (table square root of v.v), zero for a zero length. */
+static inline void Vec_Unit(int32_t v[3])
+{
+    uint32_t l = Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2]));
+    if (!l) { v[0] = v[1] = v[2] = 0; return; }
+    int32_t r = (int32_t)(0x100000000LL / (int32_t)l);
+    for (int i = 0; i < 3; i++) v[i] = fx_mul(v[i], r);
+}

@@ -155,9 +155,14 @@ headless screenshots, reproducible.
 ## 6. Vehicle simulation (about 116 KB, the core of the game; started)
 
 **So far:** the game-state image ([architecture](architecture.md#game-state)), the car state block
-and `Car_Init` 0x43c7f0 with its set-up helpers (`src/sim/car.c`). Next: 0x43e680 (the car settled on
-the ground: 0x4930e0, the wheel ground queries 0x4932b0, 0x42de20, the damage records), then
-`Sim_Step` 0x42baf0.
+and `Car_Init` 0x43c7f0 with its set-up helpers, `Car_Place` 0x457e50 and `Car_Settle` 0x43e680 (the
+corners' ground heights, the ground normal, the contacts) in `src/sim/car.c`. The viewer parks a car
+with them. Next:
+- `Sim_Step` 0x42baf0 and its car part 0x433890;
+- the surface grip 0x4781d0;
+- `Car_PoseInterp` 0x42bf70, which sets the models from the pose buffers; the viewer stands in for it
+  until then;
+- the damage set-up.
 
 
 0x428000-0x445000 plus the surface tables and the stage collision data (`.hpc`, `.tre`, `fin.dat` as they

@@ -50,6 +50,19 @@ int main(void)
     CHECK(wheels == 4 && CI32(c, 0xa98) == 0x41c80000);
     CHECK(CI32(c, 0x75c) == 0x3e80000 + 0x780000 && CI32(c, 0x204) == 0x426e9 / 2);
     CHECK(CI32(c, 0x2d0) == pos[0] && CI8(c, 0xb1b) == 0 && CI32(c, 0xb48) == 2);
+    /* placed and settled on fra02's start line */
+    char path[64] = "Game\\Tracks\\France\\fra02hi.bfl";
+    if (Stage_Mount(path, "Game\\Tracks\\France\\frahit.bfl") && Stage_LoadHpc("fra02") && Stage_LoadCsp("fra02")) {
+        int32_t sp[3];
+        uint16_t ang[3];
+        Csp_StartPos(0, sp);
+        Csp_Angles(ang);
+        Car_Place(root, s->second, 0, 0, ang, sp);
+        printf("settled: position (%.3f, %.3f, %.3f), up (%.3f %.3f %.3f), corner 0 ground %.3f, touching %d\n",
+               CI32(c, 0x2d0) / 65536.0, CI32(c, 0x2d4) / 65536.0, CI32(c, 0x2d8) / 65536.0, CI32(c, 0x36c) / 65536.0,
+               CI32(c, 0x370) / 65536.0, CI32(c, 0x374) / 65536.0, CI32(c, 0x8dc) / 65536.0, CI8(c, 0xb34));
+        CHECK(CI32(c, 0x370) > 0xf000 && CI32(c, 0x2d4) > 50 << 16 && CI32(c, 0x2d4) < 58 << 16);
+    }
     printf("sim_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
 }

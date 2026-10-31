@@ -255,7 +255,7 @@
 004ac4f0	Obj_SetAngles	world	high	Rest matrix back, then Obj_Rotate by the angles
 00456c70	Csp_StartPos	track	high	A car's start position from .csp
 00456c90	Csp_Angles	track	high	The start angles in .csp
-00457e50	Car_Place	car	med	Car objects to the start pose, then Car_Init
+00457e50	Car_Place	car	high	Car objects to the start pose, then Car_Init
 0043dff0	Car_SetupSuspension	sim	high	Suspension values from the set-up byte
 0043e1f0	Car_SetupGears	sim	high	One of five gear sets, divided by 1.14
 0043e530	Car_SetupBrakes	sim	high	Brake values from the set-up byte
@@ -267,3 +267,10 @@
 004086f0	Champ_CarFlag	game	med	A driver's team flag (bit 5)
 00456be0	Car_Slot	car	high	The car table entry (0x24 bytes at 0x542630)
 0043e680	Car_Settle	sim	med	Settles a placed car on the ground and resets its history
+004930e0	Car_CornerGround	sim	high	Ground height, normal and surface under the box corners
+004932b0	Car_PointGround	sim	high	Hpc_Ground plus the surface mapping 0x51df58
+00478a10	Surface_Map	track	high	Collision surface to surface type (table 0x51df58)
+0042de20	Car_GroundNormal	sim	high	The ground normal under the car from corner ground points
+0042f820	Car_Contacts	sim	high	Corner contact flags and the list of touching corners
+004789b0	Car_CopyA78	sim	med	+0xa74 = +0xa78
+00460c80	Weather_CarValue	world	low	A per-car value from the weather state (0x543ecc)

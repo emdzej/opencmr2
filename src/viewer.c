@@ -25,6 +25,7 @@
 #include "world/stage.h"
 #include "world/tod.h"
 #include "world/hpc.h"
+#include "sim/car.h"
 #include "vfs.h"
 #include <math.h>
 #include <stdio.h>
@@ -53,7 +54,7 @@ static struct {
     C3d pm;                     /* stage and car: the parked car's model, file, textures, root */
     uint8_t *pfile;
     BflSlot ptex;
-    Obj *parked;
+    Obj *parked, *cars[2];
     float centre[MAX_MESH][3];   /* stage: each mesh's vertex centre, the fly-through's path */
 } V;
 
@@ -159,9 +160,9 @@ static void car_paths(const char *car, char *path, char *tex, size_t cap)
     if (!vfs_exists(tex) && l > 5 && strchr("NLS", tex[l - 5])) memmove(tex + l - 5, tex + l - 4, 5);
 }
 
-/* The car under the world root at the stage's start line: the .csp position and angles as 0x457e50
-   sets them (Obj_SetAngles, Obj_SetPosition). Car_Init 0x43c7f0 then settles the car on the ground;
-   until the simulation is ported, the viewer puts it at the .hpc ground height under the start. */
+/* The car under the world root at the stage's start line, as Car_Load 0x457000 does it: the model's
+   type-5 object as its second model, the .csp position and angles, Car_Place (Car_Init, Car_Settle on
+   the .hpc ground). Handling class 0 until the car table is ported. */
 static bool park_car(const char *car, const char *stage)
 {
     char path[128], tex[128];
@@ -173,15 +174,23 @@ static bool park_car(const char *car, const char *stage)
     C3d_Build(&V.pm);
     V.parked = C3d_Objects(&V.pm, &g_world);
     if (!V.parked || !Stage_LoadHpc(stage) || !Stage_LoadCsp(stage)) return false;
-    int32_t pos[3], n[3];
-    uint16_t ang[3], surf;
-    int16_t tri = -1;
+    CarSlot *s = Car_Slot(0);
+    s->main = V.parked;
+    s->second = Obj_FindType(V.parked, 5);
+    s->kind = 'A';
+    int32_t pos[3];
+    uint16_t ang[3];
     Csp_StartPos(0, pos);
     Csp_Angles(ang);
-    pos[1] = Hpc_Ground(pos, n, &tri, &surf, pos[1]);
-    Obj_SetAngles(V.parked, ang);
-    Obj_SetPosition(V.parked, pos);
-    World_SetCars(&V.parked, 1);
+    Car_Place(s->main, s->second, 0, 0, ang, pos);
+    /* stand-in until Car_PoseInterp 0x42bf70 (it needs Sim_Step's pose buffers): the main model at
+       the settled position */
+    Car *c = Car_Get(0);
+    int32_t at[3] = {CI32(c, 0x2d0), CI32(c, 0x2d4), CI32(c, 0x2d8)};
+    Obj_SetPosition(s->main, at);
+    V.cars[0] = s->main;
+    V.cars[1] = s->second;
+    World_SetCars(V.cars, s->second ? 2 : 1);
     return true;
 }
 

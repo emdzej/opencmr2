@@ -36,3 +36,6 @@ void Obj_Reparent(Obj *o, Obj *parent);     /* 0x4ac7a0 */
    models are not attached again. */
 void Car_Init(Car *c, Obj *obj, int cls, const int32_t pos[3], int n, bool keep);
 void Car_BoxCorners(Car *c);   /* 0x43eef0 */
+void Car_Settle(Car *c);       /* 0x43e680 */
+/* Car_Place 0x457e50: the start pose on both models, then Car_Init and Car_Settle. */
+void Car_Place(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3]);

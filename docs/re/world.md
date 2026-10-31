@@ -274,8 +274,10 @@ too (`Stage_LoadScenery`, `Section_DrawBillboards`, `Billboard_DrawQueued`). So 
 meshes (`src/world/tre.c`). The time of day and the horizons are in `src/world/tod.c`, and the lights
 and relighting in `src/world/relight.c`. The stage viewer lights a stage at its start time. With `--param car=` as well, it parks the car at
 the start line (`.csp` position and angles), at the `.hpc` ground height under it
-(`src/world/hpc.c`), and draws it where the cars' pass goes. The car's ride height comes from
-`Car_Init` and the suspension (step 6), so until then the body's origin sits on the road. The calls
+(`src/world/hpc.c`), and draws it where the cars' pass goes. It goes through `Car_Place`,
+`Car_Init` and `Car_Settle` (step 6), which put the body on the corners' ground. The models' poses
+come from `Car_PoseInterp` once the simulation runs; until then the viewer sets the main model to the
+settled position. The calls
 not ported yet are left out in order, and they are listed there. Still to come: the
 stage height offsets for the sky, the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
 under a turning stand and takes the view from a camera object, so a car on screen goes through these

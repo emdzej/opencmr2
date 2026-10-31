@@ -3,6 +3,7 @@
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
+#include "world/hpc.h"
 #include "world/stage.h"
 #include "world/tod.h"
 #include <string.h>
@@ -26,8 +27,9 @@ Obj *Obj_FindType(Obj *o, uint32_t type)
     return NULL;
 }
 
-/* Out of the old parent's child list, appended as the new parent's last child (no move when it is
-   already there, or when the new parent is its child). */
+/* Out of the old parent's child list (unchanged when it is not found there), then the first child of
+   the new parent; it and its new ancestors dirty. No move when the parent is already np, or np's parent
+   is o. */
 void Obj_Reparent(Obj *o, Obj *np)
 {
     if (!o || !np || o->parent == np || np->parent == o) return;
@@ -42,13 +44,9 @@ void Obj_Reparent(Obj *o, Obj *np)
         }
     }
     o->parent = np;
-    o->next = NULL;
-    if (!np->child) np->child = o;
-    else {
-        Obj *p = np->child;
-        while (p->next) p = p->next;
-        p->next = o;
-    }
+    o->next = np->child;
+    np->child = o;
+    for (Obj *p = o; p; p = p->parent) p->dirty = 1;
 }
 
 /* 0x43e5a0: the car's two models from its table entry, the wheels (types 1-4) and the parts (0xe,
@@ -356,4 +354,189 @@ void Car_Init(Car *c, Obj *obj, int cls, const int32_t pos[3], int n, bool keep)
         CW32(c, 0xc18, 1);
         CW32(c, 0xc1c, 1);
     }
+}
+
+/* The damage records (0x4d0 bytes per car, Damage_Alloc 0x4667c0; their contents are set up by the
+   damage code, not ported: zero here). */
+static uint8_t damage[CAR_MAX][0x4d0];
+static int32_t dmg32(int car, uint32_t o) { const uint8_t *p = damage[car] + o; return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24); }
+
+/* 0x4930e0: the ground height under each of the first n box corners (+0x270, through the cached
+   triangle +0xa9e and the surface +0xac6, mapped by 0x51df58 to +0xaae), the ground normal to +0x4a4.
+   The four wheel corners add the suspension travel and subtract the wheel offset; a corner on a
+   special surface (+0xbbc) takes +0x8fc and the normal at +0x564. The corners past n copy those four
+   below, 5 lower. +0xa80 counts the steps with every corner off the mesh. */
+static void corner_ground(Car *c, int n)
+{
+    int off = 0;
+    for (int i = 0; i < n; i++) {
+        uint32_t u = (uint32_t)i;
+        int32_t p[3] = {CI32(c, 0x270 + 12 * u), CI32(c, 0x274 + 12 * u), CI32(c, 0x278 + 12 * u)}, nrm[3];
+        int16_t tri = (int16_t)(c->s[0xa9e + 2 * u] | c->s[0xa9f + 2 * u] << 8);
+        uint16_t surf = (uint16_t)(c->s[0xac6 + 2 * u] | c->s[0xac7 + 2 * u] << 8);
+        int32_t y = Hpc_Ground(p, nrm, &tri, &surf, CI32(c, 0x8dc + 4 * u));
+        CW16(c, 0xa9e + 2 * u, (uint16_t)tri);
+        CW16(c, 0xac6 + 2 * u, surf);
+        CW16(c, 0xaae + 2 * u, gm8(0x51df58 + (uint32_t)(int16_t)surf));   /* 0x478a10 */
+        for (uint32_t k = 0; k < 3; k++) CW32(c, 0x4a4 + 12 * u + 4 * k, nrm[k]);
+        CW32(c, 0x8dc + 4 * u, y);
+        if (tri == -1) off++;
+        if (i < 4) {
+            int32_t f = CI32(c, 0x978 + 4 * u) + dmg32(CI8(c, 0xb1a), 0x258 + 4 * u);
+            if (f > 0x10000) f = 0x10000;
+            CW32(c, 0x8dc + 4 * u, CI32(c, 0x8dc + 4 * u) + fx_mul(f, CI32(c, 0x938 + 4 * u)));
+        }
+        if (CI32(c, 0xbbc + 4 * u)) {
+            CW32(c, 0x8dc + 4 * u, CI32(c, 0x8dc + 4 * u) + CI32(c, 0x8fc + 4 * u));
+            for (uint32_t k = 0; k < 3; k++) CW32(c, 0x4a4 + 12 * u + 4 * k, CI32(c, 0x564 + 12 * u + 4 * k));
+            CW16(c, 0xaae + 2 * u, 0x2f);
+        }
+        if ((c->s[0xaae + 2 * u] | c->s[0xaaf + 2 * u] << 8) == 0xf && !CI32(c, 0xa7c) && !CI32(c, 0xbf8))
+            CW32(c, 0xa7c, 0x190000);
+        if (i < 4) CW32(c, 0x8dc + 4 * u, CI32(c, 0x8dc + 4 * u) - CI32(c, 0x700 + 8 * u));
+    }
+    for (int k = n; k < 8; k++) CW32(c, 0x8dc + 4 * (uint32_t)k, CI32(c, 0x8dc + 4 * (uint32_t)(k - 4)) - 0x50000);
+    CW32(c, 0xa80, off == n ? CI32(c, 0xa80) + 0x10000 : 0);
+}
+
+static void corner(const Car *c, int i, int32_t p[3])
+{
+    uint32_t u = (uint32_t)i;
+    p[0] = CI32(c, 0x270 + 12 * u);
+    p[1] = CI32(c, 0x8dc + 4 * u);
+    p[2] = CI32(c, 0x278 + 12 * u);
+}
+
+/* (b - a) x (c - a) in the original's component order, y made positive, then unit */
+static void plane(const int32_t a[3], const int32_t b[3], const int32_t q[3], int32_t n[3])
+{
+    n[0] = fx_mul(q[1] - a[1], b[2] - a[2]) - fx_mul(q[2] - a[2], b[1] - a[1]);
+    n[1] = fx_mul(q[2] - a[2], b[0] - a[0]) - fx_mul(q[0] - a[0], b[2] - a[2]);
+    n[2] = fx_mul(q[0] - a[0], b[1] - a[1]) - fx_mul(q[1] - a[1], b[0] - a[0]);
+    if (n[1] < 0) n[0] = -n[0], n[1] = -n[1], n[2] = -n[2];
+    Vec_Unit(n);
+}
+
+/* 0x42de20: the ground normal (+0x48c) under the car, from corner 0 and three others chosen by the
+   body axis nearest the vertical (the largest |y| of the rows at +0x360): two planes, summed, unit. */
+static void ground_normal(Car *c)
+{
+    int32_t a = CI32(c, 0x364), b = CI32(c, 0x370), d = CI32(c, 0x37c);
+    if (a < 0) a = -a;
+    if (b < 0) b = -b;
+    if (d < 0) d = -d;
+    int k1, k2, k3;
+    if (b < a ? d <= a : (d <= b ? false : b <= a && d <= a)) k1 = 1, k2 = 4, k3 = 5;
+    else if (!(b < a) && d <= b) k1 = 1, k2 = 2, k3 = 3;
+    else k1 = 2, k2 = 4, k3 = 6;
+    int32_t p0[3], p1[3], p2[3], p3[3], n[3], m[3];
+    corner(c, 0, p0);
+    corner(c, k1, p1);
+    corner(c, k2, p2);
+    corner(c, k3, p3);
+    plane(p0, p1, p2, n);
+    for (uint32_t k = 0; k < 3; k++) CW32(c, 0x48c + 4 * k, n[k]);
+    plane(p3, p1, p2, m);
+    for (int k = 0; k < 3; k++) n[k] += m[k];
+    Vec_Unit(n);
+    for (uint32_t k = 0; k < 3; k++) CW32(c, 0x48c + 4 * k, n[k]);
+}
+
+/* 0x42f820: each corner's contact flag (+0xb2c + i: clear when within 0.1 of the ground), the list of
+   touching corners (+0xb36, count +0xb34) from 7 down, +0xb35 set when none touches. */
+static void contacts(Car *c)
+{
+    CW8(c, 0xb34, 0);
+    CW8(c, 0xb35, 1);
+    for (int i = 7; i >= 0; i--) {
+        uint32_t u = (uint32_t)i;
+        if (CI32(c, 0x8dc + 4 * u) + 0x1999 < CI32(c, 0x274 + 12 * u)) CW8(c, 0xb2c + u, 1);
+        else {
+            CW8(c, 0xb2c + u, 0);
+            CW8(c, 0xb35, 0);
+            CW8(c, 0xb36 + (uint32_t)CI8(c, 0xb34), (uint8_t)i);
+            CW8(c, 0xb34, (uint8_t)(CI8(c, 0xb34) + 1));
+        }
+    }
+}
+
+static void orient_from_rows(Car *c)
+{
+    for (uint32_t r = 0; r < 3; r++)
+        for (uint32_t k = 0; k < 3; k++) CW32(c, 0x10 * r + 4 * k, CI32(c, 0x360 + 0xc * r + 4 * k));
+}
+
+/* Car_Settle 0x43e680: the corners' ground, the normal as the body's up row (+0x36c), the forward row
+   made square to it and the side row as their cross product; the car lifted so corner 0 is at its
+   ground height; the contacts; the history (+0x300.., +0x504.., +0x2dc..) started from the pose. Not
+   ported yet: the surface grip (0x4781d0, with the weather value 0x460c80). */
+void Car_Settle(Car *c)
+{
+    g_car = c;
+    corner_ground(c, 8);
+    ground_normal(c);
+    int32_t up[3] = {CI32(c, 0x48c), CI32(c, 0x490), CI32(c, 0x494)};
+    for (uint32_t k = 0; k < 3; k++) CW32(c, 0x36c + 4 * k, up[k]);
+    int32_t f[3] = {CI32(c, 0x360), CI32(c, 0x364), CI32(c, 0x368)};
+    int32_t dot = fx_mul(up[2], f[2]) + fx_mul(up[0], f[0]) + fx_mul(up[1], f[1]);
+    for (int k = 0; k < 3; k++) f[k] -= fx_mul(up[k], dot);
+    Vec_Unit(f);
+    for (uint32_t k = 0; k < 3; k++) CW32(c, 0x360 + 4 * k, f[k]);
+    int32_t s[3] = {
+        fx_mul(f[1], up[2]) - fx_mul(f[2], up[1]),
+        fx_mul(f[2], up[0]) - fx_mul(f[0], up[2]),
+        fx_mul(f[0], up[1]) - fx_mul(f[1], up[0]),
+    };
+    Vec_Unit(s);
+    for (uint32_t k = 0; k < 3; k++) CW32(c, 0x378 + 4 * k, s[k]);
+    orient_from_rows(c);
+    Car_BoxCorners(c);
+    CW32(c, 0x2d4, CI32(c, 0x2d4) + (CI32(c, 0x8dc) - CI32(c, 0x274)));
+    for (uint32_t k = 0; k < 3; k++) CW32(c, 0x30 + 4 * k, CI32(c, 0x2d0 + 4 * k));
+    int32_t pos[3] = {CI32(c, 0x2d0), CI32(c, 0x2d4), CI32(c, 0x2d8)};
+    Obj_SetPosition(c->second, pos);
+    Car_BoxCorners(c);
+    contacts(c);
+    for (uint32_t k = 0; k < 3; k++) CW32(c, 0x3f0 + 4 * k, CI32(c, 0x360 + 4 * k));
+    PENDING_NOTE(0x4781d0, "Car_SurfaceGrip");
+    CW32(c, 0xa74, CI32(c, 0xa78));   /* 0x4789b0 */
+    for (uint32_t o = 0x300; o < 0x330; o += 0xc)
+        for (uint32_t k = 0; k < 3; k++) {
+            CW32(c, o + 4 * k, CI32(c, o - 0x90 + 4 * k));
+            CW32(c, o + 0x30 + 4 * k, CI32(c, o + 4 * k));
+        }
+    for (uint32_t o = 0x504; o < 0x564; o += 0xc)
+        for (uint32_t k = 0; k < 3; k++) CW32(c, o + 4 * k, CI32(c, o - 0x60 + 4 * k));
+    for (uint32_t k = 0; k < 3; k++) {
+        CW32(c, 0x498 + 4 * k, CI32(c, 0x48c + 4 * k));
+        CW32(c, 0x2e8 + 4 * k, CI32(c, 0x2d0 + 4 * k));
+        CW32(c, 0x2f4 + 4 * k, CI32(c, 0x2d0 + 4 * k));
+        CW32(c, 0x2dc + 4 * k, CI32(c, 0x2d0 + 4 * k));
+    }
+    for (uint32_t i = 0; i < 9; i++) CW32(c, 0x384 + 4 * i, CI32(c, 0x360 + 4 * i));
+    CW32(c, 0x960, 0);
+    CW32(c, 0x968, 0);
+    CW32(c, 0x964, 0);
+    CW8(c, 0xb45, 3);
+    CW32(c, 0xbb8, 1);
+    CW32(c, 0xbb4, 1);
+    CW32(c, 0xbb0, 1);
+    CW32(c, 0xbac, 1);
+    CW8(c, 0xb28, 4);
+    CW32(c, 0xb74, 1);
+    CW32(c, 0xb60, 1);
+}
+
+/* Car_Place 0x457e50: both models to the start angles and position, Car_Init, Car_Settle (with mode
+   bit 19, 0x424dc0 after it: not ported). */
+void Car_Place(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3])
+{
+    Obj_SetAngles(main, ang);
+    Obj_SetAngles(second, ang);
+    Obj_SetPosition(main, pos);
+    Obj_SetPosition(second, pos);
+    Car *c = Car_Get(n);
+    Car_Init(c, main, cls, pos, n, false);
+    Car_Settle(c);
+    if (Gs_ModeBit19()) PENDING_NOTE(0x424dc0, "Car_PlaceTwoPlayer");
 }
