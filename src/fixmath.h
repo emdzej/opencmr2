@@ -37,3 +37,7 @@ static inline void Vec_Unit(int32_t v[3])
     int32_t r = (int32_t)(0x100000000LL / (int32_t)l);
     for (int i = 0; i < 3; i++) v[i] = fx_mul(v[i], r);
 }
+/* 0x4ac820's and 0x429f20's turn of a 3 x 3 (rows `stride` ints apart) by three u16 angles: [1]
+   about row 1 (rows 0, 2 turned), [2] about row 2 (0, 1), [0] about row 0 (1, 2), each about the row
+   as already turned, the turned rows made unit. */
+void Rows_Turn3(int32_t *m, int stride, const uint16_t a[3]);

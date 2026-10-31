@@ -188,37 +188,12 @@ void Obj_SetPosition(Obj *o, const int32_t pos[3])
     for (; o; o = o->parent) o->dirty = 1;
 }
 
-/* One step of 0x4ac820: rows r1 and r2 of the 3 x 3 turned by angle a about row ax (the axis-angle
-   matrix with the sine of -a), then each made unit by the table square root. */
-static void turn(int32_t *m, int ax, int r1, int r2, uint16_t a)
-{
-    int32_t s = g_sin[-(uint32_t)a & 0xfff], c = g_sin[(uint16_t)(0x400 - a) & 0xfff], k = 0x10000 - c;
-    int32_t x = m[4 * ax], y = m[4 * ax + 1], z = m[4 * ax + 2];
-    int32_t xx = fx_mul(x, x), yy = fx_mul(y, y), zz = fx_mul(z, z);
-    int32_t xy = fx_mul(fx_mul(x, y), k), xz = fx_mul(fx_mul(x, z), k), yz = fx_mul(fx_mul(z, y), k);
-    int32_t r[9] = {
-        fx_mul(c, 0x10000 - xx) + xx, fx_mul(z, s) + xy, xz - fx_mul(y, s),
-        xy - fx_mul(z, s), fx_mul(c, 0x10000 - yy) + yy, fx_mul(x, s) + yz,
-        fx_mul(y, s) + xz, yz - fx_mul(x, s), fx_mul(c, 0x10000 - zz) + zz,
-    };
-    int rows[2] = {r1, r2};
-    for (int i = 0; i < 2; i++) {
-        int32_t *v = m + 4 * rows[i], o[3];
-        for (int j = 0; j < 3; j++) o[j] = fx_mul(r[3 * j], v[0]) + fx_mul(r[3 * j + 1], v[1]) + fx_mul(r[3 * j + 2], v[2]);
-        uint32_t l = Fx_Sqrt((uint32_t)fx_mul(o[0], o[0]) + (uint32_t)fx_mul(o[1], o[1]) + (uint32_t)fx_mul(o[2], o[2]));
-        int32_t inv = l ? (int32_t)(0x100000000LL / (int32_t)l) : 0;
-        for (int j = 0; j < 3; j++) v[j] = l ? fx_mul(o[j], inv) : 0;
-    }
-}
-
 /* 0x4ac820: angle [1] about the local y axis (rows 0, 2), [2] about z (rows 0, 1), [0] about x
    (rows 1, 2), each about the row as already turned; then the move added and the ancestors dirty. */
 void Obj_Rotate(Obj *o, const int32_t move[3], const uint16_t a[3])
 {
     int32_t *m = o->local.m;
-    if (a[1]) turn(m, 1, 0, 2, a[1]);
-    if (a[2]) turn(m, 2, 0, 1, a[2]);
-    if (a[0]) turn(m, 0, 1, 2, a[0]);
+    Rows_Turn3(m, 4, a);
     for (int i = 0; i < 3; i++) m[12 + i] += move[i];
     for (Obj *p = o; p; p = p->parent) p->dirty = 1;
 }

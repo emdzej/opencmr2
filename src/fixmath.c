@@ -156,3 +156,32 @@ uint32_t Fx_Sqrt(uint32_t x)
     int8_t h = (int8_t)(b >> 1);
     return h < 0 ? r >> -h : r << h;
 }
+
+/* One axis-angle step: rows r1 and r2 of a 3 x 3 (rows `stride` ints apart) turned by angle a about
+   row ax, with the sine of -a; each turned row made unit by the table square root. */
+static void turn(int32_t *m, int stride, int ax, int r1, int r2, uint16_t a)
+{
+    int32_t s = g_sin[-(uint32_t)a & 0xfff], c = g_sin[(uint16_t)(0x400 - a) & 0xfff], k = 0x10000 - c;
+    int32_t x = m[stride * ax], y = m[stride * ax + 1], z = m[stride * ax + 2];
+    int32_t xx = fx_mul(x, x), yy = fx_mul(y, y), zz = fx_mul(z, z);
+    int32_t xy = fx_mul(fx_mul(x, y), k), xz = fx_mul(fx_mul(x, z), k), yz = fx_mul(fx_mul(z, y), k);
+    int32_t r[9] = {
+        fx_mul(c, 0x10000 - xx) + xx, fx_mul(z, s) + xy, xz - fx_mul(y, s),
+        xy - fx_mul(z, s), fx_mul(c, 0x10000 - yy) + yy, fx_mul(x, s) + yz,
+        fx_mul(y, s) + xz, yz - fx_mul(x, s), fx_mul(c, 0x10000 - zz) + zz,
+    };
+    int rows[2] = {r1, r2};
+    for (int i = 0; i < 2; i++) {
+        int32_t *v = m + stride * rows[i], o[3];
+        for (int j = 0; j < 3; j++) o[j] = fx_mul(r[3 * j], v[0]) + fx_mul(r[3 * j + 1], v[1]) + fx_mul(r[3 * j + 2], v[2]);
+        for (int j = 0; j < 3; j++) v[j] = o[j];
+        Vec_Unit(v);
+    }
+}
+
+void Rows_Turn3(int32_t *m, int stride, const uint16_t a[3])
+{
+    if (a[1]) turn(m, stride, 1, 0, 2, a[1]);
+    if (a[2]) turn(m, stride, 2, 0, 1, a[2]);
+    if (a[0]) turn(m, stride, 0, 1, 2, a[0]);
+}

@@ -295,3 +295,5 @@
 004946c0	Car_ThrottleRamp	sim	high	The digital throttle's quarter-sine ramp
 00494880	Car_BrakeRamp	sim	high	The digital brake's ramp
 00494960	Car_HandbrakeRamp	sim	high	The handbrake's ramp
+00429f20	Rows_Turn3	math	high	Turns a 3 x 3 of rows by three u16 angles about its own axes (as 0x4ac820)
+00437d70	Car_EngineTorqueReaction	sim	med	With no wheel down, the engine's speed change turns the body (+0x5d8)
