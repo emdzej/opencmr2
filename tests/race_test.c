@@ -108,6 +108,20 @@ int main(void)
             Car *c = Car_Get(0);
             printf("3 s after the go: stage time %d, %.1f km/h, %.1f%% of the stage\n", Race_StageTime(0),
                    CI32(c, 0x778) / 65536.0 * 90, Car_StageShare(c) * 100.0 / 65536);
+            /* the poses (Car_PoseInterp): the front left wheel's matrix turns from frame to frame */
+            static int32_t last[12];
+            Obj *w = c->wheel[0];
+            CHECK(w != NULL);
+            if (w) {
+                int diff = 0;
+                for (int q = 0; q < 12; q++) diff += w->local.m[q] != last[q], last[q] = w->local.m[q];
+                Timer_Sample((uint32_t)((uint64_t)(frame + 2) * 1000 / 60));
+                Race_Frame();
+                diff = 0;
+                for (int q = 0; q < 12; q++) diff += w->local.m[q] != last[q];
+                printf("wheel 0: %d of 12 terms changed over a step\n", diff);
+                CHECK(diff > 0);
+            }
             CHECK(Race_StageTime(0) >= 290 && Race_StageTime(0) <= 310 && CI32(c, 0x778) > 0x8000);
             fin = frame;
         }
