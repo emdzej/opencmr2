@@ -305,3 +305,4 @@
 00469bc0	Damage_Flag	damage	high	A damage record's flag word (+0x4b0 + 4n)
 004adb10	Mat_AxisAngle	math	high	The rotation matrix for an angle about a unit axis
 004b9c20	Vec_Mul3	math	high	A row vector times a matrix's 3 x 3
+00434140	Car_WheelHeading	sim	high	The heading row eased to the body and the front wheels' frame by the steering

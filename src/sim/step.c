@@ -3,6 +3,7 @@
 #include "sim/controls.h"
 #include "sim/integrate.h"
 #include "sim/suspension.h"
+#include "sim/wheel_heading.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -172,7 +173,7 @@ void Sim_StepCars(const int16_t *list, int n)
         Car_Suspension(c);
         tilt_factor(c);
         PENDING_PASS(0x4348c0, "Car_Drive");
-        PENDING_PASS(0x434140, "Car_Tyres");
+        Car_WheelHeading(c);
     }
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); PENDING_PASS(0x437dc0, "Car_Collide"); }
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); PENDING_PASS(0x438460, "Car_Engine"); }
