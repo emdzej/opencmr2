@@ -7,6 +7,8 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "world/tod.h"
+#include "game/stage_load.h"
 #include "game/profile.h"
 #include "game/timer.h"
 #include "render/d3d7.h"
@@ -33,9 +35,7 @@ static int stage_loads, car_loads;
 static bool load_stage(void)
 {
     stage_loads++;
-    return Stage_Mount("Game\\Tracks\\France\\fra02hi.bfl", "Game\\Tracks\\France\\frahit.bfl") && Stage_LoadC3d() &&
-           Stage_LoadFinDat("fra02") && (Section_Init(&g_world), Stage_LoadHpc("fra02")) && Stage_LoadCsp("fra02") &&
-           Stage_LoadCat("fra02");
+    return Stage_Load("fra02", "Game\\Tracks\\France\\fra02hi.bfl", "Game\\Tracks\\France\\frahit.bfl");
 }
 
 static bool load_cars(void)
@@ -86,6 +86,7 @@ int main(void)
     g_world.kind = 3;
     Profiles_Init();
     Player_SetProfile(0, 0);   /* the front end's player set-up */
+    Tod_Select("fra02");   /* the front end's selection */
     Race_Begin(&host);
     CHECK(Game_Mode() == 3);
     int seen[14] = {0}, frame = 0, go = -1, fin = -1;
@@ -100,8 +101,8 @@ int main(void)
         if (st == 8 && go < 0) go = frame;
         if (getenv("RACE_DBG") && st >= 7 && frame % 30 == 0) {
             Car *c = Car_Get(0);
-            printf("  f%d st%d gear %d b84 %d b20 %d b24 %d b1f %d b48 %d revs %.3f thr %d hb %d b9c %d km/h %.1f\n", frame,
-                   st, CI8(c, 0xb1e), CI32(c, 0xb84), CI8(c, 0xb20), CI8(c, 0xb24), CI8(c, 0xb1f), CI32(c, 0xb48),
+            printf("  pos %.1f %.1f %.1f b43 %d a98 %08x f%d st%d gear %d b84 %d b20 %d b24 %d b1f %d b48 %d revs %.3f thr %d hb %d b9c %d km/h %.1f\n",
+                   CI32(c, 0x2d0) / 65536.0, CI32(c, 0x2d4) / 65536.0, CI32(c, 0x2d8) / 65536.0, c->s[0xb43], (unsigned)CI32(c, 0xa98), frame, st, CI8(c, 0xb1e), CI32(c, 0xb84), CI8(c, 0xb20), CI8(c, 0xb24), CI8(c, 0xb1f), CI32(c, 0xb48),
                    CI32(c, 0x7a4) / 65536.0, c->s[0x1d2], CI32(c, 0x1d8), CI32(c, 0xb9c), CI32(c, 0x778) / 65536.0 * 90);
         }
         if (st == 8 && fin < 0 && frame - go == 180) {

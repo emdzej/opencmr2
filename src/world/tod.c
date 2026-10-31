@@ -22,7 +22,7 @@ bool Tod_Select(const char *stage)
         if (!pl || pl + 2 != l || strncasecmp(stage, p, pl)) continue;
         int n = (stage[pl] - '0') * 10 + (stage[pl + 1] - '0');
         if (n < 1 || n > 32) return false;
-        gw32(0x52f2ac, r | (uint32_t)(n - 1) << 5);
+        gw32(0x52f2ac, (gm32(0x52f2ac) & ~0x3ffu) | r | (uint32_t)(n - 1) << 5);   /* rally, stage */
         return true;
     }
     return false;

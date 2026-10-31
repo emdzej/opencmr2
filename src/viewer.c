@@ -30,6 +30,7 @@
 #include "sim/drive.h"
 #include "sim/sim.h"
 #include "game/race.h"
+#include "game/stage_load.h"
 #include "game/profile.h"
 #include "game/timer.h"
 #include "sim/progress.h"
@@ -283,8 +284,8 @@ bool viewer_init(const char *car, const char *stage)
             plat_log("viewer: no such stage");
             return false;
         }
-        if (!Stage_Mount(path, tex) || (Tod_Select(stage), Stage_LoadHorizons(), !Stage_LoadC3d()) ||
-            (Stage_LoadScenery(), false)) {
+        Tod_Select(stage);   /* the front end's selection */
+        if (!Stage_Load(stage, path, tex)) {
             plat_log("viewer: no such stage");
             return false;
         }
@@ -304,10 +305,6 @@ bool viewer_init(const char *car, const char *stage)
         C3d_Textures(V.m.data + V.m.slots, V.m.data + V.m.paths, V.m.ntex, V.m.kind, &V.tex, "");
         C3d_Build(&V.m);
     } else {
-        Stage_LoadFinDat(stage);   /* before Section_Init, which files the walls */
-        Section_Init(&g_world);
-        Stage_LoadTre(stage, true);
-        Hor_Apply();         /* 0x460da0, later in Stage_Load */
         Tod_StartLights();   /* the race start, 0x45eca0 */
         if (car) {
             snprintf(V.carname, sizeof V.carname, "%s", car);
