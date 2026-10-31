@@ -130,7 +130,7 @@ Movies are skipped at this point (the original lets a key skip them): the Bink d
 
 **Check:** scripted input (`--input`) through the menus to a stage start, hashed; every language renders.
 
-## 5. World mode, stage and car on screen (about 60 + 64 + 56 KB)
+## 5. World mode, stage and car on screen (about 60 + 64 + 56 KB; started)
 
 Mode 2 (`World_Frame` 0x4ff450) and the race set-up: stage loading (`Stage_Load*`, 0x41f560-0x420630,
 0x455300, 0x456c10, 0x46f060, 0x472830), sky and clouds, horizons for the time of day and weather, the

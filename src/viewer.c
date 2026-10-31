@@ -19,6 +19,7 @@
 #include "render/twod.h"
 #include "render/view.h"
 #include "font.h"
+#include "world/obj.h"
 #include "vfs.h"
 #include <math.h>
 #include <stdio.h>
@@ -37,6 +38,8 @@ static struct {
         bool used;
     } mesh[MAX_MESH];
     BflSlot tex;                /* the texture archive (the records point to it) */
+    Obj stand, camera;          /* the car hangs under the stand; the camera's world gives the view */
+    Obj *car;                   /* the car's first object (its root) */
     BflSlot fe;                 /* FrontEnd\\res640.bfl: the title's font */
     char title[80];
     int frame;
@@ -175,6 +178,14 @@ bool viewer_init(const char *car, const char *stage)
     C3d_Textures(V.m.data + V.m.slots, V.m.data + V.m.paths, V.m.ntex, V.m.kind, &V.tex, "");
     C3d_Build(&V.m);
     build_meshes();
+    if (!V.stage) {
+        /* the scene: a stand (a node the viewer turns), the car's objects attached under it */
+        V.stand.kind = V.camera.kind = 3;
+        V.stand.mask = V.camera.mask = 0xff;
+        Mat_Identity(&V.stand.world);
+        Mat_Identity(&V.camera.world);
+        V.car = C3d_Objects(&V.m, &V.stand);
+    }
     int ok = 0;
     for (int i = before; i < g_tex_count; i++) ok += g_tex[i] && g_tex[i]->surface;
     char msg[200];
@@ -232,6 +243,16 @@ static void look_at(float ex, float ey, float ez, float tx, float ty, float tz, 
     m->m[3][2] = -(z[0] * e[0] + z[1] * e[1] + z[2] * e[2]);
 }
 
+/* The inverse of a rotation-and-move matrix (the camera's world from a view). */
+static void invert_rigid(const D3DMATRIX *v, D3DMATRIX *o)
+{
+    identity(o);
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++) o->m[i][j] = v->m[j][i];
+    for (int j = 0; j < 3; j++)
+        o->m[3][j] = -(v->m[3][0] * o->m[0][j] + v->m[3][1] * o->m[1][j] + v->m[3][2] * o->m[2][j]);
+}
+
 void viewer_frame(void)
 {
     float a = (float)V.frame++ * 0.02f + 0.6f;
@@ -259,10 +280,27 @@ void viewer_frame(void)
     Render_ClearTarget();
     int32_t r[4] = {0, 0, 640, 480};
     D3d_Clear(1, r, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
-    for (int i = 0; i < V.nmesh; i++) {
-        mul(&V.mesh[i].place, &rot, &world);
-        D3d_SetTransform(D3DTS_WORLD, &world);
-        Mesh_Draw(&V.m, (uint8_t *)C3d_Mesh(&V.m, i), 0, 0, 0);
+    if (V.car) {
+        /* the stand turns (16.16 rows), the camera sits 5.5 back and 1.6 up looking slightly down */
+        Mat_Identity(&V.stand.world);
+        V.stand.world.m[0] = (int32_t)(rot.m[0][0] * 65536);
+        V.stand.world.m[2] = (int32_t)(rot.m[0][2] * 65536);
+        V.stand.world.m[8] = (int32_t)(rot.m[2][0] * 65536);
+        V.stand.world.m[10] = (int32_t)(rot.m[2][2] * 65536);
+        V.stand.dirty = 1;
+        D3DMATRIX inv;
+        look_at(0, 1.6f, -5.5f, 0, 0.3f, 0, &view);
+        invert_rigid(&view, &inv);
+        for (int i = 0; i < 16; i++) V.camera.world.m[i] = (int32_t)lrintf(inv.m[i / 4][i % 4] * 65536);
+        V.camera.dirty = 1;
+        Obj_Frame(&V.stand, &V.camera);
+        Obj_Draw(V.car, 0);
+    } else {
+        for (int i = 0; i < V.nmesh; i++) {
+            mul(&V.mesh[i].place, &rot, &world);
+            D3d_SetTransform(D3DTS_WORLD, &world);
+            Mesh_Draw(&V.m, (uint8_t *)C3d_Mesh(&V.m, i), 0, 0, 0);
+        }
     }
     /* a translucent band and the title over it (layer 1 of both queues); the meshes left blending off
        (alpha-tested), so it goes back on first, as the game does before its 2D */

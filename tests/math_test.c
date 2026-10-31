@@ -5,6 +5,7 @@
 #include "vfs.h"
 #include "vfs_host.h"
 #include <math.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -46,6 +47,20 @@ int main(void)
     FxVec v = {10 << 16, 0, 0}, o;
     Vec_Transform(&o, &v, &m);
     CHECK(o.x == 0 && o.y == 10 << 16);
+    /* a turn and a move, inverted and multiplied back: the identity to within the rounding */
+    FxMat t, inv, id;
+    Mat_RotZ(&t, 700);
+    t.m[12] = 5 << 16;
+    t.m[13] = -(3 << 16);
+    t.m[14] = 2 << 16;
+    Mat_Inverse(&inv, &t);
+    Mat_Mul(&id, &t, &inv);
+    int off = 0;
+    for (int i = 0; i < 16; i++) off += abs(id.m[i] - ((i % 5 == 0) ? 0x10000 : 0)) > 4;
+    CHECK(off == 0);
+    FxMat zero = {{0}};
+    Mat_Inverse(&inv, &zero);
+    CHECK(inv.m[0] == 0x10000 && inv.m[15] == 0x10000 && inv.m[12] == 0);
     printf("math_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
 }

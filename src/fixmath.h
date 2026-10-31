@@ -24,5 +24,7 @@ void Mat_Identity(FxMat *m);                                       /* 0x4ba2b0 *
 void Mat_RotZ(FxMat *m, uint32_t angle);                           /* 0x4ba320 */
 void Vec_Transform(FxVec *out, const FxVec *v, const FxMat *m);    /* 0x4baa40 */
 void Mat_ToFloat(float out[16], const FxMat *m);                   /* 0x4ba090 */
+void Mat_Mul(FxMat *out, const FxMat *a, const FxMat *b);          /* 0x4b9f20: a b */
+void Mat_Inverse(FxMat *out, const FxMat *m);                      /* 0x4ba440 */
 /* 0x4ba3b0: v (in place, and out) turned by m about the point c (only its x and y are used). */
 void Vec_RotateAbout(FxVec *out, FxVec *v, const FxVec *c, const FxMat *m);

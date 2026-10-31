@@ -3,6 +3,7 @@
 #include "exe.h"
 #include "render/d3d7.h"
 #include "font.h"
+#include "world/obj.h"
 #include "render/mesh.h"
 #include "render/rstate.h"
 #include "render/tex.h"
@@ -89,6 +90,31 @@ int main(void)
         D3dStats after = D3d_Stats();
         CHECK(after.draws - before.draws == batches && after.prims - before.prims == m.npoly);
         printf("205c1: %u textures, %u batches, %u triangles drawn\n", m.ntex, batches, after.prims - before.prims);
+
+        /* its objects under a stand moved 10 along x: the wheels' world = their local + 10 */
+        Obj stand = {0};
+        stand.kind = 3;
+        stand.mask = 0xff;
+        Mat_Identity(&stand.world);
+        stand.world.m[12] = 10 << 16;
+        stand.dirty = 1;
+        Obj *car = C3d_Objects(&m, &stand);
+        CHECK(car && stand.child == car && car->parent == &stand && g_nobjs == m.nobj);
+        Obj_Frame(&stand, NULL);
+        Obj *wheel = car->child;   /* the first part under the root: a wheel */
+        CHECK(wheel && wheel->world.m[12] == wheel->local.m[12] + (10 << 16) && wheel->dirty == 0);
+        CHECK(wheel->worldf.m[3][0] == (float)wheel->world.m[12] / 65536.0f);
+        Obj cam = {0};
+        cam.kind = 3;
+        Mat_Identity(&cam.world);
+        cam.world.m[14] = -(5 << 16);
+        cam.dirty = 1;
+        View_Set(&cam);
+        CHECK(D3d_State()->view.m[3][2] == 5.0f);   /* the inverse moves the world 5 forward */
+        D3dStats bo = D3d_Stats();
+        Obj_Draw(car, 0);
+        CHECK(D3d_Stats().prims - bo.prims == m.npoly);
+        Obj_FreeAll();
         Tex_FreeAll();
         VB_FreePool();
         Bfl_Unmount(&arch);

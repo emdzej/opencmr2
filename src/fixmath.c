@@ -87,3 +87,50 @@ void Vec_RotateAbout(FxVec *out, FxVec *v, const FxVec *c, const FxMat *m)
     t.m[13] = c->y;
     Vec_Transform(out, v, &t);
 }
+
+/* a b, each of the four products of a term shifted down by 16 before the sum */
+void Mat_Mul(FxMat *o, const FxMat *a, const FxMat *b)
+{
+    FxMat r;
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++) {
+            int32_t s = 0;
+            for (int k = 0; k < 4; k++) s += fx_mul(a->m[i * 4 + k], b->m[k * 4 + j]);
+            r.m[i * 4 + j] = s;
+        }
+    *o = r;
+}
+
+/* The 3x3 part by its cofactors over the determinant (as 2^32 / det, truncated), the translation as
+   -t times that; a determinant of 0 gives the identity. */
+void Mat_Inverse(FxMat *o, const FxMat *a)
+{
+    const int32_t *m = a->m;
+    int32_t c0 = fx_mul(m[5], m[10]) - fx_mul(m[9], m[6]);
+    int32_t c1 = fx_mul(m[9], m[2]) - fx_mul(m[1], m[10]);
+    int32_t c2 = fx_mul(m[1], m[6]) - fx_mul(m[5], m[2]);
+    int32_t det = fx_mul(c2, m[8]) + fx_mul(c1, m[4]) + fx_mul(c0, m[0]);
+    if (!det) {
+        Mat_Identity(o);
+        return;
+    }
+    int32_t inv = (int32_t)(0x100000000LL / det);
+    int32_t *r = o->m;
+    FxMat src = *a;   /* o may be a */
+    m = src.m;
+    r[3] = r[7] = r[11] = 0;
+    r[0] = fx_mul(inv, c0);
+    r[1] = fx_mul(inv, c1);
+    r[2] = fx_mul(inv, c2);
+    r[4] = fx_mul(inv, fx_mul(m[8], m[6]) - fx_mul(m[4], m[10]));
+    r[5] = fx_mul(inv, fx_mul(m[0], m[10]) - fx_mul(m[8], m[2]));
+    r[6] = fx_mul(inv, fx_mul(m[4], m[2]) - fx_mul(m[0], m[6]));
+    r[8] = fx_mul(inv, fx_mul(m[4], m[9]) - fx_mul(m[8], m[5]));
+    r[9] = fx_mul(inv, fx_mul(m[8], m[1]) - fx_mul(m[0], m[9]));
+    r[10] = fx_mul(inv, fx_mul(m[0], m[5]) - fx_mul(m[4], m[1]));
+    int32_t tx = -m[12], ty = -m[13], tz = -m[14];
+    r[12] = fx_mul(tz, r[8]) + fx_mul(ty, r[4]) + fx_mul(tx, r[0]);
+    r[13] = fx_mul(tz, r[9]) + fx_mul(ty, r[5]) + fx_mul(tx, r[1]);
+    r[14] = fx_mul(tz, r[10]) + fx_mul(ty, r[6]) + fx_mul(tx, r[2]);
+    r[15] = 0x10000;
+}

@@ -132,7 +132,7 @@
 0049c940	Mesh_Draw	render	high	A mesh's current part with its flags' cull, lighting mode and blending
 004b7200	Light_Mode	render	high	The current lighting mode
 004a8890	Proj_Set	render	high	The projection from 16.16 x/y scale, far and near (0 keeps), also kept in 16.16 at +0x23e4
-004ade00	View_Set	render	med	The view transform from a camera object's matrix (+0xd8), via 0x4ba440, kept in 16.16 at +0x2424
+004ade00	View_Set	render	high	The view as the inverse of a camera object's world matrix (kept in 16.16 at +0x2424)
 00422d40	Camera_Projection	race	med	A race camera's projection: scales from its field of view, doubled for split screen, mirrored in one mode
 004bcaf0	Fog_Set	render	high	Fog start/end (16.16) and RGB colour; linear vertex fog when the card has it
 004a3de0	Render_ForgetBlend	render	high	Resets Render_SetBlend's cache to (1, 1) without setting states
@@ -162,3 +162,14 @@
 0040b880	Font_Print	text	high	Lays out and draws a string (alignment, lines, kerning), after three rand() calls
 0040bab0	Font_SetLayer	text	high	The sprite layer glyphs go to
 004d15e0	Game_SeedRandom	misc	low	Seeds rand() from the clock (among other start-up work)
+004ac200	Obj_Attach	world	high	Appends an object as the last child of a parent (identity matrices without one)
+004ac280	Obj_UpdateTree	world	high	World matrices of dirty objects under their parents, ancestors marked dirty
+004ac390	Obj_Active	world	high	Active unless placed in a section that says otherwise
+004ad8d0	Obj_Commit	world	high	Float world matrices of dirty objects; places and sets light objects
+0049ca50	Obj_DrawList	world	high	Draws a sibling list for a pass, descending under kind-0 objects
+0049cad0	Obj_Draw	world	high	Draws an object for a pass and the list under it
+0049ce10	Obj_Frame	world	high	Obj_UpdateTree, Obj_Commit, View_Set
+0049ce40	Section_DrawObjects	world	med	Draws the objects of the visible sections, z-buffer off
+004b8690	Obj_UpdateSection	world	med	Finds the section an object is in from its world position, neighbours, relinks it
+004b9f20	Mat_Mul	render	high	16.16 4x4 matrix product
+004ba440	Mat_Inverse	render	high	16.16 inverse by cofactors (2^32 / det); identity when singular

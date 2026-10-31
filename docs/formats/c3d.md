@@ -90,14 +90,23 @@ the C reader and `tools/cmr2fmt.py`.
 | Offset | Type | Field |
 |---|---|---|
 | 0x00, 0x04, 0x08 | offset | next sibling, first child, parent (objects; `-1` none) |
-| 0x0c | offset | mesh (`-1`: a pure transform node, such as a car's root) |
-| 0x24 | u16 | `0xffff` on root objects (see `C3d_Load`'s parent); set to `0xffff` by the fixup |
+| 0x0c | offset | mesh (`-1`: a pure transform node, such as a car's root); for a light, a `D3DLIGHT7` |
+| 0x24 | i16 | the stage section the object is in, `-1` none (roots on disc; -1 for all after loading) |
 | 0x26 | u16 | the object's slot in the global table, written at load |
-| 0x30 | u32 | an id (`0x1000`, `0x1001`, `0x64001002` seen) |
-| 0x58 | i32[16] | matrix, 16.16 fixed point, row vectors (`v' = v M`, translation in the fourth row): object to parent |
-| 0x98 | i32[16] | matrix, same form (equal to the first in the cars checked; probably the world matrix at run time) |
-| 0xd8 | i32[16] | matrix, same form (identity in the cars checked) |
-| 0x170 | offset | an object |
+| 0x28 | i16[3] | neighbouring sections (run time) |
+| 0x30 | u32 | type: low byte `0xfd` a node whose children keep their local matrix as world; bit 12 (an id such as `0x1000`, `0x1001`, `0x64001002` seen) |
+| 0x58 | i32[16] | rest matrix, 16.16 fixed point, row vectors (`v' = v M`, translation in the fourth row) |
+| 0x98 | i32[16] | current local matrix (object to parent; equal to the rest one on disc) |
+| 0xd8 | i32[16] | world matrix (identity on disc); its translation (`+0x108`) places the object in a section |
+| 0x118 | f32[16] | world matrix in floats (run time) |
+| 0x170 | offset | next object in the same section (run time) |
+| 0x174 | u32 | dirty (1 on disc) |
+| 0x178 | u32 | kind: 0 mesh, 1 light, 2, 3 node (a car's root is 3) |
+| 0x17c | u8 | the drawing passes it takes part in, one bit each (`0xff` on disc) |
+| 0x180 | u32 | asks its section whether it is active (with a section and type bit 12 clear) |
+| 0x184 | u32 | takes its parent's world matrix as it is |
+
+How they are used: [world.md](../re/world.md).
 
 Car wheels show the convention: the left wheels have `-1.0` on the diagonal (mirrored) and their
 translation is the hub position. Vertices are in the object's space; chaining the first matrix up the
