@@ -5,9 +5,9 @@
    4,096 units through a double, 4096 / (2 pi 65536) at 0x511380, rounded to nearest (FISTP). */
 #include "sim/integrate.h"
 #include "sim/tilt.h"
+#include "sim/steer_body.h"
 #include "fixmath.h"
 #include "game/gstate.h"
-#include "pending.h"
 #include <math.h>
 
 static void v3load(int32_t v[3], const Car *c, uint32_t o) { for (uint32_t k = 0; k < 3; k++) v[k] = CI32(c, o + 4 * k); }
@@ -42,7 +42,7 @@ static int16_t to_units(int32_t v) { return (int16_t)(int64_t)llrint((double)v *
 
 void Car_Integrate(Car *c)
 {
-    PENDING_NOTE(0x436630, "Car_BodyContacts");
+    Car_SteerBody(c);
     Car_Tilt(c);
     if (!CI8(c, 0xb28) && CI32(c, 0xb74))   /* 0x437d70 */
         CW32(c, 0x5d8, CI32(c, 0x5d8) - fx_mul(CI32(c, 0x7a4) - CI32(c, 0x7a8), 0x1999));

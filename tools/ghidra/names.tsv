@@ -298,7 +298,7 @@
 00429f20	Rows_Turn3	math	high	Turns a 3 x 3 of rows by three u16 angles about its own axes (as 0x4ac820)
 00437d70	Car_EngineTorqueReaction	sim	med	With no wheel down, the engine's speed change turns the body (+0x5d8)
 00435470	Car_Integrate	sim	high	Sums the corner and wheel forces, steps velocity and spin, moves and turns the body
-00436630	Car_BodyContacts	sim	low	Body corner contact forces (+0x5e8, +0x648)
+00436630	Car_SteerBody	sim	high	Yaw damping, the heading turned to the front wheels, the front side force
 004373c0	Car_Tilt	sim	high	The push past 30 degrees of tilt and the slide that breaks a car loose
 0043b100	Car_Suspension	sim	high	Body sway springs, the wheels' suspension offsets and loads
 0043c640	Car_LoadSplit	sim	high	The wheels' loads with all four down
