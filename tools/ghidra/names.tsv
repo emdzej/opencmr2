@@ -1,0 +1,79 @@
+# addr	name	module	confidence	description (docs/re/architecture.md, docs/re/inventory.md)
+# confidence: high = read and understood, med = from calls/strings, low = guess
+00405626	entry	crt	high	MSVC CRT entry: parses the command line, calls WinMain
+004a9720	WinMain	main	high	Single-instance check (FindWindow), error log c:\error.txt, init, PeekMessage loop calling Input_Poll + Game_Frame when idle
+004a98b0	WndProc	main	med	Window procedure (QueryCancelAutoPlay, activation)
+004d0780	Game_Frame	main	high	Per-frame dispatch on Game_GetMode: 0 front end, 2 world/loading, 3 race
+004057d0	Game_GetMode	main	high	Returns the top-level mode (0 front end, 2 loading, 3 race)
+0049c150	Proc_InitSlot	proc	med	Initialises one process slot (state, event)
+0049c190	Proc_Init	proc	high	Process group: count, slots, state table {update, draw}, transition table
+0049c2c0	Proc_UpdateAll	proc	high	Calls each slot's state update function
+0049c310	Proc_DrawAll	proc	high	Calls each slot's state draw function (skipped once after a switch)
+0049c370	Proc_Advance	proc	high	Applies pending state transitions (bits 24-25 flag, bits 16-23 next state), else counts frames in state
+0049c0a0	AtExit_Register	main	med	Registers a shutdown callback
+004ff450	World_Frame	main	high	Mode 2 process group (state table 0x526ee0)
+0041b060	Race_Frame	race	high	Mode 3: builds one process per player (state table 0x5190b0) then runs them
+004a9b70	Timer_Sample	main	high	Latches timeGetTime() for the frame
+004a9b60	Timer_Now	main	high	Latched timeGetTime()
+004a9b80	Timer_Centis	main	high	Monotonic game clock in 1/100 s
+004aa220	File_Load	file	high	gzopen (zlib, transparent for raw files); if CMPR header read the payload, else plain ReadFile; CD retry dialog
+004a9c30	Bfl_LoadInto	file	high	Loads a .bfl into an archive slot {data, size}
+004a9d70	Bfl_Mount	file	high	Bfl_LoadInto + sets the slot's loaded flag
+004a9c70	Bfl_Find	file	high	Linear search of the trailing directory by lower-cased name; returns member pointer, size via out param
+004a9da0	Path_Basename	file	high	Copies the part after the last / or \\
+004a9df0	Bfl_FindFile	file	high	Bfl_Find on the basename of a path
+004a9e60	Bfl_FindTexture	file	high	Looks up <base>.dds then <base>.tga in an archive and creates the texture; falls back to loading from disk
+004a9f90	Text_ToFontCase	text	med	Upper-cases a string and remaps Latin-1 symbols to the font's glyph slots
+004aa480	Registry_Language	file	med	Maps the registry Language value to the language index
+004aa720	Registry_GetString	file	med	HKLM\\SOFTWARE\\Codemasters\\Colin McRae Rally 2 value
+0040e8d0	Paths_Init	file	med	Builds the data paths from Game_HDPath / Game_CDPath / Install_Version
+00455080	Bfl_MountCommon	file	high	Mounts Com<res>[C].bfl, speech, text, Common.bfl, surface.bfl, FireWork.bfl
+00455260	Bfl_MountStage	file	high	Mounts the stage archive <stage>.bfl
+0041f930	Stage_LoadTrackSplines	track	low	Loads .tsc / .tre / .xhi
+0041fc50	Stage_LoadC3d	track	high	Loads TEMP.C3D from the stage archive (C3d_Load)
+0041fc90	Stage_LoadHpc	track	med	Loads <stage>.hpc
+0041fcd0	Stage_LoadSrf	track	med	Loads <stage>.srf (surface table)
+0041fd30	Stage_LoadHorizons	track	med	Loads the NNNN.hor time-of-day horizon colour sets
+00420020	Stage_LoadBsp	track	med	Loads <stage>.bsp
+00420630	Stage_LoadCat	track	med	Loads <stage>.cat (0x2c-byte records)
+00455300	Stage_LoadTm	track	med	Loads <stage>.tm0/.tm1/.tm2
+00456c10	Stage_LoadCsp	track	med	Loads <stage>.csp
+00416720	Codriver_LoadCod	codriver	med	Loads <stage>.cod (pace notes)
+00416770	Codriver_SpeechTable	codriver	med	Pace-note speech sample names
+00490c30	Stage_LoadFinDat	track	med	Loads <stage>fin.dat (0x30-byte records)
+0047c2f0	Ai_LoadLines	ai	med	Loads <stage>.ai0/.ai1/.ai2
+0046f060	Stage_LoadSkyGround	track	med	Loads TEMP.SKY and TEMP.GRO
+00472830	Stage_LoadObj	track	med	Loads TEMP.OBJ (scenery objects)
+00472870	Stage_LoadSht	track	med	Loads TEMP.SHT
+00457000	Car_Load	car	med	Loads a car: <car><set><n>.bfl textures, .c3d model LODs (A1N, L, S), .cin
+004b9380	C3d_Load	model	high	Checks the PP_F magic and calls C3d_Fixup
+004b93c0	C3d_Fixup	model	high	Relocates the offsets of a PP_F image into pointers and registers its parts
+004b98f0	C3d_Reloc	model	high	*field += base (if not -1)
+004a28d0	Music_Open	audio	med	Opens arcadeN.adp, MS ADPCM ACM stream into a DirectSound streaming buffer
+004a2bd0	Music_Update	audio	med	Refills the music streaming buffer
+0049f0e0	Input_InitDefaults	input	high	Default keyboard bindings (DIK codes) for two keyboard players
+004b7a40	Input_Poll	input	low	Called once per idle loop iteration before Game_Frame
+004a8140	Window_Create	main	med	Registers the class and creates the window
+004aaaf0	Net_CreateDirectPlay	net	high	CoCreateInstance CLSID_DirectPlay / IID_IDirectPlay4A
+00410c80	Race_DrawStats	race	low	Debug FPS / hardware T&L overlay
+004eb290	Cheat_Match	frontend	high	Matches an entered string against the 20 cheat codes at 0x5250fc
+0041c5a0	Race_Update	race	high	Per player in race states 7-10: runs the due simulation steps (controls per car, replay, Sim_Step), then pose interpolation
+0042c890	Sim_StepCount	sim	high	Steps due per car from latched times and the rate at car+0xa98 (25 Hz), capped at 5; fraction to car+0xa90
+0042baf0	Sim_Step	sim	high	One fixed 40 ms simulation step of the whole world
+0042bc80	Sim_StepDone	sim	high	Decrements each car step counter car+0xb43
+0041d060	Race_PoseInterp	race	med	After the steps: interpolated poses and effects with the step fraction
+0042bf70	Car_PoseInterp	sim	med	Car body and wheel render matrices from the last two states
+00433890	Sim_StepCars	sim	med	Car dynamics part of Sim_Step
+0043c7f0	Car_Init	sim	high	Car state set-up: handling class switch (immediates), step rate 25.0
+00457e00	Car_Cin	car	high	Loaded .cin of a car
+00457e10	Car_CinSection	car	high	Section n of the .cin through its u16 offset directory
+0042b5f0	Car_Get	sim	high	Pointer to car state n (table 0x53aba8; the states are 0xc24 bytes in the block at *0x53c9a4)
+004667c0	Damage_Alloc	damage	med	Per-car damage records (0x4d0 and 0x290 bytes)
+00469680	Damage_Get	damage	high	Damage record of a car (DAT_0053cc1c)
+0046d2d0	Replay_Load	replay	high	Loads a .rpl/.grp; checks the size against the four layouts
+0046bdc0	Replay_PackControls	replay	high	Packs car controls +0x1d0 into a 4-byte frame
+0046cbe0	Replay_SameFrame	replay	high	Run-length test: same controls and count below 63
+0041c510	Replay_LoadDemo	replay	high	Attract-mode demo run %sH.rpl / %sL.rpl
+00490d50	Hpc_Parse	track	high	Parses .hpc in place: five grid levels, records, index list
+004b5620	Tre_Load	render	med	Allocates the scenery-tree state and parses .tre
+004b4aa0	Tre_Parse	render	med	Parses .tre in place, matches nodes to stage-mesh sections

@@ -1,0 +1,186 @@
+/* OpenCMR2 theme: the 2000 Ford Focus WRC livery (Colin McRae's car in the game) and a gravel stage.
+   - livery: navy #14204a, light blue #2f86d6, red #d1232f (the three stripes), on white;
+   - stage: gravel paper #f4f1ea (light), night stage #0b1020 (dark), pace-note white #f4f1ea.
+   Light mode is gravel paper with navy text and blue links; dark mode is the night stage with the light
+   blue as the accent and the red kept for the stripes and warnings. */
+
+:root {
+  --cm-navy: #14204a;
+  --cm-navy-2: #1d2d63;
+  --cm-blue: #2f86d6;
+  --cm-blue-light: #6fb2ee;
+  --cm-red: #d1232f;
+  --cm-red-light: #ec5a63;
+  --cm-gravel: #f4f1ea;
+  --cm-gravel-2: #ebe6db;
+  --cm-night: #0b1020;
+  /* The livery stripes: light blue, red, light blue. */
+  --cm-stripes: linear-gradient(180deg, var(--cm-blue) 0 38%, var(--cm-red) 38% 62%, var(--cm-blue) 62% 100%);
+
+  --vp-c-brand-1: #1f6fbf;
+  --vp-c-brand-2: #2f86d6;
+  --vp-c-brand-3: #1f6fbf;
+  --vp-c-brand-soft: rgba(47, 134, 214, 0.12);
+
+  --vp-c-bg: var(--cm-gravel);
+  --vp-c-bg-alt: var(--cm-gravel-2);
+  --vp-c-bg-elv: #fbfaf7;
+  --vp-c-bg-soft: #e8e3d7;
+  --vp-c-divider: #d8d1c2;
+  --vp-c-gutter: #d8d1c2;
+  --vp-c-text-1: #141a2e;
+  --vp-c-text-2: #4b5266;
+
+  --vp-c-tip-1: var(--cm-navy-2);
+  --vp-c-tip-2: #2a3a72;
+  --vp-c-tip-3: #3a4a84;
+  --vp-c-tip-soft: rgba(29, 45, 99, 0.08);
+  --vp-c-danger-1: #b81d28;
+  --vp-c-danger-2: var(--cm-red);
+  --vp-c-danger-3: var(--cm-red-light);
+  --vp-c-danger-soft: rgba(209, 35, 47, 0.1);
+
+  --vp-button-brand-bg: var(--cm-navy);
+  --vp-button-brand-hover-bg: var(--cm-navy-2);
+  --vp-button-brand-active-bg: #0e1636;
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-alt-bg: #e4dfd2;
+  --vp-button-alt-hover-bg: #d8d1c2;
+  --vp-button-alt-text: #141a2e;
+  --vp-button-alt-hover-text: #0b1020;
+
+  --vp-home-hero-name-color: var(--cm-navy);
+  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 45%, rgba(47, 134, 214, 0.35), rgba(209, 35, 47, 0.12) 55%, rgba(244, 241, 234, 0) 75%);
+  --vp-home-hero-image-filter: blur(56px);
+
+  --vp-c-default-soft: rgba(20, 32, 74, 0.06);
+}
+
+.dark {
+  --vp-c-brand-1: var(--cm-blue-light);
+  --vp-c-brand-2: #92c5f3;
+  --vp-c-brand-3: var(--cm-blue);
+  --vp-c-brand-soft: rgba(111, 178, 238, 0.14);
+
+  --vp-c-bg: var(--cm-night);
+  --vp-c-bg-alt: #070b17;
+  --vp-c-bg-elv: #121a33;
+  --vp-c-bg-soft: #121a33;
+  --vp-c-divider: #232d4d;
+  --vp-c-gutter: #04060d;
+  --vp-c-text-1: #eceae4;
+  --vp-c-text-2: #a7adc0;
+
+  --vp-c-tip-1: var(--cm-blue-light);
+  --vp-c-tip-2: #92c5f3;
+  --vp-c-tip-soft: rgba(111, 178, 238, 0.1);
+  --vp-c-danger-1: #f0858c;
+  --vp-c-danger-2: var(--cm-red-light);
+  --vp-c-danger-soft: rgba(236, 90, 99, 0.16);
+
+  --vp-button-brand-bg: var(--cm-blue);
+  --vp-button-brand-hover-bg: #4596df;
+  --vp-button-brand-active-bg: #236fb6;
+  --vp-button-alt-bg: #1a2342;
+  --vp-button-alt-hover-bg: #232d4d;
+  --vp-button-alt-text: #eceae4;
+  --vp-button-alt-hover-text: #ffffff;
+
+  --vp-home-hero-name-color: var(--cm-gravel);
+  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 45%, rgba(47, 134, 214, 0.3), rgba(209, 35, 47, 0.18) 50%, rgba(11, 16, 32, 0) 75%);
+}
+
+/* The livery stripes under the navigation bar. */
+.VPNav::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 6px;
+  background: var(--cm-stripes);
+  pointer-events: none;
+}
+
+.VPNavBarTitle .title {
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.VPHero .name {
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+.VPHero .text {
+  color: var(--vp-c-text-1);
+}
+
+.VPButton {
+  border-radius: 3px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 13px !important;
+}
+.VPButton.alt {
+  border: 1px solid var(--vp-c-divider) !important;
+}
+
+/* Feature cards: stage boards, with the stripes down the left edge. */
+.VPFeature {
+  position: relative;
+  border: 1px solid var(--vp-c-divider) !important;
+  border-radius: 6px !important;
+  background: var(--vp-c-bg-elv) !important;
+  overflow: hidden;
+}
+.VPFeature::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 5px;
+  background: linear-gradient(90deg, var(--cm-blue) 0 38%, var(--cm-red) 38% 62%, var(--cm-blue) 62% 100%);
+}
+.dark .VPFeature {
+  background: linear-gradient(160deg, #141d3a, #0b1020) !important;
+}
+
+.vp-doc h2 {
+  border-top-color: var(--vp-c-divider);
+}
+
+.vp-doc table th {
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc a {
+  text-underline-offset: 3px;
+}
+
+/* gasm's official "Built for gasm" badge (https://gasm.emdzej.pl/dev/badge): the variant that matches the theme. */
+.gasm-badge-dark { display: none; }
+.dark .gasm-badge-light { display: none; }
+.dark .gasm-badge-dark { display: inline; }
+
+/* Keyboard keys in the controls tables. */
+.vp-doc kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 6px;
+  border: 1px solid #b9b2a3;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #fbfaf7;
+  color: var(--cm-navy);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.85em;
+  line-height: 1.6;
+  text-align: center;
+}
+.dark .vp-doc kbd { border-color: #2c3760; background: #141d3a; color: var(--cm-gravel); }

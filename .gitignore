@@ -1,0 +1,24 @@
+# Original data and anything derived from it: never commit (AGENTS.md, hard rule 1).
+/cd/
+/game/
+/cmr2.exe
+*.exe
+*.dll
+*.bik
+*.bfl
+*.c3d
+*.adp
+/re/
+/out/
+
+# Builds and fetched toolchains.
+build*/
+.deps/
+__pycache__/
+
+# Docs site.
+docs/node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/public/play/vendor/
+docs/public/play/*.wasm
