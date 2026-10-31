@@ -1,5 +1,6 @@
 /* Model meshes on the device (see mesh.h). */
 #include "render/mesh.h"
+#include "render/polyq.h"
 #include "exe.h"
 #include "platform.h"
 #include "render/light.h"
@@ -28,6 +29,7 @@ void VB_CreatePool(void)
         if (!g_vb[i]) g_vb[i] = D3dVB_Create(FVF_MODEL, VB_VERTS);
         g_vb_fill[i] = 0;
     }
+    Poly_CreateVB();
 }
 
 void VB_FreePool(void)
@@ -37,6 +39,7 @@ void VB_FreePool(void)
         g_vb[i] = NULL;
         g_vb_fill[i] = 0;
     }
+    Poly_FreeVB();
     for (uint32_t i = 0; i < npool; i++) free(pool[i].idx);
     free(pool);
     pool = NULL;

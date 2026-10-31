@@ -65,7 +65,7 @@ Obj *C3d_Objects(const C3d *m, Obj *parent)
         x->dirty = rd32(r + 0x174);
         x->kind = rd32(r + 0x178);
         x->mask = r[0x17c];
-        x->culled = rd32(r + 0x180);
+        x->sorted = rd32(r + 0x180);
         x->inherit = rd32(r + 0x184);
         if (!parent || x->section != -1) {
             x->parent = LINK(8);
@@ -93,7 +93,7 @@ void Obj_FreeAll(void)
    5); all others are active. */
 bool Obj_Active(const Obj *o)
 {
-    (void)o;   /* the section test (o->section >= 0, o->culled, !(o->type & 0x1000)) comes with step 5 */
+    (void)o;   /* the section test (o->section >= 0, o->sorted, !(o->type & 0x1000)) comes with step 5 */
     return true;
 }
 

@@ -151,17 +151,37 @@ They sit in cells like other world objects, so the update moves them into the ca
 
 ## The world frame
 
-`World_Render` 0x49d3f0 draws one view, in this order:
-1. Start the scene, set the viewport; draw 2D layer 4 (behind everything).
-2. List the visible cells and run a per-cell set-up for each (0x4b3c00).
-3. Make the billboard turn.
-4. With fog and lighting off and the far plane at 150, draw the objects in the cells
-   (`Section_DrawObjects` 0x49ce40, z-buffer off: the sky and ground).
-5. With linear fog and lighting mode 0, draw the terrain; then the overlay table in mode 5.
-6. Draw the cars and effect layers (0x4af120, 0x4bbd80 with several masks).
-7. In mode 1, draw the scenery, then the sorted objects and billboards (the order of the last two
-   depends on 0x59ce14).
-8. Draw the indexed effects (`Render_DrawIndexed`), then full-screen 2D layer 3.
+`World_Render` 0x49d3f0 (camera, viewport x/y/w/h, pass, a world flag) draws one view, in this order:
+1. Zero the frame's polygon counts, begin the scene and set the viewport. In lighting mode 5 with
+   culling off, draw 2D layer 4 (behind everything).
+2. With the world flag set:
+   - list the visible cells, once `Section_Init` has run (0x72d56c), and run a per-cell vertex
+     relighting for each (0x4b3c00), which redoes a cell's colours when the light colours change;
+   - call 0x4b0480 (camera, pass) and make the billboard turn.
+3. Without stage sections, draw every object (0x49cd90) and the 0x10 triangle bucket. Otherwise:
+   1. Draw the cell objects (`Section_DrawObjects`, z-buffer off: the sky and ground). This is done
+      with the fog-enable state of 0x816704, fog off, mode 5 and the far plane at 150.
+   2. Draw the terrain in mode 0 with linear fog.
+   3. Draw the overlay (0x49cf80) in mode 5.
+   4. Run the cars' pass (0x4af120), then the triangle buckets 8 (mode 5) and 0x20 (mode 4).
+   5. In mode 1, draw the scenery. Then come the sorted objects (`Section_QueueSorted` 0x49d290,
+      `Obj_DrawQueued` 0x49cd20) and the queued billboards. With the mode at 0x59ce14 set
+      (`World_SetMode` 0x49c420), the billboards come first and the 0x10 bucket and the indexed draw
+      are drawn before the sorted objects.
+4. Still with the world flag, but fog off and source-alpha blending in mode 5: draw the 0x10 bucket,
+   the 0x40 bucket (mode 4), the debug 3D lines, `Render_DrawIndexed` 0x4b1530 and 0x4b6240 (pass).
+5. Call 0x4bc490 (0, 0, 0). Then, with z off, draw 2D layers 3, 2 and 1 over the whole screen with
+   culling off.
+6. Run the frame statistics (0x4b21e0) and end the scene.
+
+The sorted pass takes the objects in the listed cells that have +0x180 set (`Section_DrawObjects`
+leaves them out). It writes each one's distance to the camera in x and z (the table square root) to
++0x16c, and draws them far to near. `Obj_CompareFar` 0x49cbc0 always answers "after" for an object of
+type 0x14, whichever side it is on. Within one unit, type 5 goes after type 0. The sort only runs when
+0x5207b4 is set, as for the billboards.
+
+The two line queues (2D 0x4bb2b0, 3D 0x4bb4c0, filled by 0x4bb430) are debugging aids. Nothing fills
+them in the release.
 
 ## Loading a stage
 
@@ -187,7 +207,9 @@ record stays reachable for the fields not yet understood. The update, commit, dr
 ported, and so are the grid, the lookup, the corners, the visible list and the terrain draw
 (`src/world/section.c`) and `Stage_LoadC3d` (`src/world/stage.c`). The scenery and billboards are ported
 too (`Stage_LoadScenery`, `Section_DrawBillboards`, `Billboard_DrawQueued`). So are the sky and ground
-(`Stage_LoadSkyGround`, `Sky_Follow`, `Obj_UpdateSection`, `Section_DrawObjects`). Still to come: the
+(`Stage_LoadSkyGround`, `Sky_Follow`, `Obj_UpdateSection`, `Section_DrawObjects`). So is `World_Render`
+(`src/world/frame.c`), with the sorted pass and the triangle queues (`src/render/polyq.c`). The calls
+not ported yet are left out in order, and they are listed there. Still to come: the
 stage height offsets for the sky, the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
 under a turning stand and takes the view from a camera object, so a car on screen goes through these
 functions. `tests/d3d7_test.c` checks the 205's tree: world = local plus the stand's move, the float

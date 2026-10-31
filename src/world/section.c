@@ -20,6 +20,7 @@ static float bb_turn[16];                     /* 0x597cc0 */
 static Scenery *queued[SCENERY_MAX];          /* 0x593cb0 */
 static int nqueued;                           /* DAT_0059ce28 */
 int g_nsec, g_sec_row, g_sec_rows;
+bool g_sec_ready;
 int32_t g_sec_size, g_sec_half;
 uint16_t g_visible[SEC_MAX];
 int g_nvisible;
@@ -129,6 +130,7 @@ static void corners(void)
 void Section_Init(Obj *world)
 {
     if (g_nsec < 2) return;
+    g_sec_ready = true;
     int32_t d = g_sec[1].x - g_sec[0].x;
     g_sec_size = d < 0 ? -d : d;
     g_sec_half = fx_mul(g_sec_size, 0x8000);
@@ -407,7 +409,7 @@ void Section_DrawObjects(uint32_t pass)
     Render_ZWrite(0);
     for (int k = 0; k < g_nvisible; k++)
         for (Obj *o = g_sec[g_visible[k]].objs; o; o = o->section_next)
-            if (!o->culled) Obj_Draw(o, pass);
+            if (!o->sorted) Obj_Draw(o, pass);
     Render_ZEnable(1);
     Render_ZWrite(1);
 }

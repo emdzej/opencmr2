@@ -205,3 +205,17 @@
 004b2e40	Mesh_SetX2c	render	low	Sets a mesh record's +0x2c
 00405d00	Opt_LowDetailClouds	misc	low	Chooses the PcLow cloud set
 004928c0	Stage_SkyOffsets	track	low	Height offsets for the sky, ground and clouds
+004bba00	Poly_Add	render	high	Queues a world-space triangle (three 16.16 corners) in the bucket of its flags
+004bbc60	Poly_AddRaw	render	high	Queues a triangle of three ready FVF 0x2d2 vertices
+004bbd80	Poly_Flush	render	high	Draws a triangle bucket in runs of texture and flags through the 0x338 buffer
+0049d290	Section_QueueSorted	world	high	Distances and queues the listed cells' sorted (+0x180) objects
+0049cd90	World_DrawAll	world	high	Draws every object (no stage sections)
+0049c420	World_SetMode	world	med	Sets 0x59ce14: effects drawn before the sorted objects
+0049c430	World_Mode	world	med	Returns 0x59ce14
+004bcad0	Fog_SetEnabled	render	high	Sets the fog-enable state World_Render uses
+004bcae0	Fog_Enabled	render	high	Returns the fog-enable state
+004bb2b0	Line2d_Flush	render	med	Draws a 2D debug line layer (nothing fills it in the release)
+004bb430	Line3d_Add	render	med	Queues a 3D debug line
+004bb4c0	Line3d_Flush	render	med	Draws the 3D debug lines
+004b3c00	Section_Relight	world	low	Redoes a cell's vertex colours when the light colours change
+004b8540	Section_Free	world	med	Frees the sections, clears 0x72d56c

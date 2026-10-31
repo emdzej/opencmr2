@@ -76,7 +76,7 @@ static void wr32(uint8_t *p, uint32_t v) { p[0] = (uint8_t)v, p[1] = (uint8_t)(v
 static void sky_part(Obj *o)
 {
     if (!o) return;
-    o->culled = 0;
+    o->sorted = 0;
     if (o->mesh) wr32(o->mesh + 0x2c, 0);
 }
 

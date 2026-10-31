@@ -21,6 +21,7 @@
 #include "font.h"
 #include "world/obj.h"
 #include "world/section.h"
+#include "world/frame.h"
 #include "world/stage.h"
 #include "vfs.h"
 #include <math.h>
@@ -260,6 +261,23 @@ static void invert_rigid(const D3DMATRIX *v, D3DMATRIX *o)
         o->m[3][j] = -(v->m[3][0] * o->m[0][j] + v->m[3][1] * o->m[1][j] + v->m[3][2] * o->m[2][j]);
 }
 
+/* A translucent band and the title over it, queued on layer 1 of both 2D queues (the car view flushes
+   them at once; World_Render flushes them last). The meshes leave blending off (alpha-tested), so it
+   goes back on first, as the game does before its 2D. */
+static void title(void)
+{
+    static const uint8_t band[4] = {0, 0, 0, 0x90}, white[4] = {255, 255, 255, 255};
+    int32_t a0[2] = {0, 8 << 16}, a1[2] = {640 << 16, 8 << 16}, a2[2] = {0, 34 << 16}, a3[2] = {640 << 16, 34 << 16};
+    Tri_Add(a0, a1, a2, band, 1);
+    Tri_Add(a1, a3, a2, band, 1);
+    Font_Print(0, V.title, 320, 12, white, 2);
+    if (V.car) {
+        Render_AlphaBlend(1);
+        Tri_Flush(1);
+        Sprite_Flush(1);
+    }
+}
+
 void viewer_frame(void)
 {
     float a = (float)V.frame++ * 0.02f + 0.6f;
@@ -283,11 +301,11 @@ void viewer_frame(void)
     }
     D3d_SetTransform(D3DTS_VIEW, &view);
     Render_SetClearColour(0x30, 0x40, 0x58);
-    D3d_BeginScene();
     Render_ClearTarget();
     int32_t r[4] = {0, 0, 640, 480};
     D3d_Clear(1, r, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
     if (V.car) {
+        D3d_BeginScene();
         /* the stand turns (16.16 rows), the camera sits 5.5 back and 1.6 up looking slightly down */
         Mat_Identity(&V.stand.world);
         V.stand.world.m[0] = (int32_t)(rot.m[0][0] * 65536);
@@ -302,8 +320,11 @@ void viewer_frame(void)
         V.camera.dirty = 1;
         Obj_Frame(&V.stand, &V.camera);
         Obj_Draw(V.car, 0);
+        title();
+        D3d_EndScene();
     } else {
-        /* the camera object from the fly-through's view; the cells in its view, their meshes */
+        /* the camera object from the fly-through's view; the sky follows it, the objects are brought up
+           to date, and World_Render draws the view with the title queued on 2D layer 1 */
         D3DMATRIX inv;
         invert_rigid(&view, &inv);
         for (int i = 0; i < 16; i++) V.camera.world.m[i] = (int32_t)lrintf(inv.m[i / 4][i % 4] * 65536);
@@ -311,31 +332,10 @@ void viewer_frame(void)
         int32_t cp[3] = {V.camera.world.m[12], V.camera.world.m[13], V.camera.world.m[14]};
         Sky_Follow(cp);
         Obj_Frame(&g_world, &V.camera);
-        Section_BuildVisible(&V.camera);
-        Billboard_SetCamera(&V.camera);
-        /* World_Render: the cell objects (sky, clouds, ground) unlit with the far plane at 150 */
-        Light_SetMode(5);
-        int32_t far = Proj_Far();
-        Proj_Set(0, 0, 0x960000, 0);
-        Section_DrawObjects(0);
-        Proj_Set(0, 0, far, 0);
-        Light_SetMode(0);   /* World_Render's modes: 0 for the terrain, 1 for the scenery */
-        Stage_DrawTerrain(&g_stage_mesh);
-        Light_SetMode(1);
-        Section_DrawBillboards(&V.camera);
-        Billboard_DrawQueued();
         snprintf(V.title, sizeof V.title, "%s  %d of %d cells in view", V.name, g_nvisible, g_nsec);
+        title();
+        static const int16_t full[4] = {0, 0, 640, 480};
+        World_Render(&V.camera, full, 0, true);
     }
-    /* a translucent band and the title over it (layer 1 of both queues); the meshes left blending off
-       (alpha-tested), so it goes back on first, as the game does before its 2D */
-    Render_AlphaBlend(1);
-    static const uint8_t band[4] = {0, 0, 0, 0x90}, white[4] = {255, 255, 255, 255};
-    int32_t a0[2] = {0, 8 << 16}, a1[2] = {640 << 16, 8 << 16}, a2[2] = {0, 34 << 16}, a3[2] = {640 << 16, 34 << 16};
-    Tri_Add(a0, a1, a2, band, 1);
-    Tri_Add(a1, a3, a2, band, 1);
-    Tri_Flush(1);
-    Font_Print(0, V.title, 320, 12, white, 2);
-    Sprite_Flush(1);
-    D3d_EndScene();
     D3d_Present();
 }

@@ -11,6 +11,10 @@ static bool loaded;
 static int32_t fixed[16];
 static int32_t far_given;                 /* DAT_005207b0 */
 static float fog_start, fog_end;   /* DAT_00816600, 0x8165f4 */
+static uint32_t fog_enabled;       /* DAT_00816704 */
+
+void Fog_SetEnabled(uint32_t on) { fog_enabled = on; }
+uint32_t Fog_Enabled(void) { return fog_enabled; }
 
 static float exe_f32(uint32_t va)
 {

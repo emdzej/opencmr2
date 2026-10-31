@@ -23,4 +23,6 @@ void Sprite_Flush(int layer);                           /* 0x4a3650 */
    any other value for the first queue. Up to 1,024 a layer (but see twod.c). */
 void Tri_Add(const int32_t a[2], const int32_t b[2], const int32_t c[2], const uint8_t rgba[4], int layer);
 void Tri_Flush(int layer);                              /* 0x4bb850 */
-uint32_t Twod_Prims(void);                              /* DAT_0059ce20: 2D triangles drawn */
+uint32_t Twod_Prims(void);
+void Twod_CountPrims(uint32_t n);   /* the triangle queues count into it too */
+void Twod_ResetPrims(void);         /* World_Render 0x49d3f0 zeroes it each frame */                              /* DAT_0059ce20: 2D triangles drawn */

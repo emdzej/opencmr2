@@ -106,6 +106,38 @@ The text path:
 - It first draws three numbers from the C runtime's `rand()`, so the game's random sequence advances
   with every string printed. The port has the runtime's generator (`src/crt.c`).
 
+## Triangle queues
+
+The effects queue world-space textured triangles in four buckets, chosen by a flag bit. World_Render
+draws each bucket at its own point in the frame:
+
+| Bit | Records | Size | Drawn |
+|---|---|---|---|
+| 8 | 0x7dd168 | 0x400 | after the terrain, lighting mode 5 |
+| 0x20 | 0x730fd0 | 0x800 | next, mode 4 |
+| 0x10 | 0x803168 | 0x200 | after the scenery, mode 5 |
+| 0x40 | 0x7acfd0 | 1 | last, mode 4 |
+
+The 0x40 bucket's limit test is against 1, so it holds a single triangle. A record is 0x98 bytes:
+- three `0x2d2` vertices (+0x00);
+- the texture (+0x90);
+- the flags (+0x94): 1 no z test, 2 no z write, 4 no culling.
+
+There are two adders:
+- `Poly_Add` 0x4bba00 takes three corners: position and UV in 16.16, colour bytes R, G, B, A. It sets
+  the specular to 0xff000000. The normals and second UVs keep what the record held.
+- `Poly_AddRaw` 0x4bbc60 copies three ready vertices.
+
+A full bucket sets a flag that nothing reads. Flags without a bucket bit make the original write
+through the flags value as an address; the port drops the triangle.
+
+`Poly_Flush` 0x4bbd80 copies one bucket into the vertex buffer at device + 0x338 (0x1800 vertices,
+made with the model pool in 0x4b1980). It draws a run for each change of texture or flags. The buffer
+is locked once at the start; each change unlocks it, draws, locks it again and sets the new state. The
+state starts as texture "1" and flags -1, so the first triangle always sets it. Afterwards texture 0
+is unbound, z is turned back on, culling goes back to the default, and the cached blends are
+forgotten. `Tri_Init` empties only the 8 and 0x10 buckets.
+
 ## Fixed-point math
 
 The simulation and parts of the renderer work in 16.16, with angles in 4,096 units per turn.

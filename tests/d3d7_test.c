@@ -8,6 +8,8 @@
 #include "render/rstate.h"
 #include "render/tex.h"
 #include "render/twod.h"
+#include "render/polyq.h"
+#include "world/frame.h"
 #include "crt.h"
 #include "fixmath.h"
 #include "bfl.h"
@@ -143,6 +145,29 @@ int main(void)
     b2 = D3d_Stats();
     Tri_Flush(1);
     CHECK(D3d_Stats().prims - b2.prims == 1024);
+    /* the triangle queues: a run per texture and flags; the 0x40 bucket holds one triangle */
+    PolyVert pv[3] = {{0, 0, 0, {255, 0, 0, 255}, 0, 0}, {1 << 16, 0, 0, {0}, 0, 0}, {0, 1 << 16, 0, {0}, 0, 0}};
+    Poly_CreateVB();
+    for (int i = 0; i < 5; i++) Poly_Add(&pv[0], &pv[1], &pv[2], i < 3 ? &t1 : &t2, 0x20);
+    Poly_Add(&pv[0], &pv[1], &pv[2], &t2, 0x20 | POLY_NOZTEST);
+    b2 = D3d_Stats();
+    Poly_Flush(0x20);
+    CHECK(D3d_Stats().draws - b2.draws == 3 && D3d_Stats().prims - b2.prims == 6);
+    for (int i = 0; i < 3; i++) Poly_Add(&pv[0], &pv[1], &pv[2], NULL, 0x40);
+    b2 = D3d_Stats();
+    Poly_Flush(0x40);
+    CHECK(D3d_Stats().prims - b2.prims == 1);
+    Poly_Add(&pv[0], &pv[1], &pv[2], NULL, 0);   /* no bucket: dropped */
+    Poly_FreeVB();
+    /* the sorted pass compare: farther first, type 0x14 always after, type 5 after 0 within a unit */
+    Obj oa = {0}, ob = {0};
+    Obj *pa = &oa, *pb = &ob;
+    oa.dist = 10 << 16, ob.dist = 5 << 16;
+    CHECK(Obj_CompareFar(&pa, &pb) == -1 && Obj_CompareFar(&pb, &pa) == 1);
+    oa.dist = ob.dist = 5 << 16, oa.type = 5;
+    CHECK(Obj_CompareFar(&pa, &pb) == 1 && Obj_CompareFar(&pb, &pa) == -1);
+    ob.type = 0x14;
+    CHECK(Obj_CompareFar(&pa, &pb) == 1 && Obj_CompareFar(&pb, &pa) == 1);
     /* Font_Print draws three numbers from rand() even with no font */
     crt_srand(400);
     int r1 = crt_rand(), r2 = crt_rand(), r3 = crt_rand(), r4 = crt_rand();

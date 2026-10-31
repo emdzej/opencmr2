@@ -39,6 +39,7 @@ typedef struct {
 
 extern Section g_sec[SEC_MAX];    /* 0x71f608 (pointers there) */
 extern int g_nsec;                /* DAT_0072d568 */
+extern bool g_sec_ready;          /* DAT_0072d56c: set by Section_Init, cleared when they are freed */
 extern int g_sec_row;             /* DAT_0071f600: cells in a row */
 extern int g_sec_rows;            /* DAT_0072d458 */
 extern int32_t g_sec_size, g_sec_half;   /* DAT_0072d24c, DAT_0072d248 */

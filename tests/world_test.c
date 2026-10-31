@@ -10,6 +10,7 @@
 #include "vfs.h"
 #include "vfs_host.h"
 #include "world/section.h"
+#include "world/frame.h"
 #include "world/stage.h"
 #include <stdio.h>
 
@@ -30,7 +31,7 @@ int main(void)
     CHECK(Stage_LoadC3d());
     Stage_LoadScenery();
     CHECK(g_nscenery == 1595 + 236 && g_sht_scenery == 1595);
-    CHECK(g_sky && g_ground && g_cloud && g_cloud_top && g_cloud_top->mask == 0 && g_sky->culled == 0);
+    CHECK(g_sky && g_ground && g_cloud && g_cloud_top && g_cloud_top->mask == 0 && g_sky->sorted == 0);
     Section_Init(&g_world);
     int placed = 0;
     for (int i = 0; i < g_nsec; i++) placed += g_sec[i].nscenery;
@@ -63,6 +64,12 @@ int main(void)
     Billboard_DrawQueued();
     printf("scenery in view: %u draws\n", D3d_Stats().draws - b.draws);
     CHECK(D3d_Stats().draws > b.draws);
+    /* the world frame: the whole view through World_Render */
+    b = D3d_Stats();
+    static const int16_t full[4] = {0, 0, 640, 480};
+    CHECK(World_Render(&cam, full, 0, true));
+    printf("World_Render: %u draws\n", D3d_Stats().draws - b.draws);
+    CHECK(D3d_Stats().draws - b.draws > 100 && D3d_Stats().scenes - b.scenes == 1);
     /* the sky follows a position; the update moves it into that position's cell */
     int32_t at[3] = {512 << 16, 30 << 16, 1190 << 16};
     Sky_Follow(at);

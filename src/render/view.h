@@ -13,3 +13,5 @@ int32_t Proj_Far(void);            /* DAT_005207b0: the far plane as last given 
 void Fog_Set(int32_t start, int32_t end, int32_t start2, int32_t end2, uint32_t rgb);   /* 0x4bcaf0 */
 void Fog_SetLinear(void);          /* 0x4bcbb0 */
 void Fog_Off(void);                /* 0x4bcc20 */
+void Fog_SetEnabled(uint32_t on);  /* 0x4bcad0: DAT_00816704, the fog-enable state World_Render sets */
+uint32_t Fog_Enabled(void);        /* 0x4bcae0 */

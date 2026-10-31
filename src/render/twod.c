@@ -2,6 +2,7 @@
 #include "render/twod.h"
 #include "fixmath.h"
 #include "render/d3d7.h"
+#include "render/polyq.h"
 #include "render/rstate.h"
 #include <string.h>
 
@@ -38,6 +39,7 @@ void Tri_Init(void)
 {
     tris_on = true;
     memset(ntri, 0, sizeof ntri);
+    Poly_Init();
 }
 
 static uint32_t argb(const uint8_t c[4]) { return (uint32_t)c[3] << 24 | (uint32_t)c[0] << 16 | (uint32_t)c[1] << 8 | c[2]; }
@@ -141,6 +143,8 @@ void Sprite_Flush(int layer)
 }
 
 uint32_t Twod_Prims(void) { return prims_2d; }
+void Twod_CountPrims(uint32_t n) { prims_2d += n; }
+void Twod_ResetPrims(void) { prims_2d = 0; }
 
 static int tri_queue(int layer) { return layer == 2 ? 1 : layer == 3 ? 2 : layer == 4 ? 3 : 0; }
 

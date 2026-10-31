@@ -24,11 +24,12 @@ typedef struct Obj {
     FxMat local;                         /* +0x98: object to parent */
     FxMat world;                         /* +0xd8: object to world */
     D3DMATRIX worldf;                    /* +0x118: the world matrix as Direct3D draws it */
+    int32_t dist;                        /* +0x16c: its distance to the camera in x and z, for the sorted pass */
     struct Obj *section_next;            /* +0x170 */
     int32_t dirty;                       /* +0x174 */
     int32_t kind;                        /* +0x178: 0 mesh, 1 light, 2, 3 node; only 0-3 are updated */
     uint8_t mask;                        /* +0x17c: the passes it is drawn in (bit per pass) */
-    int32_t culled;                      /* +0x180 */
+    int32_t sorted;                      /* +0x180: drawn in the sorted pass, far to near, not with its cell */
     int32_t inherit;                     /* +0x184: take the parent's world as it is */
     const uint8_t *rec;                  /* the file record */
 } Obj;
