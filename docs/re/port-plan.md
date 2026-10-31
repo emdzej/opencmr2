@@ -180,7 +180,13 @@ with them. Next:
   the stage (sim_test). A loose car (+0xc00) runs through the free body 0x42eae0
   (`src/sim/free_body.c`): it rolls and comes to rest, and is handed back to the road following once
   upright. A car off the stage (+0xbf8) is recovered (`src/sim/recover.c`: a fade out and in on its
-  channel, `src/sim/fade.c`, and the car put back on the centre line, sim_test). Pending and logged:
+  channel, `src/sim/fade.c`, and the car put back on the centre line, sim_test). The race runs through
+  the original's process framework and states (`src/game/proc.c`, `src/game/race.c`: Race_Frame
+  0x41b060, states 0-12, Race_Update 0x41c5a0, Sim_StepCount 0x42c890 and Sim_Step 0x42baf0 in
+  `src/sim/sim.c`): the loads, the line, the five-second countdown, the stage timed from the go, the
+  finish, the replay and results states (race_test). The viewer is its host for the loads, the
+  camera and the title until Stage_Load, Cars_Load, the cameras and the HUD are ported. Pending and
+  logged:
   - the body pose 0x432c20, damage 0x46b4e0 and the hit damage 0x466ef0; in the recovery, the
     co-driver's rewind 0x417780, the skid marks 0x4aff80 and the splits 0x421d80;
   - in the collision pass: the car-to-car contacts 0x48a1f0, the scenery objects 0x4878a0, the

@@ -58,13 +58,68 @@ void Car_ControlsFromInput(Car *c, uint32_t held, uint32_t pressed)
     }
 }
 
+/* 0x43f570: the launch when the automatic box first takes over: first gear, the driven wheels' spins
+   (+0x860-+0x86c, by the drive split +0x7b4: rear, all four, or front) at the revs through first gear,
+   the clutch counter +0xb1f at 10. The last line uses the car being worked on (0x53cc18), not c. */
+static void launch(Car *c)
+{
+    c->s[0xb1e] = 1;
+    int32_t w = fx_mul(CI32(c, 0x7a4), CI32(c, 0x7e0)), split = CI32(c, 0x7b4);
+    if (split != 0x10000) CW32(c, 0x86c, w), CW32(c, 0x868, w);
+    if (split != 0) CW32(c, 0x864, w), CW32(c, 0x860, w);
+    c->s[0xb1f] = 10;
+    if (g_car) CW32(g_car, 0x7ac, CI32(g_car, 0x7a4));
+}
+
 void Car_RaceControls(Car *c, uint32_t held, uint32_t pressed)
 {
     CW32(c, 0x1dc, 0);
     CW32(c, 0x1d8, 0);
     memset(c->s + 0x1d0, 0, 5);
     Car_ControlsFromInput(c, held, pressed);
-    CW32(c, 0xb9c, 1);   /* (with +0xb48 not manual, 0x43f570 first: not ported) */
+    if (!CI32(c, 0xb9c) && CI32(c, 0xb48) != 1) launch(c);
+    CW32(c, 0xb9c, 1);
+}
+
+void Car_StartLineControls(Car *c, uint32_t held, uint32_t pressed)
+{
+    CW32(c, 0x1e0, 0);
+    CW32(c, 0x1dc, 0);
+    CW32(c, 0x1d8, 0);
+    memset(c->s + 0x1d0, 0, 5);
+    /* a player's controls from the input; a car without a player (0x42b710 -1) blips its revs: the
+       counter +0xb47 runs 5-14 steps on the throttle and as many off, from rand() (not ported: no
+       CPU cars at the start yet) */
+    Car_ControlsFromInput(c, held, pressed);
+    CW32(c, 0x1d8, 1);
+    CW32(c, 0x1dc, 0);
+    CW32(c, 0xb9c, 0);
+}
+
+/* 0x47b870 and 0x47b7b0 (the latter after the race state's reader): brake unless +0xb94, no
+   throttle, handbrake, automatic box off, the velocity times 0.97 */
+static void brake_to_stop(Car *c)
+{
+    c->s[0x1d3] = CI32(c, 0xb94) ? 0 : 1;
+    c->s[0x1d2] = 0;
+    CW32(c, 0x1d8, 1);
+    CW32(c, 0xb9c, 0);
+    CW32(c, 0x1e4, 0);
+    for (uint32_t k = 0; k < 3; k++) CW32(c, 0x408 + 4 * k, fx_mul(CI32(c, 0x408 + 4 * k), 0xf851));
+}
+
+void Car_FinishedControls(Car *c)
+{
+    CW32(c, 0x1dc, 0);
+    CW32(c, 0x1d8, 0);
+    memset(c->s + 0x1d0, 0, 5);
+    brake_to_stop(c);
+}
+
+void Car_FinishedPlayerControls(Car *c, uint32_t held, uint32_t pressed)
+{
+    Car_RaceControls(c, held, pressed);
+    brake_to_stop(c);
 }
 
 int Drive_StepsDue(uint32_t frame, double hz)

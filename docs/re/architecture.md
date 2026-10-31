@@ -70,8 +70,34 @@ countdown, driving, finished, results ...). The race states (update / draw):
 
 `0x501680` (a shared "draw the current screen" function) also appears in the front-end and world tables.
 
-The port keeps the framework as it is: the state tables are code addresses, so the port has its own C
-tables in the same order, and transitions stay data-driven.
+The port keeps the framework as it is (`src/game/proc.c`): the state tables are code addresses, so the
+port has its own C tables in the same order, and transitions stay data-driven (the race's table is read
+from 0x519120 at run time). A slot's word holds the state (byte 0), the kind (byte 1: for the race 0 one
+player, 1 split screen, 2 and 3 the championship cases, 4 alternate players), the next state (byte 2)
+and a pending switch's priority (bits 24-25). `Proc_Event` 0x49c1c0 takes the first transition whose
+state and kind match (0xff any) for the event, unless a switch of the same or higher priority is pending.
+
+The race's transitions (0x519120): 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 7 -> 8 -> 9 -> 10 -> 11 -> 0 on event 0;
+from 5, event 5 to 6 (the intro camera), 6 to 13, 1 to 10; 1 to 12 on event 1; 11 to 4 on events 3 and
+7 (a restart); any state to 5 on event 4 and to 11 on event 1 (a failed load).
+
+| State | What |
+|---|---|
+| 0 | The race's variables cleared; for the first player the selection, the common archives, the car tables |
+| 1 | The loading screen, until it is up (0x41f410) |
+| 2 | The stage archive (`Bfl_MountStage` 0x455260), the countdown's first frame flagged (0x537f08) |
+| 3 | `Stage_Load` 0x41f930; on a failure every process to 11 and the front end |
+| 4 | The cars (0x420150: `Cars_Load` 0x456d90, the car lists 0x42b660), then the cars flagged to be placed |
+| 5 | The cars on the line (0x424ed0, 0x424c50), the cameras (0x422fe0), one round of steps |
+| 7 | The countdown: on its first frame the step clock (0x537f24) and the stage timers restart; 500 1/100 s of steps on the line (`Car_StartLineControls` 0x47b640: the handbrake held), then the timer restarts at the go |
+| 8 | The stage: steps with `Car_RaceControls` 0x47b000 (the launch 0x43f570 when the automatic box first takes over) until the player is past the finish (0x4582b0), whose time (`Timer_Centis`) is noted |
+| 9 | After the finish: the car brakes to a stop (0x47b870, 0x47b7b0); four seconds later the finish counts as shown; once every player's is and no fade runs, on to 10 |
+| 10 | The replay, until the key (0x4d0580); 0x41f2b0 sends every process on |
+| 11 | The results; in a rally on to the next stage through the world mode (2) |
+
+The stage time is the step count: `Race_Clock` 0x41d290 is the steps since the countdown's start times 4
+(1/100 s); the timers 0x478130-0x4781c0 (start 0x58da10, elapsed 0x58da30) run on it. The countdown
+and the timing are therefore exact in steps, whatever the frame rate.
 
 ## Game state
 

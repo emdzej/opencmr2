@@ -28,6 +28,9 @@
 #include "world/hpc.h"
 #include "sim/car.h"
 #include "sim/drive.h"
+#include "sim/sim.h"
+#include "game/race.h"
+#include "game/timer.h"
 #include "sim/progress.h"
 #include "game/mem.h"
 #include "vfs.h"
@@ -61,6 +64,9 @@ static struct {
     Obj *parked, *cars[2];
     int steps;                  /* the stage time, in 40 ms steps */
     bool autodrive;             /* --param drive=auto: full throttle (for headless checks) */
+    bool race;                  /* stage and car: the race runs (game/race.c) with the viewer as host */
+    char carname[32], stagename[32];
+    bool skip_was;
     float centre[MAX_MESH][3];   /* stage: each mesh's vertex centre, the fly-through's path */
 } V;
 
@@ -205,6 +211,66 @@ static bool park_car(const char *car, const char *stage)
     return true;
 }
 
+/* The race's host (game/race.h): the stage is loaded by viewer_init in Stage_Load's order, the car by
+   park_car (Car_Load's stand-in); the chase camera and the title stand in for the race cameras and
+   the HUD. */
+static bool host_load_stage(void) { return true; }
+static bool host_load_cars(void)
+{
+    if (!park_car(V.carname, V.stagename)) {
+        plat_log("viewer: the car could not be parked");
+        return false;
+    }
+    Sim_InitLists(1);
+    return true;
+}
+static void host_input(int player, uint32_t *held, uint32_t *pressed)
+{
+    (void)player;
+    Drive_ReadInput(held, pressed);
+    if (V.autodrive) *held |= ACT_THROTTLE, *pressed &= ~ACT_THROTTLE;
+}
+static void host_pose(int32_t frac)
+{
+    (void)frac;
+    Car_PoseSimple(Car_Get(0));
+}
+static void race_view(D3DMATRIX *view);
+static void invert_rigid(const D3DMATRIX *v, D3DMATRIX *o);
+static void title(void);
+static void host_draw(int player, int state)
+{
+    (void)player;
+    D3DMATRIX view;
+    Car *c = Car_Get(0);
+    race_view(&view);
+    int cs = Race_StageTime(0);
+    static const char *what[14] = {"", "loading", "", "", "", "on the line", "", "", "", "finished", "replay",
+                                   "results (Return)", "", ""};
+    if (state == 7) {
+        int left = 5 - Race_Countdown() / 100;
+        snprintf(V.title, sizeof V.title, "%s  %d", V.name, left > 0 ? left : 0);
+    } else
+        snprintf(V.title, sizeof V.title, "%s  %d:%02d.%02d  %3d%%  gear %d  %3.0f km/h  %s", V.name, cs / 6000,
+                 cs / 100 % 60, cs % 100, Car_StageShare(c) * 100 / 0x10000, CI8(c, 0xb1e),
+                 CI32(c, 0x778) / 65536.0 * 25.0 * 3.6, state < 14 ? what[state] : "");
+    Render_SetClearColour(0x30, 0x40, 0x58);
+    Render_ClearTarget();
+    int32_t r[4] = {0, 0, 640, 480};
+    D3d_Clear(1, r, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+    D3DMATRIX inv;
+    invert_rigid(&view, &inv);
+    for (int i = 0; i < 16; i++) V.camera.world.m[i] = (int32_t)lrintf(inv.m[i / 4][i % 4] * 65536);
+    V.camera.dirty = 1;
+    int32_t cp[3] = {V.camera.world.m[12], V.camera.world.m[13], V.camera.world.m[14]};
+    Sky_Follow(cp);
+    Obj_Frame(&g_world, &V.camera);
+    title();
+    static const int16_t full[4] = {0, 0, 640, 480};
+    World_Render(&V.camera, full, 0, true);
+}
+static const RaceHost race_host = {host_load_stage, host_load_cars, NULL, host_input, host_pose, host_draw};
+
 bool viewer_init(const char *car, const char *stage)
 {
     char path[128], tex[128];
@@ -244,7 +310,16 @@ bool viewer_init(const char *car, const char *stage)
         Stage_LoadTre(stage, true);
         Hor_Apply();         /* 0x460da0, later in Stage_Load */
         Tod_StartLights();   /* the race start, 0x45eca0 */
-        if (car && !park_car(car, stage)) plat_log("viewer: the car could not be parked");
+        if (car) {
+            snprintf(V.carname, sizeof V.carname, "%s", car);
+            snprintf(V.stagename, sizeof V.stagename, "%s", stage);
+            V.race = true;
+            /* the first player's profile (0x52fa5c, set by the front end): an automatic box, unless
+               --param gears=manual */
+            char g[16];
+            if (!(plat_param("gears", g, sizeof g) && !strcmp(g, "manual"))) gw32(0x52fa5c, gm32(0x52fa5c) | 0x20);
+            Race_Begin(&race_host);
+        }
     }
     build_meshes();
     if (!V.stage) {
@@ -341,8 +416,31 @@ static void title(void)
     }
 }
 
+/* the chase camera, 7 behind and 2.5 up along the car's heading */
+static void race_view(D3DMATRIX *view)
+{
+    Car *c = Car_Get(0);
+    float cx = CI32(c, 0x2d0) / 65536.0f, cy = CI32(c, 0x2d4) / 65536.0f, cz = CI32(c, 0x2d8) / 65536.0f;
+    float fx = CI32(c, 0x3f0) / 65536.0f, fz = CI32(c, 0x3f8) / 65536.0f, fl = sqrtf(fx * fx + fz * fz);
+    if (fl < 0.01f) fx = 1, fz = 0, fl = 1;
+    fx /= fl, fz /= fl;
+    look_at(cx - 7 * fx, cy + 2.5f, cz - 7 * fz, cx + 3 * fx, cy + 0.8f, cz + 3 * fz, view);
+    D3d_SetTransform(D3DTS_VIEW, view);
+}
+
 void viewer_frame(void)
 {
+    if (V.race) {
+        /* the clock from the frame count (60 Hz), Return as the key that skips the replay and results */
+        Timer_Sample((uint32_t)((uint64_t)V.frame++ * 1000 / 60));
+        uint8_t k[KEY_COUNT];
+        bool skip = plat_keys(k) && k[0x1c];
+        if (skip && !V.skip_was) Race_Skip();
+        V.skip_was = skip;
+        if (Game_Mode() == 3) Race_Frame();
+        D3d_Present();
+        return;
+    }
     float a = (float)V.frame++ * 0.02f + 0.6f;
     D3DMATRIX view, rot;
     identity(&rot);

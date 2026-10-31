@@ -383,3 +383,37 @@
 00417780	Codriver_Rewind	audio	med	The co-driver's pace-note position set back to the car's point
 004aff80	Skids_Reset	render	low	Resets the skid-mark strips (0x6a2cdc)
 00421d80	Split_Reset	race	low	Split timing state for a car reset
+0049c1c0	Proc_Event	proc	high	An event for a process slot: the first matching transition, by priority
+0041bf80	Race_S0_Setup	race	high	Race state 0: variables cleared, the selection and common archives (first player)
+0041f420	Race_S1_Loading	race	high	Race state 1: the loading screen until it is up
+00401000	Race_S3_Stage	race	high	Race state 3: Stage_Load, or every process out on a failure
+004010a0	Race_S4_Cars	race	high	Race state 4: the cars loaded (0x420150), then flagged to be placed
+00401150	Race_S5_Line	race	high	Race state 5: the cars on the line, cameras, one round of steps
+0041d2b0	Race_S7_Countdown	race	high	Race state 7: the countdown, 500 1/100 s of steps; the timers restart
+0041d7a0	Race_S8_Stage	race	high	Race state 8: the stage until the player is past the finish
+0041db10	Race_S9_Finished	race	high	Race state 9: four seconds after each finish, then on to the replay
+0041e350	Race_S10_Replay	race	high	Race state 10: the replay until the key
+0041e8d0	Race_S11_Results	race	med	Race state 11: the results screen
+0041f2b0	Race_EndReplay	race	high	Every process on from the replay
+00420150	Race_LoadCars	race	high	Cars_Load and the car tables for state 4
+00456d90	Cars_Load	race	high	Every car of the race: lists, damage, Car_Load, progress start, the step rate
+0042b660	Sim_InitLists	sim	high	The race's car lists, identity, and the two players' slots
+00428810	Sim_BuildLists	sim	high	Each step's car lists from the steps due and +0xc18
+0042b6f0	Sim_AllCars	sim	high	The race's car list (0x53b500)
+0042b700	Sim_AllCount	sim	high	The race's car count (0x53a3a0)
+0041d290	Race_Clock	race	high	The steps since the countdown's start, times 4 (1/100 s)
+00478130	Timer_Start	race	high	A player's stage timer started at the race clock
+00478150	Timer_Run	race	high	A player's stage time: the clock less its start
+00478170	Timer_Clear	race	high	A player's stage time cleared
+004781c0	Timer_Get	race	high	A player's stage time (1/100 s)
+00478190	Timer_Penalty	race	high	Seconds added to a player's stage time
+004582b0	Race_Finished	race	high	A car past the finish (0x542e92 + 0x1c n)
+004581d0	Race_Sectors	race	med	Each car's sector along the stage (0x458e00), the finish flagged
+0043f570	Car_Launch	sim	high	First gear and the driven wheels at the revs when the automatic box takes over
+0047b870	Car_FinishedControls	race	high	After the finish: braking to a stop
+0047b7b0	Car_FinishedPlayerControls	race	high	After the finish, a player's: the race reader, then braking
+004d0580	Key_Skip	frontend	med	The skip key flag (0x817574)
+004057e0	Game_SetMode	main	high	Sets the top-level mode (0x52ea4c)
+00405d70	Gs_Players	game	high	The players from the mode word (bits 13-16)
+00407500	Gs_SetRacePlayers	game	high	The race's processes into the selection (bits 14-15)
+00407270	Gs_SuperSpecial	game	high	Rally 8, stage 11 in a rally: the head-to-head super special
