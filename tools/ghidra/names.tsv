@@ -63,7 +63,7 @@
 0042bc80	Sim_StepDone	sim	high	Decrements each car step counter car+0xb43
 0041d060	Race_PoseInterp	race	med	After the steps: interpolated poses and effects with the step fraction
 0042bf70	Car_PoseInterp	sim	med	Car body and wheel render matrices from the last two states
-00433890	Sim_StepCars	sim	med	Car dynamics part of Sim_Step
+00433890	Sim_StepCars	sim	high	Car dynamics part of Sim_Step
 0043c7f0	Car_Init	sim	high	Car state set-up: handling class switch (immediates), step rate 25.0
 00457e00	Car_Cin	car	high	Loaded .cin of a car
 00457e10	Car_CinSection	car	high	Section n of the .cin through its u16 offset directory
@@ -297,3 +297,6 @@
 00494960	Car_HandbrakeRamp	sim	high	The handbrake's ramp
 00429f20	Rows_Turn3	math	high	Turns a 3 x 3 of rows by three u16 angles about its own axes (as 0x4ac820)
 00437d70	Car_EngineTorqueReaction	sim	med	With no wheel down, the engine's speed change turns the body (+0x5d8)
+00435470	Car_Integrate	sim	high	Sums the corner and wheel forces, steps velocity and spin, moves and turns the body
+00436630	Car_BodyContacts	sim	low	Body corner contact forces (+0x5e8, +0x648)
+004373c0	Car_WheelForces	sim	low	Wheel forces into +0x648

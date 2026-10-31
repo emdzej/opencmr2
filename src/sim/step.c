@@ -1,6 +1,7 @@
 /* The car part of the simulation step (see step.h). */
 #include "sim/step.h"
 #include "sim/controls.h"
+#include "sim/integrate.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -174,7 +175,7 @@ void Sim_StepCars(const int16_t *list, int n)
     }
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); PENDING_PASS(0x437dc0, "Car_Collide"); }
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); PENDING_PASS(0x438460, "Car_Engine"); }
-    for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); PENDING_PASS(0x435470, "Car_Integrate"); }
+    for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); Car_Integrate(g_car); }
     for (int i = n - 1; i >= 0; i--) {
         Car *c = Car_Get(list[i]);
         g_car = c;
