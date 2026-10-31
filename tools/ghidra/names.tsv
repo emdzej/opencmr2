@@ -300,3 +300,8 @@
 00435470	Car_Integrate	sim	high	Sums the corner and wheel forces, steps velocity and spin, moves and turns the body
 00436630	Car_BodyContacts	sim	low	Body corner contact forces (+0x5e8, +0x648)
 004373c0	Car_Tilt	sim	high	The push past 30 degrees of tilt and the slide that breaks a car loose
+0043b100	Car_Suspension	sim	high	Body sway springs, the wheels' suspension offsets and loads
+0043c640	Car_LoadSplit	sim	high	The wheels' loads with all four down
+00469bc0	Damage_Flag	damage	high	A damage record's flag word (+0x4b0 + 4n)
+004adb10	Mat_AxisAngle	math	high	The rotation matrix for an angle about a unit axis
+004b9c20	Vec_Mul3	math	high	A row vector times a matrix's 3 x 3

@@ -2,6 +2,7 @@
 #include "sim/step.h"
 #include "sim/controls.h"
 #include "sim/integrate.h"
+#include "sim/suspension.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -168,7 +169,7 @@ void Sim_StepCars(const int16_t *list, int n)
         CW32(c, 0x6ac, -fx_mul(CI32(c, 0x75c), g));   /* gravity on the mass */
         CW32(c, 0x6b0, 0);
         wheel_load(c);
-        PENDING_PASS(0x43b100, "Car_Suspension");
+        Car_Suspension(c);
         tilt_factor(c);
         PENDING_PASS(0x4348c0, "Car_Drive");
         PENDING_PASS(0x434140, "Car_Tyres");
