@@ -308,3 +308,7 @@
 00434140	Car_WheelHeading	sim	high	The heading row eased to the body and the front wheels' frame by the steering
 004348c0	Car_GroundContact	sim	high	The ground's support: corner normal forces, friction terms, the total force's normal part removed
 00438460	Car_CornerImpulse	sim	high	Corner forces along their ground-plane velocity for a car not upright
+00437dc0	Car_Drivetrain	sim	high	Engine torque and its split to the wheels, then the tyres and slip smoothing
+00437f90	Car_EngineTorque	sim	high	Throttle times the damage record's +0x404
+00437fd0	Car_SlipSmooth	sim	high	The wheels' smoothed slips
+004387a0	Car_Tyres	sim	low	The tyre model (8.5 KB)
