@@ -8,6 +8,7 @@
 #include "game/mem.h"
 #include "sim/car.h"
 #include "sim/step.h"
+#include "sim/road_follow.h"
 #include "vfs.h"
 #include "vfs_host.h"
 #include "world/obj.h"
@@ -72,7 +73,7 @@ int main(void)
         CHECK(CI32(c, 0x2e8) != 0 && CI32(c, 0x6ac) < 0);
         /* parked: the ground holds it (Car_GroundContact), over four seconds of steps */
         int32_t y0 = CI32(c, 0x2d4);
-        for (int k = 0; k < 100; k++) Sim_StepCars(list, 1);
+        for (int k = 0; k < 100; k++) Sim_StepCars(list, 1), Sim_CarsPost(list, 1);
         int32_t dy = CI32(c, 0x2d4) - y0;
         printf("after 101 steps parked: y %.4f (from %.4f), speed %.4f, on the ground %d\n", CI32(c, 0x2d4) / 65536.0,
                y0 / 65536.0, CI32(c, 0x778) / 65536.0, c->s[0xb28]);
@@ -85,6 +86,7 @@ int main(void)
         for (int k = 0; k < 100; k++) {
             c->s[0x1d2] = 63;
             Sim_StepCars(list, 1);
+            Sim_CarsPost(list, 1);
             if (k % 25 == 24)
                 printf("  step %d: gear %d, revs %.3f, speed %.3f, position (%.2f, %.2f, %.2f)\n", k + 1, CI8(c, 0xb1e),
                        CI32(c, 0x7a4) / 65536.0, CI32(c, 0x778) / 65536.0, CI32(c, 0x2d0) / 65536.0, CI32(c, 0x2d4) / 65536.0,

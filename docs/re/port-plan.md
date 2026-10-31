@@ -166,10 +166,11 @@ with them. Next:
   the suspension 0x43b100, the wheels' heading 0x434140 and the ground contact 0x4348c0. A placed car
   now rests on the road (sim_test: 100 steps parked). Also ported: the tyre model 0x4387a0, the
   drivetrain 0x437dc0, the revs 0x4380c0, the surface grip 0x4781d0, the corner velocities 0x434f50,
-  the corner impulses 0x438460 and the damage reset 0x469690. On full throttle the 205 drives off
-  through the gears; without Sim_Step's road-following pass (0x42cd00 -> 0x42ce60) it then pitches up
-  and flips, since in road-following mode the wheels' normal forces give no torque. Pending and logged:
-  - the road following 0x42ce60 and free body 0x42eae0 (Sim_Step's 0x42cd00), damage 0x46b4e0;
+  the corner impulses 0x438460, the damage reset 0x469690, and Sim_Step's pass after the car step
+  0x42cd00 with the road following 0x42ce60 (`src/sim/road_follow.c`). On full throttle the 205 drives
+  off fra02's start, shifts up through the automatic box and reaches about 80 km/h in four seconds,
+  staying on the road (sim_test). Pending and logged:
+  - the free body 0x42eae0 (a loose car), 0x432c20, the recovery 0x4283e0, damage 0x46b4e0;
 
   - the rest of Sim_Step (0x43f630 for the second car list, 0x425950, 0x426fc0, 0x444c10 and
     others).

@@ -317,8 +317,13 @@
 00434f50	Car_CornerVelocities	sim	high	The box corners' velocities from the spin and the body's velocity
 00469690	Damage_Reset	damage	high	Resets a car's damage factors and replays carried damage
 004669f0	Damage_Setup	damage	med	The damage set-up of every car (calls Damage_Reset)
-0042cd00	Sim_CarsPost	sim	med	After the car step: road following (0x42ce60) or free body (0x42eae0), and more
-0042ce60	Car_RoadFollow	sim	low	Keeps a car in road-following mode on the ground (4 KB)
+0042cd00	Sim_CarsPost	sim	high	After the car step: road following (0x42ce60) or free body (0x42eae0), and more
+0042ce60	Car_RoadFollow	sim	high	Keeps a car in road-following mode on the ground (4 KB)
 0042eae0	Car_FreeBody	sim	low	A free (loose) car's ground and collisions (3.4 KB)
 004380c0	Car_Revs	sim	high	The engine revs from the driven wheels, the starter curve, the limiter
 004781d0	Car_SurfaceGrip	sim	high	The corners' grip coefficients from their surfaces, dry to wet
+004336f0	Car_WheelAngles	sim	high	The wheels' turn angles from their spins, and a bent wheel's wobble
+0042f8c0	Car_LiftOut	sim	high	The car lifted by its deepest touching corner below the ground
+0042e450	Car_Travel	sim	med	The wheels' compression, ground penetration and surface bump noise
+0042e8e0	Car_Springs	sim	high	The wheels' spring travel and rate
+00431c10	Car_RecoverCheck	sim	med	Starts the recovery event after long off the ground
