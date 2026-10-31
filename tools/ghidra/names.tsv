@@ -219,3 +219,14 @@
 004bb4c0	Line3d_Flush	render	med	Draws the 3D debug lines
 004b3c00	Section_Relight	world	low	Redoes a cell's vertex colours when the light colours change
 004b8540	Section_Free	world	med	Frees the sections, clears 0x72d56c
+004b5620	Tre_Load	render	high	Allocates the relighting state and parses .tre (tree shadows)
+004b3740	Light_SetAmbient	world	med	Sets the stage's low light colour (the ramp's start) and the shadow colour
+004b3f90	Light_SetSun	world	med	Sets the stage's high light colour (the ramp's end) and the shadow colour
+004b4910	Light_ShadowColour	world	med	Shadow colour and alpha from the two light colours
+004b3940	Light_BuildRamps	world	med	The 50-entry terrain and shadow colour ramps
+004b3ba0	Light_ShadowRamp	world	med	A shadow ramp colour for a 16.16 intensity
+004b3b40	Light_TerrainRamp	world	med	A terrain ramp colour for a 16.16 intensity
+004b2020	Mesh_UploadVerts	render	med	Copies a mesh's vertices into its vertex buffer again
+004b2090	Mesh_SetColour	render	med	Sets every vertex colour of a mesh and uploads it
+004b6ca0	Tre_LightFade	world	low	Lowers the shadows of trees near a light source
+004bcc60	Overlay_Step	world	low	Steps two time-driven values nothing reads

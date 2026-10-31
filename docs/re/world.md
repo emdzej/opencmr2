@@ -162,7 +162,8 @@ They sit in cells like other world objects, so the update moves them into the ca
    1. Draw the cell objects (`Section_DrawObjects`, z-buffer off: the sky and ground). This is done
       with the fog-enable state of 0x816704, fog off, mode 5 and the far plane at 150.
    2. Draw the terrain in mode 0 with linear fog.
-   3. Draw the overlay (0x49cf80) in mode 5.
+   3. Draw the tree shadows (`Stage_DrawOverlay` 0x49cf80, [stage.md](../formats/stage.md#tre)) in
+      mode 5.
    4. Run the cars' pass (0x4af120), then the triangle buckets 8 (mode 5) and 0x20 (mode 4).
    5. In mode 1, draw the scenery. Then come the sorted objects (`Section_QueueSorted` 0x49d290,
       `Obj_DrawQueued` 0x49cd20) and the queued billboards. With the mode at 0x59ce14 set
@@ -208,7 +209,9 @@ ported, and so are the grid, the lookup, the corners, the visible list and the t
 (`src/world/section.c`) and `Stage_LoadC3d` (`src/world/stage.c`). The scenery and billboards are ported
 too (`Stage_LoadScenery`, `Section_DrawBillboards`, `Billboard_DrawQueued`). So are the sky and ground
 (`Stage_LoadSkyGround`, `Sky_Follow`, `Obj_UpdateSection`, `Section_DrawObjects`). So is `World_Render`
-(`src/world/frame.c`), with the sorted pass and the triangle queues (`src/render/polyq.c`). The calls
+(`src/world/frame.c`), with the sorted pass and the triangle queues (`src/render/polyq.c`). `.tre` is parsed into its shadow
+meshes (`src/world/tre.c`). They are not drawn yet, because their colours come from the relighting,
+which needs the stage's light colours from the time-of-day code. The calls
 not ported yet are left out in order, and they are listed there. Still to come: the
 stage height offsets for the sky, the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
 under a turning stand and takes the view from a camera object, so a car on screen goes through these

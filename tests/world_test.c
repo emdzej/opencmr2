@@ -12,6 +12,7 @@
 #include "world/section.h"
 #include "world/frame.h"
 #include "world/stage.h"
+#include "world/tre.h"
 #include <stdio.h>
 
 static int fails;
@@ -33,6 +34,9 @@ int main(void)
     CHECK(g_nscenery == 1595 + 236 && g_sht_scenery == 1595);
     CHECK(g_sky && g_ground && g_cloud && g_cloud_top && g_cloud_top->mask == 0 && g_sky->sorted == 0);
     Section_Init(&g_world);
+    Stage_LoadTre("fra02", true);
+    printf("fra02.tre: %d nodes, %d items, %d matched to scenery\n", g_tre_nodes, g_tre_items, g_tre_matched);
+    CHECK(g_tre_nodes == 121 && g_tre_items == 1572 && g_tre_matched == 1572);
     int placed = 0;
     for (int i = 0; i < g_nsec; i++) placed += g_sec[i].nscenery;
     CHECK(placed == g_nscenery);

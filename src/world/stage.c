@@ -3,6 +3,7 @@
 #include "render/mesh.h"
 #include "render/tex.h"
 #include "world/section.h"
+#include "world/tre.h"
 #include <stdio.h>
 #include "exe.h"
 #include <string.h>
@@ -147,8 +148,23 @@ void Sky_Follow(const int32_t pos[3])
     }
 }
 
+/* The part of Stage_Load 0x41f930 after Section_Init: "<stage>.tre" and "<stage>.xhi" from the stage
+   slot, the shadows only at high scenery detail (0x405ba0: bit 4 of 0x52afd0). */
+void Stage_LoadTre(const char *stage, bool detail)
+{
+    char name[32];
+    uint32_t size = 0, xsize = 0;
+    snprintf(name, sizeof name, "%s.tre", stage);
+    uint8_t *tre = (uint8_t *)Bfl_FindFile(&g_stage_bfl, name, NULL, &size, false);
+    snprintf(name, sizeof name, "%s.xhi", stage);
+    const uint8_t *xhi = Bfl_FindFile(&g_stage_bfl, name, NULL, &xsize, false);
+    if (tre && !detail) tre = NULL;
+    Tre_Load(tre, size, xhi);
+}
+
 void Stage_Unload(void)
 {
+    Tre_Free();
     Bfl_Unmount(&g_stage_bfl);
     Bfl_Unmount(&g_track_tex);
 }

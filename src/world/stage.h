@@ -17,6 +17,8 @@ bool Stage_Mount(const char *stage_bfl, const char *tex_bfl);
    track textures and the port's C3d_Build), its objects under the world, its sections registered. */
 bool Stage_LoadC3d(void);
 void Stage_Unload(void);   /* the port */
+/* After Section_Init: the tree shadows (Tre_Load) and the .xhi (stage: the lower-case id, "fra02"). */
+void Stage_LoadTre(const char *stage, bool detail);
 extern C3d g_stage_obj, g_stage_sht;   /* TEMP.OBJ (scenery), TEMP.SHT */
 bool Stage_LoadObj(void);              /* 0x472830 */
 bool Stage_LoadSht(void);              /* 0x472870 */

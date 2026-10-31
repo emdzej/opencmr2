@@ -34,7 +34,7 @@ Every stage archive has the same 25 members plus 48 horizon files. Names use the
 | `temp.sht` | 1.2 MB | `Stage_LoadSht` 0x472870 | PP_F kind 4 (`shtShp0` names); likely shadow or shaded scenery shapes |
 | `temp.sky` | 15 KB | `Stage_LoadSkyGround` 0x46f060 | Sky dome, PP_F kind 5 |
 | `temp.gro` | 7 KB | `Stage_LoadSkyGround` 0x46f060 | Ground/backdrop, PP_F kind 5 |
-| `<stage>.tre` | 3.2 MB | `Stage_Load` 0x41f930 -> 0x4b5620 -> `Tre_Parse` 0x4b4aa0 | Renderer-side scenery tree, one node per stage-mesh section (below). Not loaded at low scenery detail (0x405ba0) |
+| `<stage>.tre` | 3.2 MB | `Stage_Load` 0x41f930 -> 0x4b5620 -> `Tre_Parse` 0x4b4aa0 | Tree shadows: one node per cell with trees, a shadow mesh each (below). Not loaded at low scenery detail (0x405ba0) |
 | `<stage>.tsc` | 5 KB | 0x41f930 | Starts with a count (0x2f) and 16.16 vectors |
 | `<stage>.xhi` | 28 KB | 0x41f930 | 16.16 values (0x00010000 runs) |
 | `<stage>.hpc` | 258 KB | `Stage_LoadHpc` 0x41fc90 -> `Hpc_Parse` 0x490d50 | Collision geometry: a five-level grid with record arrays (below) |
@@ -75,13 +75,58 @@ triangles of each grid cell fits the counts; this is inferred, to be confirmed w
 
 ## .tre
 
-`Tre_Parse` 0x4b4aa0 reads three `i32` (scaled to floats by the constant at 0x511310), three 16.16
-vectors, then a `u16` node count followed by the nodes, 0x14 bytes each. A node is matched to a section of
-the stage mesh (the list at 0x71f608) by two `i32` keys at `+0x04` and `+0x08` and stores that section's
-index at `+0x00` (0xffff when there is none). Each node owns arrays the parser turns into pointers: items
-of 0x30 bytes (count at `+0x02`), a 0x14-byte block, and in that block arrays of 0x30, 0x4c and 4 bytes.
-The name and the renderer side (0x4b0000-0x4b6000) suggest the stage's trees and other instanced scenery
-per section. Inferred.
+The tree shadows: one node per stage cell with trees, each tree's shadow as polygons that take the
+tree's texture. `Stage_Load` reads it after `Section_Init`, at high scenery detail only (0x405ba0: bit 4
+of 0x52afd0), through `Tre_Load` 0x4b5620 and `Tre_Parse` 0x4b4aa0. The original turns the arrays into
+pointers in place. Confirmed on fra02 (3,270,594 bytes, which the layout below accounts for exactly):
+
+```
++0x00  3 x i32           (0, 34365, 55802 in fra02), also kept as floats (times 1/65536)
++0x0c  3 x 3 x i32       16.16 vectors (fra02: (0,0,1), (0,1,0), (-1,0,0))
++0x30  u16               node count n
++0x32  n x 0x14          nodes
+then, for all nodes in turn:
+       items      0x30 bytes, the node's +0x02 of them
+       blocks     0x14 bytes, one per node
+       vertices   0x30 bytes (the PP_F vertex), block +0x04 of them
+       polygons   0x4c bytes (the PP_F polygon), block +0x00 of them
+       colours    u32, one per vertex
+```
+
+| Record | Offset | Field |
+|---|---|---|
+| node | +0x00 | u16: the matching cell, written by the parser (0xffff none) |
+| node | +0x02 | u16: item count |
+| node | +0x04, +0x08 | i32: the cell's x and z (16.16), matched exactly against the section records |
+| node | +0x0c, +0x10 | the items and the block (pointers after the parse) |
+| item | +0x00, +0x04 | i32: the tree's x and z |
+| item | +0x20 | 16.16 factor, set to 1.0 by the parser (lowered near a light by 0x4b6ca0) |
+| item | +0x28 | its vertex count in the node's mesh (used by the relighting) |
+| item | +0x2c | its scenery record (written by the parser) |
+| block | +0x00, +0x04 | polygon and vertex counts |
+| block | +0x08, +0x0c, +0x10 | the vertices, polygons and colours (pointers after the parse) |
+| polygon | +0x04 | in the file the node's item it belongs to; the parser replaces it with the texture of that tree's first polygon |
+| colour | | 16.16 intensity (fra02: 0.36, 0.54), the index into a 50-entry colour ramp (`* 49 >> 16`) |
+
+An item is matched to the first scenery record within 0x28f (0.01) of its x and z: cells in order,
+then each cell's list. All 1,572 of fra02's items match its 1,572 billboards. The vertex colours in the
+file are white. The relighting (`Section_Relight` 0x4b3c00, from the stage's light colours) gives the
+shadows their colour and alpha before they are first drawn.
+
+Every node with a cell gets a 0x120-byte mesh record named `SHAD<node>`, set up like this:
+- the block's arrays and counts;
+- `+0x108..+0x10a` set to 0xff;
+- the mesh batched and put in the vertex buffers.
+
+It goes into the cell's slot of a table at 0x6dfd98; a second table at 0x6e0204 maps the cell to its
+node. The mesh flags are 0x402d plus whatever bits `0xffffe02d` keeps of a stack slot. The original
+leaves the node loop's last offset there, the node count times 0x14 (fra02: 121 x 0x14 = 0x974, so
+0x402d).
+
+`Stage_DrawOverlay` 0x49cf80 draws the listed cells' shadow meshes with the identity world matrix and z
+writes off, between the terrain and the cars. Before that it steps a time-driven value (0x4bcc60:
+0x81680c grows by 0.004 per centisecond; 0x816810 swings between two bounds at a rate that depends on
+where it is). Nothing in the release reads either value.
 
 ## Surfaces
 

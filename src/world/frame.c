@@ -10,6 +10,7 @@
 #include "render/view.h"
 #include "world/section.h"
 #include "world/stage.h"
+#include "world/tre.h"
 #include <stdlib.h>
 
 static uint32_t mode;           /* DAT_0059ce14 */
@@ -94,7 +95,7 @@ static void flush_layer(int layer)
 }
 
 /* Not ported yet, in the order they are called: the cells' vertex relighting (FUN_004b3c00, per listed
-   cell), FUN_004b0480 (camera, pass), Stage_DrawOverlay 0x49cf80, the cars' pass FUN_004af120 (camera,
+   cell), FUN_004b0480 (camera, pass), the cars' pass FUN_004af120 (camera,
    pass), the shared-array draw Render_DrawIndexed 0x4b1530, FUN_004b6240 (pass), FUN_004bc490 (0, 0, 0)
    over the 3D, and the frame statistics FUN_004b21e0 after the 2D. The 3D line queue (FUN_004bb4c0) is a
    debugging aid nothing fills in the release. */
@@ -129,6 +130,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
             Light_SetMode(0);
             Stage_DrawTerrain(&g_stage_mesh);
             Light_SetMode(5);
+            Stage_DrawOverlay();
             Render_AlphaBlend(1);
             Poly_Flush(8);
             Light_SetMode(4);

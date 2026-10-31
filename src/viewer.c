@@ -182,6 +182,7 @@ bool viewer_init(const char *car, const char *stage)
         C3d_Build(&V.m);
     } else {
         Section_Init(&g_world);
+        Stage_LoadTre(stage, true);
     }
     build_meshes();
     if (!V.stage) {
