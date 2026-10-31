@@ -1,6 +1,6 @@
 # Status
 
-**Steps 3 and 5 of the port.** Nothing is playable yet. Done so far:
+**Steps 3, 5 and 6 of the port.** Not a game yet: a car can be driven on a stage, with no race around it. Done so far:
 
 - The disc analysed: every data file read by a reference decoder (`tools/bfl.py`), the formats of the
   containers, models, textures, sound and music documented ([file formats](../formats/index.md)).
@@ -30,16 +30,27 @@
   section grid with its visible-cell list and terrain drawing. The viewers draw a car and a stage
   through these, with their title in the game's font.
 
-Next: the rest of the stage load (scenery, sky, ground, collision grid, splines).
+- Step 5 continued: the stage's scenery and billboards, sky, clouds and ground, the tree shadows, the
+  time of day with its horizon records and the stage lights, the collision mesh, the start line, and
+  the game's frame function (`World_Render`).
+- Step 6, started: the car simulation in the original's 16.16 fixed point, function by function from
+  the disassembly where the decompiler drops steps. Ported: the car set-up and placement, the controls,
+  gearboxes and steering, the tyres, drivetrain and revs, surface grip, suspension and springs, ground
+  contact and road following, and the integration. A car parked on fra02's start line rests on the road,
+  and on full throttle it drives off and shifts up (`tests/sim_test.c`). With both `--param stage=` and
+  `--param car=` the viewer lets you drive it from the keyboard.
+
+Next: the rest of the simulation (a loose car, collisions, damage, the other entities of the step),
+the car's pose interpolation and wheels, then the race around it.
 
 | Area | State |
 |---|---|
 | File layer (folders, ISO, BFL, InstallShield cabinet) | Ported and tested against the whole disc |
 | Textures, models, sound, music, text, fonts | Decoders ported and tested against the whole disc |
-| Stage data (`.tre`, `.hpc`, `.cat`, ...) | Loaders found; `.hpc` and `.tre` containers known, fields open |
+| Stage data (`.tre`, `.hpc`, `.cat`, ...) | `.tre`, `.hpc`, `.csp`, `.hor` ported; `.srf`, `.cat`, `.tsc`, `fin.dat` open |
 | Renderer (Direct3D 7 to GLES 3) | Device, state layer, textures, meshes, 2D and text ported; reflections and 16-bit formats open |
-| World (objects, stage sections) | Object trees and the visible-cell terrain draw ported; scenery, sky and the rest of the stage load to do |
+| World (objects, stage sections) | Object trees, terrain, scenery, sky, shadows, lights and the frame function ported; the cars' draw pass open |
 | Front end | Mapped (0x4d0000-0x500000); not started |
-| Vehicle simulation | Located (0x428000-0x445000, 16.16 fixed point), step model known (25 Hz fixed); not started |
+| Vehicle simulation | About 40 of 120 functions ported; a car drives on a stage; loose cars, collisions, damage and the step's other entities open |
 | Movies (Bink 1) | Not started |
 | Network (DirectPlay 4) | Located; last step |

@@ -327,3 +327,7 @@
 0042e450	Car_Travel	sim	med	The wheels' compression, ground penetration and surface bump noise
 0042e8e0	Car_Springs	sim	high	The wheels' spring travel and rate
 00431c10	Car_RecoverCheck	sim	med	Starts the recovery event after long off the ground
+0047b0e0	Car_ControlsFromInput	race	med	A player's controls from the input record (digital and analog paths)
+0047b640	Car_StartLineControls	race	med	The start line: handbrake held, revs blipped by rand(), automatic box off
+0047b000	Car_RaceControls	race	med	The race state's controls reader, automatic box on
+0049ead0	Input_Record	input	med	A player's input record (device, held and pressed action bits, axes)

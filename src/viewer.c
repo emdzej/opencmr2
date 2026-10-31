@@ -26,6 +26,7 @@
 #include "world/tod.h"
 #include "world/hpc.h"
 #include "sim/car.h"
+#include "sim/drive.h"
 #include "vfs.h"
 #include <math.h>
 #include <stdio.h>
@@ -55,6 +56,7 @@ static struct {
     uint8_t *pfile;
     BflSlot ptex;
     Obj *parked, *cars[2];
+    bool autodrive;             /* --param drive=auto: full throttle (for headless checks) */
     float centre[MAX_MESH][3];   /* stage: each mesh's vertex centre, the fly-through's path */
 } V;
 
@@ -184,11 +186,13 @@ static bool park_car(const char *car, const char *stage)
     Csp_Angles(ang);
     Car_Place(s->main, s->second, 0, 0, ang, pos);
     Damage_Reset(Car_Get(0));
-    /* stand-in until Car_PoseInterp 0x42bf70 (it needs Sim_Step's pose buffers): the main model at
-       the settled position */
     Car *c = Car_Get(0);
-    int32_t at[3] = {CI32(c, 0x2d0), CI32(c, 0x2d4), CI32(c, 0x2d8)};
-    Obj_SetPosition(s->main, at);
+    c->main = s->main;
+    c->second = s->second;
+    CW8(c, 0xb1e, 1);   /* in first gear on the line (the start sequence is not ported) */
+    Car_PoseSimple(c);
+    char d[16];
+    V.autodrive = plat_param("drive", d, sizeof d) && !strcmp(d, "auto");
     V.cars[0] = s->main;
     V.cars[1] = s->second;
     World_SetCars(V.cars, s->second ? 2 : 1);
@@ -378,11 +382,28 @@ void viewer_frame(void)
         /* the camera object from the fly-through's view; the sky follows it, the objects are brought up
            to date, and World_Render draws the view with the title queued on 2D layer 1 */
         if (V.parked) {
-            /* a camera turning slowly around the parked car, 7 out and 2.5 up */
-            const int32_t *m = V.parked->local.m;
-            float cx = m[12] / 65536.0f, cy = m[13] / 65536.0f, cz = m[14] / 65536.0f, t = V.frame * 0.01f + 3.3f;
-            look_at(cx + 7 * sinf(t), cy + 2.5f, cz + 7 * cosf(t), cx, cy + 0.6f, cz, &view);
+            /* the car driven from the keyboard: 40 ms steps due at 60 Hz, the controls before each
+               (held on the start line for the first second, then the race state), the pose; a chase
+               camera 7 behind and 2.5 up along the car's heading */
+            Car *c = Car_Get(0);
+            static const int16_t list[1] = {0};
+            uint32_t held, pressed;
+            Drive_ReadInput(&held, &pressed);
+            if (V.autodrive) held |= ACT_THROTTLE;
+            for (int k = Drive_StepsDue((uint32_t)V.frame, 60.0); k > 0; k--) {
+                Car_RaceControls(c, held, pressed);
+                pressed = 0;
+                Drive_Step(list, 1);
+            }
+            Car_PoseSimple(c);
+            float cx = CI32(c, 0x2d0) / 65536.0f, cy = CI32(c, 0x2d4) / 65536.0f, cz = CI32(c, 0x2d8) / 65536.0f;
+            float fx = CI32(c, 0x3f0) / 65536.0f, fz = CI32(c, 0x3f8) / 65536.0f, fl = sqrtf(fx * fx + fz * fz);
+            if (fl < 0.01f) fx = 1, fz = 0, fl = 1;
+            fx /= fl, fz /= fl;
+            look_at(cx - 7 * fx, cy + 2.5f, cz - 7 * fz, cx + 3 * fx, cy + 0.8f, cz + 3 * fz, &view);
             D3d_SetTransform(D3DTS_VIEW, &view);
+            snprintf(V.title, sizeof V.title, "%s  gear %d  %3.0f km/h", V.name, CI8(c, 0xb1e),
+                     CI32(c, 0x778) / 65536.0 * 25.0 * 3.6);
         }
         D3DMATRIX inv;
         invert_rigid(&view, &inv);
@@ -391,7 +412,7 @@ void viewer_frame(void)
         int32_t cp[3] = {V.camera.world.m[12], V.camera.world.m[13], V.camera.world.m[14]};
         Sky_Follow(cp);
         Obj_Frame(&g_world, &V.camera);
-        snprintf(V.title, sizeof V.title, "%s  %d of %d cells in view", V.name, g_nvisible, g_nsec);
+        if (!V.parked) snprintf(V.title, sizeof V.title, "%s  %d of %d cells in view", V.name, g_nvisible, g_nsec);
         title();
         static const int16_t full[4] = {0, 0, 640, 480};
         World_Render(&V.camera, full, 0, true);

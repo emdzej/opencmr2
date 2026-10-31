@@ -169,7 +169,11 @@ with them. Next:
   the corner impulses 0x438460, the damage reset 0x469690, and Sim_Step's pass after the car step
   0x42cd00 with the road following 0x42ce60 (`src/sim/road_follow.c`). On full throttle the 205 drives
   off fra02's start, shifts up through the automatic box and reaches about 80 km/h in four seconds,
-  staying on the road (sim_test). Pending and logged:
+  staying on the road (sim_test). The viewer drives it from the keyboard
+  (`--param stage=fra02 --param car=205a1N`; arrows, space, A/Z; `--param drive=auto` holds the
+  throttle), 25 steps a second from the frame count. The controls come from the digital path of
+  0x47b0e0, with a stand-in for the key bindings (the front end's options). The pose is a stand-in for
+  Car_PoseInterp. Pending and logged:
   - the free body 0x42eae0 (a loose car), 0x432c20, the recovery 0x4283e0, damage 0x46b4e0;
 
   - the rest of Sim_Step (0x43f630 for the second car list, 0x425950, 0x426fc0, 0x444c10 and
