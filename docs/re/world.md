@@ -63,6 +63,22 @@ neighbouring sections within 4.5 units of an edge at `+0x28` and moves the objec
 sections' lists. The section draw (0x49ce40) walks a list of visible sections (0x6ed5f0, count
 0x72d570) and draws their objects with the z-buffer off.
 
+## Loading a stage
+
+`Stage_Load` 0x41f930, in order:
+1. the country's texture archive (0x4b23c0) and the loading bar (0x40fec0);
+2. the horizons, the BSP and `TEMP.C3D` (`Stage_LoadC3d` 0x41fc50);
+3. `.hpc`, `.srf`, `fin.dat`, 0x471af0, `.csp`, `.cat` and the co-driver's `.cod`;
+4. the `.tsc` splines (0x48caa0) and the sections (0x4b8270);
+5. `.tre` and `.xhi`.
+
+Each model goes through `C3d_Load` with two arguments:
+- the parent object at `0x536be0`, under which the model's roots hang;
+- the texture archive slot at `0x538858`, used only when it is loaded.
+
+`TEMP.OBJ` (the scenery, `Stage_LoadObj` 0x472830), `TEMP.SHT` (0x472870) and the sky and ground
+(`Stage_LoadSkyGround` 0x46f060) load the same way from elsewhere.
+
 ## The port
 
 `src/world/obj.c` copies each record into an `Obj` with real pointers, since links cross models. The

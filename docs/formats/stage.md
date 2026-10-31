@@ -34,7 +34,7 @@ Every stage archive has the same 25 members plus 48 horizon files. Names use the
 | `temp.sht` | 1.2 MB | `Stage_LoadSht` 0x472870 | PP_F kind 4 (`shtShp0` names); likely shadow or shaded scenery shapes |
 | `temp.sky` | 15 KB | `Stage_LoadSkyGround` 0x46f060 | Sky dome, PP_F kind 5 |
 | `temp.gro` | 7 KB | `Stage_LoadSkyGround` 0x46f060 | Ground/backdrop, PP_F kind 5 |
-| `<stage>.tre` | 3.2 MB | `Stage_LoadTrackSplines` 0x41f930 -> 0x4b5620 -> `Tre_Parse` 0x4b4aa0 | Renderer-side scenery tree, one node per stage-mesh section (below). Not loaded at low scenery detail (0x405ba0) |
+| `<stage>.tre` | 3.2 MB | `Stage_Load` 0x41f930 -> 0x4b5620 -> `Tre_Parse` 0x4b4aa0 | Renderer-side scenery tree, one node per stage-mesh section (below). Not loaded at low scenery detail (0x405ba0) |
 | `<stage>.tsc` | 5 KB | 0x41f930 | Starts with a count (0x2f) and 16.16 vectors |
 | `<stage>.xhi` | 28 KB | 0x41f930 | 16.16 values (0x00010000 runs) |
 | `<stage>.hpc` | 258 KB | `Stage_LoadHpc` 0x41fc90 -> `Hpc_Parse` 0x490d50 | Collision geometry: a five-level grid with record arrays (below) |
