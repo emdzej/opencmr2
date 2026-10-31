@@ -1,6 +1,8 @@
 /* The stage's sections (see section.h). Not yet: the second-kind meshes' lists (+0x14), the 0x30-byte
    records' lists (+0x28), the edge heights (FUN_004b8b90) and the billboard and overlay draws. */
 #include "world/section.h"
+#include "world/fin.h"
+#include "pending.h"
 #include "render/d3d7.h"
 #include "render/mesh.h"
 #include "render/view.h"
@@ -161,6 +163,8 @@ void Section_Init(Obj *world)
         g_sec[c].nscenery++;
     }
     link_objects(world);
+    Fin_File();
+    PENDING_NOTE(0x4b8b90, "Section_EdgeHeights");
     corners();
 }
 

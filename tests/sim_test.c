@@ -14,6 +14,11 @@
 #include "vfs_host.h"
 #include "world/obj.h"
 #include "world/stage.h"
+#include "world/fin.h"
+#include "world/section.h"
+#include "render/d3d7.h"
+#include "render/mesh.h"
+#include "sim/drive.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -99,6 +104,25 @@ int main(void)
         int32_t dx = CI32(c, 0x2d0) - x0, dz = CI32(c, 0x2d8) - z0;
         printf("progress: %d points passed, %.1f%% of the stage\n", Car_PointsPassed(c), Car_StageShare(c) * 100.0 / 65536);
         CHECK(CI32(c, 0x778) > 0x1000 && (int64_t)dx * dx + (int64_t)dz * dz > (int64_t)0x40000 * 0x40000);
+        /* the walls (fin.dat in the section grid): unsteered on full throttle the car leaves the road
+           at the first bend and falls off the stage without them; with them it is stopped and held */
+        D3d_Open(640, 480, 16);
+        VB_CreatePool();
+        CHECK(Stage_LoadC3d() && Stage_LoadFinDat("fra02") && g_nfin == 2213);
+        Section_Init(&g_world);
+        Car_Place(root, s->second, 0, 0, ang, sp);
+        Damage_Reset(c);
+        CW8(c, 0xb1e, 1);
+        CW32(c, 0xb9c, 1);
+        for (int k = 0; k < 400; k++) {
+            c->s[0x1d2] = 63;
+            Drive_Step(list, 1);
+        }
+        int16_t cell = (int16_t)(c->s[0xb00] | c->s[0xb01] << 8);
+        printf("walls: after 400 steps (%.2f, %.2f, %.2f), speed %.3f, cell %d with %d walls\n", CI32(c, 0x2d0) / 65536.0,
+               CI32(c, 0x2d4) / 65536.0, CI32(c, 0x2d8) / 65536.0, CI32(c, 0x778) / 65536.0, cell,
+               cell >= 0 ? g_sec[cell].nwalls : 0);
+        CHECK(CI32(c, 0x2d4) > 54 << 16 && CI32(c, 0x370) > 0xf000 && CI32(c, 0x778) < 0x2000 && cell >= 0);
     }
     printf("sim_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;

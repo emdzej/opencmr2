@@ -174,8 +174,14 @@ with them. Next:
   throttle), 25 steps a second from the frame count. The controls come from the digital path of
   0x47b0e0, with a stand-in for the key bindings (the front end's options). The pose is a stand-in for
   Car_PoseInterp. The stage's centre line (`.cat`) and each car's progress along it are ported
-  (`src/sim/progress.c`), so the viewer times a run from the start to the finish. Pending and logged:
-  - the free body 0x42eae0 (a loose car), 0x432c20, the recovery 0x4283e0, damage 0x46b4e0;
+  (`src/sim/progress.c`), so the viewer times a run from the start to the finish. The walls
+  (`fin.dat`, `src/world/fin.c`) and the cars' collision with them, Sim_Step's pass 0x4877a0
+  (`src/sim/walls.c`), are ported too: an unsteered car is stopped at the edge instead of driving off
+  the stage (sim_test). Pending and logged:
+  - the free body 0x42eae0 (a loose car), 0x432c20, the recovery 0x4283e0, damage 0x46b4e0 and the
+    wall-hit damage 0x466ef0;
+  - in the collision pass: the car-to-car contacts 0x48a1f0, the scenery objects 0x4878a0, the
+    sparks 0x499750;
 
   - the rest of Sim_Step (0x43f630 for the second car list, 0x425950, 0x426fc0, 0x444c10 and
     others).

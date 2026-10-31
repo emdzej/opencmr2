@@ -32,6 +32,8 @@ typedef struct {
     int32_t nscenery;          /* +0x18 */
     Obj *objs;                 /* +0x1c: the objects in it (linked through section_next) */
     int32_t nobjs;             /* +0x20 */
+    int32_t nwalls;            /* +0x24: the fin.dat walls in it */
+    struct Wall *walls;        /* +0x28 (linked through next) */
     int32_t corner[8];         /* +0x5c: x, z of four corners of the mesh's bounding rectangle */
     uint32_t dist2;            /* +0x7c: squared distance to the camera, when listed */
     int32_t x80, x84;          /* +0x80, +0x84: set to 0 and 1 when listed */

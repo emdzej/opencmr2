@@ -23,6 +23,7 @@
 #include "world/section.h"
 #include "world/frame.h"
 #include "world/stage.h"
+#include "world/fin.h"
 #include "world/tod.h"
 #include "world/hpc.h"
 #include "sim/car.h"
@@ -238,6 +239,7 @@ bool viewer_init(const char *car, const char *stage)
         C3d_Textures(V.m.data + V.m.slots, V.m.data + V.m.paths, V.m.ntex, V.m.kind, &V.tex, "");
         C3d_Build(&V.m);
     } else {
+        Stage_LoadFinDat(stage);   /* before Section_Init, which files the walls */
         Section_Init(&g_world);
         Stage_LoadTre(stage, true);
         Hor_Apply();         /* 0x460da0, later in Stage_Load */

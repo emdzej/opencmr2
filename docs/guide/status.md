@@ -36,21 +36,22 @@
 - Step 6, started: the car simulation in the original's 16.16 fixed point, function by function from
   the disassembly where the decompiler drops steps. Ported: the car set-up and placement, the controls,
   gearboxes and steering, the tyres, drivetrain and revs, surface grip, suspension and springs, ground
-  contact and road following, and the integration. A car parked on fra02's start line rests on the road,
+  contact and road following, the integration, and the walls along the stage's edges. A car parked on fra02's start line rests on the road,
   and on full throttle it drives off and shifts up (`tests/sim_test.c`). With both `--param stage=` and
   `--param car=` the viewer lets you drive it from the keyboard.
 
-Next: the rest of the simulation (a loose car, collisions, damage, the other entities of the step),
+Next: the rest of the simulation (a loose car, car-to-car and scenery collisions, damage, the other
+entities of the step),
 the car's pose interpolation and wheels, then the race around it.
 
 | Area | State |
 |---|---|
 | File layer (folders, ISO, BFL, InstallShield cabinet) | Ported and tested against the whole disc |
 | Textures, models, sound, music, text, fonts | Decoders ported and tested against the whole disc |
-| Stage data (`.tre`, `.hpc`, `.cat`, ...) | `.tre`, `.hpc`, `.csp`, `.hor` ported; `.srf`, `.cat`, `.tsc`, `fin.dat` open |
+| Stage data (`.tre`, `.hpc`, `.cat`, ...) | `.tre`, `.hpc`, `.csp`, `.hor`, `.cat`, `fin.dat` ported; `.srf`, `.tsc` open |
 | Renderer (Direct3D 7 to GLES 3) | Device, state layer, textures, meshes, 2D and text ported; reflections and 16-bit formats open |
 | World (objects, stage sections) | Object trees, terrain, scenery, sky, shadows, lights and the frame function ported; the cars' draw pass open |
 | Front end | Mapped (0x4d0000-0x500000); not started |
-| Vehicle simulation | About 40 of 120 functions ported; a car drives on a stage; loose cars, collisions, damage and the step's other entities open |
+| Vehicle simulation | About 55 of 120 functions ported; a car drives on a stage and is held by its walls; loose cars, car-to-car and scenery collisions, damage and the step's other entities open |
 | Movies (Bink 1) | Not started |
 | Network (DirectPlay 4) | Located; last step |

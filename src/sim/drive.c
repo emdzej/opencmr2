@@ -1,5 +1,7 @@
 /* Driving a car from the keyboard (see drive.h). */
 #include "sim/drive.h"
+#include "sim/walls.h"
+#include "pending.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "sim/road_follow.h"
@@ -72,6 +74,9 @@ int Drive_StepsDue(uint32_t frame, double hz)
 void Drive_Step(const int16_t *list, int n)
 {
     Sim_StepCars(list, n);
+    PENDING_NOTE(0x43f630, "Sim_Step entities 0x43f630, 0x425950");
+    Sim_Collide(list, n);
+    PENDING_NOTE(0x470580, "Sim_Step 0x470580");
     Sim_CarsPost(list, n);
     for (int i = n - 1; i >= 0; i--) Car_Progress(Car_Get(list[i]));   /* 0x4209f0 in Race_Update */
 }

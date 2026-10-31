@@ -123,6 +123,38 @@ steps, averaging 25 per second). Replays store one input frame per step (see
 [stages: replays](../formats/stage.md#replays-rpl-grp)), so a replay played through the ported `Sim_Step`
 must give back the original run exactly.
 
+## Walls
+
+Sim_Step's collision pass 0x4877a0 runs after the car step and before 0x42cd00. It clears each car's
+flat box (0x98 bytes per car at 0x590ed0), runs the car-to-car contacts 0x48a1f0 in the modes that
+have them (0x46bd50), then per car (the list from its end) the scenery objects 0x4878a0 (with +0xb64
+clear) and the walls 0x48e0a0, and keeps the box's four corners for the next step. Ported in
+`src/sim/walls.c`; the car-to-car, scenery, damage and sparks parts are pending.
+
+- **The box** (0x486c30, once a step): the forward row flattened (the up row when the car points
+  nearly straight up or down) and made unit, the side axis across it, the half lengths as the furthest
+  of the eight box corners (+0x270) along each, the corners' y range; four corners at the top y
+  (0x486fc0).
+- **The walk** (0x48e0a0): the walls of the car's cell, skipping those with both ends on one side of
+  the car beyond 1.2 times its radius (+0x758) in x or in z, and those above or below every box corner
+  (0x48f400). Per type (see [fin.dat](../formats/stage.md#fin-dat)).
+- **A face** (0x48fb80): the wall's line within reach and, for one-sided walls, the car's last position
+  (+0x2e8) not in front of it (0x490640; two-sided 0x490570). The corners between the ends are sorted
+  by side (0x490720); the box is pushed out along the normal by the deepest corner's distance. If the
+  velocity points into the wall, the impulse is the normal part times -(1 + restitution) plus the
+  tangential part times -(friction x dt), applied at that corner.
+- **An end** (0x48e580, 0x48e730): an end within the car's radius and inside the box is pushed out
+  along the car's approach (last position to the end), through the nearer face. With a cap angle the
+  velocity into the cap's direction bounces by the restitution plus 0.3; without one, the velocity
+  along that face is taken off with a bounce of 1 plus the restitution.
+- **The impulse** (0x48f470): added to the velocity (twice with option 4), and unless the car is
+  already loose (+0xc00), a turn (+0x5d0) from the impulse (times 2.5, at most 3.3) about the contact
+  point. With +0xb64 clear, an impulse over 0.9 makes the car loose (the free body 0x42eae0 takes it)
+  with the point taken four units lower; at 1.2 or more the turn is four times as strong and the car
+  is lifted (0.25 upward).
+- **The strongest hit** of a wall (impulse, point, normal) goes to the damage 0x466ef0 at most every
+  ten steps (+0xb42).
+
 ## Files
 
 All reads go through `File_Load` 0x4aa220 (zlib `gzopen`, `CMPR` check, plain fallback) into memory, and

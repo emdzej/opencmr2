@@ -180,9 +180,20 @@ points a step for the nearest one, and re-syncs to it every 26 steps.
 
 ## fin.dat
 
-2,213 records of 0x30 bytes in fra02: wall segments along the stage's edges (two corners at y -1000 and
-1000, a normal), filed into the section grid by `Section_Init`. They hold the car on the stage; not
-ported yet.
+`Stage_LoadFinDat` 0x490c30 reads `<stage>fin.dat` (2,213 records in fra02); `Section_Init` 0x4b8270
+files each record in front of its cell's list. The walls hold the cars on the stage (the collision in
+[architecture](../re/architecture.md#walls)). A record, 0x30 bytes, 16.16 values:
+
+| Offset | Size | Field |
+|---|---|---|
+| +0x00 | 3 x 4 | First end x, y, z (the y values seen are -1000 and 1000: the wall spans every height) |
+| +0x0c | 3 x 4 | Second end |
+| +0x18 | 3 x 4 | Normal (y 0, unit length) |
+| +0x24 | 4 | Not read by the collision |
+| +0x28 | 4 | Cell index; after filing, the next record in the cell (cell +0x28 is the head, +0x24 the count) |
+| +0x2c | 1 | Type: 0 and 1 ignored; 7-11 call an empty function; 6 and 0x19 mark the car off the stage (car +0xbf8); 0x17 bumps the wheels and slows the car; 0x18 starts a 25-step timer that then marks it; others are solid. Indexes the restitution table at 0x51fb00 and the friction table at 0x51fb68 |
+| +0x2d | 1 | Bit 0: two-sided (the side test is skipped, the ends are not tested separately) |
+| +0x2e, +0x2f | 1 each | The ends' cap angles, in 1.8 degree units (200 a turn); 0xff no cap |
 
 ## Surfaces
 

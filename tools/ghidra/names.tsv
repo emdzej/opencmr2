@@ -340,3 +340,24 @@
 00421470	Car_StageShare	race	high	The share of the stage done, 1.0 at the finish
 00421530	Cat_Point	track	high	A centre-line point's x and z
 00406990	Gs_Laps	game	high	The laps, bits 16-19 of the stage selection word
+004877a0	Sim_Collide	sim	high	Sim_Step's collision pass: car boxes cleared, car-to-car, per car the scenery objects and walls, box corners kept
+0048e0a0	Car_Walls	sim	high	One car against the walls of its cell (fin.dat), by wall type; the strongest hit to the damage
+0048ca40	Car_CollBox	sim	high	The car's 0x98-byte flat box record at 0x590ed0
+00486c30	CollBox_Make	sim	high	The car's flat box: forward and side axes, half lengths, y range, once a step
+00486fc0	CollBox_Corners	sim	high	The flat box's four corners at its top y
+0048f400	Wall_AboveOrBelow	sim	high	True when no box corner's y lies between the wall ends' y
+00490570	Wall_NearTwoSided	sim	high	The wall's line within reach of the car; the side of its last position
+00490640	Wall_NearOneSided	sim	high	As 0x490570, but false when the car's last position is in front of the wall
+00490720	Wall_Classify	sim	high	The box corners' distances to the wall plane, counted by side and within the ends
+0048fb80	Wall_Face	sim	high	A wall face: the box pushed out, the velocity bounced and cut by the type's restitution and friction
+0048e580	Wall_Ends	sim	high	Each wall end within the car's radius through Wall_EndHit
+0048e730	Wall_EndHit	sim	high	A wall end inside the box: pushed out along the approach, cap or face bounce
+0048f470	Car_WallImpulse	sim	high	An impulse on the car at a point: velocity, contact point, turn; a hard knock makes it loose
+00490b90	Wall_Across	sim	high	The car's box across a two-sided wall (types 6, 0x17, 0x18)
+0048df50	Car_WallBumps	sim	high	Wall type 0x17: bumps under the wheels from the corners and speed, velocity times 0.97
+0048c870	Cars_PushGroup	sim	med	Moves the cars in contact with one (lists at 0x5913dc) by a vector
+0048c900	Cars_PushOne	sim	med	The recursive part of Cars_PushGroup
+004878a0	Car_Scenery	sim	med	The car against the scenery objects of its cells
+0048a1f0	Cars_Collide	sim	low	The car-to-car contacts
+00499750	Sparks_Add	fx	low	Sparks or particles from a scrape (uses rand)
+00466ef0	Car_Damage	sim	med	Damage from a hit: point, normal, kind
