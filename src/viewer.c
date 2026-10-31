@@ -183,6 +183,7 @@ static bool park_car(const char *car, const char *stage)
     Csp_StartPos(0, pos);
     Csp_Angles(ang);
     Car_Place(s->main, s->second, 0, 0, ang, pos);
+    Damage_Reset(Car_Get(0));
     /* stand-in until Car_PoseInterp 0x42bf70 (it needs Sim_Step's pose buffers): the main model at
        the settled position */
     Car *c = Car_Get(0);

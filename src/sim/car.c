@@ -4,6 +4,7 @@
 #include "game/gstate.h"
 #include "pending.h"
 #include "world/hpc.h"
+#include "sim/grip.h"
 #include "world/stage.h"
 #include "world/tod.h"
 #include <string.h>
@@ -499,7 +500,7 @@ void Car_Settle(Car *c)
     Car_BoxCorners(c);
     contacts(c);
     for (uint32_t k = 0; k < 3; k++) CW32(c, 0x3f0 + 4 * k, CI32(c, 0x360 + 4 * k));
-    PENDING_NOTE(0x4781d0, "Car_SurfaceGrip");
+    Car_SurfaceGrip(c, 0);   /* the weather value 0x460c80: dry until the weather is ported */
     CW32(c, 0xa74, CI32(c, 0xa78));   /* 0x4789b0 */
     for (uint32_t o = 0x300; o < 0x330; o += 0xc)
         for (uint32_t k = 0; k < 3; k++) {
@@ -540,4 +541,24 @@ void Car_Place(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], co
     Car_Init(c, main, cls, pos, n, false);
     Car_Settle(c);
     if (Gs_ModeBit19()) PENDING_NOTE(0x424dc0, "Car_PlaceTwoPlayer");
+}
+
+static void dmgw32(uint8_t *d, uint32_t o, int32_t v) { uint32_t u = (uint32_t)v; d[o] = (uint8_t)u, d[o + 1] = (uint8_t)(u >> 8), d[o + 2] = (uint8_t)(u >> 16), d[o + 3] = (uint8_t)(u >> 24); }
+
+/* Damage_Reset 0x469690 (called per car by the damage set-up 0x4669f0): the engine (+0x404) and brake
+   (+0x3fc, +0x400) factors back to 1.0, the wheels' brake drag, the drag, the rack and the gearbox
+   counter cleared. It then replays the damage carried from earlier stages (the 0x290-byte record) and
+   sets the parts from it (0x480b40, 0x4698a0, 0x466ef0, 0x486630, 0x480ac0, 0x468c10, 0x4692f0: not
+   ported); a fresh car carries none, so only the part tables (+0x350, +0x4b0, +0x4c0) stay zero. */
+void Damage_Reset(Car *c)
+{
+    uint8_t *d = Damage_Get(CI8(c, 0xb1a));
+    PENDING_NOTE(0x4698a0, "Damage_Parts");
+    dmgw32(d, 0x404, 0x10000);
+    dmgw32(d, 0x3fc, 0x10000);
+    dmgw32(d, 0x400, 0x10000);
+    for (uint32_t o = 0x3ec; o <= 0x3f8; o += 4) dmgw32(d, o, 0);
+    dmgw32(d, 0x408, 0);
+    dmgw32(d, 0x3d8, 0);
+    d[0x468] = 0;
 }

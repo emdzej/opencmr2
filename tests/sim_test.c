@@ -59,6 +59,7 @@ int main(void)
         Csp_StartPos(0, sp);
         Csp_Angles(ang);
         Car_Place(root, s->second, 0, 0, ang, sp);
+        Damage_Reset(c);
         printf("settled: position (%.3f, %.3f, %.3f), up (%.3f %.3f %.3f), corner 0 ground %.3f, touching %d\n",
                CI32(c, 0x2d0) / 65536.0, CI32(c, 0x2d4) / 65536.0, CI32(c, 0x2d8) / 65536.0, CI32(c, 0x36c) / 65536.0,
                CI32(c, 0x370) / 65536.0, CI32(c, 0x374) / 65536.0, CI32(c, 0x8dc) / 65536.0, CI8(c, 0xb34));
@@ -76,6 +77,21 @@ int main(void)
         printf("after 101 steps parked: y %.4f (from %.4f), speed %.4f, on the ground %d\n", CI32(c, 0x2d4) / 65536.0,
                y0 / 65536.0, CI32(c, 0x778) / 65536.0, c->s[0xb28]);
         CHECK((dy < 0 ? -dy : dy) < 0x0800 && CI32(c, 0x778) < 0x0800);
+        /* first gear in the automatic box (+0xb9c on, as the race start sets it), then full throttle
+           (+0x1d2 = 63) for four seconds */
+        CW32(c, 0xb9c, 1);
+        CW8(c, 0xb1e, 1);   /* the car drives off along the stage */
+        int32_t x0 = CI32(c, 0x2d0), z0 = CI32(c, 0x2d8);
+        for (int k = 0; k < 100; k++) {
+            c->s[0x1d2] = 63;
+            Sim_StepCars(list, 1);
+            if (k % 25 == 24)
+                printf("  step %d: gear %d, revs %.3f, speed %.3f, position (%.2f, %.2f, %.2f)\n", k + 1, CI8(c, 0xb1e),
+                       CI32(c, 0x7a4) / 65536.0, CI32(c, 0x778) / 65536.0, CI32(c, 0x2d0) / 65536.0, CI32(c, 0x2d4) / 65536.0,
+                       CI32(c, 0x2d8) / 65536.0);
+        }
+        int32_t dx = CI32(c, 0x2d0) - x0, dz = CI32(c, 0x2d8) - z0;
+        CHECK(CI32(c, 0x778) > 0x1000 && (int64_t)dx * dx + (int64_t)dz * dz > (int64_t)0x40000 * 0x40000);
     }
     printf("sim_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;

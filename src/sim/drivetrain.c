@@ -2,7 +2,7 @@
    then the tyres (0x4387a0) and the slip smoothing (0x437fd0). */
 #include "sim/drivetrain.h"
 #include "fixmath.h"
-#include "pending.h"
+#include "sim/tyres.h"
 
 /* 0x437fd0: per wheel on an unchanged surface (+0xabe = +0xaae), touching (+0xbac) and upright, the
    smoothed slips (+0x890, +0x8a0) follow the slips' sizes (+0x870, +0x880) up at the wheel's rate
@@ -56,6 +56,6 @@ void Car_Drivetrain(Car *c)
     } else {
         for (uint32_t o = 0x850; o < 0x860; o += 4) CW32(c, o, 0);
     }
-    PENDING_NOTE(0x4387a0, "Car_Tyres");
+    Car_Tyres(c);
     slip_smooth(c);
 }

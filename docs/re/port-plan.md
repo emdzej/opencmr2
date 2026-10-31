@@ -164,10 +164,15 @@ with them. Next:
   0x435470 (`src/sim/integrate.c`, from the disassembly: the decompiler drops its position and angle
   steps). Also ported, from the disassembly: the tilt pass 0x4373c0, the steering body model 0x436630,
   the suspension 0x43b100, the wheels' heading 0x434140 and the ground contact 0x4348c0. A placed car
-  now rests on the road (sim_test: 100 steps parked). Pending and logged:
-  - grip 0x4781d0, damage 0x46b4e0, aero 0x434f50;
-  - collisions 0x437dc0;
-  - engine 0x438460, gearbox 0x4380c0.
+  now rests on the road (sim_test: 100 steps parked). Also ported: the tyre model 0x4387a0, the
+  drivetrain 0x437dc0, the revs 0x4380c0, the surface grip 0x4781d0, the corner velocities 0x434f50,
+  the corner impulses 0x438460 and the damage reset 0x469690. On full throttle the 205 drives off
+  through the gears; without Sim_Step's road-following pass (0x42cd00 -> 0x42ce60) it then pitches up
+  and flips, since in road-following mode the wheels' normal forces give no torque. Pending and logged:
+  - the road following 0x42ce60 and free body 0x42eae0 (Sim_Step's 0x42cd00), damage 0x46b4e0;
+
+  - the rest of Sim_Step (0x43f630 for the second car list, 0x425950, 0x426fc0, 0x444c10 and
+    others).
 - the surface grip 0x4781d0;
 - `Car_PoseInterp` 0x42bf70, which sets the models from the pose buffers; the viewer stands in for it
   until then;

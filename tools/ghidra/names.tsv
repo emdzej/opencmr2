@@ -311,4 +311,14 @@
 00437dc0	Car_Drivetrain	sim	high	Engine torque and its split to the wheels, then the tyres and slip smoothing
 00437f90	Car_EngineTorque	sim	high	Throttle times the damage record's +0x404
 00437fd0	Car_SlipSmooth	sim	high	The wheels' smoothed slips
-004387a0	Car_Tyres	sim	low	The tyre model (8.5 KB)
+004387a0	Car_Tyres	sim	high	The tyre model: spins, brakes, friction circle, grip ellipse, rolling resistance
+0043af70	Car_AxleAverage	sim	high	An axle's wheel spins averaged when they differ by more than 0.1
+0043a920	Car_SlopePush	sim	high	A push back where the ground normal turned by more than 10 degrees
+00434f50	Car_CornerVelocities	sim	high	The box corners' velocities from the spin and the body's velocity
+00469690	Damage_Reset	damage	high	Resets a car's damage factors and replays carried damage
+004669f0	Damage_Setup	damage	med	The damage set-up of every car (calls Damage_Reset)
+0042cd00	Sim_CarsPost	sim	med	After the car step: road following (0x42ce60) or free body (0x42eae0), and more
+0042ce60	Car_RoadFollow	sim	low	Keeps a car in road-following mode on the ground (4 KB)
+0042eae0	Car_FreeBody	sim	low	A free (loose) car's ground and collisions (3.4 KB)
+004380c0	Car_Revs	sim	high	The engine revs from the driven wheels, the starter curve, the limiter
+004781d0	Car_SurfaceGrip	sim	high	The corners' grip coefficients from their surfaces, dry to wet

@@ -7,6 +7,8 @@
 #include "sim/ground_contact.h"
 #include "sim/corner_impulse.h"
 #include "sim/drivetrain.h"
+#include "sim/gearbox.h"
+#include "sim/grip.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -120,6 +122,27 @@ static void car_cell(Car *c)
     for (uint32_t k = 0; k < 3; k++) CW32(c, 0x2dc + 4 * k, CI32(c, 0x2d0 + 4 * k));
 }
 
+/* Car_CornerVelocities 0x434f50: the eight box corners' velocities (+0x42c + 12 i): the spin
+   (+0x420) across the half sizes, through the orientation rows, plus the body's velocity; the upper
+   four are the lower four's opposites. */
+static void corner_velocities(Car *c)
+{
+    int32_t wx = CI32(c, 0x420), wy = CI32(c, 0x424), wz = CI32(c, 0x428);
+    int32_t hl = CI32(c, 0x204), hh = CI32(c, 0x208), hw = CI32(c, 0x20c);
+    int32_t u6 = fx_mul(wy, hw), u7 = fx_mul(wz, hh), u8 = fx_mul(wz, hl), u9 = fx_mul(wx, hw), u10 = fx_mul(wx, hh), u11 = fx_mul(wy, hl);
+    for (uint32_t k = 0; k < 3; k++) {
+        int32_t m0 = CI32(c, 4 * k), m1 = CI32(c, 0x10 + 4 * k), m2 = CI32(c, 0x20 + 4 * k);
+        int32_t a = fx_mul(m0, u6), b = fx_mul(m0, u7), cc = fx_mul(m1, u8), d = fx_mul(m1, u9), e = fx_mul(m2, u10), f = fx_mul(m2, u11);
+        int32_t v[4] = {(((cc - f) - e) - d) + b + a, (((d - f) - e) - a) + cc + b, (((f - e) - d) - cc) + b + a, (((f - e) - cc) - a) + d + b};
+        for (uint32_t i = 0; i < 4; i++) {
+            CW32(c, 0x42c + 12 * i + 4 * k, v[i]);
+            CW32(c, 0x42c + 12 * (7 - i) + 4 * k, -v[i]);
+        }
+    }
+    for (uint32_t i = 0; i < 8; i++)
+        for (uint32_t k = 0; k < 3; k++) CW32(c, 0x42c + 12 * i + 4 * k, CI32(c, 0x42c + 12 * i + 4 * k) + CI32(c, 0x408 + 4 * k));
+}
+
 /* Sim_StepCars 0x433890, in its passes, each over every car (last to first). */
 void Sim_StepCars(const int16_t *list, int n)
 {
@@ -147,7 +170,8 @@ void Sim_StepCars(const int16_t *list, int n)
         CW32(c, 0x968, CI32(c, 0x964));
         CW32(c, 0x964, CI32(c, 0x960));
         if (!CI32(c, 0xbfc)) damage_latch(c);
-        PENDING_PASS(0x4781d0, "Car_SurfaceGrip");
+        PENDING_NOTE(0x460c80, "Weather_CarValue");   /* the weather state is not ported: dry */
+        Car_SurfaceGrip(c, 0);
         clutch_counter(c);
         PENDING_PASS(0x46b4e0, "Damage_Step");
     }
@@ -165,7 +189,7 @@ void Sim_StepCars(const int16_t *list, int n)
         Car *c = Car_Get(list[i]);
         g_car = c;
         PENDING_NOTE(0x469680, "Damage_Get");   /* the damage record's counters +0x469/+0x46c */
-        PENDING_PASS(0x434f50, "Car_Aero");
+        corner_velocities(c);
         for (uint32_t o = 0x5e8; o < 0x648; o += 4) CW32(c, o, 0);
         for (uint32_t o = 0x648; o < 0x6a8; o += 4) CW32(c, o, 0);
         CW32(c, 0x6a8, 0);
@@ -185,7 +209,7 @@ void Sim_StepCars(const int16_t *list, int n)
         Car *c = Car_Get(list[i]);
         g_car = c;
         CW32(c, 0x7a8, CI32(c, 0x7a4));
-        PENDING_PASS(0x4380c0, "Car_Gearbox");
+        Car_Revs(c);
         rev_limit(c);
         for (uint32_t o = 0x5c4; o < 0x5dc; o += 4) CW32(c, o, 0);
     }
