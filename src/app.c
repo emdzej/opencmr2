@@ -49,9 +49,9 @@ static void decoder_check(void)
             Font font;
             if (Bfl_Mount(&res, "FrontEnd\\res640.bfl")) {
                 const uint8_t *p = Bfl_FindFile(&res, "hel_15pt.pcf", NULL, &sz, false);
-                if (p && Font_Set(&font, p, sz)) {
+                if (p && Font_Parse(&font, p, sz)) {
                     snprintf(m, sizeof m, "OpenCMR2: text 0 \"%.60s\", %d pixels in hel_15pt", Text_Get(0),
-                             Font_TextWidth(&font, Text_Get(0)));
+                             Font_Width(&font, Text_Get(0)));
                     plat_log(m);
                 }
                 Bfl_Unmount(&res);

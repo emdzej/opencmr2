@@ -119,6 +119,13 @@ tracking, or the pair's adjustment plus the tracking when the next character has
 pairs are searched up to the first one not below the next character); characters without a glyph add
 nothing. It stops at the first `\n` or `^`, so it returns the first line's width, in 16-bit arithmetic.
 
+`Font_Print` 0x40b880 lays a string out. Flags 4 and 2 right-align and centre each line; 0x10 and 0x20
+raise the baseline by the first glyph's byte +0x0a and by the height. A space adds the space width, and
+`\n` or `^` starts a line one height plus the line gap (+0x14) lower. A glyph adds its width, the
+tracking and its kerning pair. `Font_TextHeight` 0x40b730 is the line count times the height plus one,
+minus one, plus the gap. The fonts live in slots (`Font_InitSlots` 0x40b220; `Font_LoadSlot` 0x40b430
+finds `<name>.tga` as a texture and `<name>.pcf` beside it).
+
 One record is garbage: in `Game/Bigfiles/com1024.bfl` and `com1024C.bfl`, `hel_20pt` maps `Í` (0xcd) to
 a glyph that is all `0xcd` bytes (uninitialised memory in the font tool), kerning offset included; the
 original would read far past the file when measuring `Í` before another glyph. The port gives that glyph

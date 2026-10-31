@@ -16,6 +16,9 @@
 #include "render/mesh.h"
 #include "render/rstate.h"
 #include "render/tex.h"
+#include "render/twod.h"
+#include "render/view.h"
+#include "font.h"
 #include "vfs.h"
 #include <math.h>
 #include <stdio.h>
@@ -34,6 +37,8 @@ static struct {
         bool used;
     } mesh[MAX_MESH];
     BflSlot tex;                /* the texture archive (the records point to it) */
+    BflSlot fe;                 /* FrontEnd\\res640.bfl: the title's font */
+    char title[80];
     int frame;
     bool stage;
     float centre[MAX_MESH][3];   /* stage: each mesh's vertex centre, the fly-through's path */
@@ -184,15 +189,20 @@ bool viewer_init(const char *car, const char *stage)
     D3d_LightEnable(0, true);
     D3DMATERIAL7 mat = {{1, 1, 1, 1}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, 0};
     D3d_SetMaterial(&mat);
+    /* the title: hel_15pt from the front end's 640 set, through Font_Print and the 2D queues */
+    Sprite_Init();
+    Tri_Init();
+    Font_InitSlots(4);
+    if (Bfl_Mount(&V.fe, "FrontEnd\\res640.bfl")) Font_LoadSlot("FrontEnd", "hel_15pt", &V.fe, 0);
+    snprintf(V.title, sizeof V.title, "%s  %d polygons  %d textures", V.stage ? stage : car, (int)V.m.npoly, V.m.ntex);
     g_ambient_a = g_ambient_b = 0xff404040u;
     /* nearly every mesh keeps the lighting mode (flag 0x20), which the world's draw sets: here lit for
        a car, the vertex colours unlit for a stage (the viewer's choice until step 5) */
     Light_SetMode(V.stage ? 4 : 2);
     D3d_SetTextureStageState(0, D3DTSS_MINFILTER, 2);
-    /* a left-handed perspective, 60 degrees vertically, as Direct3D's samples build it */
-    float zn = 0.1f, zf = V.stage ? 2000.0f : 100.0f, fov = 1.0471976f, ys = 1.0f / tanf(fov / 2), xs = ys * 480.0f / 640.0f;
-    D3DMATRIX proj = {{{xs, 0, 0, 0}, {0, ys, 0, 0}, {0, 0, zf / (zf - zn), 1}, {0, 0, -zn * zf / (zf - zn), 0}}};
-    D3d_SetTransform(D3DTS_PROJECTION, &proj);
+    /* Proj_Set with 60 degrees vertically at 4:3 (the scales are halved by the game): 2 cot 30 = 3.464,
+       times 3/4 for x; far 2,000 for a stage, 100 for a car; near 0.1 */
+    Proj_Set((int32_t)(2.598f * 65536), (int32_t)(3.464f * 65536), (V.stage ? 2000 : 100) << 16, 6554);
     return true;
 }
 
@@ -254,6 +264,16 @@ void viewer_frame(void)
         D3d_SetTransform(D3DTS_WORLD, &world);
         Mesh_Draw(&V.m, (uint8_t *)C3d_Mesh(&V.m, i), 0, 0, 0);
     }
+    /* a translucent band and the title over it (layer 1 of both queues); the meshes left blending off
+       (alpha-tested), so it goes back on first, as the game does before its 2D */
+    Render_AlphaBlend(1);
+    static const uint8_t band[4] = {0, 0, 0, 0x90}, white[4] = {255, 255, 255, 255};
+    int32_t a0[2] = {0, 8 << 16}, a1[2] = {640 << 16, 8 << 16}, a2[2] = {0, 34 << 16}, a3[2] = {640 << 16, 34 << 16};
+    Tri_Add(a0, a1, a2, band, 1);
+    Tri_Add(a1, a3, a2, band, 1);
+    Tri_Flush(1);
+    Font_Print(0, V.title, 320, 12, white, 2);
+    Sprite_Flush(1);
     D3d_EndScene();
     D3d_Present();
 }

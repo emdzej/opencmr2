@@ -114,10 +114,10 @@
 004b7210	Render_ReadCaps	render	med	Reads the device caps (GetCaps) into flags at 0x6e0c0c-0x6e0c3c
 004bcbb0	Fog_SetLinear	render	med	Linear vertex fog: FOGTABLEMODE 0, FOGVERTEXMODE 3, start and end
 004bcc20	Fog_Off	render	med	Vertex fog off
-0049e1f0	Camera_Apply	render	med	Clears, sets view and projection transforms and the viewport for a camera
+0049e1f0	EnvMap_RenderCube	render	med	Renders six views around an object (cube environment map for reflections), restoring view, projection and viewport
 004b1530	Render_DrawIndexed	render	med	DrawIndexedPrimitive of FVF 0x2d2 vertices from the shared arrays
 004a3e20	Tex_SetBlend	render	high	Sets a texture record's blend type (+0x118)
-004a3e40	Render_SetBlend	render	high	SRCBLEND and DESTBLEND, not cached
+004a3e40	Render_SetBlend	render	high	SRCBLEND and DESTBLEND, cached as a pair (0x520b1c, 0x520b20)
 004a4850	Tex_Bind	render	high	SetTexture and Tex_SetStageBlend, skipped when (stage, texture) equals the last bind
 004a48c0	Tex_CreateFromMemory	render	high	A texture record for an image in memory (archive member), DDS or TGA loader
 004a49c0	Tex_CreateFromFile	render	high	A texture record for <path>.DDS or .TGA from disk
@@ -131,3 +131,34 @@
 0049c880	Mesh_DrawBatches	render	high	Batch by batch from the part's vertex buffer range
 0049c940	Mesh_Draw	render	high	A mesh's current part with its flags' cull, lighting mode and blending
 004b7200	Light_Mode	render	high	The current lighting mode
+004a8890	Proj_Set	render	high	The projection from 16.16 x/y scale, far and near (0 keeps), also kept in 16.16 at +0x23e4
+004ade00	View_Set	render	med	The view transform from a camera object's matrix (+0xd8), via 0x4ba440, kept in 16.16 at +0x2424
+00422d40	Camera_Projection	race	med	A race camera's projection: scales from its field of view, doubled for split screen, mirrored in one mode
+004bcaf0	Fog_Set	render	high	Fog start/end (16.16) and RGB colour; linear vertex fog when the card has it
+004a3de0	Render_ForgetBlend	render	high	Resets Render_SetBlend's cache to (1, 1) without setting states
+004a3dd0	Tex_ForgetBlend	render	high	Resets the last blend type to -1
+004a3260	Sprite_Init	render	high	Empties the four sprite queues
+004a3290	Sprite_Add	render	high	Queues a textured, coloured, optionally rotated and flipped sprite on one of four layers
+004a3650	Sprite_Flush	render	high	Draws a sprite layer as 4-vertex strips (point filtering, clipping off)
+004bb610	Tri_Init	render	high	Empties the four flat-triangle queues
+004bb650	Tri_Add	render	high	Queues a flat-coloured screen triangle (16.16 corners) on one of four layers
+004bb800	Tri_Vertex	render	high	Sets a queued triangle corner's x, y and colour
+004bb850	Tri_Flush	render	high	Draws a flat-triangle layer, untextured, alpha-blended
+004b7b20	Math_InitTables	render	high	Fills the sine, tangent, square-root, arcsine and arctangent tables
+004ba2b0	Mat_Identity	render	high	16.16 identity matrix
+004ba320	Mat_RotZ	render	high	16.16 rotation about z from a 4,096-unit angle
+004ba3b0	Vec_RotateAbout	render	high	Turns a point by a matrix about a centre (x, y)
+004baa40	Vec_Transform	render	high	16.16 row vector times matrix
+004ba090	Mat_ToFloat	render	high	16.16 matrix to floats
+004a7410	Tex_CreateSurface	render	high	Creates a texture's DirectDraw surface and records its size at +0x120
+0040b220	Font_InitSlots	text	high	Allocates the font slots (0x18 bytes each) and resets the font layer to 1
+0040b290	Font_FreeSlots	text	high	Frees every font slot and the table
+0040b2f0	Font_FreeSlot	text	high	Frees a font slot's owned .pcf
+0040b430	Font_LoadSlot	text	high	Loads <name>.tga as a texture and <name>.pcf from an archive into a slot
+0040b580	Font_SetCurrent	text	high	Sets the current font slot and colour for glyph drawing
+0040b730	Font_TextHeight	text	high	Lines times (height + 1) - 1 plus the line gap
+0040b790	Font_Height	text	high	A loaded font's height
+0040b7c0	Font_DrawGlyph	text	high	Queues a glyph as a sprite on the font layer
+0040b880	Font_Print	text	high	Lays out and draws a string (alignment, lines, kerning), after three rand() calls
+0040bab0	Font_SetLayer	text	high	The sprite layer glyphs go to
+004d15e0	Game_SeedRandom	misc	low	Seeds rand() from the clock (among other start-up work)

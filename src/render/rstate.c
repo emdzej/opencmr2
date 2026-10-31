@@ -3,7 +3,7 @@
 #include "exe.h"
 #include "render/d3d7.h"
 
-RenderCaps g_caps = {true, true};
+RenderCaps g_caps = {true, true, true, true};
 
 static uint8_t clear_rgb[3];      /* DAT_0059ce24 */
 static uint32_t cull;             /* DAT_00597cb8 */
@@ -144,9 +144,24 @@ void Render_InitStates(void)
     Render_ClampStage0(1);
 }
 
-/* Render_SetBlend 0x4a3e40: the frame-buffer blend factors, not cached. */
+static uint32_t blend_src, blend_dst;   /* DAT_00520b1c, DAT_00520b20 (initialised data: 1, 1) */
+static bool blend_loaded;
+
+/* Render_SetBlend 0x4a3e40: the frame-buffer blend factors, cached as a pair. */
 void Render_SetBlend(uint32_t src, uint32_t dst)
 {
+    if (!blend_loaded) Render_ForgetBlend();
+    if (src == blend_src && dst == blend_dst) return;
     D3d_SetRenderState(D3DRS_SRCBLEND, src);
     D3d_SetRenderState(D3DRS_DESTBLEND, dst);
+    blend_src = src;
+    blend_dst = dst;
+}
+
+/* 0x4a3de0: the cache back to (1, 1) without touching the device, so the next pair is set. */
+void Render_ForgetBlend(void)
+{
+    blend_src = exe_u32(0x520b1c);
+    blend_dst = exe_u32(0x520b20);
+    blend_loaded = true;
 }

@@ -2,9 +2,13 @@
    (Render_InitStates 0x49df90) and its cached setters, vertex buffer layouts, draw counting. */
 #include "exe.h"
 #include "render/d3d7.h"
+#include "font.h"
 #include "render/mesh.h"
 #include "render/rstate.h"
 #include "render/tex.h"
+#include "render/twod.h"
+#include "crt.h"
+#include "fixmath.h"
 #include "bfl.h"
 #include "c3d.h"
 #include <stdlib.h>
@@ -90,6 +94,37 @@ int main(void)
         Bfl_Unmount(&arch);
     }
     free(f);
+    /* the 2D queues: a sprite without a texture shifts the later ones onto the next vertices */
+    Math_InitTables();
+    Sprite_Init();
+    Tex t1 = {0}, t2 = {0};
+    t1.width = t1.height = t2.width = t2.height = 64;
+    Rect16 src = {0, 0, 64, 64}, d1 = {10, 10, 20, 20}, d2 = {100, 100, 30, 30};
+    uint8_t white[4] = {255, 255, 255, 255};
+    Sprite_Add(&src, &d1, NULL, 1, 0, NULL, NULL, white, 0);
+    Sprite_Add(&src, &d2, &t2, 1, 0, NULL, NULL, white, 0);
+    D3dStats b2 = D3d_Stats();
+    Sprite_Flush(1);
+    D3dStats a2 = D3d_Stats();
+    CHECK(a2.draws - b2.draws == 2);   /* both records are drawn */
+    for (int i = 0; i < 1100; i++) Sprite_Add(&src, &d1, &t1, 2, 0, NULL, NULL, white, 0);
+    b2 = D3d_Stats();
+    Sprite_Flush(2);
+    CHECK(D3d_Stats().draws - b2.draws == 1023);   /* the layer's limit */
+    Tri_Init();
+    int32_t p0[2] = {0, 0}, p1[2] = {10 << 16, 0}, p2[2] = {0, 10 << 16};
+    for (int i = 0; i < 1100; i++) Tri_Add(p0, p1, p2, white, 7);   /* any other layer: the first queue */
+    b2 = D3d_Stats();
+    Tri_Flush(1);
+    CHECK(D3d_Stats().prims - b2.prims == 1024);
+    /* Font_Print draws three numbers from rand() even with no font */
+    crt_srand(400);
+    int r1 = crt_rand(), r2 = crt_rand(), r3 = crt_rand(), r4 = crt_rand();
+    crt_srand(400);
+    Font_InitSlots(1);
+    Font_Print(0, "x", 0, 0, white, 0);
+    CHECK(crt_rand() == r4 && r1 != r2 && r2 != r3);
+    Font_FreeSlots();
     printf("d3d7_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
 }

@@ -15,8 +15,10 @@ transform and lighting; the device is `*(PTR_DAT_00520b78 + 4)`. Methods and cal
 | 0x4b6f00 | `Light_SetMode` | Lighting modes: `LIGHTING`, `AMBIENT`, `COLORVERTEX`, `DIFFUSEMATERIALSOURCE`, lights on and off |
 | 0x4b2e50, 0x4b2f80, 0x4b34d0-0x4b35b0, 0x4ad8d0 | | `SetMaterial` (once, 0x4b2e50) and `SetLight` / `LightEnable` |
 | 0x4b2980 | `Render_EnvMapped` | Reflections: stage coordinates from the camera-space reflection vector (`TEXCOORDINDEX` 0x30001) through texture matrix 0 (3 components), with `NORMALIZENORMALS` and `LOCALVIEWER` on for the draw |
-| 0x4bcaf0, 0x4bcbb0, 0x4bcc20 | `Fog_SetLinear`, `Fog_Off` | Vertex fog: table mode 0, `FOGVERTEXMODE` 3 (linear), start and end, colour |
-| 0x49e1f0 | `Camera_Apply` | Clear, view and projection transforms, viewport |
+| 0x4bcaf0, 0x4bcbb0, 0x4bcc20 | `Fog_Set`, `Fog_SetLinear`, `Fog_Off` | Vertex fog: table mode 0, `FOGVERTEXMODE` 3 (linear), start and end, colour |
+| 0x4a8890 | `Proj_Set` | The projection (below) |
+| 0x4ade00 | `View_Set` | The view from a camera object's matrix (+0xd8) |
+| 0x49e1f0 | `EnvMap_RenderCube` | Six views around an object (a cube environment map for the reflections), view, projection and viewport restored after |
 | 0x4b1d00, 0x4b1ac0 | `Mesh_AddToVB`, `Mesh_Batches` | Model vertices into shared vertex buffers (2,000 vertices each, up to 100), triangles grouped by texture |
 | 0x49c510-0x49c880, 0x4b2610 | | `DrawIndexedPrimitiveVB` of triangle lists |
 | 0x4b1530 | `Render_DrawIndexed` | `DrawIndexedPrimitive` of FVF 0x2d2 vertices from arrays |
@@ -35,7 +37,8 @@ stages (`ff808080` typical) are emitted as they are and the lights add to them. 
 write on, the default cull mode (`0x5207f8`, initially 3: counter-clockwise), clamp addressing and
 linear magnification on stages 0-2, and stage 0 clamped through its cached setter.
 
-The cached setters skip a value equal to their cache, and `Render_InitStates` sets
+`Render_SetBlend` 0x4a3e40 caches the blend pair too (starting at 1, 1), and `Render_ForgetBlend` 0x4a3de0
+resets that cache without touching the device. The cached setters skip a value equal to their cache, and `Render_InitStates` sets
 `ALPHABLENDENABLE` directly while `Render_AlphaBlend`'s cache starts at 0: the first
 `Render_AlphaBlend(0)` does nothing and blending stays on. With caps flag `0x6e0c14` set,
 `Render_AlphaBlend` also moves the alpha reference: 1 with blending, 0x80 without (cut-outs by the
@@ -49,6 +52,78 @@ texture-factor, specular or current-colour combinations and set the blend factor
 **bump environment mapping with luminance** (`D3DTOP_BUMPENVMAPLUMINANCE`, the bump matrix from
 `0x520b24`, luminance scale 1.0, offset 0). Which textures carry which type, and what each type is
 used for, is open.
+
+## View and fog
+
+`Proj_Set` 0x4a8890 takes the x and y scale, the far plane and the near plane in 16.16; a 0 keeps the
+previous value (initially 2.337, 4.197, 250 and 1). It sets Direct3D's left-handed perspective:
+- `m00 = 0.5 xs`, `m11 = 0.5 ys` (the 0.5 is the float at `0x520b80`);
+- `m22 = far / (far - near)`, `m32 = -near far / (far - near)`, `m23 = 1`.
+
+It also keeps the matrix rounded to 16.16 at `PTR_DAT_00520b78 + 0x23e4` for the game's own use. The
+race cameras (`Camera_Projection` 0x422d40) compute the scales from a per-camera field-of-view value:
+they double one scale for a split screen, negate x in one mode, and in another raise the far plane to
+at least 150. With the default scales a 640-wide viewport has square pixels only at about 356 lines (a
+16:9 band), so the views that use them are presumably letterboxed; open.
+
+`Fog_Set` 0x4bcaf0 converts the fog start and end (16.16; two more values are stored beside them) and
+sets the colour from R, G, B bytes, choosing linear vertex fog when the card has vertex fog.
+`Fog_SetLinear` sets the distances; `Fog_Off` sets both fog modes to none. The port's card reports table
+and vertex fog (`src/render/view.c`).
+
+## 2D
+
+Two queue systems, each with four layers, are drawn layer by layer as pre-transformed `0x1c4`
+vertices. The front end, the HUD and the fonts use them.
+
+`Sprite_Add` 0x4a3290 queues a sprite on layer 1-4, up to 1,023 a layer. A 0x38-byte record holds:
+- the source rectangle in the texture and the screen rectangle;
+- a second, unused rectangle;
+- the texture and the colour bytes;
+- a rotation, converted from degrees to 4,096 units with a multiply-shift divide by 360;
+- a centre: none means (0, 0), the screen corner; (-1, -1, -1) means the sprite's middle;
+- flip bits: 1 or 4 mirror u, 2 or 4 mirror v.
+
+`Sprite_Flush` 0x4a3650 builds a strip of four vertices per sprite. The UVs are the source rectangle
+over the texture size (record +0x120, +0x122) plus half a texel; the flag that turns the half texel off
+(0x663b1c) is never set. A rotated sprite turns its corners in whole pixels through the 16.16 matrix
+helpers. It draws with clipping off and point filtering, binding each sprite's texture (and so its
+blend type).
+
+A sprite without a texture gets no vertices, but the draw loop still walks every record. Every later
+sprite in that layer is then drawn with the next sprite's vertices, and the last with whatever the
+array held.
+
+`Tri_Add` 0x4bb650 queues a flat-coloured triangle (16.16 corners) on layer 2, 3 or 4, or any other
+value for the first queue. Only x, y and the colour are written. z, rhw, specular and the UVs keep the
+arrays' zero start, so the specular alpha of 0 means full fog if fog is on. The limit test leaves out
+the layer-3 count, which can then overrun in the original; the port stops it at 1,024. `Tri_Flush`
+0x4bb850 draws a layer untextured with source-alpha blending.
+
+The text path:
+- `Font_Print` 0x40b880 draws a string through `Font_DrawGlyph` 0x40b7c0, one sprite per glyph on the
+  font layer (`Font_SetLayer` 0x40bab0) ([media.md](../formats/media.md#fonts-pcf-tga)).
+- It first draws three numbers from the C runtime's `rand()`, so the game's random sequence advances
+  with every string printed. The port has the runtime's generator (`src/crt.c`).
+
+## Fixed-point math
+
+The simulation and parts of the renderer work in 16.16, with angles in 4,096 units per turn.
+`Math_InitTables` 0x4b7b20 fills the tables at start, from double constants in the exe that the port
+reproduces exactly (`tests/math_test.c`):
+
+| Table | Address | Contents |
+|---|---|---|
+| sine | 0x6e2ef4 | 4,096 int32 (cosine at +0x400) |
+| tangent | 0x6e93f4 | 4,096 int32, the two poles 0x7fffffff |
+| square root | 0x6e0ef4 | 4,096 u16, `sqrt((8 + 16i) / 65536)` |
+| arcsine | 0x6e6ef4 | 4,096 u16, `asin(i / 4095)` as an angle |
+| arctangent | 0x6e8ff4 | 512 u16, `atan(i / 511)` as an angle |
+
+The original computes with the x87: products rounded to double, `fsin`, `fptan` and `fpatan` in
+extended precision, `fistp` to nearest. The port's libm can differ from that only in the last bits.
+The matrix helpers (`Mat_Identity` 0x4ba2b0, `Mat_RotZ` 0x4ba320, `Vec_Transform` 0x4baa40,
+`Mat_ToFloat` 0x4ba090, `Vec_RotateAbout` 0x4ba3b0) are in `src/fixmath.c`.
 
 ## Textures
 

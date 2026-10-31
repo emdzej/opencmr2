@@ -114,9 +114,11 @@ device with transform and lighting, fog and generated texture coordinates added)
 render-state layer (`Render_InitStates` and the cached setters, `src/render/rstate.c`), and the viewers:
 `--param car=205c1` and `--param stage=fra02` render headless with their textures, through the ported
 texture records (`C3d_Textures`, `Bfl_FindTexture`, `Tex_Bind`, `Tex_SetStageBlend`) and mesh drawing
-(`VB_CreatePool`, `Mesh_AddToVB`, `Mesh_Batches`, `Mesh_Draw` and its variants, `Light_SetMode`). Next:
-the reflection passes, fog and the camera (`Camera_Apply` 0x49e1f0), the 2D path, then the object tree
-(step 5).
+(`VB_CreatePool`, `Mesh_AddToVB`, `Mesh_Batches`, `Mesh_Draw` and its variants, `Light_SetMode`). Then the projection and fog (`Proj_Set`, `Fog_Set`), the 2D queues
+(`Sprite_Add` / `Sprite_Flush`, `Tri_Add` / `Tri_Flush`), the text path (`Font_Print` with the font
+slots) and the fixed-point math tables (`Math_InitTables`), with the viewers drawing their title through
+them. Left for step 3: the reflection passes and the cube environment map (0x4b2610, 0x4b2980,
+0x49e1f0), the 16-bit surface formats; the view transform (`View_Set`) needs the object tree (step 5).
 
 ## 4. Front end (about 180 KB)
 

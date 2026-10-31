@@ -162,8 +162,8 @@ static int nfonts, nbad_fonts;
 static void font(const char *member, const uint8_t *d, uint32_t n)
 {
     Font f;
-    bool ok = Font_Set(&f, d, n);
-    if (ok) CHECK(Font_TextWidth(&f, "AV\nWWWW") == Font_TextWidth(&f, "AV") && Font_TextWidth(&f, "^A") == 0);
+    bool ok = Font_Parse(&f, d, n);
+    if (ok) CHECK(Font_Width(&f, "AV\nWWWW") == Font_Width(&f, "AV") && Font_Width(&f, "^A") == 0);
     BflSlot s = {(uint8_t *)payload, payload_size, 1};
     uint32_t sz = 0;
     const uint8_t *t = Bfl_FindTextureMember(&s, member, &sz);   /* <name>.dds, else <name>.tga */

@@ -10,10 +10,11 @@
 enum { TEX_MAX = 0x800 };
 
 /* A texture record (0x130 bytes in the original). */
-typedef struct {
+typedef struct Tex {
     uint16_t index;          /* +0x00: its slot (a clone keeps the original's) */
     char name[0x106];        /* +0x0e: the path it was made from (written with sprintf, as a format) */
     D3dTexture *surface;     /* +0x114 */
+    int16_t width, height;   /* +0x120, +0x122: the surface's size (Tex_CreateSurface 0x4a7410) */
     uint32_t blend;          /* +0x118: blend type (Tex_SetStageBlend) */
     uint32_t flags;          /* +0x128: 1 alpha, 0x20 bump, 0x1000 from memory, 0x2000 DXT5, 0x4000 DXT1, ... */
     const BflSlot *archive;  /* +0x12c: the archive it came from */
@@ -44,3 +45,4 @@ void C3d_Textures(const uint8_t *slots, uint8_t *paths, uint32_t ngroups, uint32
 void Tex_FreeAll(void);   /* the port: every record and surface */
 uint32_t Tex_LastBlend(void);   /* DAT_00520b18: the last blend type set up (-1: none) */
 uint32_t Tex_Binds(void);       /* DAT_0065fa24: texture binds (statistics) */
+void Tex_ForgetBlend(void);     /* 0x4a3dd0: the last blend type back to -1 */

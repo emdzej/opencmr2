@@ -9,6 +9,8 @@
 typedef struct {
     bool alpha_ref_switch;  /* DAT_006e0c14: blending off sets the alpha reference instead (Render_AlphaBlend) */
     bool dp2ex;             /* DAT_006e0c34: D3DDEVCAPS_DRAWPRIMITIVES2EX (Render_ClearZ) */
+    bool fog_vertex;        /* DAT_006e0c40: vertex fog (raster caps FOGVERTEX) */
+    bool fog_table;         /* DAT_006e0c44: table fog */
 } RenderCaps;
 extern RenderCaps g_caps;
 
@@ -25,4 +27,5 @@ void Render_ZWrite(uint32_t on);                                /* 0x49ddc0 */
 void Render_TexCoordIndex(uint32_t stage, uint32_t tci);        /* 0x49ddf0 */
 void Render_InitStates(void);                                   /* 0x49df90 */
 void Render_SetBlend(uint32_t src, uint32_t dst);               /* 0x4a3e40 */
+void Render_ForgetBlend(void);                                  /* 0x4a3de0 */
 void Render_Reset(void);    /* the port: forget the cached values (a new device) */

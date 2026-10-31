@@ -25,6 +25,7 @@ static uint32_t binds;           /* DAT_0065fa24 */
 static const bool caps_dxt1 = true, caps_dxt5 = true;
 
 uint32_t Tex_LastBlend(void) { return last_blend; }
+void Tex_ForgetBlend(void) { last_blend = 0xffffffffu; }
 uint32_t Tex_Binds(void) { return binds; }
 
 void Tex_SetBlend(Tex *t, uint32_t type)
@@ -207,7 +208,11 @@ static Tex *load_tga(const uint8_t *data, size_t size, Tex *t)
     if (ti.bpp == 4) t->flags |= 1;
     int w, h;
     uint8_t *px = Tga_Decode(data, size, &w, &h);
-    if (px) t->surface = D3dTex_Create(w, h, px);
+    if (px) {
+        t->surface = D3dTex_Create(w, h, px);
+        t->width = (int16_t)w;
+        t->height = (int16_t)h;
+    }
     if ((g_render_opts & 0x10) && tag(t->name, 6, 0x520b68, 2)) t->flags = (t->flags & ~1u) | 0x20;
     t->flags &= ~0x6000u;
     return t;
@@ -223,7 +228,11 @@ static Tex *load_dds(const uint8_t *data, size_t size, Tex *t)
     else if (fourcc == 0x35545844u) t->flags |= 0x2000;
     int w, h;
     uint8_t *px = Dds_Decode(data, size, &w, &h);
-    if (px) t->surface = D3dTex_Create(w, h, px);
+    if (px) {
+        t->surface = D3dTex_Create(w, h, px);
+        t->width = (int16_t)w;
+        t->height = (int16_t)h;
+    }
     if (fourcc == 0x31545844u) t->flags = caps_dxt1 ? t->flags | 0x4000 : t->flags & ~0x4000u;
     else if (fourcc == 0x35545844u) t->flags = caps_dxt5 ? t->flags | 0x2000 : (t->flags & ~0x6000u) | 1;
     if (tag(t->name, 6, 0x520b70, 2)) t->flags = (t->flags & ~0x6000u) | 1;
