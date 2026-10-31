@@ -89,7 +89,7 @@ static void reset_at(Car *c, const int32_t pos[3], const int32_t dir[3])
     Car_Contacts(c);
     Car_WheelLoad(c);
     for (uint32_t k = 0; k < 3; k++) CW32(c, 0x30 + 4 * k, CI32(c, 0x2d0 + 4 * k));
-    PENDING_NOTE(0x432c20, "Car_BodyPose");   /* +0x754, the drawn body, copied from +0x750 here */
+    for (uint32_t k = 0; k < 16; k++) CW32(c, 0x40 + 4 * k, CI32(c, 4 * k));   /* +0x754 from +0x750 */
     CW32(c, 0x91c, 0), CW32(c, 0x920, 0x10000), CW32(c, 0x924, 0);
     CW32(c, 0xba8, 0), CW32(c, 0xba4, 0), CW32(c, 0xba0, 0);
     for (uint32_t o = 0x408; o < 0x420; o += 4) CW32(c, o, 0);

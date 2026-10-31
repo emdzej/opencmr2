@@ -7,6 +7,7 @@
 #include "game/mem.h"
 #include "game/timer.h"
 #include "sim/sim.h"
+#include "sim/pose.h"
 #include "sim/drive.h"
 #include "sim/fade.h"
 #include "sim/progress.h"
@@ -127,7 +128,8 @@ static void Race_Update(uint8_t state, bool flag)
         if (car0) PENDING_NOTE(0x4b0110, "Skids_Step");
         Sim_StepDone(&g_all);
     }
-    if (H->pose) H->pose(R.frac);   /* Race_PoseInterp 0x41d060 with the fraction */
+    Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its effects not ported) */
+    if (H->pose) H->pose(R.frac);
     for (uint32_t i = 0; i < np; i++)
         if (H->camera) Camera_Frame((int)i, CI32(Car_Get((int)i), 0xa90), H->camera((int)i));   /* 0x422140 */
     for (int i = 0; i < g_all.n; i++) Fade_Level(i, R.frac, false);

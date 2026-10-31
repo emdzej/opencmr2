@@ -231,11 +231,7 @@ static void host_input(int player, uint32_t *held, uint32_t *pressed)
     Drive_ReadInput(held, pressed);
     if (V.autodrive) *held |= ACT_THROTTLE, *pressed &= ~ACT_THROTTLE;
 }
-static void host_pose(int32_t frac)
-{
-    (void)frac;
-    Car_PoseSimple(Car_Get(0));
-}
+static void host_pose(int32_t frac) { (void)frac; }
 static void invert_rigid(const D3DMATRIX *v, D3DMATRIX *o);
 static void title(void);
 static void host_draw(int player, int state)

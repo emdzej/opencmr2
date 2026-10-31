@@ -28,7 +28,7 @@ static inline int32_t DI32(const uint8_t *d, uint32_t o) { return (int32_t)((uin
 extern Car *g_car;     /* DAT_0053cc18: the car being worked on */
 
 /* The car table at 0x542630 (0x24 bytes per car): the port keeps its model objects here. */
-typedef struct { Obj *second, *main; char kind; } CarSlot;   /* +0x04, +0x08, +0x20 */
+typedef struct { uint8_t model; Obj *second, *main; char kind; } CarSlot;   /* +0x00, +0x04, +0x08, +0x20 */
 CarSlot *Car_Slot(int n);   /* 0x456be0 */
 
 Obj *Obj_FindType(Obj *o, uint32_t type);   /* 0x4ad890: depth first, siblings after children */

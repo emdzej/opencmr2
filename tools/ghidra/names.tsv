@@ -446,3 +446,8 @@
 004ec260	Profile_DefaultCamera	frontend	high	The chase defaults into the player's profile
 004eadb0	Profiles_Init	frontend	high	The four profiles' defaults; no profile for any player
 00510570	Init_CameraDefaults	crt	high	Static initialiser: the chase camera defaults at 0x52b028
+00432c20	Car_BodyPose	sim	high	The drawn body (+0x754 = +0x40) tilted on its suspension: two axle planes' normals summed
+0042b4a0	Pose_Spin	sim	high	The wheels' turn angles (0x53a230) from their spin; spinning flags
+0042af50	Pose_Capture	sim	high	The step's pose: body, drawn body, wheels, normal, ground heights
+0042bf70	Car_PoseInterp	sim	high	The models from the last two poses blended by the step fraction; wheels mirrored and cambered
+0042bcd0	Pose_Init	sim	high	The pose records from the models' matrices

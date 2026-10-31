@@ -1,6 +1,7 @@
 /* The world step (see sim.h). */
 #include "sim/sim.h"
 #include "sim/step.h"
+#include "sim/pose.h"
 #include "sim/walls.h"
 #include "sim/road_follow.h"
 #include "game/gstate.h"
@@ -25,7 +26,7 @@ void Sim_InitLists(int n)
     for (int i = 0; i < n && i < CAR_MAX; i++) g_all.car[i] = g_listA.car[i] = g_simple.car[i] = (int16_t)i;
     g_all.n = g_simple.n = g_collide.n = g_listA.n = (int16_t)n;
     /* 0x40bbc0 for the two players' slots (0x53acc8), the pose buffers (0x42bcd0): not ported */
-    PENDING_NOTE(0x42bcd0, "Pose_InitBuffers");
+    Pose_Init(n);   /* 0x42bcd0 */
 }
 
 /* the step rate, a float at +0xa98 */
@@ -120,5 +121,10 @@ void Sim_Step(void)
     Sim_Collide(g_collide.car, g_collide.n);
     PENDING_NOTE(0x470580, "Sim_Step 0x470580");
     Sim_CarsPost(g_stepped.car, g_stepped.n);
-    PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0, 0x444c10, 0x42b4a0, 0x42af50, 0x46d510, 0x480bb0, 0x469e40, 0x424710, 0x4258e0");
+    PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0, 0x444c10");
+    Pose_Spin(&g_listA);
+    Pose_Spin(&g_simple);
+    Pose_Capture(&g_listA);
+    Pose_Capture(&g_simple);
+    PENDING_NOTE(0x46d510, "Sim_Step 0x46d510, 0x480bb0, 0x469e40, 0x424710, 0x4258e0");
 }

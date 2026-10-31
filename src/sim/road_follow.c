@@ -12,6 +12,7 @@
 #include "sim/car_internal.h"
 #include "sim/free_body.h"
 #include "sim/recover.h"
+#include "sim/pose.h"
 #include <math.h>
 
 static void v3load(int32_t v[3], const Car *c, uint32_t o) { for (uint32_t k = 0; k < 3; k++) v[k] = CI32(c, o + 4 * k); }
@@ -310,7 +311,7 @@ void Sim_CarsPost(const int16_t *list, int n)
         for (uint32_t k = 0; k < 4; k++) CW16(c, 0xabe + 2 * k, (uint16_t)(c->s[0xaae + 2 * k] | c->s[0xaaf + 2 * k] << 8));
         if (!CI32(c, 0xc00)) Car_RoadFollow(c);
         else Car_FreeBody(c);
-        PENDING_NOTE(0x432c20, "Car_PostBody");
+        Car_BodyPose(c);
         Car_RecoverCheck(c);
         if (fx_mul(gms32(0x519c90), 0xc0000) < CI32(c, 0xa80)) CW32(c, 0xbf8, 1);
         CW32(c, 0x960, 0x3e80000);
