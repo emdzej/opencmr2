@@ -274,3 +274,11 @@
 0042f820	Car_Contacts	sim	high	Corner contact flags and the list of touching corners
 004789b0	Car_CopyA78	sim	med	+0xa74 = +0xa78
 00460c80	Weather_CarValue	world	low	A per-car value from the weather state (0x543ecc)
+0043b090	Car_Coefficients	sim	high	Drag-like coefficients from the constant at 0x519c8c
+0043b020	Car_DamageLatch	sim	high	Latches the first damage event into +0xbfc
+004340f0	Car_ClutchCounter	sim	med	Runs down +0xb1f until the engine catches the drive speed
+00434070	Car_TiltFactor	sim	med	The step's tilt factor 0x53c9d4 from the ground normal
+00433fd0	Car_RevLimit	sim	med	Holds the revs at the limiter
+00432b30	Car_WheelLoad	sim	high	Wheels on the ground and the mass per wheel
+004b9da0	Vec_RotateT	math	high	A vector times a matrix's transposed 3 x 3
+00433e80	Sim_HeadToHeadBalance	sim	low	Two-player catch-up on the final drive

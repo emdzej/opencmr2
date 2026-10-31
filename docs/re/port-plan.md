@@ -158,7 +158,11 @@ headless screenshots, reproducible.
 and `Car_Init` 0x43c7f0 with its set-up helpers, `Car_Place` 0x457e50 and `Car_Settle` 0x43e680 (the
 corners' ground heights, the ground normal, the contacts) in `src/sim/car.c`. The viewer parks a car
 with them. Next:
-- `Sim_Step` 0x42baf0 and its car part 0x433890;
+- `Sim_Step` 0x42baf0 and its car part 0x433890. `src/sim/step.c` has `Sim_StepCars` with all its
+  passes in order. The small ones are ported; 11 large ones are pending and logged:
+  - grip 0x4781d0, damage 0x46b4e0, wheel ground 0x493520, aero 0x434f50;
+  - suspension 0x43b100, drive 0x4348c0, tyres 0x434140, collisions 0x437dc0;
+  - engine 0x438460, integration 0x435470, gearbox 0x4380c0.
 - the surface grip 0x4781d0;
 - `Car_PoseInterp` 0x42bf70, which sets the models from the pose buffers; the viewer stands in for it
   until then;

@@ -7,6 +7,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "sim/car.h"
+#include "sim/step.h"
 #include "vfs.h"
 #include "vfs_host.h"
 #include "world/obj.h"
@@ -62,6 +63,12 @@ int main(void)
                CI32(c, 0x2d0) / 65536.0, CI32(c, 0x2d4) / 65536.0, CI32(c, 0x2d8) / 65536.0, CI32(c, 0x36c) / 65536.0,
                CI32(c, 0x370) / 65536.0, CI32(c, 0x374) / 65536.0, CI32(c, 0x8dc) / 65536.0, CI8(c, 0xb34));
         CHECK(CI32(c, 0x370) > 0xf000 && CI32(c, 0x2d4) > 50 << 16 && CI32(c, 0x2d4) < 58 << 16);
+        /* one step through the ported passes: the history moves, gravity is applied to the mass */
+        static const int16_t list[1] = {0};
+        Sim_StepCars(list, 1);
+        printf("step: %d passes pending, gravity %.1f, wheels on the ground %d\n", g_pending_passes,
+               CI32(c, 0x6ac) / 65536.0, c->s[0xb28]);
+        CHECK(CI32(c, 0x2e8) == CI32(c, 0x2d0) && CI32(c, 0x6ac) < 0);
     }
     printf("sim_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
