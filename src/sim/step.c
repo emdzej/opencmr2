@@ -5,6 +5,7 @@
 #include "sim/suspension.h"
 #include "sim/wheel_heading.h"
 #include "sim/ground_contact.h"
+#include "sim/corner_impulse.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -177,7 +178,7 @@ void Sim_StepCars(const int16_t *list, int n)
         Car_WheelHeading(c);
     }
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); PENDING_PASS(0x437dc0, "Car_Collide"); }
-    for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); PENDING_PASS(0x438460, "Car_Engine"); }
+    for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); Car_CornerImpulse(g_car); }
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); Car_Integrate(g_car); }
     for (int i = n - 1; i >= 0; i--) {
         Car *c = Car_Get(list[i]);

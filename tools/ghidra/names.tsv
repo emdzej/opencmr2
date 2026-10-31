@@ -307,3 +307,4 @@
 004b9c20	Vec_Mul3	math	high	A row vector times a matrix's 3 x 3
 00434140	Car_WheelHeading	sim	high	The heading row eased to the body and the front wheels' frame by the steering
 004348c0	Car_GroundContact	sim	high	The ground's support: corner normal forces, friction terms, the total force's normal part removed
+00438460	Car_CornerImpulse	sim	high	Corner forces along their ground-plane velocity for a car not upright
