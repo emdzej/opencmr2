@@ -155,6 +155,18 @@ clear) and the walls 0x48e0a0, and keeps the box's four corners for the next ste
 - **The strongest hit** of a wall (impulse, point, normal) goes to the damage 0x466ef0 at most every
   ten steps (+0xb42).
 
+## Recovery
+
+A car is flagged off the stage (+0xbf8) by a wall of type 6, 0x18 or 0x19, a surface of class 0xf for
+25 steps, 12 steps with every corner off the collision mesh (+0xa80), 100 steps on its upper corners,
+or a roll (a row held steep for 100 counts starts the roll's damage, whose counter then runs down).
+Sim_CarsPost's check 0x431c10 starts a fade on the car's channel (0x4283e0: 12.5 steps out, then in;
+the fade timers 0x428410-0x4285b0 are ticked by Race_Update after each step for each car with a step
+due). At the dark point the callback 0x431c50 takes the centre-line point the car had reached, moves
+back past points another car is within reach of (0x431d80, when cars collide) and past points flagged
+2, and puts the car there (0x431ff0): heading along the line's tangent, 100 units down and lifted onto
+the ground, at rest, in first gear, with its history, drivetrain and loose state cleared.
+
 ## Files
 
 All reads go through `File_Load` 0x4aa220 (zlib `gzopen`, `CMPR` check, plain fallback) into memory, and

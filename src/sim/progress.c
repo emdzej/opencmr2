@@ -24,7 +24,7 @@ static int32_t rd32(const uint8_t *p) { return (int32_t)((uint32_t)p[0] | p[1] <
 static int32_t iabs(int32_t v) { return v < 0 ? -v : v; }
 
 /* 0x421530: a point's x and z (y 0) */
-static void point(int i, int32_t p[3])
+void Cat_Point(int i, int32_t p[3])
 {
     const uint8_t *r = cat + (size_t)i * CAT_REC;
     p[0] = rd32(r);
@@ -46,8 +46,8 @@ bool Stage_LoadCat(const char *stage)
     for (int i = npoints - 1; i > 0; i--)
         if (cat[(size_t)i * CAT_REC + 0x18] & 1) { finish = i + 1; break; }
     int32_t a[3], b[3];
-    point(0, a);
-    point(finish - 1, b);
+    Cat_Point(0, a);
+    Cat_Point(finish - 1, b);
     uint32_t len = (uint32_t)finish;
     if (iabs(b[0] - a[0]) < 0x320000 && iabs(b[2] - a[2]) < 0x320000) {
         circuit = true;
@@ -74,17 +74,17 @@ static void unit2(int32_t v[3])
 void Cat_Tangent(int32_t out[3], int i)
 {
     int32_t p[3], s[3] = {0, 0, 0};
-    point(i, p);
+    Cat_Point(i, p);
     if (i > 0) {
         int32_t q[3];
-        point(i - 1, q);
+        Cat_Point(i - 1, q);
         int32_t d[3] = {p[0] - q[0], 0, p[2] - q[2]};
         unit2(d);
         s[0] = d[0], s[2] = d[2];
     }
     if (i < npoints - 1) {
         int32_t q[3];
-        point(i + 1, q);
+        Cat_Point(i + 1, q);
         int32_t d[3] = {q[0] - p[0], 0, q[2] - p[2]};
         unit2(d);
         s[0] += d[0], s[2] += d[2];
@@ -104,7 +104,7 @@ void Car_ProgressStart(Car *c)
     int bi = 0;
     for (int i = 0; i < finish; i++) {
         int32_t p[3];
-        point(i, p);
+        Cat_Point(i, p);
         int32_t dx = p[0] - CI32(c, 0x2d0), dz = p[2] - CI32(c, 0x2d8);
         if (iabs(dx) >= 0x640000 || iabs(dz) >= 0x640000) continue;
         uint32_t d = Fx_Sqrt((uint32_t)fx_mul(dx, dx) + (uint32_t)fx_mul(dz, dz));
@@ -117,7 +117,7 @@ void Car_ProgressStart(Car *c)
 static void dir_to(const Car *c, int i, int32_t d[3])
 {
     int32_t p[3];
-    point(i, p);
+    Cat_Point(i, p);
     d[0] = p[0] - CI32(c, 0x2d0);
     d[1] = 0;
     d[2] = p[2] - CI32(c, 0x2d8);
@@ -133,8 +133,8 @@ static void segment_frac(const Car *c, Rec *r)
     if (!circuit && idx <= 0) return;
     int32_t t[3], a[3], b[3];
     Cat_Tangent(t, prev);
-    point(idx, a);
-    point(prev, b);
+    Cat_Point(idx, a);
+    Cat_Point(prev, b);
     int32_t seg[3] = {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
     int32_t den = dot3(t, seg);
     int32_t rel[3] = {CI32(c, 0x2d0) - b[0], CI32(c, 0x2d4) - b[1], CI32(c, 0x2d8) - b[2]};
@@ -151,7 +151,7 @@ void Car_Progress(Car *c)
     if (n < (int)Gs_SelBits14() && !Gs_SelBit25() && !Gs_SelBit24()) {
         for (int k = 0; k < 25; k++) {
             int32_t p[3];
-            point(cursor[n], p);
+            Cat_Point(cursor[n], p);
             int32_t d[3] = {fx_mul(p[0] - CI32(c, 0x2d0), 0x28f), 0, fx_mul(p[2] - CI32(c, 0x2d8), 0x28f)};
             uint32_t dd = (uint32_t)dot3(d, d);
             if (dd <= best_d[n] || cursor[n] == best_idx[n]) best_d[n] = dd, best_idx[n] = cursor[n];
@@ -197,8 +197,8 @@ void Car_Progress(Car *c)
     if (!circuit && prev == finish - 2) r->passed = (uint32_t)prev;
     else r->passed--;
     int32_t a[3], b[3];
-    point(cur, a);
-    point(prev, b);
+    Cat_Point(cur, a);
+    Cat_Point(prev, b);
     int32_t s[3] = {a[0] - b[0], 0, a[2] - b[2]};
     if (iabs(s[0]) > 0x640000 || iabs(s[2]) > 0x640000) s[0] /= 512, s[2] /= 512;
     r->dist += Fx_Sqrt((uint32_t)fx_mul(s[0], s[0]) + (uint32_t)fx_mul(s[2], s[2]));
@@ -216,3 +216,6 @@ int32_t Car_StageShare(const Car *c)
 }
 
 int Car_PointsPassed(const Car *c) { return (int)rec[CI8(c, 0xb1a)].passed; }
+
+int Car_CatIndex(const Car *c) { return finish ? (int)rec[CI8(c, 0xb1a)].idx : 0; }
+const uint8_t *Cat_Record(int i) { return finish ? cat + (size_t)i * CAT_REC : NULL; }

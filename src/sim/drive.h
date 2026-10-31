@@ -21,5 +21,8 @@ void Car_RaceControls(Car *c, uint32_t held, uint32_t pressed);
 int Drive_StepsDue(uint32_t frame, double hz);
 /* One simulation step of the cars in list (Sim_StepCars and the post-car pass). */
 void Drive_Step(const int16_t *list, int n);
+/* 0x42b6f0, 0x42b700: the race's car list (0x53b500, count 0x53a3a0); the port keeps the last list
+   Drive_Step ran, until the race set-up is ported. */
+const int16_t *Sim_Cars(int *n);
 /* The stand-in for Car_PoseInterp 0x42bf70: the main model at the car's rows and position. */
 void Car_PoseSimple(Car *c);

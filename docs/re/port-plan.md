@@ -179,9 +179,10 @@ with them. Next:
   (`src/sim/walls.c`), are ported too: an unsteered car is stopped at the edge instead of driving off
   the stage (sim_test). A loose car (+0xc00) runs through the free body 0x42eae0
   (`src/sim/free_body.c`): it rolls and comes to rest, and is handed back to the road following once
-  upright. Pending and logged:
-  - the recovery 0x431c50 (the fades 0x428410 are ported, `src/sim/fade.c`), the body pose 0x432c20,
-    damage 0x46b4e0 and the hit damage 0x466ef0;
+  upright. A car off the stage (+0xbf8) is recovered (`src/sim/recover.c`: a fade out and in on its
+  channel, `src/sim/fade.c`, and the car put back on the centre line, sim_test). Pending and logged:
+  - the body pose 0x432c20, damage 0x46b4e0 and the hit damage 0x466ef0; in the recovery, the
+    co-driver's rewind 0x417780, the skid marks 0x4aff80 and the splits 0x421d80;
   - in the collision pass: the car-to-car contacts 0x48a1f0, the scenery objects 0x4878a0, the
     sparks 0x499750;
 

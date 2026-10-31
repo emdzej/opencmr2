@@ -23,3 +23,14 @@ static inline uint32_t Gs_ClassB7c(int c) { return gm32(0x516c40 + 4 * (uint32_t
 static inline uint32_t Gs_ClassB80(int c) { return gm32(0x516c08 + 4 * (uint32_t)c); }   /* 0x40ee70 */
 /* 0x407630: a car's set-up, 7 bytes at 0x52f0e0 */
 static inline uint32_t Gs_Setup(int n) { return 0x52f0e0 + 7 * (uint32_t)n; }
+
+/* 0x46bd50: the cars collide with each other: not in modes 8-10; in 11 and 12, and in every mode
+   above 3; in modes 0-3 when the selection's bit 27 is set */
+static inline bool Gs_CarsCollide(void)
+{
+    uint32_t m = Gs_Mode();
+    if (m == 8 || m == 9 || m == 10) return false;
+    if (m == 11 || m == 12 || m > 3) return true;
+    return Gs_SelBit27() != 0;
+}
+

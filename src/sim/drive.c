@@ -1,6 +1,7 @@
 /* Driving a car from the keyboard (see drive.h). */
 #include "sim/drive.h"
 #include "sim/walls.h"
+#include "sim/fade.h"
 #include "pending.h"
 #include "fixmath.h"
 #include "game/gstate.h"
@@ -71,14 +72,27 @@ int Drive_StepsDue(uint32_t frame, double hz)
     return (int)((double)(frame + 1) * 25.0 / hz) - (int)((double)frame * 25.0 / hz);
 }
 
+static int16_t cars[CAR_MAX];
+static int ncars;
+
+const int16_t *Sim_Cars(int *n)
+{
+    *n = ncars;
+    return cars;
+}
+
 void Drive_Step(const int16_t *list, int n)
 {
+    ncars = n > CAR_MAX ? CAR_MAX : n;
+    for (int i = 0; i < ncars; i++) cars[i] = list[i];
     Sim_StepCars(list, n);
     PENDING_NOTE(0x43f630, "Sim_Step entities 0x43f630, 0x425950");
     Sim_Collide(list, n);
     PENDING_NOTE(0x470580, "Sim_Step 0x470580");
     Sim_CarsPost(list, n);
     for (int i = n - 1; i >= 0; i--) Car_Progress(Car_Get(list[i]));   /* 0x4209f0 in Race_Update */
+    /* Race_Update after Sim_Step: each car with a step due this frame (+0xb43) ticks its fade */
+    for (int i = 0; i < n; i++) Fade_Tick(list[i], false);
 }
 
 void Car_PoseSimple(Car *c)

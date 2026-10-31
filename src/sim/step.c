@@ -1,5 +1,6 @@
 /* The car part of the simulation step (see step.h). */
 #include "sim/step.h"
+#include "sim/car_internal.h"
 #include "sim/controls.h"
 #include "sim/integrate.h"
 #include "sim/suspension.h"
@@ -74,7 +75,7 @@ static void rev_limit(Car *c)
 
 /* 0x432b30: the wheels within 0.8 of their ground (+0xbac..: flag), the count (+0xb28) and the mass
    per touching wheel (+0x8b4) */
-static void wheel_load(Car *c)
+void Car_WheelLoad(Car *c)
 {
     CW8(c, 0xb28, 0);
     for (uint32_t i = 0; i < 4; i++) {
@@ -196,7 +197,7 @@ void Sim_StepCars(const int16_t *list, int n)
         int32_t g = fx_mul(gms32(0x53cadc), 0x8000);
         CW32(c, 0x6ac, -fx_mul(CI32(c, 0x75c), g));   /* gravity on the mass */
         CW32(c, 0x6b0, 0);
-        wheel_load(c);
+        Car_WheelLoad(c);
         Car_Suspension(c);
         tilt_factor(c);
         Car_GroundContact(c);

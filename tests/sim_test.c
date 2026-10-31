@@ -19,6 +19,7 @@
 #include "render/d3d7.h"
 #include "render/mesh.h"
 #include "sim/drive.h"
+#include "sim/progress.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -123,6 +124,21 @@ int main(void)
                CI32(c, 0x2d4) / 65536.0, CI32(c, 0x2d8) / 65536.0, CI32(c, 0x778) / 65536.0, cell,
                cell >= 0 ? g_sec[cell].nwalls : 0);
         CHECK(CI32(c, 0x2d4) > 54 << 16 && CI32(c, 0x370) > 0xf000 && CI32(c, 0x778) < 0x2000 && cell >= 0);
+        /* the recovery: flagged off the stage, faded out for 12.5 steps, put back on the centre line at
+           the point reached (x and z of the point; y on the ground), at rest */
+        CW32(c, 0xbf8, 1);
+        int at = Car_CatIndex(c);
+        for (int k = 0; k < 14; k++) {
+            c->s[0x1d2] = 0;
+            Drive_Step(list, 1);
+        }
+        int32_t cp[3];
+        Cat_Point(at, cp);
+        printf("recovered: (%.2f, %.2f, %.2f), point %d at (%.2f, %.2f), flag %d, up %.3f\n", CI32(c, 0x2d0) / 65536.0,
+               CI32(c, 0x2d4) / 65536.0, CI32(c, 0x2d8) / 65536.0, at, cp[0] / 65536.0, cp[2] / 65536.0, CI32(c, 0xbf8),
+               CI32(c, 0x370) / 65536.0);
+        int32_t ex = CI32(c, 0x2d0) - cp[0], ez = CI32(c, 0x2d8) - cp[2];
+        CHECK(!CI32(c, 0xbf8) && (ex < 0 ? -ex : ex) < 0x8000 && (ez < 0 ? -ez : ez) < 0x8000 && CI32(c, 0x370) > 0xf000);
     }
     printf("sim_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;

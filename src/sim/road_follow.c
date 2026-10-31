@@ -11,6 +11,7 @@
 #include "pending.h"
 #include "sim/car_internal.h"
 #include "sim/free_body.h"
+#include "sim/recover.h"
 #include <math.h>
 
 static void v3load(int32_t v[3], const Car *c, uint32_t o) { for (uint32_t k = 0; k < 3; k++) v[k] = CI32(c, o + 4 * k); }
@@ -56,7 +57,7 @@ static void wheel_angles(Car *c)
 }
 
 /* 0x42f8c0: the car lifted by the deepest touching corner below its ground */
-static void lift_out(Car *c)
+void Car_LiftOut(Car *c)
 {
     int32_t best = 0;
     bool any = false;
@@ -256,7 +257,7 @@ void Car_RoadFollow(Car *c)
             Car_BoxCorners(c);
             Car_CornerGround(c, CI32(c, 0xc00) ? 8 : 4);
         }
-        lift_out(c);
+        Car_LiftOut(c);
         Car_Contacts(c);
         if (!c->s[0xb35]) {
             int32_t k2 = fx_mul(0x1eb8, gms32(0x519c8c));
@@ -310,7 +311,7 @@ void Sim_CarsPost(const int16_t *list, int n)
         if (!CI32(c, 0xc00)) Car_RoadFollow(c);
         else Car_FreeBody(c);
         PENDING_NOTE(0x432c20, "Car_PostBody");
-        if (CI32(c, 0xbf8)) PENDING_NOTE(0x4283e0, "Car_Recover");
+        Car_RecoverCheck(c);
         if (fx_mul(gms32(0x519c90), 0xc0000) < CI32(c, 0xa80)) CW32(c, 0xbf8, 1);
         CW32(c, 0x960, 0x3e80000);
         for (uint32_t k = 0; k < 8; k++) {

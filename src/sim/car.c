@@ -374,7 +374,9 @@ void Car_CornerGround(Car *c, int n)
     int off = 0;
     for (int i = 0; i < n; i++) {
         uint32_t u = (uint32_t)i;
-        int32_t p[3] = {CI32(c, 0x270 + 12 * u), CI32(c, 0x274 + 12 * u), CI32(c, 0x278 + 12 * u)}, nrm[3];
+        int32_t p[3] = {CI32(c, 0x270 + 12 * u), CI32(c, 0x274 + 12 * u), CI32(c, 0x278 + 12 * u)};
+        /* the normal is written in place: a corner off the mesh keeps the last one */
+        int32_t nrm[3] = {CI32(c, 0x4a4 + 12 * u), CI32(c, 0x4a8 + 12 * u), CI32(c, 0x4ac + 12 * u)};
         int16_t tri = (int16_t)(c->s[0xa9e + 2 * u] | c->s[0xa9f + 2 * u] << 8);
         uint16_t surf = (uint16_t)(c->s[0xac6 + 2 * u] | c->s[0xac7 + 2 * u] << 8);
         int32_t y = Hpc_Ground(p, nrm, &tri, &surf, CI32(c, 0x8dc + 4 * u));

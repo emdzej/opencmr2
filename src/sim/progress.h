@@ -7,6 +7,9 @@
 
 bool Stage_LoadCat(const char *stage);   /* 0x420630 */
 int Cat_Points(void);                     /* 0x421430 */
+void Cat_Point(int i, int32_t p[3]);    /* 0x421530: x, 0, z */
+int Car_CatIndex(const Car *c);          /* 0x421370: the point the car is at (rec +0x00) */
+const uint8_t *Cat_Record(int i);        /* 0x421440: the 0x2c-byte record, NULL without points */
 int Cat_FinishPoint(void);                /* DAT_00538a84: the last flagged point + 1 */
 bool Cat_Circuit(void);                   /* 0x421500 */
 void Cat_Tangent(int32_t out[3], int i);  /* 0x4201d0 */

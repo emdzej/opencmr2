@@ -372,3 +372,14 @@
 004284d0	Fade_Tick	sim	high	A fade channel's step; the callback at its end
 004285b0	Fade_Level	sim	high	A fade channel's level between steps, 0 to 1
 00431c50	Car_Recover	sim	high	The recovery fade's callback: the car put back on the centre line behind where it left
+00431d80	Cat_PointTaken	sim	high	Another car within reach of a centre-line point (recovery)
+00431ff0	Car_ResetAt	sim	high	The car put at a point heading along a direction, on the ground, at rest; its state reset
+00421370	Car_CatIndex	sim	high	The centre-line point the car has reached
+00421440	Cat_Record	sim	high	A centre-line point's 0x2c-byte record
+00421420	Cat_FinishPoint	sim	high	The centre line's last flagged point + 1
+00421500	Cat_Circuit	sim	high	The centre line closes on itself (a circuit)
+0042c870	Pose_Snap	sim	high	Flags the car's pose to snap (no blend) on the next interpolation
+0046bd50	Gs_CarsCollide	game	high	The cars collide with each other in this game mode
+00417780	Codriver_Rewind	audio	med	The co-driver's pace-note position set back to the car's point
+004aff80	Skids_Reset	render	low	Resets the skid-mark strips (0x6a2cdc)
+00421d80	Split_Reset	race	low	Split timing state for a car reset
