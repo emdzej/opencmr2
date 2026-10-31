@@ -24,6 +24,7 @@
 #include "world/frame.h"
 #include "world/stage.h"
 #include "world/tod.h"
+#include "world/hpc.h"
 #include "vfs.h"
 #include <math.h>
 #include <stdio.h>
@@ -49,6 +50,10 @@ static struct {
     char title[80];
     int frame;
     bool stage;
+    C3d pm;                     /* stage and car: the parked car's model, file, textures, root */
+    uint8_t *pfile;
+    BflSlot ptex;
+    Obj *parked;
     float centre[MAX_MESH][3];   /* stage: each mesh's vertex centre, the fly-through's path */
 } V;
 
@@ -145,6 +150,41 @@ static bool find_stage(const char *stage, char *path, char *tex, size_t cap)
     return f.found;
 }
 
+/* The car's model path and its set's texture archive (f99a1N.c3d, f99a1L.c3d use f99a1.bfl). */
+static void car_paths(const char *car, char *path, char *tex, size_t cap)
+{
+    snprintf(path, cap, "Game\\Cars\\%s.c3d", car);
+    snprintf(tex, cap, "Game\\Cars\\%s.bfl", car);
+    size_t l = strlen(tex);
+    if (!vfs_exists(tex) && l > 5 && strchr("NLS", tex[l - 5])) memmove(tex + l - 5, tex + l - 4, 5);
+}
+
+/* The car under the world root at the stage's start line: the .csp position and angles as 0x457e50
+   sets them (Obj_SetAngles, Obj_SetPosition). Car_Init 0x43c7f0 then settles the car on the ground;
+   until the simulation is ported, the viewer puts it at the .hpc ground height under the start. */
+static bool park_car(const char *car, const char *stage)
+{
+    char path[128], tex[128];
+    car_paths(car, path, tex, sizeof path);
+    V.pfile = File_Load(path, 1);
+    if (!V.pfile || !C3d_Load(&V.pm, V.pfile, File_LastSize(), g_tex_count)) return false;
+    Bfl_Mount(&V.ptex, tex);
+    C3d_Textures(V.pm.data + V.pm.slots, V.pm.data + V.pm.paths, V.pm.ntex, V.pm.kind, &V.ptex, "");
+    C3d_Build(&V.pm);
+    V.parked = C3d_Objects(&V.pm, &g_world);
+    if (!V.parked || !Stage_LoadHpc(stage) || !Stage_LoadCsp(stage)) return false;
+    int32_t pos[3], n[3];
+    uint16_t ang[3], surf;
+    int16_t tri = -1;
+    Csp_StartPos(0, pos);
+    Csp_Angles(ang);
+    pos[1] = Hpc_Ground(pos, n, &tri, &surf, pos[1]);
+    Obj_SetAngles(V.parked, ang);
+    Obj_SetPosition(V.parked, pos);
+    World_SetCars(&V.parked, 1);
+    return true;
+}
+
 bool viewer_init(const char *car, const char *stage)
 {
     char path[128], tex[128];
@@ -166,11 +206,7 @@ bool viewer_init(const char *car, const char *stage)
         V.m = g_stage_mesh;
         V.stage = true;
     } else {
-        snprintf(path, sizeof path, "Game\\Cars\\%s.c3d", car);
-        /* the texture archive is the set's: f99a1N.c3d, f99a1L.c3d use f99a1.bfl */
-        snprintf(tex, sizeof tex, "Game\\Cars\\%s.bfl", car);
-        size_t l = strlen(tex);
-        if (!vfs_exists(tex) && l > 5 && strchr("NLS", tex[l - 5])) memmove(tex + l - 5, tex + l - 4, 5);
+        car_paths(car, path, tex, sizeof path);
         V.file = File_Load(path, 1);
         if (!V.file || !C3d_Load(&V.m, V.file, File_LastSize(), g_tex_count)) {
             plat_log("viewer: no such car model");
@@ -187,6 +223,7 @@ bool viewer_init(const char *car, const char *stage)
         Stage_LoadTre(stage, true);
         Hor_Apply();         /* 0x460da0, later in Stage_Load */
         Tod_StartLights();   /* the race start, 0x45eca0 */
+        if (car && !park_car(car, stage)) plat_log("viewer: the car could not be parked");
     }
     build_meshes();
     if (!V.stage) {
@@ -216,7 +253,7 @@ bool viewer_init(const char *car, const char *stage)
     Tri_Init();
     Font_InitSlots(4);
     if (Bfl_Mount(&V.fe, "FrontEnd\\res640.bfl")) Font_LoadSlot("FrontEnd", "hel_15pt", &V.fe, 0);
-    snprintf(V.name, sizeof V.name, "%s", V.stage ? stage : car);
+    snprintf(V.name, sizeof V.name, "%s%s%s", V.stage ? stage : car, V.parked ? " " : "", V.parked ? car : "");
     snprintf(V.title, sizeof V.title, "%s  %d polygons  %d textures", V.name, (int)V.m.npoly, V.m.ntex);
     g_ambient_a = g_ambient_b = 0xff404040u;
     /* nearly every mesh keeps the lighting mode (flag 0x20), which the world's draw sets: here lit for
@@ -330,6 +367,13 @@ void viewer_frame(void)
     } else {
         /* the camera object from the fly-through's view; the sky follows it, the objects are brought up
            to date, and World_Render draws the view with the title queued on 2D layer 1 */
+        if (V.parked) {
+            /* a camera turning slowly around the parked car, 7 out and 2.5 up */
+            const int32_t *m = V.parked->local.m;
+            float cx = m[12] / 65536.0f, cy = m[13] / 65536.0f, cz = m[14] / 65536.0f, t = V.frame * 0.01f + 3.3f;
+            look_at(cx + 7 * sinf(t), cy + 2.5f, cz + 7 * cosf(t), cx, cy + 0.6f, cz, &view);
+            D3d_SetTransform(D3DTS_VIEW, &view);
+        }
         D3DMATRIX inv;
         invert_rigid(&view, &inv);
         for (int i = 0; i < 16; i++) V.camera.world.m[i] = (int32_t)lrintf(inv.m[i / 4][i % 4] * 65536);

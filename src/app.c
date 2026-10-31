@@ -78,10 +78,10 @@ bool app_init(void)
     Math_InitTables();   /* the original fills them at start-up */
     decoder_check();
     char car[64], stage[64];
-    bool c = plat_param("car", car, sizeof car), st = !c && plat_param("stage", stage, sizeof stage);
+    bool c = plat_param("car", car, sizeof car), st = plat_param("stage", stage, sizeof stage);
     if (c || st) {
         gl_dev_register();
-        viewing = viewer_init(c ? car : NULL, st ? stage : NULL);
+        viewing = viewer_init(c ? car : NULL, st ? stage : NULL);   /* both: the car parked on the stage */
     }
     return true;
 }

@@ -15,6 +15,7 @@
 #include "world/tre.h"
 #include "world/tod.h"
 #include "world/relight.h"
+#include "world/hpc.h"
 #include <stdio.h>
 
 static int fails;
@@ -84,6 +85,25 @@ int main(void)
     Billboard_DrawQueued();
     printf("scenery in view: %u draws\n", D3d_Stats().draws - b.draws);
     CHECK(D3d_Stats().draws > b.draws);
+    /* the collision mesh and the start line */
+    CHECK(Stage_LoadHpc("fra02") && Stage_LoadCsp("fra02"));
+    int32_t sp[3], nrm[3];
+    uint16_t ang[3], surf = 0;
+    int16_t tri = -1;
+    Csp_StartPos(0, sp);
+    Csp_Angles(ang);
+    int32_t gy = Hpc_Ground(sp, nrm, &tri, &surf, sp[1]);
+    printf("fra02.hpc: %d vertices, %d triangles; start (%.2f, %.2f, %.2f) angles %u %u %u, triangle %d surface %u normal (%.3f %.3f %.3f)\n",
+           g_hpc_verts, g_hpc_tris, sp[0] / 65536.0, gy / 65536.0, sp[2] / 65536.0, ang[0], ang[1], ang[2], tri, surf,
+           nrm[0] / 65536.0, nrm[1] / 65536.0, nrm[2] / 65536.0);
+    CHECK(g_hpc_verts == 6954 && g_hpc_tris == 12768 && tri >= 0 && nrm[1] > 0xf000);
+    /* the start angles turn a rest matrix about its own axes; the rows stay unit */
+    Obj t = {0};
+    Mat_Identity(&t.rest);
+    Mat_Identity(&t.local);
+    Obj_SetAngles(&t, ang);
+    printf("start heading: x row (%.3f %.3f %.3f)\n", t.local.m[0] / 65536.0, t.local.m[1] / 65536.0, t.local.m[2] / 65536.0);
+    CHECK(t.local.m[5] > 0xf000 && t.dirty == 1);
     /* the world frame: the whole view through World_Render */
     b = D3d_Stats();
     static const int16_t full[4] = {0, 0, 640, 480};

@@ -4,6 +4,7 @@
 #include "render/tex.h"
 #include "world/section.h"
 #include "world/tre.h"
+#include "world/hpc.h"
 #include <stdio.h>
 #include "exe.h"
 #include <string.h>
@@ -162,8 +163,56 @@ void Stage_LoadTre(const char *stage, bool detail)
     Tre_Load(tre, size, xhi);
 }
 
+static const uint8_t *member(const char *stage, const char *ext, uint32_t *size)
+{
+    char name[32];
+    snprintf(name, sizeof name, "%s.%s", stage, ext);
+    *size = 0;
+    return Bfl_FindFile(&g_stage_bfl, name, NULL, size, false);
+}
+
+bool Stage_LoadHpc(const char *stage)
+{
+    uint32_t size;
+    const uint8_t *d = member(stage, "hpc", &size);
+    return d && Hpc_Parse(d, size);
+}
+
+static const uint8_t *csp;   /* 0x542870 */
+
+bool Stage_LoadCsp(const char *stage)
+{
+    uint32_t size;
+    csp = member(stage, "csp", &size);
+    if (size < 0x1e) csp = NULL;
+    return csp != NULL;
+}
+
+static int32_t rd32s(const uint8_t *p) { return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24); }
+
+/* 0x456c70 -> 0x4583d0 in a rally (the head-to-head and arcade cases take other entries): the first
+   record's x and z; y is left as the buffer at 0x542878 held. */
+void Csp_StartPos(int car, int32_t pos[3])
+{
+    (void)car;
+    static int32_t held[3];   /* 0x542878 */
+    if (csp) {
+        held[0] = rd32s(csp);
+        held[2] = rd32s(csp + 8);
+    }
+    for (int i = 0; i < 3; i++) pos[i] = held[i];
+}
+
+/* 0x456c90: the start angles, three u16 at +0x18 */
+void Csp_Angles(uint16_t a[3])
+{
+    for (int i = 0; i < 3; i++) a[i] = csp ? (uint16_t)(csp[0x18 + 2 * i] | csp[0x19 + 2 * i] << 8) : 0;
+}
+
 void Stage_Unload(void)
 {
+    Hpc_Free();
+    csp = NULL;
     Tre_Free();
     Bfl_Unmount(&g_stage_bfl);
     Bfl_Unmount(&g_track_tex);

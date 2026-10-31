@@ -54,6 +54,8 @@ void Obj_Draw(Obj *o, uint32_t pass);          /* 0x49cad0 */
 /* 0x49ce10: Obj_UpdateTree, Obj_Commit, View_Set(camera) */
 void Obj_Frame(Obj *list, Obj *camera);
 void Obj_SetPosition(Obj *o, const int32_t pos[3]);   /* 0x4ac480 */
+void Obj_Rotate(Obj *o, const int32_t move[3], const uint16_t a[3]);   /* 0x4ac820 */
+void Obj_SetAngles(Obj *o, const uint16_t a[3]);      /* 0x4ac4f0 */
 /* View_Set 0x4ade00: the view as the inverse of the camera's world matrix, when the camera is dirty
    (and a counter at 0x6838d0 is below 5). */
 void View_Set(Obj *camera);

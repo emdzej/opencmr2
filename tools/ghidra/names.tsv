@@ -245,3 +245,14 @@
 00492e30	Light_SetHighFor	world	med	Sets the high light colour (Sweden's shadow choice)
 004b3840	Light_GetLow	world	high	Returns the low light colour
 004b3f20	Light_RelightAll	world	high	Forces every cell to be relit
+00490e00	Hpc_Triangle	track	high	A collision triangle's three vertices
+00490f20	Hpc_Inside	track	high	Whether (x, z) lies inside a collision triangle
+004916a0	Hpc_Pick	track	high	The containing triangle with the mean y nearest a given y
+00491550	Hpc_Find	track	high	The collision triangle under a point through the five-level grid
+004910f0	Hpc_Height	track	high	Height, unit normal and surface of a triangle's plane at (x, z)
+00490c90	Hpc_Ground	track	high	The ground height under a point, keeping the last triangle
+004ac820	Obj_Rotate	world	high	Turns an object's local axes by three u16 angles about its own axes, adds a move
+004ac4f0	Obj_SetAngles	world	high	Rest matrix back, then Obj_Rotate by the angles
+00456c70	Csp_StartPos	track	high	A car's start position from .csp
+00456c90	Csp_Angles	track	high	The start angles in .csp
+00457e50	Car_Place	car	med	Car objects to the start pose, then Car_Init

@@ -55,23 +55,40 @@ layouts are the main reverse-engineering task of the stage step of the [port pla
 
 ## .hpc
 
-Parsed in place by `Hpc_Parse` 0x490d50 (layout confirmed: it accounts for the whole of `fra02.hpc`
-except the last four bytes, which the parser addresses as one more `u16`):
+The collision mesh, read in place by `Hpc_Parse` 0x490d50. Confirmed by the ported query, which finds
+the road under fra02's start line:
 
 | Offset | Type | Content |
 |---|---|---|
-| 0x00 | 2 x i32 | 0xffe00000 twice in `fra02` (-32.0 in 16.16: probably the grid origin) |
-| 0x08 | 5 x i16 | Node counts of five grid levels (`fra02`: 25, 288, 2112, 0, 0) |
-| 0x12 | 2 bytes | Padding (`fc fc`) |
-| 0x14 | per level, count x 8 bytes | Grid nodes, four `u16` each (the first is 0xffff in empty nodes) |
-| | `u16` + 2 pad, then n x 12 bytes | Record array A, six `u16` each (`fra02`: 6,954) |
-| | `u16` + 2 pad, then n x 8 bytes | Record array B, four `u16` each (12,768) |
-| | `u32`, then n x 2 bytes | Index list (26,463 `u16`) |
-| | `u16` | Terminator |
+| 0x00 | 2 x i32 | The grid origin, x and z (fra02: -32.0, -32.0) |
+| 0x08 | 5 x i16 | Node counts of the five levels (fra02: 25, 288, 2112, 0, 0) |
+| 0x12 | 2 bytes | Padding |
+| 0x14 | per level, count x 8 | Nodes: i16 triangle count, or -1 for a node split into 4 x 4 children; 2 bytes; i32, the first list entry or the first child in the next level |
+| | u16, 2 pad, n x 12 | Vertices: x, y, z (i32, 16.16; fra02: 6,954) |
+| | u16, 2 pad, n x 8 | Triangles: three u16 vertex indices, the surface (low 7 bits), a byte (fra02: 12,768) |
+| | u32, n x 2 | The triangle list (u16) |
+| | 2 x i16 | The top grid's width and height in cells |
 
-Reading A as triangles (vertex indices and flags), B as quantised vertices and the index list as the
-triangles of each grid cell fits the counts; this is inferred, to be confirmed when the collision query
-(0x490e00 onwards) is ported.
+The query works like this:
+- **The top cell** (`Hpc_Find` 0x491550): the offset from the origin's top byte, signed, so cells are
+  256 units. Each level down takes two more bits of x and z, as child x + 4 z.
+- **The triangle** (0x4916a0): among a node's triangles, the one containing (x, z) whose mean y is
+  nearest the caller's y. Containing means inside the x and z range and on the inner side of all three
+  edges, inclusive (0x490f20).
+- **The height** (0x4910f0): the plane through the first vertex, with the unit normal. That normal is
+  the cross product of the two unit edges from the first vertex, made unit again.
+- **The ground query** (0x490c90): keeps the last triangle between calls and searches again when the
+  point leaves it.
+
+## .csp
+
+The start positions, read by `Stage_LoadCsp` 0x456c10:
+- **Records:** 12-byte x, y, z records. In a rally the car starts at the first record's x and z; the
+  head-to-head and arcade cases use other entries (0x4583d0). The y is not taken.
+- **Angles:** three u16 at +0x18 (0x456c90), set on the car's objects by 0x4ac4f0. This restores the
+  rest matrix, then 0x4ac820 turns it by [1] about its y axis, [2] about z and [0] about x. Each turn is
+  about the row as already turned, and the turned rows are made unit with the table square root.
+- **fra02:** the car starts at (185.0, 15.5), 32/4096 of a turn from +z, on a road triangle at y 53.3.
 
 ## .tre
 

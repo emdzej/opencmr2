@@ -15,6 +15,10 @@
 #include <stdlib.h>
 
 static uint32_t mode;           /* DAT_0059ce14 */
+static Obj **cars;              /* the port: the cars drawn where the cars' pass 0x4af120 goes */
+static int ncars;
+
+void World_SetCars(Obj **c, int n) { cars = c, ncars = n; }
 static Obj *queued[OBJ_MAX];    /* 0x597d04 */
 static int nqueued;             /* DAT_0059ce2c */
 
@@ -133,6 +137,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
             Light_SetMode(5);
             Stage_DrawOverlay();
             Render_AlphaBlend(1);
+            for (int i = 0; i < ncars; i++) Obj_Draw(cars[i], pass);   /* stand-in for 0x4af120 */
             Poly_Flush(8);
             Light_SetMode(4);
             Poly_Flush(0x20);
