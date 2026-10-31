@@ -181,6 +181,30 @@ clear) and the walls 0x48e0a0, and keeps the box's four corners for the next ste
 - **The strongest hit** of a wall (impulse, point, normal) goes to the damage 0x466ef0 at most every
   ten steps (+0xb42).
 
+## Cameras
+
+The race cameras (0x421720-0x423ff0; `src/game/camera.c`). Each player has two camera records of 0x64
+bytes at 0x539018 (+0x00 the record's index, +0x01 the player, +0x02 the car followed, +0x04 the kind,
++0x08 the matrix with rows side, up, forward and the position, +0x48-+0x60 the projection's terms and a
+ground lift), one current (0x538e0c). `Camera_Select` 0x421720 makes the other record the new kind and
+either switches at once or blends the two over 12.5 steps (0x538d20). Each step (`Camera_Step`
+0x4219b0, from Race_Update) the followed frame is the car's orientation (0x423b20 into 0x538ca0), the
+last step's camera is kept (0x538e38) and the current one steps (0x423460); each frame `Camera_Frame`
+0x422140 blends the two by the step fraction (0x423de0 through the frame blend 0x4224e0) into the
+camera object's matrix.
+
+Kinds: 1, 2 and 10 the interior views (0x486740), 3 (0x476410), 4-6 the chase cameras (0x447530), 7 the
+trackside cameras along the `.tsc` splines (0x48cae0). State 5 takes the kind from the player's
+profile (+0x44, 0x408800), the chase when it cannot be had. The chase camera (ported) keeps per record a
+forward and an up axis, eased each step towards the car's (dt over the distance, times the car's
++0xa74), and sits at the profile's offset in them (+0x5e0: 1.5 up, 6.5 back by default; the height and
+the pitch, 0x2d, eased for longer distances by 0x447d20), pitched down by the angle. Kind 5 takes its
+offset from the table at 0x519ea0, kind 6 is pitched 45 degrees.
+
+The profiles (0x52fa1c, four of 0x650 bytes) are set at start-up by `Profiles_Init` 0x4eadb0: camera 4,
+the automatic box, the chase defaults; the front end gives each player a profile (the player record's
+bits 18-21 at 0x531350).
+
 ## Recovery
 
 A car is flagged off the stage (+0xbf8) by a wall of type 6, 0x18 or 0x19, a surface of class 0xf for

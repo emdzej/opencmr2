@@ -5,6 +5,7 @@
 #include "c3d.h"
 #include "exe.h"
 #include "game/mem.h"
+#include "game/profile.h"
 #include "fixmath.h"
 #include "font.h"
 #include "image.h"
@@ -78,6 +79,7 @@ bool app_init(void)
     plat_log("OpenCMR2: CMR2.exe v1.11 found");
     Math_InitTables();   /* the original fills them at start-up */
     Mem_Init();          /* the game state: the data section from the exe */
+    Profiles_Init();     /* 0x4d15e0's start-up work */
     decoder_check();
     char car[64], stage[64];
     bool c = plat_param("car", car, sizeof car), st = plat_param("stage", stage, sizeof stage);

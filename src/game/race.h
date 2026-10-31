@@ -7,6 +7,7 @@
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>
+#include "world/obj.h"
 
 typedef struct {
     bool (*load_stage)(void);   /* state 3: Stage_Load 0x41f930 */
@@ -15,6 +16,7 @@ typedef struct {
     void (*read_input)(int player, uint32_t *held, uint32_t *pressed);   /* the input record */
     void (*pose)(int32_t frac); /* Race_PoseInterp 0x41d060 */
     void (*draw)(int player, int state);   /* the states' draws: the view (0x49d3f0) and the HUD */
+    Obj *(*camera)(int player);            /* the player's camera object (0x538e2c) */
 } RaceHost;
 
 /* The port: the race with the host, the top-level mode set to 3 (0x4057e0). */

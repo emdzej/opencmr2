@@ -41,7 +41,7 @@
   `--param car=` the viewer lets you drive it from the keyboard.
 
 - The race around it: the original's process framework and race states, with the countdown, the stage
-  time from the go and the finish; the loads, the camera and the title are stand-ins.
+  time from the go and the finish; the chase camera. The loads and the title are stand-ins.
 
 Next: the rest of the simulation (car-to-car and scenery collisions, damage, the other entities of the
 step), the race's cameras, HUD and results,
@@ -54,7 +54,7 @@ the car's pose interpolation and wheels, then the race around it.
 | Stage data (`.tre`, `.hpc`, `.cat`, ...) | `.tre`, `.hpc`, `.csp`, `.hor`, `.cat`, `fin.dat` ported; `.srf`, `.tsc` open |
 | Renderer (Direct3D 7 to GLES 3) | Device, state layer, textures, meshes, 2D and text ported; reflections and 16-bit formats open |
 | World (objects, stage sections) | Object trees, terrain, scenery, sky, shadows, lights and the frame function ported; the cars' draw pass open |
-| Race flow | Process framework, race states and Race_Update ported for one player; cameras, HUD, replay and results open |
+| Race flow | Process framework, race states and Race_Update ported for one player; the chase camera ported; the other cameras, HUD, replay and results open |
 | Front end | Mapped (0x4d0000-0x500000); not started |
 | Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls, rolls and is recovered; car-to-car and scenery collisions, damage and the step's other entities open |
 | Movies (Bink 1) | Not started |

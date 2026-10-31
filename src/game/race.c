@@ -2,6 +2,7 @@
    fields of R, named by address where the meaning is open. */
 #include "game/race.h"
 #include "game/proc.h"
+#include "game/camera.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/timer.h"
@@ -122,12 +123,13 @@ static void Race_Update(uint8_t state, bool flag)
             PENDING_NOTE(0x448120, "Race_Step 0x448120, 0x45e7f0");
         }
         for (uint32_t i = 0; i < np; i++)
-            if (Car_Get((int)i)->s[0xb43]) PENDING_NOTE(0x4219b0, "Split_Check");
+            if (Car_Get((int)i)->s[0xb43]) Camera_Step((int)i);   /* 0x4219b0 */
         if (car0) PENDING_NOTE(0x4b0110, "Skids_Step");
         Sim_StepDone(&g_all);
     }
     if (H->pose) H->pose(R.frac);   /* Race_PoseInterp 0x41d060 with the fraction */
-    PENDING_NOTE(0x422140, "Camera_Update");
+    for (uint32_t i = 0; i < np; i++)
+        if (H->camera) Camera_Frame((int)i, CI32(Car_Get((int)i), 0xa90), H->camera((int)i));   /* 0x422140 */
     for (int i = 0; i < g_all.n; i++) Fade_Level(i, R.frac, false);
     PENDING_NOTE(0x464c60, "Car_Sounds 0x464c60, 0x45def0, 0x45af00");
 }
@@ -191,7 +193,14 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             R.place_count = 1;
             R.place = 0;
         }
-        PENDING_NOTE(0x422fe0, "Camera_Set");
+        /* 0x422fe0 per player: the profile's camera (0x408800), the chase (4) when it cannot be had */
+        for (uint32_t i = 0; i < players(); i++) {
+            uint32_t t = gm32(0x531350 + 0x30 * i) >> 0x12 & 0xf;
+            int kind = Gs_Mode() == 4 ? gm8(0x52f3e4 + 0xc4 * i) : t != 0xf ? (int)gm32(0x52fa60 + t * 0x650) : 0;
+            if (!(kind == 1 || kind == 2 || (kind >= 4 && kind <= 6) || kind == 10)) kind = 4;   /* 0x4232a0 */
+            Camera_Reset((int)i);
+            Camera_Select((int)i, kind, false);
+        }
         R.place_count--;
         Race_Update(Proc_State(g, 0), false);
     }

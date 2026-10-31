@@ -7,6 +7,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/profile.h"
 #include "game/timer.h"
 #include "render/d3d7.h"
 #include "render/mesh.h"
@@ -68,7 +69,7 @@ static void input(int player, uint32_t *held, uint32_t *pressed)
     *pressed = 0;
 }
 
-static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, NULL};
+static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, NULL, NULL};
 
 int main(void)
 {
@@ -83,7 +84,8 @@ int main(void)
     VB_CreatePool();
     memset(&g_world, 0, sizeof g_world);
     g_world.kind = 3;
-    gw32(0x52fa5c, gm32(0x52fa5c) | 0x20);   /* the player's profile: automatic (the front end's set-up) */
+    Profiles_Init();
+    Player_SetProfile(0, 0);   /* the front end's player set-up */
     Race_Begin(&host);
     CHECK(Game_Mode() == 3);
     int seen[14] = {0}, frame = 0, go = -1, fin = -1;

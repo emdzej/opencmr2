@@ -30,6 +30,7 @@
 #include "sim/drive.h"
 #include "sim/sim.h"
 #include "game/race.h"
+#include "game/profile.h"
 #include "game/timer.h"
 #include "sim/progress.h"
 #include "game/mem.h"
@@ -235,15 +236,12 @@ static void host_pose(int32_t frac)
     (void)frac;
     Car_PoseSimple(Car_Get(0));
 }
-static void race_view(D3DMATRIX *view);
 static void invert_rigid(const D3DMATRIX *v, D3DMATRIX *o);
 static void title(void);
 static void host_draw(int player, int state)
 {
     (void)player;
-    D3DMATRIX view;
     Car *c = Car_Get(0);
-    race_view(&view);
     int cs = Race_StageTime(0);
     static const char *what[14] = {"", "loading", "", "", "", "on the line", "", "", "", "finished", "replay",
                                    "results (Return)", "", ""};
@@ -258,9 +256,9 @@ static void host_draw(int player, int state)
     Render_ClearTarget();
     int32_t r[4] = {0, 0, 640, 480};
     D3d_Clear(1, r, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
-    D3DMATRIX inv;
-    invert_rigid(&view, &inv);
-    for (int i = 0; i < 16; i++) V.camera.world.m[i] = (int32_t)lrintf(inv.m[i / 4][i % 4] * 65536);
+    /* the race camera (game/camera.c) sets the camera object's matrix; it hangs under nothing */
+    V.camera.world = V.camera.local;
+    V.camera.world.m[15] = 0x10000;
     V.camera.dirty = 1;
     int32_t cp[3] = {V.camera.world.m[12], V.camera.world.m[13], V.camera.world.m[14]};
     Sky_Follow(cp);
@@ -269,7 +267,12 @@ static void host_draw(int player, int state)
     static const int16_t full[4] = {0, 0, 640, 480};
     World_Render(&V.camera, full, 0, true);
 }
-static const RaceHost race_host = {host_load_stage, host_load_cars, NULL, host_input, host_pose, host_draw};
+static Obj *host_camera(int player)
+{
+    (void)player;
+    return &V.camera;
+}
+static const RaceHost race_host = {host_load_stage, host_load_cars, NULL, host_input, host_pose, host_draw, host_camera};
 
 bool viewer_init(const char *car, const char *stage)
 {
@@ -314,10 +317,11 @@ bool viewer_init(const char *car, const char *stage)
             snprintf(V.carname, sizeof V.carname, "%s", car);
             snprintf(V.stagename, sizeof V.stagename, "%s", stage);
             V.race = true;
-            /* the first player's profile (0x52fa5c, set by the front end): an automatic box, unless
-               --param gears=manual */
+            /* the first player with the first profile (the front end's player set-up), with a manual
+               box for --param gears=manual */
+            Player_SetProfile(0, 0);
             char g[16];
-            if (!(plat_param("gears", g, sizeof g) && !strcmp(g, "manual"))) gw32(0x52fa5c, gm32(0x52fa5c) | 0x20);
+            if (plat_param("gears", g, sizeof g) && !strcmp(g, "manual")) gw32(0x52fa5c, gm32(0x52fa5c) & ~0x20u);
             Race_Begin(&race_host);
         }
     }
@@ -414,18 +418,6 @@ static void title(void)
         Tri_Flush(1);
         Sprite_Flush(1);
     }
-}
-
-/* the chase camera, 7 behind and 2.5 up along the car's heading */
-static void race_view(D3DMATRIX *view)
-{
-    Car *c = Car_Get(0);
-    float cx = CI32(c, 0x2d0) / 65536.0f, cy = CI32(c, 0x2d4) / 65536.0f, cz = CI32(c, 0x2d8) / 65536.0f;
-    float fx = CI32(c, 0x3f0) / 65536.0f, fz = CI32(c, 0x3f8) / 65536.0f, fl = sqrtf(fx * fx + fz * fz);
-    if (fl < 0.01f) fx = 1, fz = 0, fl = 1;
-    fx /= fl, fz /= fl;
-    look_at(cx - 7 * fx, cy + 2.5f, cz - 7 * fz, cx + 3 * fx, cy + 0.8f, cz + 3 * fz, view);
-    D3d_SetTransform(D3DTS_VIEW, view);
 }
 
 void viewer_frame(void)

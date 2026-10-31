@@ -417,3 +417,32 @@
 00405d70	Gs_Players	game	high	The players from the mode word (bits 13-16)
 00407500	Gs_SetRacePlayers	game	high	The race's processes into the selection (bits 14-15)
 00407270	Gs_SuperSpecial	game	high	Rally 8, stage 11 in a rally: the head-to-head super special
+00421720	Camera_Select	camera	high	A player's other camera record made a new kind; switched at once or blended over 12.5 steps
+00422fe0	Camera_Set	camera	high	Camera_Select with the current kind when 0
+00422f50	Camera_Kind	camera	high	The player's current camera kind, 8 while blending
+00422fb0	Camera_Car	camera	high	The car the player's current camera follows
+004219b0	Camera_Step	camera	high	A player's camera step: the followed frame, the last camera kept, the current stepped, a switch's blend
+00422140	Camera_Frame	camera	high	The drawn camera: the last two steps' blended by the fraction into the camera object
+004224e0	Frame_Blend	camera	high	Two frames blended: forward, then up or side made unit, the third from them, the position
+00423070	Frame_Level	camera	high	A frame made level: world up, the first row across it and the third
+00422e70	Frame_Pitch	camera	high	A frame pitched by an angle about its first row
+00423300	Camera_Init	camera	high	A camera of a kind made for its car
+00423460	Camera_StepOne	camera	high	A camera's step by kind; the ground lift
+00423b20	Camera_Ref	camera	high	The followed frame: the car's orientation (0x538ca0); the look-around
+00423d70	Camera_Follow	camera	high	The frame a camera follows: a player's 0x538ca0, another car's orientation
+00423de0	Camera_Interp	camera	high	Two camera records blended by a fraction
+00423ee0	Camera_Copy	camera	high	A camera record copied but for its indices
+004232a0	Camera_Allowed	camera	high	Whether a kind can be had (3 and 7 by their data)
+00447530	Chase_Init	camera	high	A chase camera's kind and settings from the profile
+004475f0	Chase_Step	camera	high	A chase camera's axes eased towards the car's, then placed
+00447a40	Chase_Place	camera	high	A chase camera at its offset in its axes, pitched
+00447ee0	Chase_Offset	camera	high	A chase camera's offset: the profile's (kind 4) or the table 0x519ea0
+00447d20	Chase_SetOffset	camera	high	The player's chase offset, the height eased for longer distances
+00447e20	Chase_SetAngle	camera	high	The player's chase pitch, eased for longer distances
+00447be0	Chase_FromOther	camera	high	A new chase camera's axes from the old chase camera or the car
+00408c20	Profile_Camera	game	high	The player's profile's chase offset, angle and distance
+00408800	Profile_CameraKind	game	high	The player's profile's camera kind
+004088a0	Profile_SetCamera	game	high	The chase settings into the player's profile
+004ec260	Profile_DefaultCamera	frontend	high	The chase defaults into the player's profile
+004eadb0	Profiles_Init	frontend	high	The four profiles' defaults; no profile for any player
+00510570	Init_CameraDefaults	crt	high	Static initialiser: the chase camera defaults at 0x52b028
