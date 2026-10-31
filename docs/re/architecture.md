@@ -73,6 +73,22 @@ countdown, driving, finished, results ...). The race states (update / draw):
 The port keeps the framework as it is: the state tables are code addresses, so the port has its own C
 tables in the same order, and transitions stay data-driven.
 
+## Game state
+
+The original keeps its game state in globals and tables in its data section: modes, options, the
+stage selection, championship and team tables, and car set-ups. The port maps that section (0x516000
+to 0x831c7c) into a run-time image (`src/game/mem.c`):
+- the first 0x14000 bytes come from the exe at start;
+- the rest is BSS, which is zero.
+
+Ported code reads and writes these variables by their addresses (`gm32(0x52f2ac)`), with the
+one-line accessors of 0x405c00-0x409000 in `src/game/gstate.h`. Nothing is copied into the source, and
+a table the game fills at run time (the weather at 0x52f100, the set-ups at 0x52f0e0) behaves as it
+does there. The port's own structures (objects, meshes, the device) are not kept in the image.
+
+The car state (0xc24 bytes per car) is kept as the original's block and addressed by offset
+(`src/sim/car.h`). The pointers the original stores inside it are kept beside it.
+
 ## Timing
 
 `Timer_Sample` 0x4a9b70 latches `timeGetTime()` once per frame; `Timer_Centis` 0x4a9b80 is a monotonic

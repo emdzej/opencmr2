@@ -152,7 +152,13 @@ ported.
 **Check:** a parked car on the start line of each of the 94 stages, from each camera, in every weather:
 headless screenshots, reproducible.
 
-## 6. Vehicle simulation (about 116 KB, the core of the game)
+## 6. Vehicle simulation (about 116 KB, the core of the game; started)
+
+**So far:** the game-state image ([architecture](architecture.md#game-state)), the car state block
+and `Car_Init` 0x43c7f0 with its set-up helpers (`src/sim/car.c`). Next: 0x43e680 (the car settled on
+the ground: 0x4930e0, the wheel ground queries 0x4932b0, 0x42de20, the damage records), then
+`Sim_Step` 0x42baf0.
+
 
 0x428000-0x445000 plus the surface tables and the stage collision data (`.hpc`, `.tre`, `fin.dat` as they
 turn out). Port it in the original's integer arithmetic, function by function, with no float in the

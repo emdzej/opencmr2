@@ -76,6 +76,13 @@ point (`(int64)a * b >> 16`):
   values per class into the car state (`+0x1f8`, `+0x1fc`, `+0x200`, `+0x764` to `+0x774`, `+0x788`,
   `+0x794`) plus one per-class constant (0x3e80000, 0x4000000, ...). As instruction operands they are
   ported as code, with the original's values, not as a table.
+- Ported (`src/sim/car.c`, checked by `tests/sim_test.c` on the 205): the class table, the set-up
+  bytes (7 per car at 0x52f0e0, or a default per rally at 0x520128-0x520144). These are applied as:
+  - suspension: 0x43dff0;
+  - gears: 0x43e1f0, five sets of neutral, six forward and reverse, divided by 1.14;
+  - brakes: 0x43e530;
+  - differential: +0x7b4;
+  - the box corners: 0x43eef0, 0x43f280.
 - The rest of the car is set up in the same function from the model (wheel positions from the `.c3d`
   parts, `+0x360..0x378`) and the game options, and in 0x43e680 afterwards.
 - The car state is 0xc24 bytes per car in the block at `*0x53c9a4` (pointers per car at 0x53aba8, `Car_Get` 0x42b5f0); the simulation addresses the current

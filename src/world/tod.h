@@ -5,11 +5,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* DAT_0052f2ac: bits 0-4 the rally (0 FIN, 1 GRE, 2 FRA, ... in the exe's prefix table 0x51931c), 5-9
+/* The stage selection word 0x52f2ac: bits 0-4 the rally (0 FIN, 1 GRE, 2 FRA, ... in the exe's prefix table 0x51931c), 5-9
    the stage (0-based), 10-11 and 12-13 two further indices, bit 24 and bit 26 the modes that take the
    time and weather from the tables at 0x516260 and 0x52f36c (not set in a rally). */
-extern uint32_t g_stage_sel;
-extern uint32_t g_game_mode;   /* DAT_0052afb4 (0x405d80: bits 3-9 the mode; 0 a rally) */
+/* Both live in the game state (game/mem.h): 0x52f2ac, and the mode word 0x52afb4 (0x405d80: bits 3-9
+   the mode; 0 a rally). */
 /* The port: the selection for a stage id ("fra02"), from the exe's prefixes; false if unknown. */
 bool Tod_Select(const char *stage);
 uint32_t Tod_Rally(void);       /* 0x406910 */

@@ -2,12 +2,12 @@
 #include "world/tod.h"
 #include "exe.h"
 #include "fixmath.h"
+#include "game/mem.h"
 #include "world/relight.h"
 #include "world/stage.h"
 #include <string.h>
 #include <strings.h>
 
-uint32_t g_stage_sel, g_game_mode;
 const Horizon *g_hor_start, *g_hor_end;
 int32_t g_hor_low[3], g_hor_high[3];
 static Horizon hor_start, hor_end;   /* 0x543d00, 0x543e38 */
@@ -22,35 +22,33 @@ bool Tod_Select(const char *stage)
         if (!pl || pl + 2 != l || strncasecmp(stage, p, pl)) continue;
         int n = (stage[pl] - '0') * 10 + (stage[pl + 1] - '0');
         if (n < 1 || n > 32) return false;
-        g_stage_sel = r | (uint32_t)(n - 1) << 5;
+        gw32(0x52f2ac, r | (uint32_t)(n - 1) << 5);
         return true;
     }
     return false;
 }
 
-uint32_t Tod_Rally(void) { return g_stage_sel & 0x1f; }
-uint32_t Tod_Stage(void) { return g_stage_sel >> 5 & 0x1f; }
-static uint32_t mode(void) { return g_game_mode >> 3 & 0x7f; }   /* 0x405d80 */
-static uint32_t mode2(void) { return g_game_mode >> 10 & 7; }    /* 0x405d90 */
+uint32_t Tod_Rally(void) { return gm32(0x52f2ac) & 0x1f; }
+uint32_t Tod_Stage(void) { return gm32(0x52f2ac) >> 5 & 0x1f; }
+static uint32_t mode(void) { return gm32(0x52afb4) >> 3 & 0x7f; }   /* 0x405d80 */
+static uint32_t mode2(void) { return gm32(0x52afb4) >> 10 & 7; }    /* 0x405d90 */
 
 /* 0x407270: a rally, rally 8, stage 12 (the one stage run at night) */
-static bool night_stage(void) { return mode() == 0 && (g_stage_sel & 0x1f) == 8 && (g_stage_sel & 0x3e0) == 0x160; }
+static bool night_stage(void) { return mode() == 0 && (gm32(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160; }
 
 /* bits 24 and 26: 0x516260 by the two indices (and the mode) */
 static uint32_t table_time(void)
 {
-    uint32_t a = g_stage_sel >> 10 & 3, b = g_stage_sel >> 12 & 3;
-    uint32_t i = g_stage_sel >> 26 & 1 ? mode2() + (a * 3 + b) * 3 : (a * 3 + b) * 3;
-    const uint8_t *t = exe_data(0x516260 + i, 1);
-    return t ? *t * 100u : 0;
+    uint32_t a = gm32(0x52f2ac) >> 10 & 3, b = gm32(0x52f2ac) >> 12 & 3;
+    uint32_t i = gm32(0x52f2ac) >> 26 & 1 ? mode2() + (a * 3 + b) * 3 : (a * 3 + b) * 3;
+    return gm8(0x516260 + i) * 100u;
 }
 
 static uint32_t time_of(int second)
 {
-    if (g_stage_sel >> 24 & 1) return table_time();
+    if (gm32(0x52f2ac) >> 24 & 1) return table_time();
     if (night_stage()) return 2000;
-    const uint8_t *t = exe_data(0x516188 + second + (Tod_Stage() + Tod_Rally() * 12) * 2, 1);
-    return t ? *t * 100u : 0;
+    return gm8(0x516188 + (uint32_t)second + (Tod_Stage() + Tod_Rally() * 12) * 2) * 100u;
 }
 
 uint32_t Tod_StartTime(void) { return time_of(0); }
@@ -59,14 +57,14 @@ uint32_t Tod_EndTime(void) { return time_of(1); }
 const int32_t *Tod_Weather(uint32_t stage)
 {
     static int32_t w[2];
-    uint32_t a = g_stage_sel >> 10 & 3, b = g_stage_sel >> 12 & 3;
-    if (g_stage_sel >> 24 & 1) {
-        uint32_t va = g_stage_sel >> 26 & 1 ? 0x52f36c + ((a * 3 + b) * 3 + mode2()) * 4 : 0x52f36c + (a * 3 + b) * 0xc;
-        w[0] = w[1] = (int32_t)exe_u32(va);
+    uint32_t a = gm32(0x52f2ac) >> 10 & 3, b = gm32(0x52f2ac) >> 12 & 3;
+    if (gm32(0x52f2ac) >> 24 & 1) {
+        uint32_t va = gm32(0x52f2ac) >> 26 & 1 ? 0x52f36c + ((a * 3 + b) * 3 + mode2()) * 4 : 0x52f36c + (a * 3 + b) * 0xc;
+        w[0] = w[1] = gms32(va);
         return w;
     }
-    w[0] = (int32_t)exe_u32(0x52f100 + stage * 8);
-    w[1] = (int32_t)exe_u32(0x52f104 + stage * 8);
+    w[0] = gms32(0x52f100 + stage * 8);
+    w[1] = gms32(0x52f104 + stage * 8);
     return w;
 }
 

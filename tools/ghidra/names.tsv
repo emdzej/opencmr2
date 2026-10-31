@@ -256,3 +256,14 @@
 00456c70	Csp_StartPos	track	high	A car's start position from .csp
 00456c90	Csp_Angles	track	high	The start angles in .csp
 00457e50	Car_Place	car	med	Car objects to the start pose, then Car_Init
+0043dff0	Car_SetupSuspension	sim	high	Suspension values from the set-up byte
+0043e1f0	Car_SetupGears	sim	high	One of five gear sets, divided by 1.14
+0043e530	Car_SetupBrakes	sim	high	Brake values from the set-up byte
+0043eef0	Car_BoxCorners	sim	high	The body box's eight world corners
+0043f280	Car_CornerOffsets	sim	high	Corner offsets from the weight split
+0043e5a0	Car_AttachModels	sim	high	The car's two models, wheels and parts from its table entry
+004ad890	Obj_FindType	world	high	Depth-first search for an object of a type
+004ac7a0	Obj_Reparent	world	high	Moves an object under another parent
+004086f0	Champ_CarFlag	game	med	A driver's team flag (bit 5)
+00456be0	Car_Slot	car	high	The car table entry (0x24 bytes at 0x542630)
+0043e680	Car_Settle	sim	med	Settles a placed car on the ground and resets its history

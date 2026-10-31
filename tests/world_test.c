@@ -11,6 +11,7 @@
 #include "vfs_host.h"
 #include "world/section.h"
 #include "world/frame.h"
+#include "game/mem.h"
 #include "world/stage.h"
 #include "world/tre.h"
 #include "world/tod.h"
@@ -28,6 +29,7 @@ int main(void)
         printf("world_test: no game data, skipped\n");
         return 0;
     }
+    Mem_Init();
     Math_InitTables();
     D3d_Open(640, 480, 16);
     VB_CreatePool();
