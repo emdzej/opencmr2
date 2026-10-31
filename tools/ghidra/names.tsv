@@ -29,7 +29,7 @@
 0040e8d0	Paths_Init	file	med	Builds the data paths from Game_HDPath / Game_CDPath / Install_Version
 00455080	Bfl_MountCommon	file	high	Mounts Com<res>[C].bfl, speech, text, Common.bfl, surface.bfl, FireWork.bfl
 00455260	Bfl_MountStage	file	high	Mounts the stage archive <stage>.bfl
-0041f930	Stage_LoadTrackSplines	track	low	Loads .tsc / .tre / .xhi
+0041f930	Stage_Load	track	med	Loads a stage: textures, horizons, BSP, TEMP.C3D, .hpc, .srf, fin.dat, .csp, .cat, .cod, .tsc, sections, .tre, .xhi
 0041fc50	Stage_LoadC3d	track	high	Loads TEMP.C3D from the stage archive (C3d_Load)
 0041fc90	Stage_LoadHpc	track	med	Loads <stage>.hpc
 0041fcd0	Stage_LoadSrf	track	med	Loads <stage>.srf (surface table)
