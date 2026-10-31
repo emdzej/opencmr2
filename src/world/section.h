@@ -1,0 +1,43 @@
+/* The stage's sections (docs/re/world.md#sections): the stage mesh's 0x88-byte section records form a
+   grid of square cells, each with its mesh, the objects in it and its bounding rectangle; each frame the
+   cells in the camera's view are listed and drawn. */
+#pragma once
+#include "c3d.h"
+#include "world/obj.h"
+#include <stdbool.h>
+#include <stdint.h>
+
+enum { SEC_MAX = 0x1000 };
+
+typedef struct {
+    uint8_t *rec;              /* the file record */
+    int32_t x, y, z;           /* +0x00: the cell's centre (16.16) */
+    uint8_t *mesh;             /* +0x10: its stage mesh, or NULL */
+    Obj *objs;                 /* +0x1c: the objects in it (linked through section_next) */
+    int32_t nobjs;             /* +0x20 */
+    int32_t corner[8];         /* +0x5c: x, z of four corners of the mesh's bounding rectangle */
+    uint32_t dist2;            /* +0x7c: squared distance to the camera, when listed */
+    int32_t x80, x84;          /* +0x80, +0x84: set to 0 and 1 when listed */
+} Section;
+
+extern Section g_sec[SEC_MAX];    /* 0x71f608 (pointers there) */
+extern int g_nsec;                /* DAT_0072d568 */
+extern int g_sec_row;             /* DAT_0071f600: cells in a row */
+extern int g_sec_rows;            /* DAT_0072d458 */
+extern int32_t g_sec_size, g_sec_half;   /* DAT_0072d24c, DAT_0072d248 */
+extern uint16_t g_visible[SEC_MAX];      /* 0x6ed5f0 */
+extern int g_nvisible;                   /* DAT_0072d570 */
+
+/* The section part of C3d_Fixup 0x4b93c0 (it registers the records and their meshes). */
+void Section_Register(const C3d *m);
+/* Section_Init 0x4b8270: the grid (cell size from the first two cells, its half and reciprocal, the
+   bounds, the row length from the first cells sharing a z), the objects under world placed in their
+   cells (Section_LinkObjects 0x4b8450), the corners (Section_Corners 0x4b9170). */
+void Section_Init(Obj *world);
+int Section_Find(const int32_t pos[3]);    /* 0x4b85f0 */
+bool Section_Visible(int i);               /* 0x4b7da0 */
+/* Section_BuildVisible 0x4b7de0: the cells whose corners fall in the camera's view wedge, and the nine
+   around the camera's cell, within the far plane (Proj_Far). */
+void Section_BuildVisible(const Obj *camera);
+/* Stage_DrawTerrain 0x49cec0: every listed cell's mesh with the identity world matrix. */
+void Stage_DrawTerrain(const C3d *m);

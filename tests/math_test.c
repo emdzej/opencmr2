@@ -61,6 +61,8 @@ int main(void)
     FxMat zero = {{0}};
     Mat_Inverse(&inv, &zero);
     CHECK(inv.m[0] == 0x10000 && inv.m[15] == 0x10000 && inv.m[12] == 0);
+    CHECK(Fx_Sqrt(4 << 16) >> 8 == 2 << 8 && Fx_Sqrt(0) == 0);   /* sqrt(4) = 2, to the table's precision */
+    CHECK(abs((int)Fx_Sqrt(100u << 16) - (10 << 16)) < 200);   /* the table is centred half a step up */
     printf("math_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
 }

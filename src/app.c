@@ -4,6 +4,7 @@
 #include "bfl.h"
 #include "c3d.h"
 #include "exe.h"
+#include "fixmath.h"
 #include "font.h"
 #include "image.h"
 #include "platform.h"
@@ -74,6 +75,7 @@ bool app_init(void)
         return false;
     }
     plat_log("OpenCMR2: CMR2.exe v1.11 found");
+    Math_InitTables();   /* the original fills them at start-up */
     decoder_check();
     char car[64], stage[64];
     bool c = plat_param("car", car, sizeof car), st = !c && plat_param("stage", stage, sizeof stage);

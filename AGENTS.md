@@ -17,10 +17,9 @@ executable. **Fidelity is the product.** Reproduce the original's behaviour, inc
 If something looks wrong, check the disassembly; if the original does it, keep it and add a comment. Only
 fix deviations *of the port* from the original.
 
-**State:** steps 1-2 done (skeleton, file layer with ISO and the InstallShield cabinet, own inflate,
-`File_Load` / `Bfl_*`, exe check; decoders for TGA/DXT, WAV/MS ADPCM, text, fonts, PP_F models); step 3
-in progress (`src/render/`: the D3D7 device with a GLES 3 back end, the render-state layer; viewers
-`--param car=` / `--param stage=`, docs/re/render.md). Read `docs/re/port-plan.md` (the order of work,
+**State:** steps 1-2 done; step 3 mostly (`src/render/`: D3D7 device + GLES 3 back end, state layer,
+textures, meshes, 2D queues, text; docs/re/render.md); step 5 started (`src/world/`: object trees,
+stage sections and terrain; docs/re/world.md). Viewers: `--param car=` / `--param stage=`. Read `docs/re/port-plan.md` (the order of work,
 each step with its check), `docs/re/architecture.md` and `docs/formats/`.
 
 Build and check: `cmake -S . -B build && cmake --build build && ctest --test-dir build` (native tests);

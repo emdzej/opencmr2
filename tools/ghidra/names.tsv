@@ -173,3 +173,20 @@
 004b8690	Obj_UpdateSection	world	med	Finds the section an object is in from its world position, neighbours, relinks it
 004b9f20	Mat_Mul	render	high	16.16 4x4 matrix product
 004ba440	Mat_Inverse	render	high	16.16 inverse by cofactors (2^32 / det); identity when singular
+004b8270	Section_Init	world	high	The section grid: cell size, half, reciprocal, bounds, row length; meshes and objects into cells; corners
+004b85f0	Section_Find	world	high	The grid cell of a position (by distance from the corner times the reciprocal; out of range 0)
+004b7da0	Section_Visible	world	high	Whether a cell is in the visible mask (all visible when the list is empty or 0x72d578)
+004b7de0	Section_BuildVisible	world	high	Lists the cells whose corners fall in the camera's view wedge or neighbour its cell
+004b8450	Section_LinkObjects	world	high	Puts the world root's objects into the cells of their local translation
+004b8b90	Section_EdgeHeights	world	low	Per cell edge, a height from the nearest mesh vertex (x, height, z at +0x2c-+0x58)
+004b9170	Section_Corners	world	high	Each cell's mesh bounding rectangle in whole units (16.16), or its square
+0049da50	Point_InTriangle	world	high	2D point in triangle: bounds, then edge sides on coordinates scaled by 0.01
+0049cec0	Stage_DrawTerrain	world	high	Draws the listed cells' meshes (identity world; 0x1000 per polygon)
+0049cf80	Stage_DrawOverlay	world	med	Draws a second per-cell mesh table (0x6dfd98) with z-writes off
+0049d040	Section_DrawBillboards	world	med	The listed cells' second-kind meshes, facing the camera, queued by distance
+0041fc50	Stage_LoadC3d	track	high	Loads TEMP.C3D from the stage archive with the world parent and the track textures
+004b23c0	Tex_LoadEnvMap	render	med	The reflection environment texture (blend type 4) and the cube-map targets
+00411060	World_Root	world	med	The object the stage models hang under (0x536be0)
+0041f500	Track_TexSlot	track	high	The track texture archive slot (0x538858) when loaded, else NULL
+004552c0	Stage_Slot	track	high	The stage archive slot (0x541f38)
+004d08d0	Game_Init	misc	low	Start-up work, Math_InitTables among it

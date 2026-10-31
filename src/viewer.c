@@ -20,6 +20,8 @@
 #include "render/view.h"
 #include "font.h"
 #include "world/obj.h"
+#include "world/section.h"
+#include "world/stage.h"
 #include "vfs.h"
 #include <math.h>
 #include <stdio.h>
@@ -41,6 +43,7 @@ static struct {
     Obj stand, camera;          /* the car hangs under the stand; the camera's world gives the view */
     Obj *car;                   /* the car's first object (its root) */
     BflSlot fe;                 /* FrontEnd\\res640.bfl: the title's font */
+    char name[32];
     char title[80];
     int frame;
     bool stage;
@@ -143,20 +146,21 @@ static bool find_stage(const char *stage, char *path, char *tex, size_t cap)
 bool viewer_init(const char *car, const char *stage)
 {
     char path[128], tex[128];
-    uint32_t size = 0;
+    /* the device and the vertex buffers first: loading a model fills the buffers (C3d_Build) */
+    if (!D3d_Open(640, 480, 32)) return false;
+    Render_InitStates();
+    VB_CreatePool();
     if (stage) {
         /* Game\Tracks\<country>\<stage>Hi.bfl, the country's textures in <ccc>hit.bfl beside it */
         if (!find_stage(stage, path, tex, sizeof path)) {
             plat_log("viewer: no such stage");
             return false;
         }
-        V.file = File_Load(path, 1);
-        BflSlot a = {V.file, File_LastSize(), 1};
-        uint8_t *m = V.file ? (uint8_t *)Bfl_Find(&a, "temp.c3d", &size) : NULL;
-        if (!m || !C3d_Load(&V.m, m, size, g_tex_count)) {
+        if (!Stage_Mount(path, tex) || !Stage_LoadC3d()) {
             plat_log("viewer: no such stage");
             return false;
         }
+        V.m = g_stage_mesh;
         V.stage = true;
     } else {
         snprintf(path, sizeof path, "Game\\Cars\\%s.c3d", car);
@@ -170,13 +174,14 @@ bool viewer_init(const char *car, const char *stage)
             return false;
         }
     }
-    if (!D3d_Open(640, 480, 32)) return false;
-    Render_InitStates();
-    VB_CreatePool();
-    Bfl_Mount(&V.tex, tex);
-    int before = g_tex_count;
-    C3d_Textures(V.m.data + V.m.slots, V.m.data + V.m.paths, V.m.ntex, V.m.kind, &V.tex, "");
-    C3d_Build(&V.m);
+    int before = V.stage ? 0 : g_tex_count;
+    if (!V.stage) {
+        Bfl_Mount(&V.tex, tex);
+        C3d_Textures(V.m.data + V.m.slots, V.m.data + V.m.paths, V.m.ntex, V.m.kind, &V.tex, "");
+        C3d_Build(&V.m);
+    } else {
+        Section_Init(&g_world);
+    }
     build_meshes();
     if (!V.stage) {
         /* the scene: a stand (a node the viewer turns), the car's objects attached under it */
@@ -205,7 +210,8 @@ bool viewer_init(const char *car, const char *stage)
     Tri_Init();
     Font_InitSlots(4);
     if (Bfl_Mount(&V.fe, "FrontEnd\\res640.bfl")) Font_LoadSlot("FrontEnd", "hel_15pt", &V.fe, 0);
-    snprintf(V.title, sizeof V.title, "%s  %d polygons  %d textures", V.stage ? stage : car, (int)V.m.npoly, V.m.ntex);
+    snprintf(V.name, sizeof V.name, "%s", V.stage ? stage : car);
+    snprintf(V.title, sizeof V.title, "%s  %d polygons  %d textures", V.name, (int)V.m.npoly, V.m.ntex);
     g_ambient_a = g_ambient_b = 0xff404040u;
     /* nearly every mesh keeps the lighting mode (flag 0x20), which the world's draw sets: here lit for
        a car, the vertex colours unlit for a stage (the viewer's choice until step 5) */
@@ -213,7 +219,8 @@ bool viewer_init(const char *car, const char *stage)
     D3d_SetTextureStageState(0, D3DTSS_MINFILTER, 2);
     /* Proj_Set with 60 degrees vertically at 4:3 (the scales are halved by the game): 2 cot 30 = 3.464,
        times 3/4 for x; far 2,000 for a stage, 100 for a car; near 0.1 */
-    Proj_Set((int32_t)(2.598f * 65536), (int32_t)(3.464f * 65536), (V.stage ? 2000 : 100) << 16, 6554);
+    /* far 250 for a stage: the game's usual far plane, which also bounds the visible cells */
+    Proj_Set((int32_t)(2.598f * 65536), (int32_t)(3.464f * 65536), (V.stage ? 250 : 100) << 16, 6554);
     return true;
 }
 
@@ -256,7 +263,7 @@ static void invert_rigid(const D3DMATRIX *v, D3DMATRIX *o)
 void viewer_frame(void)
 {
     float a = (float)V.frame++ * 0.02f + 0.6f;
-    D3DMATRIX view, rot, world;
+    D3DMATRIX view, rot;
     identity(&rot);
     if (V.stage) {
         /* along the meshes in file order (the stage's sections run along the road), 12 units up */
@@ -296,11 +303,15 @@ void viewer_frame(void)
         Obj_Frame(&V.stand, &V.camera);
         Obj_Draw(V.car, 0);
     } else {
-        for (int i = 0; i < V.nmesh; i++) {
-            mul(&V.mesh[i].place, &rot, &world);
-            D3d_SetTransform(D3DTS_WORLD, &world);
-            Mesh_Draw(&V.m, (uint8_t *)C3d_Mesh(&V.m, i), 0, 0, 0);
-        }
+        /* the camera object from the fly-through's view; the cells in its view, their meshes */
+        D3DMATRIX inv;
+        invert_rigid(&view, &inv);
+        for (int i = 0; i < 16; i++) V.camera.world.m[i] = (int32_t)lrintf(inv.m[i / 4][i % 4] * 65536);
+        V.camera.dirty = 1;
+        Obj_Frame(&g_world, &V.camera);
+        Section_BuildVisible(&V.camera);
+        Stage_DrawTerrain(&g_stage_mesh);
+        snprintf(V.title, sizeof V.title, "%s  %d of %d cells in view", V.name, g_nvisible, g_nsec);
     }
     /* a translucent band and the title over it (layer 1 of both queues); the meshes left blending off
        (alpha-tested), so it goes back on first, as the game does before its 2D */

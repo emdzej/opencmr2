@@ -132,6 +132,14 @@ Movies are skipped at this point (the original lets a key skip them): the Bink d
 
 ## 5. World mode, stage and car on screen (about 60 + 64 + 56 KB; started)
 
+**So far** ([world.md](world.md)): the object trees (attach, update, commit, draw, the camera view)
+and the stage mesh with its section grid, visible cells and terrain draw (`Stage_LoadC3d`,
+`Section_Init`, `Section_BuildVisible`, `Stage_DrawTerrain`). Both viewers run on these. Next: the
+rest of `Stage_Load` 0x41f930 (horizons, BSP, `.hpc`, `.srf`, `fin.dat`, `.csp`, `.cat`, `.tsc`,
+`.tre`), the scenery (`TEMP.OBJ`), sky and ground, the cell object draw and the time-step texture
+animation.
+
+
 Mode 2 (`World_Frame` 0x4ff450) and the race set-up: stage loading (`Stage_Load*`, 0x41f560-0x420630,
 0x455300, 0x456c10, 0x46f060, 0x472830), sky and clouds, horizons for the time of day and weather, the
 weather effects, scenery objects, the car with its levels of detail and lights, the race cameras. The

@@ -134,3 +134,25 @@ void Mat_Inverse(FxMat *o, const FxMat *a)
     r[14] = fx_mul(tz, r[10]) + fx_mul(ty, r[6]) + fx_mul(tx, r[2]);
     r[15] = 0x10000;
 }
+
+/* The square root the game writes out inline (Section_BuildVisible 0x4b7de0 and others): the value's
+   top bit, an even shift that brings it to 10 or 11 bits, the table, the shift halved back. In 16.16:
+   sqrt of a 16.16 value. */
+uint32_t Fx_Sqrt(uint32_t x)
+{
+    if (!x) return 0;
+    uint32_t t = x;
+    int c = 0;
+    if (t > 0xffff) t >>= 16, c = 16;
+    if (t > 0xff) t >>= 8, c += 8;
+    if (t > 0xf) t >>= 4, c += 4;
+    if (t > 3) t >>= 2, c += 2;
+    if (t > 1) c += 1;
+    int8_t b = (int8_t)(c - 15);
+    if (b & 1) b = (int8_t)(c - 14);
+    int8_t s = (int8_t)(b + 4);
+    uint32_t i = s < 0 ? x << -s : x >> s;
+    uint32_t r = (i & 0xffff0000u) | g_sqrt[i & 0xfff];
+    int8_t h = (int8_t)(b >> 1);
+    return h < 0 ? r >> -h : r << h;
+}

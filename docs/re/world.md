@@ -53,19 +53,54 @@ over `2^32 / det`), kept at `PTR_DAT_00520b78 + 0x2424`, when the camera is dirt
 
 ## Sections
 
-The stage mesh's 0x88-byte section records are registered at 0x71f608 (count at 0x72d568). They form
-a grid whose row length is at 0x71f600, with a half size at 0x72d248. Each section keeps a list of the
-objects in it (head `+0x1c`, count `+0x20`, linked through the objects' `+0x170`).
+The stage mesh's 0x88-byte section records (registered at 0x71f608, count at 0x72d568) are cells of a
+square grid, each holding one mesh. France stage 2 has 360 cells of 64 x 64 units in rows of 18. Its
+148 meshes each fill one cell, tracing the route. On disc only the centre (`+0x00` x, `+0x04` y,
+`+0x08` z) and the mesh (`+0x10`) are set; the rest is filled at run time.
 
-`Obj_UpdateSection` 0x4b8690 starts from the object's section and, when the world position (`+0x108`,
-the world matrix's translation) has left it, finds another (0x4b85f0). It records up to three
-neighbouring sections within 4.5 units of an edge at `+0x28` and moves the object between the
-sections' lists. The section draw (0x49ce40) walks a list of visible sections (0x6ed5f0, count
-0x72d570) and draws their objects with the z-buffer off.
+`Section_Init` 0x4b8270:
+- the cell size is the x distance between the first two cells, with its half and its reciprocal
+  `2^32 / size`;
+- the bounds are the least x and the greatest z;
+- the row length is the run of cells from the first that share a z;
+- it hangs the second-kind meshes on their cells (`+0x14`, count `+0x18`) and puts the world root's
+  objects into the cells of their local translation (`Section_LinkObjects` 0x4b8450; type byte `0xff`
+  stays out);
+- it links some 0x30-byte records into the cells (`+0x28`, count `+0x24`);
+- it works out per-edge heights from the nearest mesh vertex (0x4b8b90) and each cell's corners
+  (`Section_Corners` 0x4b9170).
+
+The corners are the mesh's bounding rectangle in whole units (each vertex rounded as it is compared),
+or the cell's square without a mesh.
+
+`Section_Find` 0x4b85f0 gives a position's cell from its distances to the top-left corner times the
+reciprocal. The distances are taken as absolute values, so a position outside the grid folds back in,
+and an index out of range gives 0.
+
+`Section_BuildVisible` 0x4b7de0 lists the visible cells each frame:
+- it takes the camera's cell, and a window of cells as wide as the far plane (`Proj_Far`) reaches;
+- it builds a view wedge from the camera position and two points at the far distance, 45 degrees
+  either side of the forward direction (normalised with the table square root);
+- a cell in the window is listed when a corner falls in the wedge (`Point_InTriangle` 0x49da50, on
+  coordinates scaled by 0.01) or when it is one of the nine around the camera's cell;
+- it then records the squared distance (`+0x7c`), sets `+0x80` / `+0x84` to 0 / 1 and sets a bit in
+  the mask at 0x72d258, which `Section_Visible` 0x4b7da0 reads;
+- it also works out a point 10 units behind the camera and never uses it.
+
+The draws that walk the list:
+- `Stage_DrawTerrain` 0x49cec0 draws each listed cell's mesh with the identity world matrix (batched,
+  or polygon by polygon for flag 0x1000), after a time-step call (0x4bcc60, not ported);
+- 0x49cf80 draws a second per-cell table with z-writes off;
+- 0x49d040 draws the cells' second-kind meshes as billboards turned to the camera;
+- 0x49ce40 draws the cells' objects.
+
+Each cell keeps its objects in a list (head `+0x1c`, count `+0x20`, linked through the objects'
+`+0x170`). `Obj_UpdateSection` 0x4b8690 moves an object between cells as its world position
+(`+0x108`) changes, and records up to three neighbouring cells within 4.5 units of an edge at `+0x28`.
 
 ## Loading a stage
 
-`Stage_Load` 0x41f930, in order:
+`Stage_Load` 0x41f930 (the start-up of the game fills the math tables first, 0x4d08d0), in order:
 1. the country's texture archive (0x4b23c0) and the loading bar (0x40fec0);
 2. the horizons, the BSP and `TEMP.C3D` (`Stage_LoadC3d` 0x41fc50);
 3. `.hpc`, `.srf`, `fin.dat`, 0x471af0, `.csp`, `.cat` and the co-driver's `.cod`;
@@ -83,7 +118,12 @@ Each model goes through `C3d_Load` with two arguments:
 
 `src/world/obj.c` copies each record into an `Obj` with real pointers, since links cross models. The
 record stays reachable for the fields not yet understood. The update, commit, draw and view are
-ported; the section test and `Obj_UpdateSection` come with the stage. The car viewer hangs the car
+ported, and so are the grid, the lookup, the corners, the visible list and the terrain draw
+(`src/world/section.c`) and `Stage_LoadC3d` (`src/world/stage.c`). Still to come: the billboards,
+the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
 under a turning stand and takes the view from a camera object, so a car on screen goes through these
 functions. `tests/d3d7_test.c` checks the 205's tree: world = local plus the stand's move, the float
-matrix, the inverse view, and all 672 triangles drawn through `Obj_Draw`.
+matrix, the inverse view, and all 672 triangles drawn through `Obj_Draw`. The stage viewer loads `TEMP.C3D` with
+`Stage_LoadC3d` and draws what `Section_BuildVisible` lists for a camera object (about 25 of 360 cells
+with the far plane at 250). `tests/world_test.c` checks fra02's grid (18 x 20 cells of 64), the lookup
+and a camera's visible cells without a GPU.

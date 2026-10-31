@@ -1,6 +1,6 @@
 # Status
 
-**Step 3 of the port.** Nothing is playable yet. Done so far:
+**Steps 3 and 5 of the port.** Nothing is playable yet. Done so far:
 
 - The disc analysed: every data file read by a reference decoder (`tools/bfl.py`), the formats of the
   containers, models, textures, sound and music documented ([file formats](../formats/index.md)).
@@ -24,14 +24,21 @@
   stages, fog) and the original's render-state layer; cars and stage meshes render with their
   textures in a headless viewer (`--param car=f99a1N`, `--param stage=fra02`).
 
-Next: the original's model and stage drawing on that device.
+- Step 3 continued: the original's texture records and stage blending, mesh drawing, lighting modes,
+  projection and fog, the 2D queues and the text drawing, the fixed-point math tables.
+- Step 5, started: the scene's object trees (update, lights, drawing, the camera view) and the stage's
+  section grid with its visible-cell list and terrain drawing. The viewers draw a car and a stage
+  through these, with their title in the game's font.
+
+Next: the rest of the stage load (scenery, sky, ground, collision grid, splines).
 
 | Area | State |
 |---|---|
 | File layer (folders, ISO, BFL, InstallShield cabinet) | Ported and tested against the whole disc |
 | Textures, models, sound, music, text, fonts | Decoders ported and tested against the whole disc |
 | Stage data (`.tre`, `.hpc`, `.cat`, ...) | Loaders found; `.hpc` and `.tre` containers known, fields open |
-| Renderer (Direct3D 7 to GLES 3) | Device emulation and state layer done; cars and stages draw in a viewer |
+| Renderer (Direct3D 7 to GLES 3) | Device, state layer, textures, meshes, 2D and text ported; reflections and 16-bit formats open |
+| World (objects, stage sections) | Object trees and the visible-cell terrain draw ported; scenery, sky and the rest of the stage load to do |
 | Front end | Mapped (0x4d0000-0x500000); not started |
 | Vehicle simulation | Located (0x428000-0x445000, 16.16 fixed point), step model known (25 Hz fixed); not started |
 | Movies (Bink 1) | Not started |
