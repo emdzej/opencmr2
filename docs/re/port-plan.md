@@ -68,7 +68,7 @@ Copy the proven pieces from the sibling projects, then add what CMR2 needs:
 `tools/bfl.py` (one summary hash); the same from the folder and the `.ISO`. gasm headless run of a test
 screen gives the same hash from `--asset-dir` and `--asset cd=CMR2.ISO`.
 
-## 2. Format decoders and viewers (about 20 KB)
+## 2. Format decoders and viewers (about 20 KB; done)
 
 - TGA (type 2), DXT5 to RGBA8 on the CPU, PCM WAV, MS ADPCM (`.adp`), text files, fonts (`.pcf` + atlas).
 - PP_F reader: header, record arrays, texture slots and paths, vertices ([c3d.md](../formats/c3d.md));
@@ -76,10 +76,20 @@ screen gives the same hash from `--asset-dir` and `--asset cd=CMR2.ISO`.
 - Reference decoders in `tools/cmr2fmt.py` (stdlib), with exports to PNG and OBJ into `out/` (git-ignored)
   for looking at cars and stages outside the game.
 
-**Check:** a native test decodes all 7,317 DDS and 3,515 TGA members and every model; the C and Python
+**Check:** a native test decodes all 7,804 DDS and 4,003 TGA members and every model; the C and Python
 decoders agree (hashes). A car and a stage exported to OBJ look right in a viewer.
 
-## 3. Direct3D 7 on GLES 3 (renderer: about 90 KB of original, plus new code)
+**Done:** `src/image.c` (`Tga_Header`, `Tga_Pixel`'s fetch, DXT1/DXT5), `src/sound.c` (`Snd_Load`'s
+header, the `.adp` chunks and MS ADPCM blocks), `src/text.c` (`Text_Build` and friends), `src/font.c`
+(`Font_Set`, `Font_TextWidth`), `src/c3d.c` (`C3d_Load` with every relocated field checked);
+`tools/cmr2fmt.py` (PNG, WAV, OBJ exports, summaries). `fmt_test` decodes all 7,804 DDS and 4,003 TGA
+members, 1,211 models, 604 WAVs and the 10 music files, and loads all 72
+fonts against their atlases; the three hashes (images `58c9384f`, models `f6bd27a1`, sounds `76f48a11`)
+match the Python decoders, from the folder and the `.ISO`. The Peugeot 205 (`205c1.c3d`, parts placed
+by their matrices) and the Australia stage 1 mesh render right from the OBJ export. The gasm build loads
+a car with its textures, the front-end text and a font at start-up.
+
+## 3. Direct3D 7 on GLES 3 (renderer: about 90 KB of original, plus new code; in progress)
 
 The original's renderer is 0x4ab000-0x4bdf00 with the render-state code at 0x49d3f0-0x49e100. Port it as
 it is, on top of a small D3D7 emulation (`src/render/d3d7.c`, the only GL user):
@@ -97,6 +107,16 @@ it is, on top of a small D3D7 emulation (`src/render/d3d7.c`, the only GL user):
 `--param stage=fra02` (a fly-through along the stage), headless screenshots and hashes. Without a way to
 run the original's renderer for comparison, a reference capture can be taken once from the original running
 under Wine and kept outside the repo.
+
+**So far** ([render.md](render.md)): the device emulation (`src/render/d3d7.c`, state with Direct3D 7's
+defaults, tested natively; `src/render/gl_dev.c`, the GLES 3 back end adapted from OpenNFSPU's THRASH
+device with transform and lighting, fog and generated texture coordinates added), the original's
+render-state layer (`Render_InitStates` and the cached setters, `src/render/rstate.c`), and the viewers:
+`--param car=205c1` and `--param stage=fra02` render headless with their textures, through the ported
+texture records (`C3d_Textures`, `Bfl_FindTexture`, `Tex_Bind`, `Tex_SetStageBlend`) and mesh drawing
+(`VB_CreatePool`, `Mesh_AddToVB`, `Mesh_Batches`, `Mesh_Draw` and its variants, `Light_SetMode`). Next:
+the reflection passes, fog and the camera (`Camera_Apply` 0x49e1f0), the 2D path, then the object tree
+(step 5).
 
 ## 4. Front end (about 180 KB)
 

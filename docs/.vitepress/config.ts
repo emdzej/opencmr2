@@ -110,6 +110,7 @@ export default defineConfig({
           items: [
             { text: "Overview", link: "/re/" },
             { text: "Architecture", link: "/re/architecture" },
+            { text: "Renderer", link: "/re/render" },
             { text: "Inventory", link: "/re/inventory" },
             { text: "Port plan", link: "/re/port-plan" },
           ],

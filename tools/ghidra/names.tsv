@@ -77,3 +77,57 @@
 00490d50	Hpc_Parse	track	high	Parses .hpc in place: five grid levels, records, index list
 004b5620	Tre_Load	render	med	Allocates the scenery-tree state and parses .tre
 004b4aa0	Tre_Parse	render	med	Parses .tre in place, matches nodes to stage-mesh sections
+004a5da0	Tex_Reload	render	med	Reloads every texture slot using a given archive: Bfl_FindFile on its path, DDS or TGA by magic
+004a6670	Tga_Header	render	high	Validates an uncompressed 24/32-bit bottom-up TGA, returns bpp, size and pixel pointer
+004a60d0	Tga_Pixel	render	high	Fetches TGA pixel (x,y) (rows bottom-up) as RGB(A), with optional brightness / colour matrix
+004a6710	Tex_LoadTga	render	med	Creates a texture surface for a TGA and converts its pixels into the surface format
+004a6e30	Tex_LoadDds	render	med	Creates a texture surface from a DDS header (DXT1/DXT5) and copies the data in
+004a1f50	Snd_Load	audio	high	Loads a WAV member into a DirectSound buffer, reading the 44-byte header at fixed offsets
+004b76c0	Snd_LoadNamed	audio	med	Snd_Load with a 200-sound limit and a "Failed to load" message
+004a3c30	Text_Select	text	high	Selects which language file of the string table Text_Get reads
+004a3c60	Text_Get	text	high	String number i of the selected file, or "INVALID TEXT STRING"
+004a3c90	Text_Build	text	high	Builds the string table from N files of a fixed number of strings each
+004a3d50	Text_Next	text	high	Cuts a string at the first control byte, returns the next non-control byte
+004a3d80	Text_Free	text	high	Frees the string table
+0040b350	Font_Set	text	high	Installs a .pcf into a font slot, relocating the glyphs' kerning offsets
+0040b4f0	Font_Load	text	med	Finds <dir>\<name>.pcf in an archive and installs it
+0040b5b0	Font_TextWidth	text	high	Width of a string's first line in pixels, with tracking and kerning pairs
+004b1d00	Mesh_AddToVB	render	med	Copies a mesh's vertices into a shared vertex buffer (2000 vertices each, up to 100)
+004b1ac0	Mesh_Batches	render	med	Groups a mesh's triangles into runs of the same texture, with index ranges rebased
+004b9910	C3d_Textures	model	med	Loads a model's texture slots from its path table
+004ac200	Obj_Attach	model	med	Appends an object as the last child of a parent object
+0049d940	Render_SetClearColour	render	high	Stores the clear colour (r, g, b bytes)
+0049d960	Render_ClearTarget	render	high	Clears the whole mode to the clear colour (opaque)
+0049d9d0	Render_ClearZ	render	med	Clears z (and stencil) over the mode, only on devices without DRAWPRIMITIVES2EX
+0049dc70	Render_SetCull	render	high	Cached D3DRS_CULLMODE
+0049dca0	Render_SetDefaultCull	render	high	Sets the default cull mode (0x5207f8, initially 3)
+0049dcb0	Render_DefaultCull	render	high	The default cull mode
+0049dcc0	Render_AlphaBlend	render	high	Cached ALPHABLENDENABLE; with a caps flag the alpha reference follows (1 / 0x80)
+0049dd40	Render_ZEnable	render	high	Cached D3DRS_ZENABLE
+0049dd70	Render_ClampStage0	render	high	Cached stage 0 addressing: clamp (3) or wrap (1)
+0049ddc0	Render_ZWrite	render	high	Cached D3DRS_ZWRITEENABLE
+0049ddf0	Render_TexCoordIndex	render	high	Sets a stage's TEXCOORDINDEX with the texture transform off
+0049df90	Render_InitStates	render	high	The start-up render and texture-stage states
+004a3e90	Tex_SetStageBlend	render	med	Sets a stage's colour/alpha ops from a texture's blend type (+0x118), 0xff and 0-0x22 modes
+004b2980	Render_EnvMapped	render	med	Draws with camera-space reflection coordinates through texture matrix 0 (car reflections)
+004b6f00	Light_SetMode	render	med	Lighting modes: LIGHTING, AMBIENT, COLORVERTEX, DIFFUSEMATERIALSOURCE, lights on/off
+004b7210	Render_ReadCaps	render	med	Reads the device caps (GetCaps) into flags at 0x6e0c0c-0x6e0c3c
+004bcbb0	Fog_SetLinear	render	med	Linear vertex fog: FOGTABLEMODE 0, FOGVERTEXMODE 3, start and end
+004bcc20	Fog_Off	render	med	Vertex fog off
+0049e1f0	Camera_Apply	render	med	Clears, sets view and projection transforms and the viewport for a camera
+004b1530	Render_DrawIndexed	render	med	DrawIndexedPrimitive of FVF 0x2d2 vertices from the shared arrays
+004a3e20	Tex_SetBlend	render	high	Sets a texture record's blend type (+0x118)
+004a3e40	Render_SetBlend	render	high	SRCBLEND and DESTBLEND, not cached
+004a4850	Tex_Bind	render	high	SetTexture and Tex_SetStageBlend, skipped when (stage, texture) equals the last bind
+004a48c0	Tex_CreateFromMemory	render	high	A texture record for an image in memory (archive member), DDS or TGA loader
+004a49c0	Tex_CreateFromFile	render	high	A texture record for <path>.DDS or .TGA from disk
+004a4bd0	Tex_Clone	render	high	Copies a texture record (index and surface included) into a free slot
+004b9af0	Tex_IsReflective	render	med	"BR" or "RU" before the extension, or "W" five letters from the end
+004b9b80	Tex_ReuseByName	render	med	Cars: clones an already loaded texture of the same name unless reflective
+004b1980	VB_CreatePool	render	high	Creates the 100 mesh vertex buffers (2,000 vertices, FVF 0x2d2) and three others
+0049c510	Mesh_DrawPolysClamp	render	high	Polygon by polygon, texture by frame index, stage 0 clamp by polygon flags
+0049c680	Mesh_DrawPolys	render	high	Polygon by polygon, texture by frame index
+0049c7b0	Mesh_DrawBatchesTex10	render	high	Batch by batch, each texture's blend type set to 10
+0049c880	Mesh_DrawBatches	render	high	Batch by batch from the part's vertex buffer range
+0049c940	Mesh_Draw	render	high	A mesh's current part with its flags' cull, lighting mode and blending
+004b7200	Light_Mode	render	high	The current lighting mode

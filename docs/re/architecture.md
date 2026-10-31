@@ -140,7 +140,7 @@ debug overlay (0x40f0c0, 0x410c80).
 **Port:** a small Direct3D 7 state emulation on OpenGL ES 3.0 (`gasm:gl`, WebGL 2 rules): render and
 texture-stage state into a shader key, the fixed-function lighting and the two-stage combiner in GLSL ES,
 vertex buffers in the original's FVF. This is the same approach as OpenNFSPU's THRASH layer, but at the
-D3D7 API level.
+D3D7 API level ([renderer](render.md)).
 
 ## Sound and music
 

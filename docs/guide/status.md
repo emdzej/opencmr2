@@ -1,6 +1,6 @@
 # Status
 
-**Step 1 of the port.** Nothing is playable yet. Done so far:
+**Step 3 of the port.** Nothing is playable yet. Done so far:
 
 - The disc analysed: every data file read by a reference decoder (`tools/bfl.py`), the formats of the
   containers, models, textures, sound and music documented ([file formats](../formats/index.md)).
@@ -16,15 +16,22 @@
   with `File_Load` and the `Bfl_*` lookups ported. A native test reads every file and member of the disc
   and matches the reference decoders; the exe check reads the first tables (race states, cheat codes) from
   the user's `CMR2.exe`.
+- Step 2: decoders for every texture (TGA, DXT5), sound (PCM, MS ADPCM music), the text tables, the fonts
+  and the models (PP_F with its relocations checked), each agreeing with a Python reference decoder over
+  the whole disc; `tools/cmr2fmt.py` exports textures to PNG, sounds to WAV and cars and stages to OBJ.
 
-Next: step 2 (decoders and viewers).
+- Step 3, in progress: a Direct3D 7 device on OpenGL ES 3.0 (transform and lighting, the texture
+  stages, fog) and the original's render-state layer; cars and stage meshes render with their
+  textures in a headless viewer (`--param car=f99a1N`, `--param stage=fra02`).
+
+Next: the original's model and stage drawing on that device.
 
 | Area | State |
 |---|---|
 | File layer (folders, ISO, BFL, InstallShield cabinet) | Ported and tested against the whole disc |
-| Textures, models, sound, music | Formats known (DXT5, TGA, PP_F, PCM, MS ADPCM) |
+| Textures, models, sound, music, text, fonts | Decoders ported and tested against the whole disc |
 | Stage data (`.tre`, `.hpc`, `.cat`, ...) | Loaders found; `.hpc` and `.tre` containers known, fields open |
-| Renderer (Direct3D 7 to GLES 3) | API surface known; not started |
+| Renderer (Direct3D 7 to GLES 3) | Device emulation and state layer done; cars and stages draw in a viewer |
 | Front end | Mapped (0x4d0000-0x500000); not started |
 | Vehicle simulation | Located (0x428000-0x445000, 16.16 fixed point), step model known (25 Hz fixed); not started |
 | Movies (Bink 1) | Not started |

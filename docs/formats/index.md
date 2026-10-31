@@ -2,7 +2,8 @@
 
 What the game reads from the disc and writes to the disk, as far as known. Each page gives the layout,
 the loader in `CMR2.exe` and what is still open. The reference decoders are in `tools/` (stdlib Python):
-`bfl.py` reads the containers. Community knowledge may inform the notes; the exe is the authority.
+`bfl.py` reads the containers, `cmr2fmt.py` decodes textures, sounds and models (and exports them to PNG,
+WAV and OBJ). Community knowledge may inform the notes; the exe is the authority.
 
 | Page | Formats |
 |---|---|

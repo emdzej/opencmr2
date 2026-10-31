@@ -53,8 +53,9 @@ portable game runtime: the same module natively (`gasm-run`) and in the browser.
 
 ## Status
 
-The disc and the program are analysed and the plan is written. Step 1 is done: the file layer runs on gasm
-from the CD or its image, the installer cabinet included. Details in [Status](/guide/status).
+The disc and the program are analysed and the plan is written. Steps 1 and 2 are done: the file layer runs
+on gasm from the CD or its image, the installer cabinet included, and every texture, sound, font, text
+table and model on the disc decodes. Details in [Status](/guide/status).
 
 ## Sibling projects
 

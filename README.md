@@ -7,8 +7,9 @@ and Windows, and in the browser.
 
 [![Built for gasm](https://gasm.emdzej.pl/badge/built-for-gasm-flat.svg)](https://gasm.emdzej.pl)
 
-**Status: step 1 of the port.** The disc and the program are analysed, the formats documented, the port
-planned, and the file layer runs on gasm from the CD or its image. Nothing is playable yet.
+**Status: step 2 of the port.** The disc and the program are analysed, the formats documented, the port
+planned; the file layer runs on gasm from the CD or its image, and every texture, sound, font, text table
+and model on the disc decodes. Nothing is playable yet.
 
 Site: [opencmr2.emdzej.pl](https://opencmr2.emdzej.pl) (sources in `docs/`):
 

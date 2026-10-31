@@ -90,5 +90,5 @@ checks pass (`FUN_004b7560(1024)`, `FUN_004b7590(1024)`; not read yet), else 640
 | `Sounds/Car/<engine>.bfl` | Engine sound sets (`205.bfl`, `focus.bfl`, ...) |
 | `Sounds/surface.bfl` | Not an archive: one RIFF WAVE |
 
-Member counts over the whole disc: 7,317 DDS, 3,515 TGA, 613 WAV, 94 `.dmd`, 72 `.pcf`, 15 text files, and
+Member counts over the whole disc: 7,804 DDS, 4,003 TGA, 609 WAV (5 of them empty), 94 `.dmd`, 72 `.pcf`, 20 `.txt`, and
 the stage member types (188 of each, two per stage).

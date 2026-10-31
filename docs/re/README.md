@@ -32,8 +32,10 @@ the original function by function.
   git-ignored: it is derived from the original.
 - **Names.** `tools/ghidra/names.tsv` is the record: address, name, module, confidence (high = read and
   understood, med = from calls and strings, low = guess), description. Rename there, re-run the script.
-- **Data.** `tools/bfl.py <file> [outdir]` lists or extracts any file of the disc; decoded data goes to
-  `out/` (git-ignored).
+- **Data.** `tools/bfl.py <file> [outdir]` lists or extracts any file of the disc; `tools/cmr2fmt.py
+  png|wav|obj <file[:member]>` exports a texture, sound or model (`obj` places a car's parts by their
+  matrices and writes the textures as PNGs; for a stage pass the country's `<country>hit.bfl` as the
+  texture archive). Decoded data goes to `out/` (git-ignored).
 
 ## Rules for the notes
 

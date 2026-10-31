@@ -17,14 +17,19 @@ executable. **Fidelity is the product.** Reproduce the original's behaviour, inc
 If something looks wrong, check the disassembly; if the original does it, keep it and add a comment. Only
 fix deviations *of the port* from the original.
 
-**State:** step 1 done (skeleton, file layer with ISO and the InstallShield cabinet, own inflate,
-`File_Load` / `Bfl_*`, exe check and first tables). Read `docs/re/port-plan.md` (the order of work, each step with its check),
-`docs/re/architecture.md` and `docs/formats/`. Next: step 2 (decoders and viewers).
+**State:** steps 1-2 done (skeleton, file layer with ISO and the InstallShield cabinet, own inflate,
+`File_Load` / `Bfl_*`, exe check; decoders for TGA/DXT, WAV/MS ADPCM, text, fonts, PP_F models); step 3
+in progress (`src/render/`: the D3D7 device with a GLES 3 back end, the render-state layer; viewers
+`--param car=` / `--param stage=`, docs/re/render.md). Read `docs/re/port-plan.md` (the order of work,
+each step with its check), `docs/re/architecture.md` and `docs/formats/`.
 
 Build and check: `cmake -S . -B build && cmake --build build && ctest --test-dir build` (native tests);
 gasm: `tools/fetch-gasm-sdk.sh`, then the `build-gasm` commands in `CMakeLists.txt`, run with
-`gasm-run build-gasm/opencmr2.wasm --headless 10 --asset cd=CMR2.ISO`. `tools/bfl.py --summary cd` gives the
-hash `bfl_test` must match (`OPENCMR2_BFL_SUMMARY`).
+`gasm-run build-gasm/opencmr2.wasm --headless 10 --asset cd=CMR2.ISO` (the runner is in
+`.deps/gasm-runner-macos-universal/`; add `--param car=205c1 --screenshot out/car.png` for the viewer). `tools/bfl.py --summary cd` gives the
+hash `bfl_test` must match (`OPENCMR2_BFL_SUMMARY`); `tools/cmr2fmt.py --summary cd` the three `fmt_test`
+hashes (`OPENCMR2_FMT_IMAGES`, `_MODELS`, `_SOUNDS`; about a minute on all cores). `tools/cmr2fmt.py
+png|wav|obj <file[:member]>` exports into `out/`.
 
 ## Hard rules
 
@@ -44,7 +49,7 @@ hash `bfl_test` must match (`OPENCMR2_BFL_SUMMARY`).
 
 ## Game data
 
-The user's disc image: `/Volumes/dropbox/CMR2.ISO` (ISO 9660, 683,599,872 bytes). Development copies:
+The user's disc image: `/Volumes/dropbox/CMR2.ISO` (ISO 9660, 683,599,872 bytes; a network volume, slow: use the local copy `~/Downloads/CMR2.ISO` for tests). Development copies:
 `./cd` (`bsdtar -xf CMR2.ISO -C cd`) and `./game` (files from the cabinet: `CMR2.exe`, `Game/DemoRuns`).
 The exe exists only inside the InstallShield cabinet; `src/vfs_cab.c` layers the cabinet over the mounted
 CD, so the port needs only the CD (`tools/iscab.py` is the reference reader). See `docs/howto/extract-cd.md`.
