@@ -156,7 +156,7 @@ bool viewer_init(const char *car, const char *stage)
             plat_log("viewer: no such stage");
             return false;
         }
-        if (!Stage_Mount(path, tex) || !Stage_LoadC3d()) {
+        if (!Stage_Mount(path, tex) || !Stage_LoadC3d() || (Stage_LoadScenery(), false)) {
             plat_log("viewer: no such stage");
             return false;
         }
@@ -310,7 +310,12 @@ void viewer_frame(void)
         V.camera.dirty = 1;
         Obj_Frame(&g_world, &V.camera);
         Section_BuildVisible(&V.camera);
+        Billboard_SetCamera(&V.camera);
+        Light_SetMode(0);   /* World_Render's modes: 0 for the terrain, 1 for the scenery */
         Stage_DrawTerrain(&g_stage_mesh);
+        Light_SetMode(1);
+        Section_DrawBillboards(&V.camera);
+        Billboard_DrawQueued();
         snprintf(V.title, sizeof V.title, "%s  %d of %d cells in view", V.name, g_nvisible, g_nsec);
     }
     /* a translucent band and the title over it (layer 1 of both queues); the meshes left blending off

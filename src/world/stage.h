@@ -17,3 +17,9 @@ bool Stage_Mount(const char *stage_bfl, const char *tex_bfl);
    track textures and the port's C3d_Build), its objects under the world, its sections registered. */
 bool Stage_LoadC3d(void);
 void Stage_Unload(void);   /* the port */
+extern C3d g_stage_obj, g_stage_sht;   /* TEMP.OBJ (scenery), TEMP.SHT */
+bool Stage_LoadObj(void);              /* 0x472830 */
+bool Stage_LoadSht(void);              /* 0x472870 */
+void Stage_LoadScenery(void);          /* 0x471af0 */
+/* where TEMP.OBJ's and TEMP.SHT's objects and scenery records start in the tables */
+extern int g_obj_first, g_obj_scenery, g_sht_first, g_sht_scenery;

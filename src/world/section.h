@@ -9,10 +9,27 @@
 
 enum { SEC_MAX = 0x1000 };
 
+/* A scenery record (a second-kind mesh's 0xa0-byte extra: TEMP.OBJ, TEMP.SHT). */
+typedef struct Scenery {
+    uint8_t *rec;
+    const C3d *model;
+    int32_t pos[3];            /* +0x00 */
+    uint8_t *mesh;             /* +0x0c (mesh flag 2: a billboard turned to the camera) */
+    FxMat m;                   /* +0x18: its placement (rotation and position, 16.16) */
+    D3DMATRIX f;               /* +0x58: a billboard's world matrix, made each frame */
+    struct Scenery *next;      /* +0x98: the next in its cell */
+} Scenery;
+
+enum { SCENERY_MAX = 0x4000 };
+extern Scenery *g_scenery[SCENERY_MAX];   /* 0x669364 */
+extern int g_nscenery;                     /* DAT_0067f228 */
+
 typedef struct {
     uint8_t *rec;              /* the file record */
     int32_t x, y, z;           /* +0x00: the cell's centre (16.16) */
     uint8_t *mesh;             /* +0x10: its stage mesh, or NULL */
+    Scenery *scenery;          /* +0x14: the scenery in it */
+    int32_t nscenery;          /* +0x18 */
     Obj *objs;                 /* +0x1c: the objects in it (linked through section_next) */
     int32_t nobjs;             /* +0x20 */
     int32_t corner[8];         /* +0x5c: x, z of four corners of the mesh's bounding rectangle */
@@ -41,3 +58,15 @@ bool Section_Visible(int i);               /* 0x4b7da0 */
 void Section_BuildVisible(const Obj *camera);
 /* Stage_DrawTerrain 0x49cec0: every listed cell's mesh with the identity world matrix. */
 void Stage_DrawTerrain(const C3d *m);
+
+/* The scenery part of C3d_Fixup: a model's second-kind meshes' records into the table. */
+void Scenery_Register(const C3d *m);
+void Scenery_FreeAll(void);   /* the port */
+/* The billboard turn (0x597cc0, made in World_Render 0x49d3f0 from the camera's forward x and z). */
+void Billboard_SetCamera(const Obj *camera);
+/* Section_DrawBillboards 0x49d040: the listed cells' scenery; billboards get their matrix and distance
+   and are queued (FUN_0049cb50), the rest drawn as they are (world space, the current world matrix). */
+void Section_DrawBillboards(const Obj *camera);
+/* 0x49cc50: the queued billboards far to near (qsort on the distance in their mesh, +0x114), blended
+   within 200 units. */
+void Billboard_DrawQueued(void);

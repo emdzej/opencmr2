@@ -5,9 +5,19 @@
 #include "render/mesh.h"
 #include "render/view.h"
 #include <math.h>
+#include <stdlib.h>
+#include "exe.h"
+#include "render/tex.h"
 #include <string.h>
 
 Section g_sec[SEC_MAX];
+Scenery *g_scenery[SCENERY_MAX];
+int g_nscenery;
+static Scenery *scenery_blocks[64];
+static int nscenery_blocks;
+static float bb_turn[16];                     /* 0x597cc0 */
+static Scenery *queued[SCENERY_MAX];          /* 0x593cb0 */
+static int nqueued;                           /* DAT_0059ce28 */
 int g_nsec, g_sec_row, g_sec_rows;
 int32_t g_sec_size, g_sec_half;
 uint16_t g_visible[SEC_MAX];
@@ -139,6 +149,14 @@ void Section_Init(Obj *world)
         } while (same);
     }
     g_sec_rows = g_nsec / g_sec_row;
+    /* the scenery into its cells, each put in front of the cell's list */
+    for (int i = 0; i < g_nscenery; i++) {
+        Scenery *sc = g_scenery[i];
+        int c = Section_Find(sc->pos);
+        sc->next = g_sec[c].scenery;
+        g_sec[c].scenery = sc;
+        g_sec[c].nscenery++;
+    }
     link_objects(world);
     corners();
 }
@@ -223,4 +241,108 @@ void Stage_DrawTerrain(const C3d *m)
         bool poly = (f & 0x1000) != 0;
         Mesh_Draw(m, me, !poly, poly, 0);
     }
+}
+
+void Scenery_Register(const C3d *m)
+{
+    if (!m->nmesh2 || nscenery_blocks == 64) return;
+    Scenery *b = calloc(m->nmesh2, sizeof *b);
+    if (!b) return;
+    scenery_blocks[nscenery_blocks++] = b;
+    uint32_t meshes2 = m->meshes + (uint32_t)m->nmesh1 * C3D_MESH;
+    for (int i = 0; i < m->nmesh2 && g_nscenery < SCENERY_MAX; i++) {
+        Scenery *sc = &b[i];
+        sc->rec = m->data + m->mesh2x + (size_t)i * C3D_MESH2X;
+        sc->model = m;
+        for (int k = 0; k < 3; k++) sc->pos[k] = rd32(sc->rec + 4 * k);
+        sc->mesh = (uint8_t *)C3d_Ref(m, sc->rec + 0x0c, meshes2);
+        for (int k = 0; k < 16; k++) sc->m.m[k] = rd32(sc->rec + 0x18 + 4 * k);
+        g_scenery[g_nscenery++] = sc;
+    }
+}
+
+void Scenery_FreeAll(void)
+{
+    for (int i = 0; i < nscenery_blocks; i++) free(scenery_blocks[i]);
+    nscenery_blocks = 0;
+    g_nscenery = 0;
+    for (int i = 0; i < g_nsec; i++) g_sec[i].scenery = NULL, g_sec[i].nscenery = 0;
+}
+
+/* A turn about y facing along the camera's forward direction (x and z, normalised). */
+void Billboard_SetCamera(const Obj *cam)
+{
+    int32_t fx = cam->world.m[8], fz = cam->world.m[10];
+    uint32_t len = Fx_Sqrt((uint32_t)fx_mul(fx, fx) + (uint32_t)fx_mul(fz, fz));
+    int32_t nx = 0, nz = 0;
+    if (len) {
+        int32_t inv = (int32_t)(0x100000000LL / (int32_t)len);
+        nx = fx_mul(fx, inv);
+        nz = fx_mul(fz, inv);
+    }
+    FxMat t = {{0}};
+    t.m[0] = nz;
+    t.m[2] = -nx;
+    t.m[5] = 0x10000;
+    t.m[8] = nx;
+    t.m[10] = nz;
+    t.m[15] = 0x10000;
+    Mat_ToFloat(bb_turn, &t);
+}
+
+static void wr32(uint8_t *p, uint32_t v) { p[0] = (uint8_t)v, p[1] = (uint8_t)(v >> 8), p[2] = (uint8_t)(v >> 16), p[3] = (uint8_t)(v >> 24); }
+
+/* The distance is written into the mesh record (+0x114), so records sharing a mesh share the last
+   one's distance. Records with +0x14 clear are skipped. */
+void Section_DrawBillboards(const Obj *cam)
+{
+    for (int k = 0; k < g_nvisible; k++)
+        for (Scenery *sc = g_sec[g_visible[k]].scenery; sc; sc = sc->next) {
+            if (!sc->rec[0x14] || !sc->mesh) continue;
+            if (!(rd32(sc->mesh + 0x30) & 2)) {
+                Mesh_Draw(sc->model, sc->mesh, 1, 0, 0);
+                continue;
+            }
+            float f[16];
+            memcpy(f, bb_turn, sizeof f);
+            if (sc->m.m[0] != 0x10000 || sc->m.m[5] != 0x10000 || sc->m.m[10] != 0x10000) {
+                float a = (float)sc->m.m[0] * (1.0f / 65536.0f), b = (float)sc->m.m[5] * (1.0f / 65536.0f),
+                      c = (float)sc->m.m[10] * (1.0f / 65536.0f);
+                for (int j = 0; j < 3; j++) f[j] *= a, f[4 + j] *= b, f[8 + j] *= c;
+            }
+            for (int j = 0; j < 3; j++) f[12 + j] = (float)sc->m.m[12 + j] * (1.0f / 65536.0f);
+            memcpy(sc->f.m, f, sizeof f);
+            int32_t dx = cam->world.m[12] - sc->pos[0], dz = cam->world.m[14] - sc->pos[2];
+            wr32(sc->mesh + 0x114, Fx_Sqrt((uint32_t)fx_mul(dx, dx) + (uint32_t)fx_mul(dz, dz)));
+            if (nqueued < SCENERY_MAX) queued[nqueued++] = sc;
+        }
+}
+
+/* FUN_0049cb90: far before near. */
+static int by_distance(const void *a, const void *b)
+{
+    int32_t da = rd32((*(Scenery *const *)a)->mesh + 0x114), db = rd32((*(Scenery *const *)b)->mesh + 0x114);
+    return db <= da ? -1 : 1;
+}
+
+/* Each one's first polygon's texture back to blend type 0; flag 8 (blended) within 200 units. The order
+   of equal distances is qsort's (the original's runtime may differ). */
+void Billboard_DrawQueued(void)
+{
+    if (!nqueued) return;
+    if (exe_u32(0x5207b4)) qsort(queued, (size_t)nqueued, sizeof *queued, by_distance);
+    for (int i = 0; i < nqueued; i++) {
+        Scenery *sc = queued[i];
+        uint8_t *part = sc->mesh;
+        const uint8_t *p = C3d_Ref(sc->model, part + 0x24, sc->model->polys);
+        if (p) {
+            int32_t t = rd32(p + 4);
+            if (t >= 0 && t < TEX_MAX) Tex_SetBlend(g_tex[t], 0);
+        }
+        D3d_SetTransform(D3DTS_WORLD, &sc->f);
+        uint32_t f = (uint32_t)rd32(part + 0x30);
+        wr32(part + 0x30, rd32(part + 0x114) < 0xc80000 ? f | 8 : f & ~8u);
+        Mesh_Draw(sc->model, sc->mesh, 1, 0, 0);
+    }
+    nqueued = 0;
 }

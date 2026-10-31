@@ -190,3 +190,11 @@
 0041f500	Track_TexSlot	track	high	The track texture archive slot (0x538858) when loaded, else NULL
 004552c0	Stage_Slot	track	high	The stage archive slot (0x541f38)
 004d08d0	Game_Init	misc	low	Start-up work, Math_InitTables among it
+0049d3f0	World_Render	world	high	The world frame: 2D layer 4, visible cells, sky objects, terrain, overlay, cars, effects, scenery, 2D layer 3
+00471af0	Stage_LoadScenery	track	high	Loads TEMP.OBJ, TEMP.SHT, the sky and ground, noting the object and scenery counts before each
+0049cb50	Billboard_Queue	world	high	Queues a billboard scenery record for the far-to-near pass
+0049cb70	Obj_QueueSorted	world	high	Queues an object for the sorted object pass (0x49cd20)
+0049cb90	Billboard_CompareFar	world	high	qsort compare: far before near (mesh +0x114)
+0049cbc0	Obj_CompareFar	world	med	qsort compare for the sorted object pass
+0049cc50	Billboard_DrawQueued	world	high	Draws the queued billboards far to near, blended within 200 units
+0049cd20	Obj_DrawQueued	world	high	Draws the queued objects sorted

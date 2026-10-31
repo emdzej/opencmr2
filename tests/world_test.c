@@ -28,7 +28,12 @@ int main(void)
     VB_CreatePool();
     CHECK(Stage_Mount("Game\\Tracks\\France\\Fra02Hi.bfl", "Game\\Tracks\\France\\frahit.bfl"));
     CHECK(Stage_LoadC3d());
+    Stage_LoadScenery();
+    CHECK(g_nscenery == 1595 + 236 && g_sht_scenery == 1595);
     Section_Init(&g_world);
+    int placed = 0;
+    for (int i = 0; i < g_nsec; i++) placed += g_sec[i].nscenery;
+    CHECK(placed == g_nscenery);
     CHECK(g_nsec == 360 && g_sec_row == 18 && g_sec_rows == 20 && g_sec_size == 64 << 16 && g_sec_half == 32 << 16);
     int32_t p[3] = {512 << 16, 0, 1190 << 16};   /* in cell 8 (x 480-544, z 1184-1248) */
     CHECK(Section_Find(p) == 8);
@@ -50,6 +55,12 @@ int main(void)
     CHECK(has41 && g_nvisible > 9 && g_nvisible < 60);
     D3dStats b = D3d_Stats();
     Stage_DrawTerrain(&g_stage_mesh);
+    CHECK(D3d_Stats().draws > b.draws);
+    Billboard_SetCamera(&cam);
+    b = D3d_Stats();
+    Section_DrawBillboards(&cam);
+    Billboard_DrawQueued();
+    printf("scenery in view: %u draws\n", D3d_Stats().draws - b.draws);
     CHECK(D3d_Stats().draws > b.draws);
     Stage_Unload();
     printf("world_test: %s\n", fails ? "FAILED" : "ok");

@@ -98,6 +98,51 @@ Each cell keeps its objects in a list (head `+0x1c`, count `+0x20`, linked throu
 `+0x170`). `Obj_UpdateSection` 0x4b8690 moves an object between cells as its world position
 (`+0x108`) changes, and records up to three neighbouring cells within 4.5 units of an edge at `+0x28`.
 
+## Scenery
+
+`TEMP.OBJ` and `TEMP.SHT` hold no objects, only second-kind meshes, each with a 0xa0-byte record.
+France stage 2 has 1,595 and 236 of them.
+
+The record:
+- `+0x00` the position;
+- `+0x0c` the mesh;
+- `+0x10` flags;
+- `+0x14` an enable byte;
+- `+0x18` a 16.16 placement matrix (rotation and position);
+- `+0x58` a float matrix made at run time (zero on disc);
+- `+0x98` the next record.
+
+`C3d_Fixup` registers the records at 0x669364 (count 0x67f228). `Section_Init` puts each one in front
+of its cell's list (`+0x14`, count `+0x18`). Meshes without flag 2 have world-space vertices (the
+walls of trees, hedges, rocks, the `.sht` sheets) and are drawn as they are. Meshes with flag 2 (1,572
+in `TEMP.OBJ`: the trees) are billboards.
+
+For a billboard, `Section_DrawBillboards` 0x49d040:
+- copies the frame's camera-facing turn (made in `World_Render` from the camera's forward x and z: a
+  turn about y) into `+0x58`;
+- scales it by the placement's diagonal and moves it to the placement's position;
+- writes its distance from the camera into the mesh record (`+0x114`), so records sharing a mesh share
+  the last distance;
+- queues it.
+
+`Billboard_DrawQueued` 0x49cc50 sorts the queue far to near (qsort; the order of equal distances
+is the runtime's). It resets each billboard's first texture to blend type 0, marks it blended (flag 8)
+within 200 units, and draws it with its matrix.
+
+## The world frame
+
+`World_Render` 0x49d3f0 draws one view, in this order:
+1. Start the scene, set the viewport; draw 2D layer 4 (behind everything).
+2. List the visible cells and run a per-cell set-up for each (0x4b3c00).
+3. Make the billboard turn.
+4. With fog and lighting off and the far plane at 150, draw the objects in the cells
+   (`Section_DrawObjects` 0x49ce40, z-buffer off: the sky and ground).
+5. With linear fog and lighting mode 0, draw the terrain; then the overlay table in mode 5.
+6. Draw the cars and effect layers (0x4af120, 0x4bbd80 with several masks).
+7. In mode 1, draw the scenery, then the sorted objects and billboards (the order of the last two
+   depends on 0x59ce14).
+8. Draw the indexed effects (`Render_DrawIndexed`), then full-screen 2D layer 3.
+
 ## Loading a stage
 
 `Stage_Load` 0x41f930 (the start-up of the game fills the math tables first, 0x4d08d0), in order:
@@ -111,16 +156,17 @@ Each model goes through `C3d_Load` with two arguments:
 - the parent object at `0x536be0`, under which the model's roots hang;
 - the texture archive slot at `0x538858`, used only when it is loaded.
 
-`TEMP.OBJ` (the scenery, `Stage_LoadObj` 0x472830), `TEMP.SHT` (0x472870) and the sky and ground
-(`Stage_LoadSkyGround` 0x46f060) load the same way from elsewhere.
+`Stage_LoadScenery` 0x471af0 (step 3, before the sections) loads `TEMP.OBJ` (`Stage_LoadObj`
+0x472830), `TEMP.SHT` (0x472870) and the sky and ground (`Stage_LoadSkyGround` 0x46f060) the same way.
+It notes the object and record counts before each, which are the ranges those files own.
 
 ## The port
 
 `src/world/obj.c` copies each record into an `Obj` with real pointers, since links cross models. The
 record stays reachable for the fields not yet understood. The update, commit, draw and view are
 ported, and so are the grid, the lookup, the corners, the visible list and the terrain draw
-(`src/world/section.c`) and `Stage_LoadC3d` (`src/world/stage.c`). Still to come: the billboards,
-the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
+(`src/world/section.c`) and `Stage_LoadC3d` (`src/world/stage.c`). The scenery and billboards are ported
+too (`Stage_LoadScenery`, `Section_DrawBillboards`, `Billboard_DrawQueued`). Still to come: the overlay, the object draw per cell, the edge heights, `Obj_UpdateSection` and the section test. The car viewer hangs the car
 under a turning stand and takes the view from a camera object, so a car on screen goes through these
 functions. `tests/d3d7_test.c` checks the 205's tree: world = local plus the stand's move, the float
 matrix, the inverse view, and all 672 triangles drawn through `Obj_Draw`. The stage viewer loads `TEMP.C3D` with

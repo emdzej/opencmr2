@@ -136,8 +136,8 @@ Movies are skipped at this point (the original lets a key skip them): the Bink d
 and the stage mesh with its section grid, visible cells and terrain draw (`Stage_LoadC3d`,
 `Section_Init`, `Section_BuildVisible`, `Stage_DrawTerrain`). Both viewers run on these. Next: the
 rest of `Stage_Load` 0x41f930 (horizons, BSP, `.hpc`, `.srf`, `fin.dat`, `.csp`, `.cat`, `.tsc`,
-`.tre`), the scenery (`TEMP.OBJ`), sky and ground, the cell object draw and the time-step texture
-animation.
+`.tre`), the sky and ground, the cell object draw, `World_Render` as a whole and the time-step
+texture animation. The scenery (`TEMP.OBJ`, `TEMP.SHT`) and its billboards are done.
 
 
 Mode 2 (`World_Frame` 0x4ff450) and the race set-up: stage loading (`Stage_Load*`, 0x41f560-0x420630,
