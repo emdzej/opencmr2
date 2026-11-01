@@ -286,6 +286,7 @@ bool viewer_init(const char *car, const char *stage)
             /* the first player with the first profile (the front end's player set-up), with a manual
                box for --param gears=manual */
             Player_SetProfile(0, 0);
+            Profile_Create(0);
             int id = Car_IdByName(car);   /* and the car (the player record's low six bits) */
             if (id >= 0) gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)id);
             char g[16];

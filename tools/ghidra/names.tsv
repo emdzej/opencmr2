@@ -472,3 +472,11 @@
 00415db0	Hud_TimeSigned	hud	high	Hud_Time with a + or - prefix
 00410100	Race_IntroInfo	race	med	The stage's name and records over the view, fading in the first 2.25 s
 00411f70	Hud_Update	hud	med	The HUD's per-player state each step (0x536e04, 18 ints a player)
+00448100	Times_Clear	race	high	The race clock cleared at the go
+00448120	Times_Step	race	high	The race clock's step; per car its splits and finish
+00448de0	Times_Tick	race	high	The race clock 4 a step, shown with a -1 to 2 jitter (rand), capped at an hour
+00448110	Times_Race	race	high	The shown race time (0x53d1b0)
+004483c0	Times_Finish	race	high	A car's finish time (0x53d1b8)
+00448cf0	Times_Finished	race	high	A car's finish: done, its time kept
+00408a00	Profile_HudFlags	game	high	The player's profile's HUD panel flags (+0x574)
+004ebf20	Profile_Create	frontend	high	A player's profile cleared to the defaults (camera, box, HUD panels, chase settings)

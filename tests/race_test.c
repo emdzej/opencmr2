@@ -7,6 +7,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/hud.h"
 #include "game/car_load.h"
 #include "world/tod.h"
 #include "game/stage_load.h"
@@ -76,7 +77,8 @@ int main(void)
     memset(&g_world, 0, sizeof g_world);
     g_world.kind = 3;
     Profiles_Init();
-    Player_SetProfile(0, 0);   /* the front end's player set-up: profile 0, the 205 */
+    Player_SetProfile(0, 0);
+    Profile_Create(0);   /* the front end's player set-up: profile 0, the 205 */
     gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)Car_IdByName("205"));
     Tod_Select("fra02");   /* the front end's selection */
     Race_Begin(&host);
@@ -118,12 +120,14 @@ int main(void)
                 printf("wheel 0: %d of 12 terms changed over a step\n", diff);
                 CHECK(diff > 0);
             }
+            printf("HUD race time %d\n", Times_Race());
+            CHECK(Times_Race() >= 290 && Times_Race() <= 310);
             CHECK(Race_StageTime(0) >= 290 && Race_StageTime(0) <= 310 && CI32(c, 0x778) > 0x8000);
             fin = frame;
         }
     }
     CHECK(stage_loads == 1 && car_loads == 1);
-    /* the recovery's fade drawn over the view (0x428680): two triangles queued once it runs */
+    /* the overlays: the time panel's box and the recovery's fade (0x428680), two triangles each */
     if (Game_Mode() == 3) {
         CW32(Car_Get(0), 0xbf8, 1);
         for (int k = 0; k < 6; k++, frame++) {
@@ -134,7 +138,7 @@ int main(void)
         int before = Tri_Queued();
         Race_DrawOverlays(0);
         printf("fade: level %.3f, %d triangles queued\n", Fade_LevelOf(0) / 65536.0, Tri_Queued() - before);
-        CHECK(Fade_LevelOf(0) > 0 && Tri_Queued() - before == 2);
+        CHECK(Fade_LevelOf(0) > 0 && Tri_Queued() - before == 4);
     }
     CHECK(seen[5] && seen[7] && seen[8] && seen[5] < seen[7] && seen[7] < seen[8]);
     /* the countdown: five seconds of 40 ms steps from its first frame, 300 frames at 60 Hz */

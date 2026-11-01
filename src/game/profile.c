@@ -53,3 +53,17 @@ void Player_SetProfile(int player, int profile)
     uint32_t a = 0x531350 + 0x30u * (uint32_t)player;
     gw32(a, (gm32(a) & ~(0xfu << 0x12)) | ((uint32_t)profile & 0xf) << 0x12);
 }
+
+void Profile_Create(int player)
+{
+    uint32_t t = player_profile(player), base = 0x52fa08 + t * 0x650;
+    for (uint32_t a = base; a < base + 0x650; a += 4) gw32(a, 0);
+    uint32_t p = 0x52fa1c + t * 0x650;
+    gw32(p + 0x44, 4);
+    gw32(p, (gm32(p) & 0xffe1f17e) | 0x1017e);
+    gw32(p + 0x40, gm32(p + 0x40) | 0x20);
+    gw32(p + 0x38, 0xf11);
+    gw8(0x52ff90 + t * 0x650, (uint8_t)((gm8(0x52ff90 + t * 0x650) & 0xfc) | 0x3c));   /* the HUD panels */
+    default_camera(player);
+    gw32(0x52fa00 + 4 * t, 0);
+}

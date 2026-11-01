@@ -7,3 +7,6 @@
 
 void Profiles_Init(void);              /* 0x4eadb0 */
 void Player_SetProfile(int player, int profile);   /* the front end's player set-up (port) */
+/* 0x4ebf20: the player's profile cleared to the defaults: camera 4, the automatic box, the HUD panels
+   (display flags 0x3c: the standings, the time, the split difference), the chase camera's settings */
+void Profile_Create(int player);

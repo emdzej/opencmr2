@@ -4,6 +4,7 @@
 #include "game/proc.h"
 #include "game/camera.h"
 #include "game/common.h"
+#include "game/hud.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/timer.h"
@@ -109,7 +110,7 @@ static void Race_Update(uint8_t state, bool flag)
             }
             if ((uint32_t)i < np) {
                 PENDING_NOTE(0x445ea0, "Replay_Record");
-                PENDING_NOTE(0x411f70, "Hud_Gauges");
+                Hud_Update(i, kind == 5 || kind == 7);   /* 0x411f70 */
                 if (state == 8 || state == 9) PENDING_NOTE(0x417090, "Codriver_Step");
                 else if (state == 7) PENDING_NOTE(0x416f70, "Codriver_Start");
                 PENDING_NOTE(0x404e10, "Pause_Pressed");
@@ -124,7 +125,8 @@ static void Race_Update(uint8_t state, bool flag)
         if (car0) {
             for (int i = 0; i < g_all.n; i++) Car_Progress(Car_Get(g_all.car[i]));   /* 0x4209f0 */
             sectors();
-            PENDING_NOTE(0x448120, "Race_Step 0x448120, 0x45e7f0");
+            Times_Step();   /* 0x448120 */
+            PENDING_NOTE(0x45e7f0, "Race_Step 0x45e7f0");
         }
         for (uint32_t i = 0; i < np; i++)
             if (Car_Get((int)i)->s[0xb43]) Camera_Step((int)i);   /* 0x4219b0 */
@@ -241,6 +243,7 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
     if (R.countdown >= 500 || R.skip) {
         Proc_Event(g, slot, 0, 2);
         PENDING_NOTE(0x46c750, "Replay_Start");
+        Times_Clear();            /* 0x448100 */
         timer_start((int)slot);   /* the stage time runs from the go */
     }
 }
@@ -339,7 +342,11 @@ static void draw(ProcGroup *g, uint32_t slot)
     if (H->draw) H->draw((int)slot, Proc_State(g, slot));
 }
 
-void Race_DrawOverlays(int player) { fade_overlay(player, gm8(0x52af40) != 0); }
+void Race_DrawOverlays(int player)
+{
+    Hud_Draw(player);   /* 0x4125f0, in the view 0x40f0c0 */
+    fade_overlay(player, gm8(0x52af40) != 0);
+}
 
 /* The table at 0x5190b0 in its order; 6 (the intro camera, 0x472e00) and 13 (0x41e5c0) are not ported */
 static const ProcState states[14] = {
