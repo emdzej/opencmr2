@@ -206,8 +206,17 @@ int main(void)
         }
         printf("results after %d frames: state %d, active %d\n", f2, Race_State(0), Results_Active());
         CHECK(Race_State(0) == 10 && Results_Active());
-        static const int keys[] = {0x1c, 0x1c, 0x1c, 0x1c, 0xc8, 0x1c, 0};
-        for (int k = 0; k < 7; k++)
+        int pages = 0;
+        for (; pages < 8 && !Results_AtChoices(); pages++)
+            for (int i = 0; i < 40; i++, frame++) {
+                plat_host_key(0x1c, i < 3);
+                Timer_Sample((uint32_t)((uint64_t)frame * 1000 / 60));
+                Race_Frame();
+            }
+        printf("the choices after %d pages (a new record %d)\n", pages, gm8(0x817410));
+        CHECK(Results_AtChoices());
+        static const int keys[] = {0xc8, 0x1c};
+        for (int k = 0; k < 2; k++)
             for (int i = 0; i < 40; i++, frame++) {
                 plat_host_key(keys[k], i < 3);
                 Timer_Sample((uint32_t)((uint64_t)frame * 1000 / 60));

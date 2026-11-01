@@ -17,6 +17,7 @@
 #include "sim/fade.h"
 #include "text.h"
 #include <stdio.h>
+#include <string.h>
 
 static Menu pg_title, pg_times, pg_splits, pg_board, pg_end;   /* 0x53ea68, 0x541218, 0x53f5b0, 0x53e4b8, 0x541400 */
 static Menu *page, *next;          /* DAT_00541cc8, DAT_00541ccc */
@@ -24,6 +25,7 @@ static Menu *shown;                /* DAT_00541dfc */
 static int settle;                 /* DAT_00541e00 */
 static bool active;
 static char holder[32];            /* DAT_00519ee0: the stage record's holder, lower case */
+static char record_name[32];       /* DAT_00519edc: the holder after the update */
 
 static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }
 static const uint8_t *C(uint32_t va) { return gm(va); }   /* 0x519ecc, 0x519ed0, 0x519ed4 */
@@ -141,7 +143,48 @@ static void draw_times(Menu *m)
     Font_SetLayer(2);
 }
 
-/* the splits and board pages (0x44d790, 0x44d960): their tables not ported yet */
+/* 0x44d790: "high score" and "congratulations", "<holder> you have set the fastest time for this
+   stage" */
+static void draw_record(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    dim();
+    if (mode() == 5 || mode() == 6) PENDING_NOTE(0x44d790, "the arcade's record page");
+    const char *t[2] = {Text_Get(0x49), Text_Get(0x46)};
+    titles(w * 0x1e / 0x280, h * 0xf2 / 0x1e0, t, 2);
+    char b[200];
+    snprintf(b, sizeof b, exe_str(0x519f68), record_name, Text_Get(0x4a));
+    Text_ToFontCase(b);
+    Font_Print(0, b, w * 0x1e / 0x280, h * 10 / 0x1e0 + h * 0xf2 / 0x1e0 + Font_Height(0), C(0x519ecc), 0x11);
+    Font_SetLayer(2);
+}
+
+/* 0x4cfa10: a player's stage time into the stage's record when faster (the holder, the car, the box,
+   the time in bits 7-22, the ten split times at +0x914 and 0x817448; the original reads the tenth from
+   the next player's row); true if it was */
+static bool stage_record(int p, int id, const char *name)
+{
+    uint32_t idx = gm32(0x8173fc) + gm32(0x8173f8) * 0xb, e = 0x52b044 + 0x654 + idx * 8;
+    int32_t t = Times_Finish(p);   /* 0x4d0280: the champion tables' time */
+    if (t < 0 || (int32_t)(gm32(e + 4) >> 7 & 0xffff) <= t) return false;
+    snprintf((char *)gm(e), 4, "%s", name);
+    uint32_t v = gm32(e + 4);
+    uint32_t prof = gm32(0x531350 + 0x30u * (uint32_t)id) >> 0x12 & 0xf;
+    uint32_t car = gm32(0x531350 + 0x30u * (uint32_t)id) & 0x3f, box = prof == 0xf ? 1 : gm32(0x52fa5c + prof * 0x650) >> 5 & 1;
+    v = (v & 0xff80003fu) | ((uint32_t)t & 0xffff) << 7 | box << 6 | car;
+    gw32(e + 4, v);
+    for (int i = 0; i < 10; i++) {
+        int32_t sp = Times_Split(p + i / 9, i % 9);
+        gw16(0x52b044 + 0x914 + idx * 0x14 + 2u * (uint32_t)i, (uint16_t)sp);
+        gw32(0x817448 + 4u * (uint32_t)i, (uint32_t)(uint16_t)sp);
+    }
+    gw8(0x817410, 1);
+    return true;
+}
+
+/* the board page (0x44d960): the stage's standings against the computer drivers, not ported yet */
 static void draw_pending(Menu *m)
 {
     (void)m;
@@ -249,7 +292,19 @@ void Results_Start(bool again)
     Menu_Init(&pg_board, NULL, 0, NULL, false, NULL, 1, 0, 0);
     Menu_AddList(&pg_board, NULL, 0, 0xb, 0, false, to_target, 0);
     Menu_SetCallbacks(&pg_board, NULL, NULL, draw_pending, NULL);
+    Menu_SetCallbacks(&pg_splits, NULL, NULL, draw_record, NULL);
     if (mode() != 2 && mode() != 3) PENDING_NOTE(0x44a1b0, "the results' pages of the other modes");
+    /* the stage record (not in a challenge, with the cheats' options, after a recovery's penalty, or
+       for the "cmr" driver) */
+    bool record = false;
+    const char *pn = player_name(0);
+    if (mode() != 4 && !gm8(0x52afc2) && !(gm32(0x52afbc) >> 0xb & 1) && strncmp(pn, exe_str(0x519ec4), 3))
+        for (int i = 0; i < (int)Gs_SelBits14(); i++)
+            if (Times_Finish(i) > 0 && !Gs_SelBit24() && stage_record(i, Race_Base() + i, player_name(Race_Base() + i))) record = true;
+    snprintf(record_name, sizeof record_name, "%s", (const char *)gm(0x52b044 + 0x654 + ((gm32(0x52f2ac) & 0x1f) * 0xb + (gm32(0x52f2ac) >> 5 & 0x1f)) * 8));
+    /* with a new record the times go on to the congratulations, else to the board */
+    if (record) pg_times.items[0].target = &pg_splits, pg_board.parent = &pg_splits;
+    else pg_times.items[0].target = &pg_board, pg_board.parent = &pg_times;
     /* single stage and time trial: the board on to the choices (0x53e4d8) */
     build_end(&pg_board, 0x23);
     pg_board.items[0].target = &pg_end;
@@ -261,6 +316,7 @@ void Results_Start(bool again)
 }
 
 bool Results_Active(void) { return active; }
+bool Results_AtChoices(void) { return active && page == &pg_end; }
 void Results_Stop(void) { active = false; }
 
 /* 0x448e70: not while a fade runs; the select only in the super special; no back on the first page */

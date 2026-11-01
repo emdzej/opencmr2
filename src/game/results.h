@@ -11,3 +11,4 @@ bool Results_Active(void);
 void Results_Stop(void);
 void Results_Step(void);          /* 0x448e70, each step of state 10 */
 void Results_Draw(void);          /* 0x44b330, in state 10's draw */
+bool Results_AtChoices(void);     /* the port: the choices page is up */
