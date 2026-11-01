@@ -43,6 +43,11 @@ static struct {
     int32_t push[3];       /* 0x5914a8 */
     int32_t n[3];          /* 0x5915e8 */
     int32_t soft, hard;    /* DAT_005915dc, DAT_00591468 */
+    int32_t opush[3];      /* 0x5914b8: the object's share of a box push */
+    int32_t obox[B_INTS];  /* 0x5915f8: the object's box, in the car box's layout */
+    int8_t ncar, nobj;     /* DAT_005915f4, DAT_005914d4: car corners in the object's box, and back */
+    uint8_t car_at[4], car_ax[4];   /* 0x5914c4, 0x590ec8: those corners, the axis (0 forward, 2 side) */
+    uint8_t obj_at[4], obj_ax[4];   /* 0x590ecc, 0x5914a4 */
 } S;
 
 static int32_t rd32(const uint8_t *p) { return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24); }
@@ -332,6 +337,229 @@ static bool cyl_hit(Car *c, int32_t *b, int32_t k)
     return true;
 }
 
+/* 0x487c40: the object's box from its volume's 7.9 box at pos: the axes, the extents, the y range,
+   the four corners at the lowest y */
+static void obj_box(int32_t *o, const Vol *v, const int32_t pos[3])
+{
+    if (o[B_VALID]) return;
+    const int16_t *b = v->box;
+    o[B_EXT_F] = b[4] << 9, o[B_EXT_S] = b[5] << 9;
+    o[B_FWD] = b[0] << 9, o[B_FWD + 1] = 0, o[B_FWD + 2] = b[1] << 9;
+    o[B_SIDE] = b[1] << 9, o[B_SIDE + 1] = 0, o[B_SIDE + 2] = b[0] * -0x200;
+    o[B_YMAX] = b[2] * 0x200 + pos[1], o[B_YMIN] = b[3] * 0x200 + pos[1];
+    int32_t fx = fx_mul(o[B_FWD], o[B_EXT_F]), fz = fx_mul(o[B_FWD + 2], o[B_EXT_F]);
+    int32_t sx = fx_mul(o[B_SIDE], o[B_EXT_S]), sz = fx_mul(o[B_SIDE + 2], o[B_EXT_S]);
+    int32_t c[4][2] = {{fx - sx, fz - sz}, {sx + fx, sz + fz}, {-fx - sx, -fz - sz}, {sx - fx, sz - fz}};
+    for (int i = 0; i < 4; i++) {
+        o[B_CORNER + 3 * i] = c[i][0] + pos[0];
+        o[B_CORNER + 3 * i + 1] = o[B_YMIN];
+        o[B_CORNER + 3 * i + 2] = c[i][1] + pos[2];
+    }
+    o[B_VALID] = 1;
+}
+
+/* 0x4894b0: a box push of t along u: the object's share t k (kept, as the object box has no corners
+   to move), the car's the rest (the car, its eight corners and its flat box's) */
+static void box_push(Car *c, int32_t *b, const int32_t u[3], int32_t t, int32_t k)
+{
+    for (int i = 0; i < 3; i++) S.n[i] = u[i];
+    if (t <= 0) return;
+    int32_t m = fx_mul(t, k);
+    if (k != 0)
+        for (int i = 0; i < 3; i++) S.opush[i] += fx_mul(u[i], m);
+    if (k != 0x10000) {
+        int32_t p[3], r = -(t - m);
+        for (int i = 0; i < 3; i++) p[i] = fx_mul(u[i], r), S.push[i] += p[i];
+        move_by(c, b, p, true);
+    }
+}
+
+/* The corners of box `in` within box `of` (positions relative to of's centre `at`): for each, the
+   time along d (in of's frame) out through the nearer face, the axis of that face; the largest of
+   those times */
+static int32_t corners_in(const int32_t *in, const int32_t *of, const int32_t at[3], const int32_t d[3], int8_t *n, uint8_t *idx, uint8_t *ax, bool *any)
+{
+    int32_t cf = fx_mul(of[B_FWD + 2], d[2]) + fx_mul(of[B_FWD], d[0]) + fx_mul(of[B_FWD + 1], d[1]);
+    int32_t cs = fx_mul(of[B_SIDE + 2], d[2]) + fx_mul(of[B_SIDE], d[0]) + fx_mul(of[B_SIDE + 1], d[1]);
+    int32_t most = 0;
+    for (int i = 0; i < 4; i++) {
+        int32_t x = in[B_CORNER + 3 * i] - at[0], z = in[B_CORNER + 3 * i + 2] - at[2];
+        int32_t ef = fx_mul(of[B_FWD + 2], z) + fx_mul(of[B_FWD], x), es = fx_mul(of[B_SIDE + 2], z) + fx_mul(of[B_SIDE], x);
+        if (of[B_EXT_F] < iabs(ef) || of[B_EXT_S] < iabs(es)) continue;
+        bool h0 = false, h1 = false;
+        int32_t t0 = 0, t1 = 0, best = 0x7d000000;
+        if (cf >= 0x42) t0 = fdiv(of[B_EXT_F] - ef, cf), h0 = true;
+        else if (cf < -0x41) t0 = fdiv(iabs(of[B_EXT_F] + ef), -cf), h0 = true;
+        if (cs >= 0x42) t1 = fdiv(of[B_EXT_S] - es, cs), h1 = true;
+        else if (cs < -0x41) t1 = fdiv(iabs(of[B_EXT_S] + es), -cs), h1 = true;
+        if (h0 && t0 < 0x7d000000) best = t0, ax[*n] = 0;
+        if (h1 && t1 < best) best = t1, ax[*n] = 2;
+        if (most < best && (h1 || h0)) most = best;
+        *any = true;
+        idx[(*n)++] = (uint8_t)i;
+    }
+    return most;
+}
+
+/* 0x489060: the edges a-b (the car's) and c-d (the object's), crossing now, against the motion d:
+   the shortest time back along it at which an end of one leaves the other edge; `which` 0 the
+   object's edge is met by a car corner (kind 0 a, 1 b), 1 the car's by an object corner (2 c, 3 d) */
+static int32_t edge_time(const int32_t dir[3], const int32_t *a, const int32_t *b, const int32_t *c, const int32_t *d, int *which, int *kind)
+{
+    int32_t dx2 = d[0] - c[0], dz2 = d[2] - c[2], dx1 = b[0] - a[0], dz1 = b[2] - a[2];
+    int32_t acx = a[0] - c[0], caz = c[2] - a[2], daz = d[2] - a[2], bcx = b[0] - c[0], cbz = c[2] - b[2], adx = a[0] - d[0];
+    int32_t den = fx_mul(dz1, dx2) - fx_mul(dx1, dz2);
+    if (iabs(den) <= 0x28f) return 0x7d000000;
+    int32_t inv = (int32_t)(0x100000000LL / den);
+    int32_t s = fx_mul(fx_mul(dx1, caz) + fx_mul(dz1, acx), inv);
+    if (s < 0 || 0x10000 < s) return 0x7d000000;
+    s = fx_mul(fx_mul(dx2, caz) + fx_mul(dz2, acx), inv);
+    if (s < 0 || 0x10000 < s) return 0x7d000000;
+    int32_t best;
+    int32_t den2 = fx_mul(dx2, dir[2]) - fx_mul(dz2, dir[0]);
+    if (iabs(den2) < 0x290) best = 0x7d000000;
+    else {
+        int32_t i2 = (int32_t)(0x100000000LL / den2);
+        int32_t u = fx_mul(fx_mul(dir[0], caz) + fx_mul(dir[2], acx), i2), t;
+        if (u < 0 || 0x10000 < u || (t = -fx_mul(fx_mul(dx2, caz) + fx_mul(dz2, acx), i2), t < 0 || 0x7cffffff < t)) best = 0x7d000000;
+        else best = t, *which = 0, *kind = 0;
+        u = fx_mul(fx_mul(dir[0], cbz) + fx_mul(dir[2], bcx), i2);
+        if (-1 < u && u < 0x10001) {
+            t = -fx_mul(fx_mul(dx2, cbz) + fx_mul(dz2, bcx), i2);
+            if (-1 < t && t < best) *which = 0, *kind = 1, best = t;
+        }
+    }
+    int32_t den3 = fx_mul(dz1, dir[0]) - fx_mul(dx1, dir[2]);
+    if (iabs(den3) < 0x290) return best;
+    int32_t i3 = (int32_t)(0x100000000LL / den3);
+    int32_t u = fx_mul(fx_mul(dir[0], caz) + fx_mul(dir[2], acx), i3);
+    if (-1 < u && u < 0x10001) {
+        int32_t t = fx_mul(fx_mul(dx1, caz) + fx_mul(dz1, acx), i3);
+        if (-1 < t && t < best) *which = 1, *kind = 2, best = t;
+    }
+    u = fx_mul(fx_mul(dir[0], daz) + fx_mul(dir[2], adx), i3);
+    if (u < 0 || 0x10000 < u) return best;
+    int32_t t = fx_mul(fx_mul(dx1, daz) + fx_mul(dz1, adx), i3);
+    if (t < 0 || best <= t) return best;
+    *which = 1, *kind = 3;
+    return t;
+}
+
+/* 0x488de0: no corner inside either box: each of the car box's edges against each of the object's
+   (corners in the order of the table at 0x51fadc), the largest time kept; its corner listed as a
+   car corner in the object box or the other way round, the axis 2 unless the other edge's ends are
+   neighbours in the table (0) */
+static bool edges(const int32_t *b, const int32_t *o, const int32_t dir[3], int32_t *time)
+{
+    int32_t best = -0x640000;
+    bool car_corner = false;
+    uint8_t ax = 0, at = 0;
+    for (int l = 0; l < 4; l++) {
+        uint8_t a = gm8(0x51fadc + (uint32_t)l), bb = gm8(0x51fadc + (uint32_t)((l + 1) & 3));
+        for (int u = 1; u <= 4; u++) {
+            uint8_t cc = gm8(0x51fadc + (uint32_t)(u - 1)), dd = gm8(0x51fadc + (uint32_t)(u & 3));
+            int which = 0, kind = 0;
+            int32_t t = edge_time(dir, &b[B_CORNER + 3 * a], &b[B_CORNER + 3 * bb], &o[B_CORNER + 3 * cc], &o[B_CORNER + 3 * dd], &which, &kind);
+            (void)which;
+            if (t == 0x7d000000 || t <= best) continue;
+            best = t;
+            if (kind < 2) {
+                at = kind == 0 ? a : bb;
+                car_corner = true;
+                ax = iabs((int)cc - (int)dd) != 1 ? 2 : 0;
+            } else {
+                at = kind == 2 ? cc : dd;
+                car_corner = false;
+                ax = iabs((int)a - (int)bb) != 1 ? 2 : 0;
+            }
+        }
+    }
+    if (best < 0) return false;
+    if (!car_corner) S.obj_ax[S.nobj] = ax, S.obj_at[S.nobj++] = at;
+    else S.car_ax[S.ncar] = ax, S.car_at[S.ncar++] = at;
+    *time = best;
+    return true;
+}
+
+/* 0x488640: the car's flat box against the object's (overlapping in y): the motion is the line from
+   the car's last position (+0x2e8) to the object; the object's corners inside the car box push it
+   back along it, then the car's inside the object box (along the reverse, in its frame), or with
+   neither, the crossing edges (0x488de0) */
+static bool box_box(Car *c, int32_t *b, int32_t *o, int32_t k)
+{
+    if (b[B_YMAX] < o[B_YMIN] || o[B_YMAX] < b[B_YMIN]) return false;
+    S.nobj = S.ncar = 0;
+    memset(S.push, 0, sizeof S.push);
+    memset(S.opush, 0, sizeof S.opush);
+    int32_t last[3] = {CI32(c, 0x2e8), CI32(c, 0x2ec), CI32(c, 0x2f0)};
+    int32_t x = S.pos[0] - last[0], z = S.pos[2] - last[2];
+    uint32_t l = Fx_Sqrt((uint32_t)fx_mul(x, x) + (uint32_t)fx_mul(z, z));
+    int32_t u[3] = {0, 0, 0};
+    if (l) {
+        int32_t r = (int32_t)(0x100000000LL / (int32_t)l);
+        u[0] = fx_mul(x, r), u[2] = fx_mul(z, r);
+    }
+    bool any = false;
+    int32_t cp[3];
+    car_pos(c, cp);
+    int32_t t = corners_in(o, b, cp, u, &S.nobj, S.obj_at, S.obj_ax, &any);
+    if (any) box_push(c, b, u, t, k);
+    bool found = any;
+    int32_t back[3] = {-u[0], -u[1], -u[2]};
+    any = false;
+    t = corners_in(b, o, S.pos, back, &S.ncar, S.car_at, S.car_ax, &any);
+    if (any) box_push(c, b, u, t, k);
+    found = found || any;
+    if (!found && edges(b, o, u, &t)) {
+        found = true;
+        box_push(c, b, u, t, k);
+    }
+    return found;
+}
+
+/* 0x487f60: a box hit: the contact as the mean of the listed corners (the car's eight-corner points
+   for its own, the object box's for the object's), the normal as the sum of their faces' axes (each
+   turned to agree with the sum so far) made unit; for a fixed object with corners on one side only
+   the push is kept along the normal; the contact into the car's frame, the thresholds 0.5 and 1.34 */
+static bool box_hit(Car *c, int32_t *b, uint32_t f)
+{
+    bool movable = (f & 0x2001000) != 0;
+    if (!box_box(c, b, S.obox, movable ? 0x10000 : 0)) return false;
+    int32_t sum[3] = {0, 0, 0}, n[3] = {0, 0, 0}, cp[3];
+    car_pos(c, cp);
+    for (int i = 0; i < S.ncar; i++) {
+        uint32_t q = S.car_at[i];
+        sum[0] += CI32(c, 0x270 + 12 * q) - cp[0];
+        sum[2] += CI32(c, 0x278 + 12 * q) - cp[2];
+        const int32_t *a = &S.obox[S.car_ax[i] == 0 ? B_FWD : B_SIDE];
+        int32_t dt = fx_mul(a[2], n[2]) + fx_mul(a[0], n[0]) + fx_mul(a[1], n[1]);
+        for (int k = 0; k < 3; k++) n[k] += dt < 0 ? -a[k] : a[k];
+    }
+    for (int i = 0; i < S.nobj; i++) {
+        const int32_t *p = &S.obox[B_CORNER + 3 * S.obj_at[i]];
+        sum[0] += p[0] - cp[0];
+        sum[2] += p[2] - cp[2];
+        const int32_t *a = &b[S.obj_ax[i] == 0 ? B_FWD : B_SIDE];
+        int32_t dt = fx_mul(a[2], n[2]) + fx_mul(a[0], n[0]) + fx_mul(a[1], n[1]);
+        for (int k = 0; k < 3; k++) n[k] += dt < 0 ? -a[k] : a[k];
+    }
+    int32_t r = (int32_t)(0x100000000LL / ((int32_t)(S.ncar + S.nobj) << 16));
+    sum[0] = fx_mul(sum[0], r), sum[1] = 0, sum[2] = fx_mul(sum[2], r);
+    Vec_Unit(n);
+    if (!movable && (S.ncar == 0 || S.nobj == 0)) {
+        int32_t d = fx_mul(n[2], S.push[2]) + fx_mul(n[0], S.push[0]) + fx_mul(n[1], S.push[1]);
+        int32_t m[3] = {fx_mul(n[0], d) - S.push[0], fx_mul(n[1], d) - S.push[1], fx_mul(n[2], d) - S.push[2]};
+        move_by(c, b, m, true);
+        PENDING_NOTE(0x48c870, "Cars_PushGroup");
+    }
+    memcpy(S.n, n, sizeof n);
+    int32_t l[3];
+    Walls_RotT(c, l, sum);
+    for (uint32_t i = 0; i < 3; i++) CW32(c, 0x5dc + 4 * i, l[i]);
+    S.soft = 0x8000, S.hard = 0x1570a;
+    return true;
+}
+
 /* 0x487e50: a low object (flag 0x4000) under the car's box: bumps under the wheels */
 static void low_object(Car *c, const int32_t *b)
 {
@@ -402,8 +630,9 @@ static bool respond(Car *c, const Entry *e, int id)
     for (int i = 0; i < CI8(c, 0xb3e); i++)
         if ((int16_t)(c->s[0xad6 + 2 * i] | c->s[0xad7 + 2 * i] << 8) == id) seen = true;
     if (!seen) {
-        if (!S.box) PENDING_NOTE(0x466ef0, "Car_Damage");   /* Car_Damage(c, S.pos, S.n, S.r, 1, 0) */
-        else PENDING_NOTE(0x466ef0, "Car_Damage (a box)");
+        /* a cylinder: at its centre with its radius (kind 1); a box: at the first car corner in it
+           (kind 0), else at the first of its corners in the car's box (kind 2), else none */
+        if (!S.box || S.ncar || S.nobj) PENDING_NOTE(0x466ef0, "Car_Damage");
     }
     if (!down && knock) {
         CW32(c, 0x96c, 0x10000);
@@ -467,12 +696,15 @@ int Car_Scenery(Car *c)
                 hit = 0;
                 if (pass == 1 && !up_for(e, idx)) continue;
                 int32_t *b = Walls_CarBox(c);
+                memcpy(S.pos, pos, sizeof pos);
                 if (S.box) {
-                    PENDING_NOTE(0x487f60, "Car_SceneryBox (0x487c40, 0x487f60)");
+                    S.obox[B_VALID] = 0;
+                    obj_box(S.obox, e->v, S.pos);   /* 0x487c40 */
+                    hit = box_hit(c, b, f);          /* 0x487f60 */
+                    if (hit && respond(c, e, 0)) PENDING_NOTE(0x46fe70, "Scenery_Knock");
                     continue;
                 }
                 /* 0x487e00: the centre, the radius, the height of the mesh's first volume */
-                memcpy(S.pos, pos, sizeof pos);
                 S.r = e->v->r;
                 S.h = rd32(vol_first(e->sc) + 0x4c);
                 if (f & 0x4000) {
@@ -505,5 +737,23 @@ bool Scenery_CollAt(int i, int32_t pos[3], int32_t *r, bool *box, uint32_t *flag
     *r = ent_s[i].v->r;
     *box = ent_s[i].v->has_box;
     *flags = rflags(ent_s[i].sc);
+    return true;
+}
+
+bool Scenery_CollTestBox(Car *c, const int32_t pos[3], const int16_t box[6], uint32_t flags)
+{
+    Vol v = {0x10000, true, {box[0], box[1], box[2], box[3], box[4], box[5]}};
+    Scenery sc = {0};
+    uint8_t rec[0xa0] = {0};
+    rec[0x10] = (uint8_t)flags, rec[0x11] = (uint8_t)(flags >> 8), rec[0x12] = (uint8_t)(flags >> 16), rec[0x13] = (uint8_t)(flags >> 24);
+    sc.rec = rec;
+    Entry e = {&sc, &v};
+    int32_t *b = Walls_CarBox(c);
+    memcpy(S.pos, pos, sizeof S.pos);
+    S.box = true;
+    S.obox[B_VALID] = 0;
+    obj_box(S.obox, &v, S.pos);
+    if (!box_hit(c, b, flags)) return false;
+    respond(c, &e, 0);
     return true;
 }

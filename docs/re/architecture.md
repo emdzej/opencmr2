@@ -155,8 +155,8 @@ Sim_Step's collision pass 0x4877a0 runs after the car step and before 0x42cd00. 
 flat box (0x98 bytes per car at 0x590ed0), runs the car-to-car contacts 0x48a1f0 in the modes that
 have them (0x46bd50), then per car (the list from its end) the scenery objects 0x4878a0 (with +0xb64
 clear) and the walls 0x48e0a0, and keeps the box's four corners for the next step. Ported in
-`src/sim/walls.c`, and the scenery in `src/sim/scenery.c`; the car-to-car contacts, the scenery's
-boxes and knocked-down objects, the damage and the sparks are pending.
+`src/sim/walls.c`, and the scenery in `src/sim/scenery.c`; the car-to-car contacts, knocking scenery
+down, the damage and the sparks are pending.
 
 - **The box** (0x486c30, once a step): the forward row flattened (the up row when the car points
   nearly straight up or down) and made unit, the side axis across it, the half lengths as the furthest
@@ -240,7 +240,24 @@ The 17 movable volumes (0x46008300 and 0x6008300) have radius 0.65.
   knock) and taken four times, and a hard knock also lifts the car by 0.25. The result goes into
   +0x5d0, clamped by 0x48c750.
 
-The boxes (0x487c40, 0x487f60 and its helpers 0x488640-0x4894b0) are pending.
+**Boxes.** A box (0x487c40) is rebuilt for each test from its 7.9 record in the car box's layout,
+with its four corners at the lowest y. Over the whole disc there are 6,779 fixed and 3,487 movable box
+volumes, against 256,185 cylinders. `0x488640` first rejects boxes that do not overlap in y. It then
+takes the motion as the flat line from the car's last position (+0x2e8) to the object, and pushes the
+car back along it:
+- by the largest time at which an object corner inside the car's box leaves it through the nearer
+  face;
+- then the same for the car's corners inside the object's box, along the reverse line in the object's
+  frame;
+- with neither, by the largest time among the crossing edges (0x488de0 and 0x489060). The edges come
+  from the corner order {0, 1, 3, 2} at 0x51fadc.
+
+A movable object takes the push itself (0x4894b0), and since its box has no corners to move, the car
+goes through. `0x487f60` then builds the contact point and normal:
+- the contact point is the mean of the listed corners;
+- the normal is the sum of the axes of the corners' faces, made unit;
+- for a fixed object with corners listed on one side only, the push is kept only along the normal;
+- the response thresholds are 0.5 and 1.34.
 
 ## Cameras
 

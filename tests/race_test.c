@@ -48,6 +48,7 @@ static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); fails++; } } while (0)
 
 static int stage_loads, car_loads;
+static int32_t iabs32(int32_t v) { return v < 0 ? -v : v; }
 
 static bool load_stage(void)
 {
@@ -220,6 +221,18 @@ int main(void)
                    (fx_mul(fx, at[0] - CI32(c, 0x2d0)) + fx_mul(fz, at[2] - CI32(c, 0x2d8))) / 65536.0, ef / 65536.0, b[B_EXT_F] / 65536.0,
                    v0 / 65536.0, v2 / 65536.0, CI32(c, 0x5c4) / 65536.0, CI32(c, 0x5cc) / 65536.0);
             CHECK(ef >= b[B_EXT_F] + tr - 0x100);
+            /* a fixed box (0x487f60) 2 by 2 by 2, square to the car, its near face 0.5 units into the
+               front of the car's box: pushed back until the faces meet */
+            b[B_VALID] = 0;
+            b = Walls_CarBox(c);
+            int32_t ext = b[B_EXT_F], ux = b[B_FWD], uz = b[B_FWD + 2];
+            int32_t bp[3] = {CI32(c, 0x2d0) + fx_mul(ux, ext + 0x8000), CI32(c, 0x2d4) - 0x8000, CI32(c, 0x2d8) + fx_mul(uz, ext + 0x8000)};
+            CW32(c, 0x2e8, CI32(c, 0x2d0)), CW32(c, 0x2ec, CI32(c, 0x2d4)), CW32(c, 0x2f0, CI32(c, 0x2d8));
+            int16_t bx[6] = {(int16_t)(ux >> 9), (int16_t)(uz >> 9), 0x100, 0, 0x80, 0x80};
+            bool hitbox = Scenery_CollTestBox(c, bp, bx, 0);
+            int32_t gap = fx_mul(ux, bp[0] - CI32(c, 0x2d0)) + fx_mul(uz, bp[2] - CI32(c, 0x2d8)) - ext - 0x10000;
+            printf("scenery: a box %s, the faces %.3f apart after the push\n", hitbox ? "hit" : "missed", gap / 65536.0);
+            CHECK(hitbox && iabs32(gap) < 0x800);
         }
     }
     /* the sectors (0x4581d0): the car walked along the centre line passes each split and finishes */
