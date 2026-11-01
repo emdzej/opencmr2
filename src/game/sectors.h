@@ -5,6 +5,7 @@
    rally (one way, no laps); the arcade and network cases are logged. */
 #pragma once
 #include <stdbool.h>
+#include <stdint.h>
 
 void Sectors_Init(void);     /* 0x458090 (Stage_Load): the split points */
 void Sectors_Start(void);    /* 0x458100 (the line, 0x424c50): every car's record */
@@ -15,3 +16,4 @@ int Sectors_Count(void);          /* 0x542c74: the split points */
 bool Sectors_Moved(int car);          /* 0x458230 */
 int Sectors_SplitIndex(int car);      /* 0x458370 */
 int Sectors_Shown(void);              /* 0x4583c0 */
+int32_t Sectors_Point(int i);         /* 0x4583b0: split i's cat point (16.16) */

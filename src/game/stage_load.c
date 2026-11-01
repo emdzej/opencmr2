@@ -1,6 +1,7 @@
 /* Stage_Load 0x41f930 (see stage_load.h). */
 #include "game/stage_load.h"
 #include "game/sectors.h"
+#include "game/opponents.h"
 #include "audio/codriver.h"
 #include "sim/progress.h"
 #include "world/fin.h"
@@ -35,6 +36,8 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     Stage_LoadCat(stage);
     Sectors_Init();   /* 0x458090 */
     Codriver_LoadCod(stage);   /* 0x416720 */
+    Stage_LoadTm(stage);       /* 0x455300 */
+    Opp_Times(true);           /* 0x455470 */
     /* 4: the trackside cameras' splines (0x48caa0), the sections */
     PENDING_NOTE(0x48caa0, "Stage_LoadTsc");
     Section_Init(&g_world);

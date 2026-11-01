@@ -8,6 +8,8 @@
 #include "game/mem.h"
 #include "game/race.h"
 #include "game/results.h"
+#include "game/select.h"
+#include "game/opponents.h"
 #include "platform_host.h"
 #include "audio/dsound.h"
 #include "audio/snd.h"
@@ -97,7 +99,9 @@ int main(void)
     Player_SetProfile(0, 0);
     Profile_Create(0);   /* the front end's player set-up: profile 0, the 205 */
     gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)Car_IdByName("205"));
-    Tod_Select("fra02");   /* the front end's selection */
+    Tod_Select("fra02");   /* the front end's selection: one player, the mode's flags (0x408020) */
+    gw32(0x52afb4, (gm32(0x52afb4) & 0xfffe1fffu) | 1u << 13);
+    Sel_ModeFlags();
     Race_Begin(&host);
     CHECK(Game_Mode() == 3);
     int seen[14] = {0}, frame = 0, go = -1, fin = -1;
@@ -205,6 +209,11 @@ int main(void)
             Race_Frame();
         }
         printf("results after %d frames: state %d, active %d\n", f2, Race_State(0), Results_Active());
+        /* the computer drivers' times from fra02.tm<difficulty>: in order, a few minutes */
+        printf("computer drivers: %d, fastest %d, 2nd %d, slowest %d (1/100 s)\n", Opp_Computers(), Opp_Time(0), Opp_Time(1),
+               Opp_Time(Opp_Computers() - 1));
+        CHECK(Opp_Computers() == 15 && Opp_Time(0) > 6000 && Opp_Time(0) <= Opp_Time(1) &&
+              Opp_Time(1) <= Opp_Time(Opp_Computers() - 1));
         CHECK(Race_State(0) == 10 && Results_Active());
         int pages = 0;
         for (; pages < 8 && !Results_AtChoices(); pages++)

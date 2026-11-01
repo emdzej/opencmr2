@@ -22,6 +22,7 @@
 #include "pending.h"
 #include "game/pause.h"
 #include "game/results.h"
+#include "game/opponents.h"
 #include "game/car_load.h"
 #include "audio/codriver.h"
 #include <string.h>
@@ -128,6 +129,7 @@ static void Race_Update(uint8_t state, bool flag)
             for (int i = 0; i < g_all.n; i++) Car_Progress(Car_Get(g_all.car[i]));   /* 0x4209f0 */
             Sectors_Step();   /* 0x4581d0 */
             Times_Step();   /* 0x448120 */
+            if (gm32(0x52f2ac) >> 0x15 & 1) Opp_Step(R.kind == 4 ? Race_Base() : 0);   /* 0x455590 */
             PENDING_NOTE(0x45e7f0, "Race_Step 0x45e7f0");
         }
         for (uint32_t i = 0; i < np; i++)
@@ -346,6 +348,7 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             for (int i = 0; i < g_all.n; i++) Car_Replace(g_all.car[i]);
             for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
             Codriver_Reset();   /* 0x416670 */
+            Opp_Times(false);   /* 0x455470 */
             Engine_Reset();
             Times_Clear();
             PENDING_NOTE(0x41e6b0, "Race_Restart's lights, splits and replay (0x463d00, 0x4584d0, 0x42b800)");
@@ -472,3 +475,4 @@ void Race_EventAll(uint32_t event, uint32_t prio)
 int Race_Cars(void) { return g_all.n; }
 int32_t Race_Frac(void) { return R.frac; }
 int Race_Base(void) { return gm8(0x537ef6); }   /* 0x41b370 */
+int Race_Kind(void) { return (int)R.kind; }   /* 0x41b380 */
