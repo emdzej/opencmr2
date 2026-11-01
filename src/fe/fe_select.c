@@ -525,3 +525,7 @@ void fe_4d6f10(Menu *m)
     Fe_Hint(Text_Get(0x57), true);
     if (gm32(0x52afb4) >> 19 & 1) Strip_DrawMain(&pg_81d6d8, false, NULL);
 }
+
+int Fe_ToSet(void) { return to_set; }
+int Fe_SetupPlayer(void) { return (int)players() - to_set - 1; }
+void Fe_PlayerTitle(char *dst, size_t cap) { snprintf(dst, cap, Text_Get(0xdc), (int)players() - to_set); }

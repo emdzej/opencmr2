@@ -2,6 +2,7 @@
 #pragma once
 #include "fe/menu.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 void Fe_SetPage(Menu *m);                 /* DAT_00818abc */
@@ -23,3 +24,6 @@ void Fe_SetPlayer(int n);                 /* 0x4ea480: the player whose input ru
 void List_Draw(Menu *m, const char *hdr, int cy, int x, int first, bool lit);
 /* 0x4d3fa0: n titles in a row, the last lit */
 void Fe_TitleRow(int x, int y, const char *const *names, int n);
+int Fe_ToSet(void);                       /* DAT_00819048: the players still to set up */
+int Fe_SetupPlayer(void);                 /* players - DAT_00819048 - 1: the one being set up */
+void Fe_PlayerTitle(char *dst, size_t cap);   /* "Player n" for that player */

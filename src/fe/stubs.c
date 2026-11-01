@@ -11,8 +11,6 @@ void fe_4d6460(Menu *m) { (void)m; PENDING_NOTE(0x4d6460, "front-end callback");
 void fe_4d6a60(Menu *m) { (void)m; PENDING_NOTE(0x4d6a60, "front-end callback"); }
 void fe_4d7380(Menu *m) { (void)m; PENDING_NOTE(0x4d7380, "front-end callback"); }
 void fe_4d7750(Menu *m) { (void)m; PENDING_NOTE(0x4d7750, "front-end callback"); }
-void fe_4d7db0(Menu *m) { (void)m; PENDING_NOTE(0x4d7db0, "front-end callback"); }
-void fe_4d8480(Menu *m) { (void)m; PENDING_NOTE(0x4d8480, "front-end callback"); }
 void fe_4d8950(Menu *m) { (void)m; PENDING_NOTE(0x4d8950, "front-end callback"); }
 void fe_4d8ed0(Menu *m) { (void)m; PENDING_NOTE(0x4d8ed0, "front-end callback"); }
 void fe_4d9450(Menu *m) { (void)m; PENDING_NOTE(0x4d9450, "front-end callback"); }
@@ -136,13 +134,8 @@ void fe_4f13c0(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4f13c0
 void fe_4f15d0(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4f15d0, "front-end callback"); }
 void fe_4f1640(Menu *m) { (void)m; PENDING_NOTE(0x4f1640, "front-end callback"); }
 void fe_4f16f0(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f16f0, "front-end callback"); }
-void fe_4f17d0(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f17d0, "front-end callback"); }
-void fe_4f1960(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f1960, "front-end callback"); }
 void fe_4f19d0(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f19d0, "front-end callback"); }
-void fe_4f1a10(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4f1a10, "front-end callback"); }
-void fe_4f1a40(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4f1a40, "front-end callback"); }
 void fe_4f1b30(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4f1b30, "front-end callback"); }
-void fe_4f1b90(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f1b90, "front-end callback"); }
 void fe_4f1bd0(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f1bd0, "front-end callback"); }
 void fe_4f1c00(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f1c00, "front-end callback"); }
 void fe_4f1d00(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f1d00, "front-end callback"); }
@@ -181,7 +174,6 @@ void fe_4f36e0(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f36e0,
 void fe_4f3970(Menu *m) { (void)m; PENDING_NOTE(0x4f3970, "front-end callback"); }
 void fe_4f3980(Menu *m) { (void)m; PENDING_NOTE(0x4f3980, "front-end callback"); }
 void fe_4f3990(Menu *m) { (void)m; PENDING_NOTE(0x4f3990, "front-end callback"); }
-void fe_4f39d0(Menu *m) { (void)m; PENDING_NOTE(0x4f39d0, "front-end callback"); }
 void fe_4f3a00(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4f3a00, "front-end callback"); }
 void fe_4f3a50(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4f3a50, "front-end callback"); }
 void fe_4f3a70(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f3a70, "front-end callback"); }

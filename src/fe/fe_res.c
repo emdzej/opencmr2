@@ -55,7 +55,7 @@ void Fe_LoadTextures(void)
     g_fe.gold = Fe_Texture(r, 0x524f58, Path_Root());
     g_fe.silver = Fe_Texture(r, 0x524f34, Path_Root());
     g_fe.bronze = Fe_Texture(r, 0x524f10, Path_Root());
-    PENDING_NOTE(0x4d2590, "the cars' front-end textures");
+    Fe_LoadCars();   /* 0x4d2590 */
 }
 
 /* 0x4f3b50: Sounds\menu\move, select, back, error, toggle (the names 9 bytes apart from 0x52544c), from
@@ -202,3 +202,30 @@ void Fe_LoadDots(void)
 }
 
 void Fe_LoadDmd(void) { PENDING_NOTE(0x4d5ca0, "the dot-matrix pictures (dmd)"); }
+
+/* 0x4d2590: each car's front and back pictures (frontend\Textures\cars\<name>F01, B01) and the three
+   liveries; the alternate Focus and Lancer cars and the Integrale's share their first car's. The
+   names are the strings the original lists on its stack (0x524c64 ...; "" for the shared ones). */
+void Fe_LoadCars(void)
+{
+    static const uint32_t names[22] = {0x524c64, 0x524c60, 0, 0, 0x524c58, 0, 0, 0, 0x524c50, 0x524c4c, 0x516ca4,
+                                       0x524c44, 0x524c3c, 0, 0, 0x524c34, 0x524c2c, 0x524c28, 0x524c20, 0x516c80,
+                                       0x524c18, 0x524c10};
+    char p[260];
+    for (int i = 0; i < 22; i++) {
+        if (!names[i]) {
+            int from = i <= 3 ? 1 : i <= 7 ? 4 : 12;
+            g_fe.car_front[i] = g_fe.car_front[from];
+            g_fe.car_back[i] = g_fe.car_back[from];
+            continue;
+        }
+        Path_Format(p, sizeof p, 0x524bec, Path_Root(), exe_str(names[i]));
+        g_fe.car_front[i] = Bfl_FindTexture(Fe_Res(), p, NULL, false, 0);
+        Path_Format(p, sizeof p, 0x524bc8, Path_Root(), exe_str(names[i]));
+        g_fe.car_back[i] = Bfl_FindTexture(Fe_Res(), p, NULL, false, 0);
+    }
+    for (int i = 0; i < 3; i++) {
+        Path_Format(p, sizeof p, 0x524ba0, Path_Root(), i + 1);
+        g_fe.livery[i] = Bfl_FindTexture(Fe_Res(), p, NULL, false, 0);
+    }
+}

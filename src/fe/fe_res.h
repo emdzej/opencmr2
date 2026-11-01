@@ -10,6 +10,8 @@ typedef struct {
     Tex *banner[8], *flag[8];    /* 0x818328, 0x818348: the rallies' banners and small flags */
     Tex *gold, *silver, *bronze; /* 0x8182c4, 0x8182c0, 0x8182bc */
     Tex *dot[4];                 /* 0x819e94: dot00-dot03 */
+    Tex *car_front[22], *car_back[22];   /* 0x81884c, 0x8182cc */
+    Tex *livery[3];              /* 0x818530 */
 } FeTextures;
 extern FeTextures g_fe;
 
@@ -25,5 +27,6 @@ bool Fe_LoadText(void);          /* 0x4f4b90 */
 void Fe_LoadCredits(void);       /* 0x4f4910 */
 int Fe_Credits(const FeCredit **lines);
 void Fe_ResetPanels(void);       /* 0x4ef150 */
-void Fe_LoadDots(void);          /* 0x4f3f60 */
+void Fe_LoadDots(void);
+void Fe_LoadCars(void);          /* 0x4d2590 */          /* 0x4f3f60 */
 void Fe_LoadDmd(void);           /* 0x4d5ca0 */
