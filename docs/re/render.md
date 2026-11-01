@@ -235,6 +235,12 @@ The loaders add flags of their own:
 
 Records start as type 0; `Mesh_DrawBatchesTex10` sets type 10 before binding.
 
+**Alpha keys** (for the cars' lamp lenses, [world](world.md#lamps)): 0x4a4d30 locks a texture and
+replaces three alpha values, one after another on each pixel. On a surface whose alpha mask has 8 bits
+it compares the whole byte; with 4 bits, the high nibble. The first call for a car first copies the
+surface into the car's record at 0x65ae20 + 0x130 n (64 of them, a format 9 surface). 0x4a5080 blits
+that copy back over a texture, and 0x4a5ba0 releases them all.
+
 ## Meshes
 
 `VB_CreatePool` 0x4b1980 makes 100 vertex buffers of 2,000 FVF-0x2d2 vertices (and three others).

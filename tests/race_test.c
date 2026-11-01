@@ -27,6 +27,7 @@
 #include "game/stage_load.h"
 #include "game/profile.h"
 #include "game/timer.h"
+#include "game/lamps.h"
 #include "render/d3d7.h"
 #include "render/mesh.h"
 #include "sim/car.h"
@@ -67,6 +68,7 @@ static bool load_cars(void)
     Sim_InitLists(1);   /* after the cars, as Cars_Load 0x456d90 does */
     Damage_SetDents(0, 0);   /* the scripted drive's wall hit would bend the car; the damage has its own check */
     Damage_CarsLoaded();
+    Frame_SetRate(0x190000);   /* 25 frames a second, Cars_Load 0x466630 */
     Car_ProgressStart(Car_Get(0));
     return true;
 }
@@ -78,6 +80,17 @@ static void input(int player, uint32_t *held, uint32_t *pressed)
     *held = ACT_THROTTLE;
     *pressed = press_camera ? ACT_CAMERA : 0;
     press_camera = 0;
+}
+
+/* the lens texture's pixels of an alpha (Lens_Step keys them by the lamps' levels) */
+static int lens_ff_stage = -1;
+static int lens_alpha(uint8_t a)
+{
+    Tex *t = Lens_Tex(0);
+    if (!t || !t->surface) return -1;
+    int n = 0;
+    for (int i = 0; i < t->surface->width * t->surface->height; i++) n += t->surface->rgba[4 * i + 3] == a;
+    return n;
 }
 
 static Obj camera;
@@ -136,6 +149,7 @@ int main(void)
             printf("start lights: %d, %d lit in the countdown, %d after the go; %d glows\n", Lights_Count(), lit_count, lit_go, Glow_Used());
             CHECK(Lights_Count() >= 7 && lit_count > 0 && lit_go > 0 && Glow_Used() >= Lights_Count());
         }
+        if (st == 8 && frame - go == 30) lens_ff_stage = lens_alpha(0xff);
         if (st == 8 && frame - go == 60) {
             CHECK(Camera_Kind(0) == 4);
             press_camera = 1;   /* the camera key: from the chase (4) to the far chase (5), blended */
@@ -362,11 +376,23 @@ int main(void)
            through the title, times, splits and board, up (round) to "quit", Enter: the fade, the
            results state, the front end */
         int f2 = 0;
+        int s9 = 0, brake_lit = 0, lens_ff_brake = -1;
+        int32_t brake_lens = 0, brake_glow = 0;
         for (; f2 < 900 && Race_State(0) != 10; f2++, frame++) {
             Timer_Sample((uint32_t)((uint64_t)frame * 1000 / 60));
             Race_Frame();
+            if (Race_State(0) == 9 && ++s9 == 100) {
+                /* the brake lamps (kinds 0 and 1) after the finish, the car braking to a stop */
+                for (int k = 0; k < Lamps_Count(0); k++) brake_lit += Lamps_On(0, k), brake_glow = Lamps_On(0, k) ? Lamps_Glow(0, k) : brake_glow;
+                Lens_Get(0, &brake_lens, NULL, 1);
+                lens_ff_brake = lens_alpha(0xff);
+            }
         }
         printf("results after %d frames: state %d, active %d\n", f2, Race_State(0), Results_Active());
+        printf("lamps: %d, %d lit braking after the finish at %.3f, lens %.3f, its opaque pixels %d (%d on the stage)\n",
+               Lamps_Count(0), brake_lit, brake_glow / 65536.0, brake_lens / 65536.0, lens_ff_brake, lens_ff_stage);
+        CHECK(Lamps_Count(0) > 4 && brake_lit == 2 && brake_glow == fx_mul(0xff00, 0xcccc) && brake_lens == 0xff00 &&
+              lens_ff_brake > lens_ff_stage);
         /* the computer drivers' times from fra02.tm<difficulty>: in order, a few minutes */
         printf("computer drivers: %d, fastest %d, 2nd %d, slowest %d (1/100 s)\n", Opp_Computers(), Opp_Time(0), Opp_Time(1),
                Opp_Time(Opp_Computers() - 1));

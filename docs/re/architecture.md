@@ -118,7 +118,8 @@ The car state (0xc24 bytes per car) is kept as the original's block and addresse
 ## Timing
 
 `Timer_Sample` 0x4a9b70 latches `timeGetTime()` once per frame; `Timer_Centis` 0x4a9b80 is a monotonic
-clock in 1/100 s built on it. Stage times are per player (0x58da10 start, 0x58da30 elapsed, penalties added
+clock in 1/100 s built on it. What fades per frame rather than per step (the lamps' lenses, the weather)
+is scaled by 25 over the measured frame rate ([the frame scale](world.md#lamps), 0x466630). Stage times are per player (0x58da10 start, 0x58da30 elapsed, penalties added
 in whole seconds by 0x478190).
 
 **The simulation runs in fixed steps** (confirmed). Each race frame, `Race_Update` 0x41c5a0 asks

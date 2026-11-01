@@ -79,6 +79,30 @@ static uint8_t *verts(const Dmg *d, int s)
 static int32_t vget(const uint8_t *v, uint32_t o) { float f; memcpy(&f, v + o, 4); return (int32_t)nearbyint((double)f * 65536.0); }
 static void vset(uint8_t *v, uint32_t o, int32_t x) { float f = (float)x * (float)(1.0 / 65536.0); memcpy(v + o, &f, 4); }
 
+bool Damage_Dents(int n) { return dents(n >= 0 && n < CAR_MAX ? n : 0); }
+Obj *Damage_PartObj(int n, int k) { return k >= 0 && k < 4 && n >= 0 && n < CAR_MAX ? part_obj[k][n] : NULL; }
+int Damage_Slots(int n) { return count(&dmg[n >= 0 && n < CAR_MAX ? n : 0]); }
+int Damage_SlotVerts(int n, int s) { return s >= 0 && s < SLOTS ? nverts(&dmg[n >= 0 && n < CAR_MAX ? n : 0], s) : 0; }
+
+bool Damage_RestVert(int n, int s, int v, int32_t p[3])
+{
+    const Dmg *d = &dmg[n >= 0 && n < CAR_MAX ? n : 0];
+    if (s < 0 || s >= SLOTS || !d->rest[s]) return false;
+    const uint8_t *r = d->rest[s] + 0x20 * (size_t)v;
+    for (int a = 0; a < 3; a++) p[a] = (int32_t)rd32(r + 4 * a);
+    return true;
+}
+
+bool Damage_Vert(int n, int s, int v, int32_t p[3])
+{
+    const Dmg *d = &dmg[n >= 0 && n < CAR_MAX ? n : 0];
+    const uint8_t *x = s >= 0 && s < SLOTS ? verts(d, s) : NULL;
+    if (!x) return false;
+    x += (size_t)v * C3D_VERTEX;
+    for (int a = 0; a < 3; a++) p[a] = vget(x, 4 * (uint32_t)a);
+    return true;
+}
+
 /* the mesh uploaded again; 0x4b4100 marks it in the car's relighting table (0x6e0124, not ported) */
 static void upload(const Dmg *d, int s)
 {

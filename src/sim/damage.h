@@ -35,3 +35,12 @@ void Damage_CarsLoaded(void);
 void Damage_Finish(int car);   /* 0x469a80: at the finish, this stage's panels and parts kept, logging off */
 void Damage_Store(int car);    /* 0x469b50: this stage's log into the player's carried damage (0x52ebc0) */
 void Damage_Misfire(Car *c);   /* 0x46b4e0: a broken engine's cutting out (the countdown +0x40c) */
+/* For the lamps (game/lamps.c): */
+bool Damage_Dents(int n);                    /* 0x46b4c0: car n's dents on */
+Obj *Damage_PartObj(int n, int k);           /* 0x484de0: car n's loose part k's object (NULL: none) */
+int Damage_Slots(int n);                     /* the record's +0x45c: the mesh slots */
+int Damage_SlotVerts(int n, int s);          /* +0x420 + 4s: slot s's vertices */
+/* slot s's vertex v at rest (the +0x78 arrays, 16.16); false when the slot has none */
+bool Damage_RestVert(int n, int s, int v, int32_t p[3]);
+/* 0x46b440: slot s's vertex v as the mesh has it now (the floats rounded to 16.16) */
+bool Damage_Vert(int n, int s, int v, int32_t p[3]);

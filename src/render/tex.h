@@ -42,7 +42,14 @@ Tex *Bfl_FindTexture(const BflSlot *archive, char *path, uint8_t *found, bool sk
    prefix of the names (FUN_0040ed50's buffer). */
 void C3d_Textures(const uint8_t *slots, uint8_t *paths, uint32_t ngroups, uint32_t kind,
                   const BflSlot *archive, const char *dir);
-void Tex_FreeAll(void);   /* the port: every record and surface */
+void Tex_FreeAll(void);   /* the port: every record and surface (and the copies, 0x4a5ba0) */
+/* The lamp lenses' copies (0x65ae20 + 0x130 n, 64 records): Tex_KeyAlpha 0x4a4d30 copies t's surface
+   into copy n the first time, then in t every pixel whose alpha is key1 gets alpha val1, then key2 val2,
+   then key3 val3, one after the other on the same pixel. The original's 4444 surfaces compare the alpha's
+   high nibble; the port's surfaces are RGBA8, the original's 32-bit branch (the whole byte). */
+void Tex_KeyAlpha(Tex *t, uint8_t key1, uint8_t val1, uint8_t key2, uint8_t val2, uint8_t key3, uint8_t val3, int n);
+void Tex_RestoreCopy(Tex *t, int n);   /* 0x4a5080: copy n blitted over t (stretched to t's size) */
+void Tex_FreeCopies(void);             /* 0x4a5ba0 */
 uint32_t Tex_LastBlend(void);   /* DAT_00520b18: the last blend type set up (-1: none) */
 uint32_t Tex_Binds(void);       /* DAT_0065fa24: texture binds (statistics) */
 void Tex_ForgetBlend(void);     /* 0x4a3dd0: the last blend type back to -1 */

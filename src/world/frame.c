@@ -1,6 +1,7 @@
 /* The world frame (see frame.h). */
 #include "world/frame.h"
 #include "world/glow.h"
+#include "game/timer.h"
 #include "render/sprite3d.h"
 #include "exe.h"
 #include "render/d3d7.h"
@@ -102,7 +103,7 @@ static void flush_layer(int layer)
 }
 
 /* Not ported yet, in the order they are called: FUN_004b0480 (camera, pass), FUN_004b6240 (pass), FUN_004bc490 (0, 0, 0)
-   over the 3D, and the frame statistics FUN_004b21e0 after the 2D. The 3D line queue (FUN_004bb4c0) is a
+   over the 3D; of the frame statistics FUN_004b21e0 after the 2D only the frame rate. The 3D line queue (FUN_004bb4c0) is a
    debugging aid nothing fills in the release. */
 bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
 {
@@ -185,6 +186,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
     flush_layer(2);
     flush_layer(1);
     Render_SetCull(Render_DefaultCull());
+    Frame_Stats();   /* 0x4b21e0 (the frame rate) */
     D3d_EndScene();
     return true;
 }

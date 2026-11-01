@@ -1,5 +1,6 @@
 /* The race started by the game (see play.h). */
 #include "game/play.h"
+#include "game/timer.h"
 #include "game/camera.h"
 #include "game/car_load.h"
 #include "game/mem.h"
@@ -44,6 +45,7 @@ static bool load_cars(void)
     }
     Sim_InitLists(1);
     Damage_CarsLoaded();
+    Frame_SetRate(0x190000);   /* 25 frames a second, Cars_Load 0x466630 */
     Car_ProgressStart(Car_Get(0));
     cars[0] = Car_Slot(0)->main;
     cars[1] = Car_Slot(0)->second;

@@ -369,8 +369,53 @@ void C3d_Textures(const uint8_t *g, uint8_t *paths, uint32_t ngroups, uint32_t k
     }
 }
 
+enum { COPIES = 64 };
+static D3dTexture *copies[COPIES];   /* the records' surfaces at 0x65af34 + 0x130 n (counted in
+                                        DAT_0065fa30, which nothing reads) */
+
+void Tex_KeyAlpha(Tex *t, uint8_t key1, uint8_t val1, uint8_t key2, uint8_t val2, uint8_t key3, uint8_t val3, int n)
+{
+    if (!t || !t->surface || n < 0 || n >= COPIES) return;
+    D3dTexture *s = t->surface;
+    size_t bytes = (size_t)s->width * (size_t)s->height * 4;
+    if (!copies[n]) {
+        /* Tex_CreateSurface 0x4a7410 (format 9) at the record's size, then the blit */
+        uint8_t *px = malloc(bytes);
+        if (!px) return;
+        memcpy(px, s->rgba, bytes);
+        copies[n] = D3dTex_Create(s->width, s->height, px);
+    }
+    for (size_t i = 0; i < bytes; i += 4) {
+        uint8_t *a = s->rgba + i + 3;
+        if (*a == key1) *a = val1;
+        if (*a == key2) *a = val2;
+        if (*a == key3) *a = val3;
+    }
+    s->dirty = true;
+}
+
+void Tex_RestoreCopy(Tex *t, int n)
+{
+    if (!t || !t->surface || n < 0 || n >= COPIES || !copies[n]) return;
+    D3dTexture *d = t->surface, *c = copies[n];
+    for (int y = 0; y < d->height; y++)
+        for (int x = 0; x < d->width; x++)
+            memcpy(d->rgba + ((size_t)y * d->width + x) * 4,
+                   c->rgba + ((size_t)(y * c->height / d->height) * c->width + (size_t)(x * c->width / d->width)) * 4, 4);
+    d->dirty = true;
+}
+
+void Tex_FreeCopies(void)
+{
+    for (int i = 0; i < COPIES; i++) {
+        D3dTex_Free(copies[i]);
+        copies[i] = NULL;
+    }
+}
+
 void Tex_FreeAll(void)
 {
+    Tex_FreeCopies();
     for (int i = 0; i < TEX_MAX; i++) {
         Tex *t = g_tex[i];
         if (!t) continue;

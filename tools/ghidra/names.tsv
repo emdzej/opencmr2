@@ -610,3 +610,29 @@
 00463410	Lights_Setup	game	high	The start lights' glows from the gantry and the layout tables
 00463ce0	Lights_Countdown	game	high	The start lights' countdown step (above 7: 6)
 00463d00	Lights_Reset	game	high	The start lights off, step 6
+00463d60	Lamps_Load	world	high	The cars' lamp textures (brkelite, revlite, hazdlite, headlite) for sprites and shafts
+00463fe0	Lamps_Setup	world	high	A car's .cin lamps as glows, each tied to its nearest damage vertex
+004643f0	Lamps_Step	world	high	A car's lamp glows from the lens levels: shown, level, ground plane, dent
+004664c0	Lamps_Frame	world	high	Per car each frame: 0x496e00, the lens, the lamps; then the weather
+00466360	Race_CarsPlaced	game	med	At the placing: the lamps and lenses of every car, then the stage set-ups and the start lights
+00466630	Frame_SetRate	game	high	The frame rate (16.16) into the frame scale 0x51bd3c (25 / rate)
+0042b790	Frame_RateStep	game	high	Frame_SetRate from the measured frame rate, each Race_Update
+0042b7e0	Frame_RateInit	game	med	0x52109c to 100 for six frames (nothing reads it)
+004b21e0	Frame_Stats	render	high	The frame rate and counts, once a frame
+004b23a0	Frame_Fps	render	high	The last frame's rate (DAT_005210a0)
+00466870	Damage_LampsBroken	damage	high	The record's +0x4a0 / +0x4a4: the left and right lamps broken
+0046b440	Damage_Vert	damage	high	A damage slot's vertex now (floats rounded to 16.16)
+0046b4c0	Damage_Dents	damage	high	Car's dents on (0x588970)
+00484de0	Damage_PartObj	damage	high	A loose part's object (0x590b7c)
+0045a150	Lamps_SetK9Rec	world	med	A kind 9 lamp's record (0x543580)
+0045b530	Lamps_SetK9Glow	world	med	A kind 9 lamp's glow (0x5431c0)
+00477ac0	Lens_Reset	world	high	A lens's levels, fades and bits cleared, last levels to -1
+00477b60	Lens_Setup	world	high	A car's lens texture (type 0xe object), blend 2
+00477c20	Lens_Set	world	high	A lens group's left and right bits
+00477c80	Lens_Get	world	high	A lens group's left and right levels as 16.16
+00477ce0	Lens_Step	world	high	The lens fades and the texture's alpha keys
+004789d0	Surface_Shine	world	high	A surface's shine towards its wet surface's by the weather
+004ae410	Glow_Colour	world	high	Empty: the lamps' colour goes nowhere
+004a4d30	Tex_KeyAlpha	render	high	Three alpha values replaced in a texture (copy made first)
+004a5080	Tex_RestoreCopy	render	high	A car's texture copy blitted back
+004a5ba0	Tex_FreeCopies	render	high	The car texture copies released

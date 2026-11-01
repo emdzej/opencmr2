@@ -14,6 +14,7 @@
 #include "game/timer.h"
 #include "sim/sim.h"
 #include "sim/damage.h"
+#include "game/lamps.h"
 #include "game/lights.h"
 #include "render/sprite3d.h"
 #include "world/glow.h"
@@ -81,6 +82,7 @@ static void Race_Update(uint8_t state, bool flag)
 {
     uint32_t np = players();
     PENDING_NOTE(0x445a20, "Replay_Playing");   /* a replay: no controls, Sim_Step only on its frames */
+    Frame_RateStep();   /* 0x42b790 */
     R.steps = Sim_StepCount(&R.frac);
     for (uint32_t k = 0; k < R.steps; k++) {
         bool car0 = Car_Get(0)->s[0xb43] != 0;
@@ -156,6 +158,7 @@ static void Race_Update(uint8_t state, bool flag)
     if (H->pose) H->pose(R.frac);
     for (uint32_t i = 0; i < np; i++)
         if (H->camera) Camera_Frame((int)i, CI32(Car_Get((int)i), 0xa90), H->camera((int)i));   /* 0x422140 */
+    Lamps_Frame(g_all.car, g_all.n);   /* 0x4664c0 */
     for (int i = 0; i < g_all.n; i++) Fade_Level(i, R.frac, false);
     PENDING_NOTE(0x464c60, "Car_Sounds 0x464c60, 0x45def0, 0x45af00");
 }
@@ -180,6 +183,7 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
            160), the start lights' textures (0x463360, in 0x40f020) */
         Sprite3d_Init();
         Glow_Alloc(Gs_Option(0) ? 4 : 0xa0);
+        Lamps_Load();    /* 0x463d60 */
         Lights_Load();
         Pause_Build();   /* 0x403500 */
     }
@@ -243,6 +247,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
         if (R.place) {
             if (H->place_cars) H->place_cars();
             Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
+            Lamps_Place();     /* 0x466360's cars */
             Lights_Setup();    /* 0x463410, in 0x466360 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */
             Hud_Init(1);       /* 0x411450 */

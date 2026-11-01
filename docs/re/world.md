@@ -303,6 +303,73 @@ Each step (`Stage_Step` 0x466520, 0x463bd0) every light's level moves 0.2 toward
 puts it back to 6 with every light off (0x463d00). In fra02 (layout 1) the reds come on through the
 countdown and two greens at the go.
 
+## Lamps
+
+Each car's lamps are section 0 of its `.cin`: a count, then 0x28 bytes a lamp (confirmed from the
+code and the files; the Puma has 13, the 205 11):
+
+| Offset | Field |
+|---|---|
+| +0x00 | position, car frame (3 x 16.16) |
+| +0x0c | direction (3 x 16.16) |
+| +0x18 | sprite size (both half sizes) |
+| +0x1c | brightness |
+| +0x20 | kind: the level it follows (below) |
+| +0x21 | texture: 0 brake, 1 reversing (also the headlights), 2 and 3 hazard, 4 head |
+| +0x22 | the loose part it sits on, -1 none |
+| +0x24, +0x26 | the damage slot and vertex nearest (u16, written at set-up) |
+
+**Textures** (0x463d60, in the race set-up 0x40f020 before the start lights): the glows cleared, then
+Common.bfl's `brkelite`, `revlite`, `hazdlite`, `headlite` twice over, into a sprite table (0x547fac)
+and a shaft table (0x547ff8), five entries each by the lamp's texture byte.
+
+**Set-up** (0x463fe0 per car, from 0x466360's loop over the listed cars when they are placed):
+- Each lamp is a kind 2 glow on the second model, or on its loose part when dents are on and the part
+  has an object (0x484de0). Both its textures get blend type 1. Kind 9 lamps get a pool of light (0xff)
+  and are listed, two a car, in 0x543580 and 0x5431c0 for code not ported (0x45af90, 0x45d2d0).
+- With dents on, each lamp notes the damage slot vertex nearest its position at rest (the squared
+  distance, under 1000, the first of equals). Each frame it is moved by that vertex's dent.
+- Car 0 also makes the headlights' two lights, 30 and 15 units ahead (0x4b2f80, not ported).
+
+**The lens** (0x477b60): the second model's type 0xe object. Its +0x2c is zeroed and its first polygon's
+texture, given blend type 2, is the lens. The interior model's lens is the same (the port does not load
+the interior). Per car 0x58d6d0 + 0x48 n keeps five groups, each with a left and a right side:
+
+| Group (bit) | Lit by | Lamp kinds |
+|---|---|---|
+| 0 (1) | the headlights (+0xb58), per side unless that side is broken | 6 left, 7 right |
+| 1 (2) | braking (+0xb54) | 0, 1 |
+| 2 (4) | the hazards: panel 23 (the engine) above 0.3 | 4, 5 |
+| 3 (8) | reversing (+0xb5c) | 2, 3 |
+| 4 (0x10) | the headlights, both sides | 8 (the right side's level) |
+
+A side is broken when the damage record's +0x4a0 (left) or +0x4a4 (right) is set. Kinds 9 and 10 read
+levels that are always 0. The hazards' clock (0x547ce0) advances by the frame scale. It turns them off
+when it wraps past 20 and on as it passes 10.
+
+**Each frame** (0x4664c0 in `Race_Update`, after the cameras, for every car in the race):
+- **The lens** (0x477ce0). Each group and side fades towards its bit: up by 128 or down by 80, times the
+  frame scale (0x51bd3c), within 0-255.
+- **The side lamps.** For most cars two thirds of group 0 is added to the brakes (group 1). For handling
+  classes 6, 7 and 10 group 0 itself drops to two thirds.
+- **The lens texture.** When a level changed, the texture is restored from a per car copy (0x4a5080,
+  made on the first keying), then keyed (0x4a4d30): pixels of alpha 0xbf, 0x40 and 0x80 take the levels
+  of groups 1, 3 and 2; those of 0x60 and 0xe0 take groups 0 and 4. Each level is the brighter side's.
+  The keys apply one after another to the same pixel. The 32-bit surfaces compare the alpha byte; the
+  4444 ones its high nibble.
+- **The glows** (0x4643f0). A lamp's glow is shown while its level is above 0, at level times the
+  lamp's brightness. The colour it computes (red, white or amber by texture, times half the level) goes
+  to 0x4ae410, which does nothing. The shaft's plane is the ground under wheel 0 with the car's ground
+  normal (+0x48c). Its level is the surface's shine (0x4789d0: table 0x51e888 per surface, towards the
+  wet surface's 0x51e8e8 by the weather value) on the wheel of the lamp's corner.
+- A car off the stage (+0xb70) has its brakes and reversing off and every lamp hidden.
+
+**The frame scale** (0x466630): the rate in frames a second, as 16.16, gives 0x51bd40 = rate / 25
+(at least 0.6) and 0x51bd3c its inverse. `Cars_Load` sets 25. `Race_Update` (0x42b790) sets the
+frame rate each frame, 1000 over the milliseconds since the last frame (0x4b21e0, World_Render's last
+call; infinite on the first frame, which fistp turns into the smallest integer, so 0.6). The weather
+code (0x45e9a0-0x462d80) uses the same scale.
+
 ## Loading a stage
 
 `Stage_Load` 0x41f930 (the start-up of the game fills the math tables first, 0x4d08d0), in order:

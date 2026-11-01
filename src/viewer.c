@@ -158,6 +158,7 @@ static bool host_load_cars(void)
     }
     Sim_InitLists(1);   /* after the cars, as Cars_Load does (0x42b660, the poses from the models) */
     Damage_CarsLoaded();
+    Frame_SetRate(0x190000);   /* 25 frames a second, Cars_Load 0x466630 */
     Car_ProgressStart(Car_Get(0));
     char d[16];
     V.autodrive = plat_param("drive", d, sizeof d) && !strcmp(d, "auto");
