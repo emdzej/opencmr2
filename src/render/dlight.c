@@ -80,6 +80,18 @@ void Dlight_SetColour(Obj *o, int32_t r, int32_t g, int32_t b)
     D3d_SetLight(o->light_index, o->light);
 }
 
+/* 0x4b35b0: a light object's position (16.16) and its direction toward the origin, made unit (zero
+   for a light at the origin), set again */
+void Dlight_SetPosition(Obj *o, const int32_t p[3])
+{
+    if (!o || !o->light) return;
+    int32_t d[3] = {-p[0], -p[1], -p[2]};
+    Vec_Unit(d);
+    o->light->position.x = fl(p[0]), o->light->position.y = fl(p[1]), o->light->position.z = fl(p[2]);
+    o->light->direction.x = fl(d[0]), o->light->direction.y = fl(d[1]), o->light->direction.z = fl(d[2]);
+    D3d_SetLight(o->light_index, o->light);
+}
+
 /* With the device (re)made (0x4a78a0): the lights set and on again, a white material (diffuse and
    ambient 1, no specular or emissive) and ambient B from the low colour, set. */
 void Dlight_Restore(void)

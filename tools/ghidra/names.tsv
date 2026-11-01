@@ -805,3 +805,24 @@
 0x4917f0	Hpc_TriPoints	world	inferred	a collision triangle's points
 0x4b34d0	Dlight_SetColour	render	confirmed	sets a device light's colour, clamped
 0x492e60	Sun_FromGround	game	inferred	the sun colour from the ground light, a 255th a channel
+0x4919a0	Sky_Setup	world	confirmed	the sky's objects and meshes, dome heights, sun vertex 104, ground vertex 50
+0x4925c0	Sky_Cut	world	confirmed	stage sky offsets; dome cut at the horizon; sun light placed
+0x492890	Sky_SunPoint	world	confirmed	the sun vertex through the dome's 3 x 3
+0x4928f0	Sky_Scale	world	confirmed	the dome's row 1 value
+0x492900	Sky_SetScale	world	confirmed	sets the dome's row 1 value
+0x491d40	Sky_ColourDome	world	confirmed	dome colours by height, the sun vertex toward the sun colour
+0x4920d0	Sky_ColourGround	world	confirmed	sky ground colours, vertex 50 apart
+0x492220	Sky_ColourClouds	world	confirmed	cloud and cloud top colours, the bolt vertex apart
+0x4923d0	Sky_ColourFlash	world	confirmed	the lightning sheet's colours
+0x492470	Sky_ColourDisc	world	confirmed	the sun disc's colours
+0x492520	Sky_ColourHalo	world	confirmed	the sun halo's colours
+0x4926f0	Sky_Turn	world	confirmed	dome and clouds turned about y
+0x492bd0	Sky_FaceCamera	world	confirmed	disc and halo facing the camera
+0x492fe0	Sky_Fog	world	confirmed	fog set and the sky's fog factor
+0x492fd0	Sky_FogOn	world	confirmed	fog enabled
+0x492f10	Sky_Upload	world	confirmed	changed sky meshes uploaded
+0x492910	Sky_BoltVertex	world	confirmed	cloud vertex nearest the sun within 100
+0x492b50	Sky_BoltTexture	world	confirmed	random bolt texture (none loaded)
+0x4b35b0	Dlight_SetPosition	render	confirmed	light position and unit direction toward the origin
+0x463070	Sun_Direction	game	confirmed	unit sun direction for the shadows
+0x461c30	Weather_Sky	game	confirmed	per view: the horizon state blended into the sky, lights, fog
