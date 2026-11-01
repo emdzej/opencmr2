@@ -49,7 +49,8 @@
 - The front end, started: the boot screens, the menu engine, all 94 pages built, and the pages from the
   language through the main menu, mode, difficulty, players, driver, tag, car, transmission, country,
   stage and weather to the start ([front end](../re/frontend.md)). Leaving it chooses the rally's
-  weather and set-ups and starts the race; after the stage it comes back to the menus. The set-up and
+  weather and set-ups and starts the race; after the stage it comes back to the menus. In the race,
+  Escape opens the pause menu (sound volumes, restart, exit). The set-up and
   service screens between them (mode 2), the movies, the options and the saves are not done yet; the menu music plays.
 
 Next: mode 2's set-up and service screens and the race's results, the rest of the front end's pages,
