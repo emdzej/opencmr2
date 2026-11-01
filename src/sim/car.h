@@ -20,9 +20,12 @@ static inline int32_t CI32(const Car *c, uint32_t o) { const uint8_t *p = c->s +
 static inline void CW32(Car *c, uint32_t o, int32_t v) { uint8_t *p = c->s + o; uint32_t u = (uint32_t)v; p[0] = (uint8_t)u, p[1] = (uint8_t)(u >> 8), p[2] = (uint8_t)(u >> 16), p[3] = (uint8_t)(u >> 24); }
 static inline int8_t CI8(const Car *c, uint32_t o) { return (int8_t)c->s[o]; }
 static inline void CW8(Car *c, uint32_t o, uint8_t v) { c->s[o] = v; }
+static inline int16_t CI16(const Car *c, uint32_t o) { return (int16_t)(c->s[o] | c->s[o + 1] << 8); }
 static inline void CW16(Car *c, uint32_t o, uint16_t v) { c->s[o] = (uint8_t)v, c->s[o + 1] = (uint8_t)(v >> 8); }
 
 Car *Car_Get(int n);   /* 0x42b5f0 */
+/* 0x42b600: wheel w's spin (+0x860) times 0.25, then (unit 0) times 67.07 or (unit 1) 107.98 */
+int32_t Car_WheelSpeed(const Car *c, int w, int unit);
 uint8_t *Damage_Get(int n);   /* 0x469680: the car's 0x4d0-byte damage record (sim/damage.c) */
 static inline int32_t DI32(const uint8_t *d, uint32_t o) { return (int32_t)((uint32_t)d[o] | d[o + 1] << 8 | d[o + 2] << 16 | (uint32_t)d[o + 3] << 24); }
 extern Car *g_car;     /* DAT_0053cc18: the car being worked on */

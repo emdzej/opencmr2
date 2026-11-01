@@ -561,3 +561,11 @@ void Mat_AxisAngleRows(int32_t m[16], const int32_t a[3], int32_t ang)
     m[11] = m[12] = m[13] = m[14] = 0;
     m[15] = 0x10000;
 }
+
+int32_t Car_WheelSpeed(const Car *c, int w, int unit)
+{
+    int32_t v = fx_mul(CI32(c, 0x860 + 4 * (uint32_t)(w & 0xff)), 0x4000);
+    if (unit == 0) return fx_mul(v, 0x431168);
+    if (unit == 1) return fx_mul(v, 0x6bfa9f);
+    return v;
+}

@@ -444,8 +444,9 @@ the current at the step fraction.
 **Drawing** (0x4b0480, World_Render after the sections' relighting, per pass): each live particle in
 the pass mask becomes a sprite (or calls the draw callback).
 - **The frame.** The animation frame is (age - start) / frame age. With bit 3 it is offset by the low
-  16 bits of the particle's heap address modulo the count. The port uses its offset in the table, as
-  the heap address can't be reproduced. Past the end it holds the last frame unless it loops.
+  16 bits of the particle's heap address modulo the count. The port takes its table to start at
+  0x1000000, as the heap address can't be reproduced. Past the end it holds the last frame unless it
+  loops.
 - **The sprite.** The extents times the scale; the turn only for spinning types. Lit types carry
   the shade.
 
@@ -470,9 +471,38 @@ the port leaves it. Thirty types are defined, 9 and 25 are not:
 Type 29 has a fifth of that as its gravity and type 30 all of it. 0x499020 writes two records of the
 sparks and chips (0x592888, 0x593728).
 
-The emitters are not ported yet: the wheels' dust and gravel (0x45af90, 0x45b580), the exhaust
-(0x45c820), the splashes (0x45dc00), `Stage_Step`'s 0x47dd70, the sparks (0x499750), and the chips
-(0x499de0, 0x49b3e0). The types' callbacks are not ported either.
+**The wheels** (`Race_Update` each frame after the fades, not while paused or a replay plays). For
+each listed car (its list index used as the car number) the sounds run (0x464c60, not ported), then
+0x45def0, then 0x45af00 (not in the network mode or modes 11 and 12).
+
+0x45def0 keeps tables per car and wheel (n = 4 car + wheel) in the game state:
+- 0x543200: the ground point, the wheel's contact point (+0x3c0) 0.35 lower, turned with the car.
+- 0x543400 and 0x543b58: the point of the last mark and the run since. A wheel more than 0.1 from it
+  starts a new run; 1.3 or more counts as a jump (0x543140), which clears the run.
+- 0x543788, 0x5435d0, 0x5430a0: the touch (+0xbac), the surface (+0xaae) and the steps on the ground.
+- 0x5439b8: the car's wheels down.
+- 0x543120: a shade byte, 255 less the car's +0xa70.
+
+0x45af00 runs for a car still in the race with particles on:
+- **The light** (0x45d1e0). The colour under wheel 0 (0x543f28, written by 0x462aa0, not ported)
+  goes to 0x5435c0, its half towards white to 0x5435cc and its grey to 0x543808.
+- **Grass and leaves** (0x45d540, not with camera kind 3). Each wheel down on a grass or leaf surface
+  throws them. The count is kept from wheel to wheel. Above 10 of wheel 2's speed (0x42b600) it is
+  (rand % 4) / 4, always 0; above 15 it is (rand % 3) / 2, so a third of the time one.
+  - The particle leaves from the ground point, relative to the car. Its velocity is the wheel's
+    (+0x42c) with x and z quartered and negated, and a random rise under 0.15 (0x45dc00).
+  - Leaves (surfaces 0x19, 0x2e-0x32, 0x4f) are types 16 and 17 (left and right wheels), in one of
+    ten colours (0x51abf8).
+  - Grass is types 18-21 in a colour per rally and surface group, one to three a time (fewer when the
+    car's weather is wet).
+  - The spawn callback (0x45de80) notes the car at +0x64. The after-step callbacks add the car's
+    position each step (0x45dea0, 0x45d270, 0x45d3a0), so the particles move with it. The leaves'
+    0x45d3a0 also sways them on a circle picked by the particle's address.
+- Not ported yet: the dust and gravel (0x45b580), the splashes (0x45c820), 0x49b3e0, and the exhaust's
+  flames (0x45af90).
+
+The other emitters are not ported yet: `Stage_Step`'s 0x47dd70, the sparks (0x499750) and the chips
+(0x499de0). Neither are the detail dust's lamp follower 0x45d2d0 or the sparks' and chips' callbacks.
 
 ## Loading a stage
 

@@ -165,7 +165,14 @@ static void Race_Update(uint8_t state, bool flag)
         if (H->camera) Camera_Frame((int)i, CI32(Car_Get((int)i), 0xa90), H->camera((int)i));   /* 0x422140 */
     Lamps_Frame(g_all.car, g_all.n);   /* 0x4664c0 */
     for (int i = 0; i < g_all.n; i++) Fade_Level(i, R.frac, false);
-    PENDING_NOTE(0x464c60, "Car_Sounds 0x464c60, 0x45def0, 0x45af00");
+    /* not while paused (or a replay plays): per listed car (its index used as the car) the sounds,
+       the wheels' tracking and, but in the network mode and modes 11 and 12, the effects */
+    if (!Pause_Active())
+        for (int i = 0; i < g_all.n; i++) {
+            PENDING_NOTE(0x464c60, "Car_Sounds 0x464c60");
+            Wheels_Track(i);   /* 0x45def0 */
+            if (!Gs_SelBit26() && Gs_Mode() != 12 && Gs_Mode() != 11) Effects_Car(i);   /* 0x45af00 */
+        }
 }
 
 /* state 0, 0x41bf80: the race's variables cleared; for the first player the stage's selection, the

@@ -73,7 +73,12 @@ struct Particle {
     uint8_t rest;               /* +0x58: bounced to a stop */
     uint8_t rgb[3];             /* +0x59 */
     Tex *tex;                   /* +0x60: the type's when emitted */
+    int16_t car;                /* +0x64: the car it belongs to (the effects' spawn callback) */
 };
+
+/* The particle's address in the original's heap, which some callbacks and the draw read (its low
+   bits pick a frame or a sway): the port's table is taken to start at 0x1000000. */
+static inline uint32_t Particle_Addr(int index) { return 0x1000000u + 0x68u * (uint32_t)index; }
 
 void Particles_Alloc(int ntypes, int nparts);   /* 0x4b0060 */
 void Particles_Free(void);                      /* 0x4b0010 */
@@ -112,3 +117,4 @@ void Particles_Draw(const Obj *camera, uint32_t pass);   /* 0x4b0480 */
 int Particles_Alive(void);              /* the port: the particles alive */
 PType *PType_Get(int n);                /* the port: type n (NULL out of range) */
 Particle *Particle_Get(int n);          /* the port */
+int Particle_Index(const Particle *p);  /* the port: its slot */

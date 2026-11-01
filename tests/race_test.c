@@ -431,7 +431,14 @@ int main(void)
         int32_t from[3] = {0, 0x1000, 0}, down[3] = {0x1000, -0x2000, 0x1000}, still[3] = {0};
         Particle_Emit(0, from, still, 0, NULL, NULL, 0, NULL, 1);
         Particle_Emit(0x1d, from, down, 0, NULL, NULL, 0, NULL, 1);
-        Particle *smoke = Particle_Get(0), *stone = Particle_Get(1);
+        Particle *smoke = NULL, *stone = NULL;
+        for (int i = 0; i < 400; i++) {
+            Particle *p = Particle_Get(i);
+            if (p && p->alive && p->type == PType_Get(0)) smoke = p;
+            if (p && p->alive && p->type == PType_Get(0x1d)) stone = p;
+        }
+        CHECK(smoke && stone);
+        if (!smoke || !stone) return 1;
         int smoke_steps = 0, drawn = 0;
         for (int i = 0; i < 12; i++) {
             Particles_Step(NULL);

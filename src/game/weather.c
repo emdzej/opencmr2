@@ -1,4 +1,5 @@
 /* The rally's weather (see weather.h). */
+#include "pending.h"
 #include "game/weather.h"
 #include "crt.h"
 #include "fixmath.h"
@@ -175,3 +176,6 @@ void Weather_Choose(void)
         }
     rain();
 }
+
+bool Weather_Wet(int car) { (void)car; PENDING_NOTE(0x45f4a0, "the weather records (0x547ac8)"); return false; }
+int32_t Weather_Level(int car) { (void)car; return 0; }

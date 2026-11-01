@@ -663,3 +663,17 @@
 0045a170	Effects_Types	world	high	The 30 particle types and the count by detail
 0049af20	Stones_Setup	world	high	The thrown stones' record (0x593860); returns their gravity
 00499020	Chips_Setup	world	high	Two records of the sparks and chips (0x592888, 0x593728)
+0045def0	Wheels_Track	world	high	Per wheel: ground point, mark run, touch, surface, shade (0x543120-0x543b58)
+0045af00	Effects_Car	world	high	A car's effects each frame: light, grass, dust, splashes, flames
+0045d1e0	Effects_Light	world	high	The light under the car (0x5435c0, 0x5435cc, 0x543808)
+0045d540	Wheels_Grass	world	high	Grass and leaves thrown by the wheels, colours by rally
+0045dc00	Grass_Emit	world	high	A grass or leaf particle (types 0x10-0x17)
+0045de80	Fx_SpawnCar	world	high	Particle spawn callback: the car index into +0x64
+0045d250	Fx_Rise	world	high	Particle callback: raised by half its scale
+0045d270	Fx_RiseCar	world	high	Particle callback: raised, scale capped, the car's position added
+0045dea0	Fx_ToCar	world	high	Particle callback: the car's position added
+0045d3a0	Fx_LeafSway	world	high	Particle callback: the leaves' sway by address
+0042b600	Car_WheelSpeed	world	high	A wheel's spin scaled to a speed unit
+00460bf0	Weather_Wet	world	high	A car's weather record: wet
+00460c10	Weather_Level	world	high	A car's weather record: its level
+00463270	Fx_WheelLight	world	high	The light colour under a car's wheel (0x543f28)

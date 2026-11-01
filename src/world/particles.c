@@ -75,6 +75,7 @@ int Particles_Alive(void)
 
 PType *PType_Get(int n) { return n >= 0 && n < ntypes ? &types[n] : NULL; }
 Particle *Particle_Get(int n) { return n >= 0 && n < nalloc ? &parts[n] : NULL; }
+int Particle_Index(const Particle *p) { return (int)(p - parts); }
 
 /* ---- the types ---- */
 
@@ -428,9 +429,8 @@ void Particles_Draw(const Obj *camera, uint32_t pass)
             int32_t age = t->life - p->life;
             if (age > t->anim_delay && t->anim_time > 0) {
                 f = (int32_t)(((int64_t)(age - t->anim_delay) << 16) / t->anim_time) >> 16;
-                /* the original takes the low 16 bits of the particle's heap address; the port the
-                   offset in its table */
-                if (t->flags2 & 8) f += (int)((uint32_t)(i * 0x68) & 0xffff) % t->nanim;
+                /* the low 16 bits of the particle's heap address */
+                if (t->flags2 & 8) f += (int)((Particle_Addr(i) & 0xffff) % (uint32_t)t->nanim);
                 if (f >= t->nanim && !(t->flags2 & 4)) {
                     tex = t->anim[t->nanim - 1];
                     goto have;

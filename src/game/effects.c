@@ -1,5 +1,11 @@
 /* The race's particle effects (see effects.h). */
 #include "game/effects.h"
+#include <stdbool.h>
+#include <string.h>
+#include "world/tod.h"
+#include "game/weather.h"
+#include "game/camera.h"
+#include "crt.h"
 #include "exe.h"
 #include "fixmath.h"
 #include "game/common.h"
@@ -7,6 +13,7 @@
 #include "game/mem.h"
 #include "game/timer.h"
 #include "pending.h"
+#include "sim/car.h"
 #include "world/particles.h"
 #include <stdio.h>
 
@@ -117,13 +124,53 @@ int32_t Stones_Setup(int32_t height, int32_t time)
     return fdiv(fx_mul(height, 0x80000), fx_mul(time, time));
 }
 
-/* the types' callbacks, not ported yet */
-static void cb_45d2d0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x45d2d0, "the dust's step"); }
-static void cb_45d270(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x45d270, "the smoke's step"); }
-static void cb_45d250(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x45d250, "a particle's step"); }
-static void cb_45d3a0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x45d3a0, "the leaves' step"); }
-static void cb_45dea0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x45dea0, "the splashes' step"); }
-static void cb_45de80(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x45de80, "a particle's spawn"); }
+/* ---- the types' callbacks (0x45d250-0x45dea0) ---- */
+
+/* the car's position added: the particles of a car's wheels move in its frame's origin */
+static void to_car(Particle *p)
+{
+    if (p->car >= 8) return;
+    Car *c = Car_Get(p->car);
+    for (int a = 0; a < 3; a++) p->pos[a] += CI32(c, 0x2d0 + 4 * (uint32_t)a);
+}
+
+/* 0x45de80, after the emit: the car (the emitter's argument) */
+static void cb_45de80(Particle *p, PType *t, void *a) { (void)t; p->car = (int16_t)*(const int *)a; }
+/* 0x45d250: raised by half its scale */
+static void cb_45d250(Particle *p, PType *t, void *a) { (void)t, (void)a; p->pos[1] += p->scale / 2; }
+/* 0x45d270: raised by half its scale, the scale at most 1.5, the car's position added */
+static void cb_45d270(Particle *p, PType *t, void *a)
+{
+    (void)t, (void)a;
+    p->pos[1] += p->scale / 2;
+    if (p->scale > 0x18000) p->scale = 0x18000;
+    to_car(p);
+}
+/* 0x45dea0 */
+static void cb_45dea0(Particle *p, PType *t, void *a) { (void)t, (void)a; to_car(p); }
+/* 0x45d3a0: the leaves sway on a circle of a radius picked by the particle's address, turning 0x71 a
+   step (the first step from a turn the address picks), one way or the other by the type */
+static void cb_45d3a0(Particle *p, PType *t, void *a)
+{
+    (void)a;
+    static const int32_t radius[10] = {0x1999, 0x3333, 0x4ccc, 0x6666, 0x8000, 0x9999, 0xb333, 0xcccc, 0xe666, 0x10000};
+    int32_t addr = (int32_t)Particle_Addr(Particle_Index(p));
+    if (p->life == 0xc70000) p->spin = (int16_t)((uint32_t)(addr / 7 & 0xffffff) % 0x24 * 0x71);
+    p->spin = (int16_t)(p->spin + 0x71);
+    if (p->spin > 0x1000) p->spin = (int16_t)(p->spin - 0x1000);
+    if (p->spin < 0) p->spin = (int16_t)(p->spin + 0x1000);
+    uint32_t u = (t->flags & 4) ? (uint16_t)p->spin : (uint32_t)(0x1000 - p->spin);
+    int32_t r = radius[(uint32_t)(addr / 3 & 0xffffff) % 10];
+    if (p->car < 8) {
+        p->pos[0] += fx_mul(r, g_sin[(u + 0x400) & 0xfff]);
+        p->pos[2] += fx_mul(r, g_sin[u & 0xfff]);
+        to_car(p);
+    }
+}
+/* 0x45d2d0: the detail dust follows a kind 9 lamp of its car (0x543580, not ported) */
+static void cb_45d2d0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x45d2d0, "the detail dust's step"); }
+
+/* the sparks' and chips' callbacks (0x499070-0x499ac0), not ported yet */
 static void cb_499070(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x499070, "the sparks' draw"); }
 static void cb_4994d0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x4994d0, "the sparks' step"); }
 static void cb_4994f0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x4994f0, "the paint chips' draw"); }
@@ -369,4 +416,199 @@ void Effects_Types(void)
     PType_Tex(Lamps_SpriteTex(2), (int32_t)0xffffe667, 0x1999, 0x1999, (int32_t)0xffffe667);
     PType_Funcs(NULL, NULL, NULL, NULL, 0);
     PType_End();
+}
+
+/* ---- the wheels (0x45def0, 0x45af00-0x45dc00) ---- */
+
+/* per car and wheel (n = 4 car + wheel) in the game state: 0x543200 the wheel's ground point, 0x543400
+   the point of the last mark, 0x543b58 the mark's run, 0x543830 the point from the car, 0x543140 a
+   jump flag; 0x543708 / 0x543ad8, 0x543788 the touch, 0x5435d0 the surface, 0x5430a0 the steps on the
+   ground; 0x5439b8 the car's wheels down; 0x543120 the shade (bytes) */
+static uint32_t v3(uint32_t base, int n) { return base + 0xc * (uint32_t)n; }
+static uint32_t v1(uint32_t base, int n) { return base + 4 * (uint32_t)n; }
+
+static uint32_t flat_len(int32_t dx, int32_t dz)
+{
+    int32_t l = (int32_t)Fx_Sqrt((uint32_t)(fx_mul(dx, dx) + fx_mul(dz, dz)));
+    return (uint32_t)(l < 0 ? -l : l);
+}
+
+void Wheels_Track(int car)
+{
+    if (car >= 8) return;
+    Car *c = Car_Get(car);
+    gw32(v1(0x5439b8, car), 0);
+    int32_t m[16];
+    for (int i = 0; i < 16; i++) m[i] = CI32(c, 4 * (uint32_t)i);   /* the orientation (+0x750) */
+    for (int w = 0; w < 4; w++) {
+        int n = 4 * car + w;
+        uint32_t cur = v3(0x543200, n), last = v3(0x543400, n), run = v3(0x543b58, n);
+        if (!gm32(v1(0x543140, n))) {
+            int32_t dx = gms32(last) - gms32(cur), dz = gms32(last + 8) - gms32(cur + 8);
+            int32_t l = (int32_t)flat_len(dx, dz);
+            if (l < 0x14ccd) {
+                /* a mark's run once the wheel is 0.1 from the last point */
+                if (l > 0x1999) {
+                    for (int a = 0; a < 3; a++) gw32(last + 4 * a, gm32(cur + 4 * a));
+                    gw32(run, (uint32_t)dx), gw32(run + 4, 0), gw32(run + 8, (uint32_t)dz);
+                }
+            } else {
+                /* 1.3 or more: a jump, no run */
+                for (int a = 0; a < 3; a++) gw32(last + 4 * a, gm32(cur + 4 * a)), gw32(run + 4 * a, 0);
+                gw32(v1(0x543140, n), 1);
+            }
+        } else {
+            for (int a = 0; a < 3; a++) gw32(last + 4 * a, gm32(cur + 4 * a));
+            gw32(v1(0x543140, n), 0);
+        }
+        uint32_t touch = (uint32_t)CI32(c, 0xbac + 4 * (uint32_t)w);
+        gw32(v1(0x543ad8, n), gm32(v1(0x543708, n)));
+        gw32(v1(0x543788, n), touch);
+        gw32(v1(0x5435d0, n), (uint32_t)(int32_t)CI16(c, 0xaae + 2 * (uint32_t)w));
+        if (touch == 1) {
+            gw32(v1(0x5430a0, n), gm32(v1(0x5430a0, n)) + 1);
+            gw32(v1(0x5439b8, car), gm32(v1(0x5439b8, car)) + 1);
+        } else {
+            gw32(v1(0x5430a0, n), 0);
+        }
+        /* the ground point: the wheel's contact point (+0x3c0) 0.35 down, turned with the car */
+        int32_t o[3] = {CI32(c, 0x3c0 + 0xc * (uint32_t)w), CI32(c, 0x3c4 + 0xc * (uint32_t)w) - 0x5999,
+                        CI32(c, 0x3c8 + 0xc * (uint32_t)w)}, r[3];
+        for (int k = 0; k < 3; k++) r[k] = fx_mul(m[8 + k], o[2]) + fx_mul(m[4 + k], o[1]) + fx_mul(m[k], o[0]);
+        for (int a = 0; a < 3; a++) {
+            gw32(v3(0x543830, n) + 4 * a, (uint32_t)r[a]);
+            gw32(cur + 4 * a, (uint32_t)(r[a] + CI32(c, 0x2d0 + 4 * (uint32_t)a)));
+        }
+        int32_t sh = 0xff00 - CI32(c, 0xa70);
+        if (sh > 0xff00) sh = 0xff00;
+        else if (sh < 0) sh = 0;
+        gw8(0x543120 + (uint32_t)n, (uint8_t)(sh >> 8));
+    }
+}
+
+/* 0x45d1e0: the light under the car (0x5435c0, its half towards white 0x5435cc, the grey 0x543808) */
+static void light_set(int car, uint32_t rgba)
+{
+    if (car >= 8) return;
+    gw32(0x5435c0, rgba);
+    gw8(0x5435cc, (uint8_t)((rgba & 0xff) >> 1) + 0x7f);
+    gw8(0x5435cd, (uint8_t)((rgba >> 8 & 0xff) >> 1) + 0x7f);
+    gw8(0x5435ce, (uint8_t)((rgba >> 16 & 0xff) >> 1) + 0x7f);
+    gw8(0x5435cf, (uint8_t)(rgba >> 24));
+    gw8(0x543808, (uint8_t)(((rgba & 0xff) + (rgba >> 8 & 0xff) + (rgba >> 16 & 0xff)) / 3));
+}
+
+/* 0x45dc00: a particle of grass (types 0x10-0x17 by the flags and the wheel's side) at pos (from the
+   car) with the wheel's x and z and a random rise below 0.15; leaves take one of ten colours
+   (0x51abf8) */
+static void grass_emit(int car, int wheel, const int32_t pos[3], const int32_t vel[3], bool lit, bool second,
+                       bool third, const uint8_t rgb[3])
+{
+    if (car >= 8) return;
+    bool left = wheel == 0 || wheel == 2;
+    int type = !lit ? (left ? 0x10 : 0x11) : third ? (left ? 0x16 : 0x17) : second ? (left ? 0x14 : 0x15)
+                                                                                   : (left ? 0x12 : 0x13);
+    /* (the original also takes the angle of +0x6c0 and scales it by the speed along it, unused) */
+    int32_t v[3] = {vel[0], crt_rand() % 0x2666, vel[2]};
+    uint8_t col[4];
+    if (!lit) {
+        uint32_t k = (uint32_t)(crt_rand() % 10);
+        for (int i = 0; i < 3; i++) col[i] = gm8(0x51abf8 + 4 * k + (uint32_t)i);
+    } else {
+        memcpy(col, rgb, 3);
+    }
+    col[3] = 0xff;
+    int arg = car;
+    Particle_Emit(type, pos, v, pos[1], NULL, col, gm8(0x543120 + 4 * (uint32_t)car + (uint32_t)wheel), &arg,
+                  Car_Get(car)->second->mask);
+}
+
+/* 0x45d540: grass and leaves thrown by each wheel down on a grass surface (the colours by rally),
+   above 15 of the rear wheel's spin a third of the time */
+static void wheels_grass(int car)
+{
+    if (car >= 8) return;
+    Car *c = Car_Get(car);
+    int count = 0;   /* (kept from wheel to wheel) */
+    for (int w = 0; w < 4; w++) {
+        int16_t s = CI16(c, 0xac6 + 2 * (uint32_t)w);
+        bool leaves = s == 0x19 || (s >= 0x2e && s <= 0x32) || s == 0x4f;
+        bool a = s == 0x15 || s == 0x1d || (s >= 0x20 && s <= 0x25) || s == 0x27 || s == 0x33 || s == 0x36 ||
+                 s == 0x47 || s == 0x4f || s == 0x19;
+        bool b = s == 0x16 || s == 0x26 || s == 0x28 || s == 0x2c || s == 0x34 || s == 0x35 || s == 0x37 || s == 0x38;
+        bool d = s == 0x17 || s == 0x29;
+        bool grass = a || b || d || s == 0x18;
+        bool first = false, second = false;
+        uint8_t col[3] = {0, 0, 0};
+        if (grass) {
+            /* (an unset colour or flag keeps the stack's value; the port zero) */
+            switch (Tod_Rally()) {
+            case 0:
+                if (a) first = true, col[0] = 0x3d, col[1] = 0x40, col[2] = 0x0e;
+                else if (b) second = true, col[0] = 0x66, col[1] = 0x63, col[2] = 0x4a;
+                break;
+            case 1: case 8:
+                second = true;
+                if (a) col[0] = 0x35, col[1] = 0x39, col[2] = 0x2d;
+                else if (b) col[0] = 0x60, col[1] = 0x4f, col[2] = 0x40;
+                break;
+            case 2: first = true, col[0] = 0x50, col[1] = 0x5b, col[2] = 0x42; break;
+            case 4:
+                if (a) first = true, col[0] = 0x20, col[1] = 0x34, col[2] = 0x03;
+                else if (b) second = true, col[0] = 0x9a, col[1] = 0x8e, col[2] = 0x20;
+                break;
+            case 5:
+                if (a) first = true, col[0] = 0x4f, col[1] = 0x49, col[2] = 0x33;
+                else if (b) second = true, col[0] = 0x50, col[1] = 0x40, col[2] = 0x1f;
+                break;
+            case 6:
+                if (a || (!b && d)) first = true, col[0] = 0x49, col[1] = 0x58, col[2] = 0x3a;
+                else if (b) second = true, col[0] = 0x2f, col[1] = 0x3b, col[2] = 0x21;
+                break;
+            case 7:
+                if (a) first = true, col[0] = 0x1f, col[1] = 0x29, col[2] = 0x01;
+                else if (b) second = true, col[0] = 0x37, col[1] = 0x46, col[2] = 0x28;
+                else if (d) second = true, col[0] = 0x31, col[1] = 0x3f, col[2] = 0x23;
+                else if (s == 0x18) first = true, col[0] = 0x41, col[1] = 0x51, col[2] = 0x31;
+                break;
+            default: first = true, col[0] = col[1] = col[2] = 0xf0; break;
+            }
+        }
+        if (!(leaves || grass) || !CI32(c, 0xbac + 4 * (uint32_t)w)) continue;
+        int32_t sp = Car_WheelSpeed(c, 2, 0);
+        if (sp < 0) sp = -sp;
+        if (sp > 0xa0000) count = (crt_rand() % 4) / 4;   /* (always 0) */
+        if (sp > 0xf0000) count = (crt_rand() % 3) / 2;
+        uint32_t o = 0x42c + 0xc * (uint32_t)w;
+        int32_t vel[3] = {-(CI32(c, o) / 4), CI32(c, o + 4), -(CI32(c, o + 8) / 4)};
+        int n = 4 * car + w;
+        for (int k = 0; k < count; k++) {
+            int32_t pos[3];
+            for (int a = 0; a < 3; a++) pos[a] = gms32(v3(0x543200, n) + 4 * (uint32_t)a) - CI32(c, 0x2d0 + 4 * (uint32_t)a);
+            if (!leaves) {
+                /* fewer on a wet stage: 3 at dry, 1 at the wettest */
+                int32_t wet = Weather_Wet(car) ? fx_mul(Weather_Level(car), 0xff0000) >> 16 : 0;
+                int m = (0x100 - wet) / 128 + 1;
+                if (first) for (int i = 0; i < m; i++) grass_emit(car, w, pos, vel, true, false, false, col);
+                if (second) for (int i = 0; i < m; i++) grass_emit(car, w, pos, vel, true, true, false, col);
+            } else {
+                grass_emit(car, w, pos, vel, false, false, false, col);
+            }
+        }
+    }
+}
+
+void Effects_Car(int car)
+{
+    if (car >= 8) return;
+    Car *c = Car_Get(car);
+    if (CI32(c, 0xc0c) || (gm32(0x52afd0) >> 25 & 3) == 2) return;
+    uint32_t rgba = 0xff000000u | (gm32(0x543f28 + 0x10 * (uint32_t)car) & 0xffffff);   /* 0x463270 */
+    PENDING_NOTE(0x462aa0, "the light under the wheels (0x543f28)");
+    light_set(car, rgba);
+    if (Camera_Kind(car) != 3) {
+        wheels_grass(car);   /* 0x45d540 */
+        PENDING_NOTE(0x45b580, "the wheels' dust and gravel 0x45b580, the splashes 0x45c820, 0x49b3e0");
+    }
+    PENDING_NOTE(0x45af90, "the exhaust's flames 0x45af90");
 }
