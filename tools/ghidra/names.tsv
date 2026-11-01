@@ -840,3 +840,8 @@
 0x4b3860	Light_GroundAt	world	confirmed	the nearest stage vertex's extra (and colour) within sqrt(32000) in x and z
 0x4b4040	Light_CornerSun	world	confirmed	a polygon corner's normal on a direction, times 4, 0 to 1
 0x4b5320	Light_SunObjectsThen	world	confirmed	0x4b50b0 then the empty 0x4a3240
+0x45af90	Exhaust_Smoke	game	confirmed	the exhausts' smoke, the damaged engine's puffs and the backfire flames
+0x45b550	Effects_Backfire	game	confirmed	a car's exhausts flame for some frames (from Engine_Mix)
+0x45d2d0	Flame_Step	game	confirmed	the backfire flame placed at its car's exhausts in turn
+0x45a150	Exhaust_SetRecord	game	confirmed	a car's exhaust lamp record
+0x45b530	Exhaust_SetGlow	game	confirmed	a car's exhaust glow

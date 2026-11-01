@@ -547,7 +547,7 @@ and a shaft table (0x547ff8), five entries each by the lamp's texture byte.
 **Set-up** (0x463fe0 per car, from 0x466360's loop over the listed cars when they are placed):
 - Each lamp is a kind 2 glow on the second model, or on its loose part when dents are on and the part
   has an object (0x484de0). Both its textures get blend type 1. Kind 9 lamps get a pool of light (0xff)
-  and are listed, two a car, in 0x543580 and 0x5431c0 for code not ported (0x45af90, 0x45d2d0).
+  and are listed, two a car, in 0x543580 and 0x5431c0: they are the exhausts (0x45af90, 0x45d2d0).
 - With dents on, each lamp notes the damage slot vertex nearest its position at rest (the squared
   distance, under 1000, the first of equals). Each frame it is moved by that vertex's dent.
 - Car 0 also makes the headlights' two lights, 30 and 15 units ahead (0x4b2f80, see [Device lights](#device-lights)).
@@ -678,7 +678,7 @@ the port leaves it. Thirty types are defined, 9 and 25 are not:
 | Types | Effect | Textures (0x459c80, `\Textures\NEWIMAGE\...`) |
 |---|---|---|
 | 0-2 | exhaust smoke | `Exhaust\exhst03`, `exhst02` |
-| 3 | detail dust (callbacks 0x45d2d0, 0x45de80) | `Det\13_12\DE_001-004` |
+| 3 | the backfire's flame (callbacks 0x45d2d0, 0x45de80) | `Det\13_12\DE_001-004` |
 | 4-7 | snow and spray | `SnowCld\snow_004` |
 | 8, 10-13 | dust clouds | `DustCld\23_5\D_000-007` |
 | 14, 15 | splashes | `Wsplash\spray2f`, `spray2` |
@@ -767,7 +767,20 @@ each listed car (its list index used as the car number) the sounds run (0x464c60
   - **The throw.** The stone leaves from the contact point, 0.35 down, along the slip's direction, by
     0.5 to 1 of the stones' speed, up by the same, and to a side by up to a third of it. Stones go
     twice as far along, half as high and 0.7 to the side. One thrown back towards the car is dropped.
-- Not ported yet: the exhaust's flames (0x45af90).
+- **The exhausts** (`Exhaust_Smoke` 0x45af90, last in the car's effects). Per exhaust (the kind 9
+  lamps; none without a first one):
+  - with the revs (+0x7a4) over 5 and the acceleration in x and z (+0x408, +0x410) under 0.01
+    together, smoke at the exhaust (type 0, or the darker type 1 while the engine smokes, below),
+    moving with the car plus its +0x360 vector times minus a hundredth of the revs, its ground 1 below;
+  - the engine's smoke level is 380 less 350 times the damage record's engine (+0x404), 0 to 255; over
+    80, with the acceleration under 5.8, it drops by a random 0-19 and a puff of type 2 comes from one
+    of the four boxes at 0x51ab68 (in the car's frame, 0.2 lower), moving along +0x36c times 0.1. That
+    0.1 then replaces the revs' share for the rest of the call: the second exhaust's test and velocity,
+    and the flames';
+  - a backfire (0x45b550, from the engine sound's backfire in 0x479360, not ported) sets the flame
+    count (0x5439b0) to its frames. While it runs, one less a call, each exhaust gets a flame (type 3,
+    at the origin: its step 0x45d2d0 puts it at one of the car's exhausts in turn) and its glow lit at a
+    random level.
 
 The other emitters are not ported yet: `Stage_Step`'s 0x47dd70, the sparks (0x499750) and the chips
 (0x499de0). Neither are the detail dust's lamp follower 0x45d2d0 or the sparks' and chips' callbacks.

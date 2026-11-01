@@ -23,6 +23,7 @@
 #include "pending.h"
 #include "sim/car.h"
 #include "world/particles.h"
+#include "world/glow.h"
 #include <stdio.h>
 
 /* 0x543650-0x54367b: spark4, paint, glass, exhst03, exhst02, (0x543664 exhst02 again), spray2 (the
@@ -175,8 +176,31 @@ static void cb_45d3a0(Particle *p, PType *t, void *a)
         to_car(p);
     }
 }
-/* 0x45d2d0: the detail dust follows a kind 9 lamp of its car (0x543580, not ported) */
-static void cb_45d2d0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x45d2d0, "the detail dust's step"); }
+/* 0x45d2d0, after each step: the backfire's flame (type 3) at one of its car's exhausts, the two in
+   turn (0x543cf8, one counter for all flames; always the first with one exhaust): the exhaust's point
+   through the car's +0x754 matrix (the record's copy at +0x40), the matrix's position, both added to
+   the flame's own position (0 from the emitter, then its motion) */
+static void cb_45d2d0(Particle *p, PType *t, void *a)
+{
+    (void)t, (void)a;
+    int car = p->car;
+    if (car >= 8) return;
+    uint32_t n = gm32(0x543cf8);
+    n = Lamps_Exhaust(car, 1) ? (n + 1) % 2 : 0;   /* signed: (n + 1) & 0x80000001, never negative here */
+    gw32(0x543cf8, n);
+    Car *c = Car_Get(car);
+    const uint8_t *r = Lamps_Exhaust(car, (int)n);
+    int32_t v[3] = {0, 0, 0}, e[3];
+    if (r)
+        for (int k = 0; k < 3; k++) v[k] = (int32_t)((uint32_t)r[4 * k] | r[4 * k + 1] << 8 | r[4 * k + 2] << 16 | (uint32_t)r[4 * k + 3] << 24);
+    for (int k = 0; k < 3; k++)
+        e[k] = fx_mul(CI32(c, 0x40 + 4 * (uint32_t)(8 + k)), v[2]) + fx_mul(CI32(c, 0x40 + 4 * (uint32_t)(4 + k)), v[1]) +
+               fx_mul(CI32(c, 0x40 + 4 * (uint32_t)k), v[0]);
+    for (int k = 0; k < 3; k++) {
+        gw32(0x543380 + 0xc * (uint32_t)car + 4 * (uint32_t)k, (uint32_t)e[k]);
+        p->pos[k] = e[k] + p->pos[k] + CI32(c, 0x70 + 4 * (uint32_t)k);
+    }
+}
 
 /* the sparks' and chips' callbacks (0x499070-0x499ac0), not ported yet */
 static void cb_499070(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x499070, "the sparks' draw"); }
@@ -217,7 +241,7 @@ void Effects_Types(void)
     PType_Spin(0);
     PType_Spread(0x28f, 0x28f, 0x28f, true);
     PType_End();
-    /* 3: the detail dust */
+    /* 3: the backfire's flame (the DE_ animation) */
     PType_Begin(3);
     PType_Copy(0);
     PType_Motion(0x40000, 0, 0, 0, 0, false, false);
@@ -1108,6 +1132,98 @@ void Car_GroundLight(int car, int view)
     Shadow_Light(car, v > 0x10000 ? 0x10000 : v);
 }
 
+void Effects_Backfire(int car, int frames)
+{
+    if (car >= 8) return;
+    gw32(0x5433e0 + 4 * (uint32_t)car, 1);
+    gw32(0x5436e8 + 4 * (uint32_t)car, (uint32_t)frames);
+}
+
+/* an exhaust's point through the car's orientation (+0x750, the record's first 16 ints) into 0x543380
+   (one point a car, both exhausts write it) */
+static void exhaust_point(int car, const Car *c, const uint8_t *r)
+{
+    int32_t v[3], e[3];
+    for (int k = 0; k < 3; k++) v[k] = (int32_t)((uint32_t)r[4 * k] | r[4 * k + 1] << 8 | r[4 * k + 2] << 16 | (uint32_t)r[4 * k + 3] << 24);
+    vec_mul3(e, v, c);
+    for (int k = 0; k < 3; k++) gw32(0x543380 + 0xc * (uint32_t)car + 4 * (uint32_t)k, (uint32_t)e[k]);
+}
+
+/* Exhaust_Smoke 0x45af90 (the cars' effects, after the wheels'): per exhaust (the kind 9 lamps; none
+   without a first one)
+   - above 0.05 of the revs (+0x7a4 times 0.01) with nearly no acceleration in x and z (+0x408, +0x410
+     under 0.01 together): smoke (type 0; type 1, darker, while the engine's smoke level is over 80) at the
+     exhaust, with the car's velocity (+0x450) plus its +0x360 vector times minus the speed, its ground
+     1 below;
+   - a backfire (0x45b550) starts the flame count (0x5439b0) from its frames;
+   - the engine's smoke level, 380 less 350 times the damage record's engine (+0x404), 0 to 255: over
+     80 and an acceleration below 5.8, less a random 0 to 19 (for the next exhaust too), a puff of type 2
+     in one of the four boxes at 0x51ab68 (in the car's frame), 0.2 lower, moving with the car's +0x36c
+     vector times 0.1. That 0.1 then stands for the revs for the rest of the call (the next exhaust's
+     test and its velocity, and the flame's).
+   While the flame count runs, one less each call: per exhaust a flame (type 3: placed by its step
+   0x45d2d0) moving along +0x360 times minus that value, and the exhaust's glow lit at a random level.
+   The two rand() results in the emits (times 0.015) are unused. */
+static void Exhaust_Smoke(int car)
+{
+    if (car >= 8 || !Lamps_Exhaust(car, 0)) return;
+    Car *c = Car_Get(car);
+    int32_t speed = fx_mul(CI32(c, 0x7a4), 0x28f);
+    if (speed < 0) speed = -speed;
+    int32_t still = iabs(CI32(c, 0x408)) + iabs(CI32(c, 0x410));
+    int32_t smoke = 0x17c - (fx_mul(DI32(Damage_Get(CI8(c, 0xb1a)), 0x404), 0x15e0000) >> 16);
+    smoke = smoke > 0xff ? 0xff : smoke < 0 ? 0 : smoke;
+    uint8_t passes = c->main ? c->main->mask : 0;   /* the model's +0x17c */
+    uint32_t pt = 0x543380 + 0xc * (uint32_t)car;
+    for (int i = 0; i < 2; i++) {
+        const uint8_t *r = Lamps_Exhaust(car, i);
+        if (!r) continue;
+        if (speed > 0xccc && still < 0x28f) {
+            exhaust_point(car, c, r);
+            for (int k = 0; k < 3; k++) gw32(pt + 4 * (uint32_t)k, (uint32_t)(gms32(pt + 4 * (uint32_t)k) + CI32(c, 0x70 + 4 * (uint32_t)k)));
+            int32_t pos[3] = {gms32(pt), gms32(pt + 4), gms32(pt + 8)}, vel[3];
+            for (int k = 0; k < 3; k++) vel[k] = fx_mul(CI32(c, 0x360 + 4 * (uint32_t)k), -speed) + CI32(c, 0x450 + 4 * (uint32_t)k);
+            rand_pos();
+            Particle_Emit(smoke > 0x50, pos, vel, pos[1] - 0x10000, NULL, NULL, 0, NULL, passes);
+        }
+        if (gm32(0x5433e0 + 4 * (uint32_t)car)) gw8(0x5439b0 + (uint32_t)car, gm8(0x5436e8 + 4 * (uint32_t)car));
+        if (smoke > 0x50 && still < 0x5cccc) {
+            smoke -= crt_rand() % 0x14;
+            int32_t f = rand_pos();
+            int b = crt_rand() % 4;
+            uint32_t box = 0x51ab68 + 0x18 * (uint32_t)b;
+            int32_t v[3], pos[3], vel[3];
+            for (int k = 0; k < 3; k++) {
+                int32_t lo = (int32_t)exe_u32(box + 4 * (uint32_t)k), hi = (int32_t)exe_u32(box + 0xc + 4 * (uint32_t)k);
+                v[k] = fx_mul(hi - lo, f) + lo;
+            }
+            vec_mul3(pos, v, c);
+            for (int k = 0; k < 3; k++) pos[k] += CI32(c, 0x70 + 4 * (uint32_t)k);
+            pos[1] -= 0x3333;
+            speed = 0x1999;
+            for (int k = 0; k < 3; k++) vel[k] = fx_mul(CI32(c, 0x36c + 4 * (uint32_t)k), speed);
+            rand_pos();
+            Particle_Emit(2, pos, vel, pos[1] - 0x10000, NULL, NULL, 0, NULL, passes);
+        }
+    }
+    uint8_t left = gm8(0x5439b0 + (uint32_t)car);
+    if (!left) return;
+    gw8(0x5439b0 + (uint32_t)car, (uint8_t)(left - 1));
+    for (int i = 0; i < 2; i++) {
+        const uint8_t *r = Lamps_Exhaust(car, i);
+        if (!r) continue;
+        exhaust_point(car, c, r);
+        int32_t zero[3] = {0, 0, 0}, vel[3];
+        for (int k = 0; k < 3; k++) vel[k] = fx_mul(CI32(c, 0x360 + 4 * (uint32_t)k), -speed);
+        gw32(0x5433e0 + 4 * (uint32_t)car, 0);
+        int arg = car;
+        Particle_Emit(3, zero, vel, -0x640000, NULL, NULL, 0, &arg, passes);
+        int32_t lv = rand_pos();
+        Glow *g = Lamps_ExhaustGlow(car, i);
+        if (g) Glow_Level(g, lv), Glow_Show(g, true);
+    }
+}
+
 void Effects_Car(int car)
 {
     if (car >= 8) return;
@@ -1121,5 +1237,5 @@ void Effects_Car(int car)
         Wheels_Splash(car);  /* 0x45c820 */
         Wheels_Stones(car);  /* 0x49b3e0 */
     }
-    PENDING_NOTE(0x45af90, "the exhaust's flames 0x45af90");
+    Exhaust_Smoke(car);   /* 0x45af90 */
 }

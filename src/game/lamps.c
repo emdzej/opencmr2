@@ -28,8 +28,8 @@ enum { LAMPS = 20, REC = 0x28, GROUPS = 5 };
 static Tex *sprite_tex[GROUPS], *shaft_tex[GROUPS];
 static Glow *glow[CAR_MAX][LAMPS];   /* 0x547d00 + 0x50 n */
 static int32_t hazard[CAR_MAX];      /* 0x547ce0: the hazards' clock */
-/* 0x543580 / 0x5431c0 (0x45a150, 0x45b530): the kind 9 lamps' records and glows, two a car (their
-   readers 0x45af90 and 0x45d2d0 are not ported) */
+/* 0x543580 / 0x5431c0 (0x45a150, 0x45b530): the kind 9 lamps (the exhausts)' records and glows, two
+   a car (read by the flames 0x45af90 and 0x45d2d0, effects.c) */
 static const uint8_t *k9_rec[16];
 /* the headlights' lights (0x547fec, 0x547ff0) and their offsets in the car (0x547fe0, 0x547fa0); the
    attenuation last set is 0x547ff4 */
@@ -151,6 +151,9 @@ void Lamps_Setup(Car *c)
     gw32(0x547ff4, 0xffff0000);   /* the headlights' last attenuation */
     memset(hazard, 0, sizeof hazard);
 }
+
+const uint8_t *Lamps_Exhaust(int car, int i) { return car >= 0 && car < 8 && i >= 0 && i < 2 ? k9_rec[2 * car + i] : NULL; }
+Glow *Lamps_ExhaustGlow(int car, int i) { return car >= 0 && car < 8 && i >= 0 && i < 2 ? k9_glow[2 * car + i] : NULL; }
 
 void Lamps_Place(void)
 {

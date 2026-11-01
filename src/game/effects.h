@@ -19,5 +19,8 @@ void Wheels_Track(int car);
 /* 0x45af00, each frame after it, not in some modes: the car's light and its wheels' effects */
 void Car_GroundLight(int car, int view);   /* 0x462aa0 */
 void Effects_Car(int car);
+/* 0x45b550 (from the engine's backfire in Engine_Mix 0x479360, not ported): the car's exhausts flame
+   for the given frames */
+void Effects_Backfire(int car, int frames);
 /* Wheel_Slip 0x465d70: wheel w's slip as 0..1 (0 for cars from 8) */
 int32_t Wheel_Slip(int car, int w);

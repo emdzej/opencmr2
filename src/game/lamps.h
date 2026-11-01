@@ -6,6 +6,7 @@
 #pragma once
 #include "render/tex.h"
 #include "sim/car.h"
+#include "world/glow.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -28,6 +29,10 @@ void Lens_Get(int i, int32_t *left, int32_t *right, int k);
    lens dark), lights 1 and 2 kept on while it is lit, and the lights moved ahead of the car */
 void Lamps_Lights(int car);
 int Lamps_Count(int car);           /* the port: the car's lamps */
+/* the port: the car's exhaust i (its kind 9 lamps, 0x543580 + 8 car + 4 i) as a lamp record (NULL
+   none), and its glow (0x5431c0) */
+const uint8_t *Lamps_Exhaust(int car, int i);
+Glow *Lamps_ExhaustGlow(int car, int i);
 Tex *Lamps_SpriteTex(int k);        /* 0x547fac + 4 k: group k's sprite texture */
 Tex *Lens_Tex(int i);               /* the port: car i's lens texture (NULL: none) */
 bool Lamps_On(int car, int k);      /* the port: lamp k's glow shown */
