@@ -296,6 +296,10 @@ instead.
   records ([The sky](#the-sky)). The race start (0x45eca0) sets the start's low (+0x30-+0x32) and high
   (+0x38-+0x3a) light colours (without records: 200 and 255); fra02 at 12:00: low (106, 131, 164),
   high (255, 255, 245). Each view then blends toward the end by its progress (0x461c30).
+- **The rest of `Stage_LoadHorizons`:** with both records, the averages of their bytes +0x48-+0x4d go
+  to 0x4a5ff0-0x4a60b0, a level, a scale and an offset for each of `Tga_Pixel` 0x4a60d0's flags 0x80
+  and 0x100. No caller passes those flags, so the values are never read. A start at 21:00 or later
+  sets bit 20 of the selection word (0x407800), for which no reader was found.
 
 ## Weather
 

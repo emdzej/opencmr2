@@ -166,8 +166,26 @@ static void hor_weather(Horizon *a, Horizon *b)
     if (!rd(b, 0x14) && !rd(b, 0x18) && (rd(a, 0x14) || rd(a, 0x18))) wr(b, 0x18, rd(a, 0x18)), wr(b, 0x14, rd(a, 0x18));
 }
 
-/* The file names are the 48 strings at 0x5196dc down in steps of 12 (0500.hor ... 2400BLI.hor). Not
-   ported yet: the six fog-colour bytes (the two records' +0x48-+0x4d averaged, 0x4a5ff0-0x4a60b0). */
+/* 0x4a5ff0-0x4a60b0: the texture colour adjust of Tga_Pixel 0x4a60d0's flags 0x80 and 0x100, each a
+   level, a scale (the byte times the float at 0x511338) and an offset (the byte less 128). No caller
+   in the exe passes those flags, so the values are set and never read: kept for fidelity. */
+static void tex_adjust(const uint8_t c[6])
+{
+    float k;
+    uint32_t u = exe_u32(0x511338);
+    memcpy(&k, &u, 4);
+    float f0 = (float)c[1] * k, f1 = (float)c[4] * k;
+    gw32(0x520b2c, c[0]);
+    memcpy(&u, &f0, 4), gw32(0x520b34, u);
+    gw32(0x65fa44, (uint32_t)(c[2] - 0x80));
+    gw32(0x520b30, c[3]);
+    memcpy(&u, &f1, 4), gw32(0x520b38, u);
+    gw32(0x65fa48, (uint32_t)(c[5] - 0x80));
+}
+
+/* The file names are the 48 strings at 0x5196dc down in steps of 12 (0500.hor ... 2400BLI.hor). With
+   both records: their bytes +0x48-+0x4d averaged into the texture adjust, the selection word's bit 20
+   set for a start at 21:00 or later (0x407800; no reader found), then the default lights. */
 void Stage_LoadHorizons(void)
 {
     const uint8_t *files[48];
@@ -180,7 +198,15 @@ void Stage_LoadHorizons(void)
     g_hor_start = Hor_ForTime(start, 0, files);
     g_hor_end = Hor_ForTime(end, 1, files);
     hor_weather(g_hor_start ? &hor_start : NULL, g_hor_end ? &hor_end : NULL);   /* 0x461a70 */
-    if (g_hor_start && g_hor_end) Light_Defaults();
+    if (!g_hor_start || !g_hor_end) return;
+    uint8_t c[6];
+    for (int i = 0; i < 6; i++) {
+        unsigned v = ((unsigned)g_hor_start->b[0x48 + i] + g_hor_end->b[0x48 + i]) / 2;
+        c[i] = (uint8_t)(v > 0xff ? 0xff : v);
+    }
+    tex_adjust(c);
+    gw32(0x52f2ac, (gm32(0x52f2ac) & ~0x100000u) | (start > 0x833 ? 0x100000u : 0));   /* 0x407800 */
+    Light_Defaults();
 }
 
 /* The horizon state's fields (HOR_S + o, the end HOR_E + o): the colours 16.16 a channel. */

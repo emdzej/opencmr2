@@ -827,3 +827,5 @@
 0x4b5340	Shadow_SetSortedDir	render	confirmed	the sorted objects' shadow direction, the sun's negated (0x6dfdd8)
 0x4b5760	Shadow_SortedDirFromSun	render	confirmed	calls 0x4b5340
 0x47e490	Fireworks_SetLight	game	confirmed	the super special's fireworks lit by the low light colour
+0x407800	Tod_SetLate	game	confirmed	selection word bit 20: the start is at 21:00 or later
+0x4a5ff0	TexAdjust_SetLevelA	render	confirmed	Tga_Pixel flag 0x80 level (unread)
