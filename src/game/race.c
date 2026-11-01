@@ -2,6 +2,7 @@
    fields of R, named by address where the meaning is open. */
 #include "game/race.h"
 #include "game/weather.h"
+#include "game/skids.h"
 #include "game/proc.h"
 #include "game/camera.h"
 #include "game/common.h"
@@ -173,7 +174,7 @@ static void Race_Update(uint8_t state, bool flag)
        the wheels' tracking and, but in the network mode and modes 11 and 12, the effects */
     if (!Pause_Active())
         for (int i = 0; i < g_all.n; i++) {
-            PENDING_NOTE(0x464c60, "Car_Sounds 0x464c60");
+            Skids_Step(i);     /* 0x464c60 */
             Wheels_Track(i);   /* 0x45def0 */
             if (!Gs_SelBit26() && Gs_Mode() != 12 && Gs_Mode() != 11) Effects_Car(i);   /* 0x45af00 */
         }
@@ -268,6 +269,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
         if (R.place) {
             if (H->place_cars) H->place_cars();
             Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
+            Skids_Load();      /* 0x465600 */
             Lamps_Place();     /* 0x466360's cars */
             Weather_RaceStart();   /* Race_StartLights 0x45eca0, in 0x466360 */
             Lights_Setup();    /* 0x463410, in 0x466360 */
@@ -356,6 +358,7 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
         return;
     }
     Results_Start(false);   /* 0x44a1b0 */
+    Skids_Reset();          /* 0x465530 */
     for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
     R.first = true;
 }
@@ -406,6 +409,7 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             Engine_Reset();
             Times_Clear();
             Hud_Init(gm8(0x53810c));   /* 0x411450 */
+            Skids_Reset();   /* 0x465530 */
             Lights_Reset();   /* 0x463d00 */
             PENDING_NOTE(0x41e6b0, "Race_Restart's splits and replay (0x4584d0, 0x42b800)");
             R.nfinished = 0, R.done = 0;

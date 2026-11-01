@@ -43,7 +43,7 @@ void Pose_Snap(int car) { gw32(0x53acf0 + 4 * (uint32_t)car, 1); }   /* 0x42c870
 
 /* 0x42cae0: the wheels drawn narrow (and with mode 1 the hubs turned): a car on surface 6 at +0xb29
    but for models 8, 10, 11, 13, not with option 6; a car of kind A only with mode 1 */
-static bool narrow(const Car *c, int mode)
+bool Pose_Narrow(const Car *c, int mode)
 {
     uint8_t m = Car_Slot(CI8(c, 0xb1a))->model;
     if (Gs_Option(6) || c->s[0xb29] != 6 || m == 11 || m == 8 || m == 10 || m == 13) return false;
@@ -148,7 +148,7 @@ void Car_PoseInterp(void)
                 m[3 * r + 1] = y;
                 m[3 * r + 2] = fx_mul(z, cs) + fx_mul(y, sn);
             }
-            if (narrow(c, 0))
+            if (Pose_Narrow(c, 0))
                 for (int q = 6; q < 9; q++) m[q] = fx_mul(m[q], 0x9999);
             if (Gs_Option(6))
                 for (int q = 0; q < 9; q++) m[q] = fx_mul(m[q], 0x28000);

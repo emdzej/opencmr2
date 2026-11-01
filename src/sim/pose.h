@@ -11,3 +11,5 @@ void Car_PoseInterp(void);            /* 0x42bf70 */
 void Pose_Init(int n);                /* 0x42bcd0 */
 void Pose_Snap(int car);              /* 0x42c870 */
 void Cars_ShellsToCamera(const Obj *camera);   /* 0x429810 */
+/* 0x42cae0: the wheels drawn narrow (and with mode 1 the hubs turned) */
+bool Pose_Narrow(const Car *c, int mode);

@@ -774,3 +774,12 @@
 00480380	Fireworks_ReplayLaunch	fx	low	A firework launched in a replay
 004805f0	Fireworks_Set	fx	low	The fireworks' setting
 00480600	Fireworks_Interp	fx	low	The fireworks' drawn positions between steps
+00464c60	Skids_Step	world	high	Each step: the skid rings of the wheels that laid a segment move on
+00465530	Skids_Reset	world	high	The skid segments dead, the wheels' mark state cleared
+00465600	Skids_Load	world	high	The skid textures, the span by mode and the colours by rally
+004657d0	Skids_Centres	world	high	The wheels' ground points from the shadow record
+00464cb0	Skids_Add	world	high	The skids' expiry and a new segment per sliding wheel
+00465780	Skids_Draw	world	high	The skid marks of the cars a view shows
+004658e0	Skids_DrawCar	world	high	A car's skid quads between segments laid up to L frames apart
+00465ea0	Clamp255	world	high	A value clamped to 0..255
+0042cae0	Pose_Narrow	sim	high	The wheels drawn narrow

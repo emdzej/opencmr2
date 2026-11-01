@@ -625,7 +625,7 @@ static int32_t iabs(int32_t v) { return v < 0 ? (int32_t)(0u - (uint32_t)v) : v;
 
 /* Wheel_Slip 0x465d70: wheel w's slip as 0..1, the larger of |+0x880| less 0.05 and |+0x870| less
    0.15, each from 0 */
-static int32_t Wheel_Slip(int car, int w)
+int32_t Wheel_Slip(int car, int w)
 {
     if (car >= 8) return 0;
     Car *c = Car_Get(car);

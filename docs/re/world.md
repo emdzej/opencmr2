@@ -485,7 +485,7 @@ code (0x45e9a0-0x462d80) uses the same scale.
 
 The effects (exhaust smoke, dust, snow, splashes, leaves, gravel, sparks, paint and glass chips) are
 particles drawn as camera-facing sprites (0x4b11c0). The old Ghidra name of 0x4aff80, `Skids_Reset`, was
-wrong: it kills every particle. The skid marks are elsewhere.
+wrong: it kills every particle. The skid marks are elsewhere ([Skid marks](#skid-marks)).
 
 **Tables** (0x4b0060, from the race set-up 0x40efa0 with 32 types and 400 particles): types of 0x70
 bytes at 0x6a2cd8 and particles of 0x68 bytes at 0x6a2cdc. Their counts are 0x6a2cd0 and 0x6a2cd4.
@@ -661,6 +661,81 @@ each listed car (its list index used as the car number) the sounds run (0x464c60
 
 The other emitters are not ported yet: `Stage_Step`'s 0x47dd70, the sparks (0x499750) and the chips
 (0x499de0). Neither are the detail dust's lamp follower 0x45d2d0 or the sparks' and chips' callbacks.
+
+## Skid marks
+
+The skid marks (0x464c60-0x465ea0, `src/game/skids.c`) are kept per car (8) and wheel in a ring of 200
+segments. Each segment is two ground points either side of the wheel. The marks are drawn as quads
+between two segments.
+
+**Tables** (all in the game state). A segment is 0x28 bytes at 0x549da0 + (800 car + 200 wheel +
+n) x 0x28:
+
+| Offset | Field |
+|---|---|
+| +0x00 | age (expiry and fading read it; nothing raises it) |
+| +0x04 | the frame it was laid in (0x588750, raised once a frame by car 0) |
+| +0x08, +0x14 | left and right points |
+| +0x20 | colour (3 bytes) |
+| +0x24, +0x25 | the left and right alphas |
+| +0x26 | the surface class (low nibble) |
+
+The other tables:
+
+- The alive bytes are at 0x548220 (the same index).
+- Per wheel (4 car + w, ints): the ring head is at 0x549ba0. The "move on at the next step" flag is at
+  0x5885a0. 0x543708 and 0x549b20 record whether the last segment was laid on hard or soft ground.
+- The running colour is at 0x588620 (4 bytes a car).
+- The wheels' ground points are at 0x549c20 (0x30 a car).
+- A surface's class is the signed byte 0x51bcb0[material]. Classes are 8 bytes at 0x51bc68. The flags
+  byte has bit 0 (marks on hard ground), bit 1 (soft ground) and bits 2-3 (the texture: 1
+  `skids_mark`, 2 `skids_blank`, else `skids_1`). The colour is at +4.
+- The span L is at 0x51bca8.
+
+**Load** (0x465600, from the cars' placing 0x424c50). It resets everything (0x465530: segments dead,
+the per-wheel words zeroed, 0x543140 set to 1, the runs 0x543b58 zeroed). It loads the three
+`\NEWIMAGE\skid\` textures from the common archive. L is 4 in modes 5-7, else 2. Class 2's colour is
+0x6f7a89 in rally 0 and 0x4389b7 in the others, and it is copied to class 7. The code tests rallies 4-5
+apart from the rest but gives them the same colour. The reset also runs when the finish is counted
+(state 9) and on a restart (0x41e6b0).
+
+**Each frame** (`Race_DrawView` 0x40f0c0, after the world and not while paused). The view's own car
+gets new segments; other cars leave none.
+
+- **0x4657d0** sets each wheel's ground point. It is the middle of the shadow record's two points for
+  the wheel (+0x198 + 12 w and +0x1c8 + 12 w), raised by 0.05.
+- **0x464cb0** (cars below 8; nothing at effects detail 2):
+  - **Expiry.** An alive segment older than 80 L frames (4 L when it rains or snows above 0.2) dies.
+    The ages are never raised, so this never happens.
+  - **When a segment is laid.** The wheel must touch (+0xbac). Then one of two conditions:
+    - hard ground: both this surface (+0xaae) and the last frame's (0x5435d0) have class flag bit 0,
+      and 0x5430a0 > 2, 0x5439b8[car] > 1 and +0xb74 == 1;
+    - soft ground: both surfaces have bit 1.
+  - **Alpha.** The alpha is the wheel's slip (`Wheel_Slip` 0x465d70) times 255. On soft ground with
+    the other wheel of the side touching too (w ^ 2), it is half instead, and no segment is laid on
+    material 0x19. Otherwise the slip must be above 0. The wheel's run (0x543b58, from
+    `Wheels_Track`) must be nonzero in x or z, and 0x543140 clear.
+  - **Points.** The segment at the head gets the ground point plus and minus run x up, made unit,
+    times 0.03. That width is scaled by 0.6 for narrow wheels (0x42cae0 mode 1), or by 2.5 instead with
+    option 6. Both points are lowered by 0.008 + 0.002 w (-0x20c - 0x83 w).
+  - **Colour.** On hard ground the car's running colour moves half way to the last surface class's
+    colour. The segment gets that colour times the wheel's light (0x543f28, /255). On soft ground the
+    running colour becomes the class colour times the light at once.
+  - The next segment's alphas are cleared and the head moves on at the next step (0x464c60, from
+    `Race_Update` per listed car). A wheel that lays nothing still moves its head on if it laid a
+    segment before.
+- **0x465780(view)** draws, for each car below 8 not hidden from the view (0x588cd4[view + 2 car] !=
+  7), each wheel (0x4658e0):
+  - Back from the head, the segment is paired with the farthest earlier alive segment laid exactly
+    k frames before, for k = L - 1 down to 1. The walk then goes on k segments back.
+  - The alphas fade with the segments' ages when b's red is above 200 or b's age above 1,240. The
+    ages are 0, so this never fades anything.
+  - The quad is skipped when all four alphas are 1 or less, or when the older segment's two points
+    coincide in x and y.
+  - The two triangles (a.R, a.L, b.L) and (b.R, a.R, b.L) use bucket 0x20 with flags 6 (no z write,
+    no culling). `skids_blank` is drawn black with a third of the newer segment's alphas at both
+    ends. Race_DrawView queues the marks after the world has drawn, so they show with the next
+    frame's world.
 
 ## Loading a stage
 

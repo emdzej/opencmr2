@@ -7,6 +7,7 @@
 #include "game/mem.h"
 #include "game/race.h"
 #include "game/weather.h"
+#include "game/skids.h"
 #include "game/stage_load.h"
 #include "platform.h"
 #include "render/d3d7.h"
@@ -87,6 +88,12 @@ static void draw(int player, int state)
     Race_DrawOverlays(player);
     int16_t view[4] = {0, 0, (int16_t)w, (int16_t)h};
     World_Render(&camera, view, 0, true);
+    /* after the world, as Race_DrawView 0x40f0c0 (the marks' triangles drawn with the next frame's) */
+    if (!gm8(0x52af40)) {
+        Skids_Centres(player);   /* 0x4657d0 */
+        Skids_Add(player);       /* 0x464cb0 */
+    }
+    Skids_Draw(player);          /* 0x465780 */
 }
 
 static Obj *cam(int player)

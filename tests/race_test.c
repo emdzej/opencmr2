@@ -7,6 +7,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/skids.h"
 #include "game/results.h"
 #include "game/select.h"
 #include "game/opponents.h"
@@ -100,11 +101,18 @@ static int lens_alpha(uint8_t a)
 
 static Obj camera;
 static Obj *host_camera(int player) { (void)player; return &camera; }
+static int skids_laid, skids_stamped;
 static void draw(int player, int state)
 {
     (void)state;
     Codriver_Notes(player);   /* the overlays' speech each frame (the 2D drawing is the GPU tests') */
     Lamps_Lights(player);
+    Skids_Centres(player);   /* as play.c, without the drawing */
+    Skids_Add(player);
+    int laid = 0, stamped = 0;
+    for (uint32_t i = 0; i < 800; i++)
+        if (gm8(0x548220 + i)) laid++, stamped += gm32(0x549da0 + 0x28 * i + 4) != 0;
+    if (laid > skids_laid) skids_laid = laid, skids_stamped = stamped;
 }
 static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, draw, host_camera};
 
@@ -521,6 +529,14 @@ int main(void)
                hi[0], hi[1], hi[2], h1->attenuation0, CI32(Car_Get(0), 0xb58));
         CHECK(n % 3 == 0 && h1->attenuation0 == 1025 && sun->type == D3DLIGHT_DIRECTIONAL && sun->direction.y < -0.6f &&
               h1->type == D3DLIGHT_POINT && h1->range == 60 && h1->attenuation0 == h2->attenuation0);
+    }
+    {
+        /* the skid marks: the most segments car 0's wheels had laid at once in the race (each stamped
+           with its frame), all dead after the finish (0x465530 at state 9) */
+        int laid = 0;
+        for (uint32_t i = 0; i < 800; i++) laid += gm8(0x548220 + i) != 0;
+        printf("skids: %d segments laid at most, %d after, span %d, frame %u\n", skids_laid, laid, gms32(0x51bca8), gm32(0x588750));
+        CHECK(skids_laid > 0 && skids_stamped == skids_laid && laid == 0 && gms32(0x51bca8) == 2);
     }
     printf("race_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
