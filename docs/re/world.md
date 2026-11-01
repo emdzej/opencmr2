@@ -164,13 +164,15 @@ They sit in cells like other world objects, so the update moves them into the ca
    2. Draw the terrain in mode 0 with linear fog.
    3. Draw the tree shadows (`Stage_DrawOverlay` 0x49cf80, [stage.md](../formats/stage.md#tre)) in
       mode 5.
-   4. Run the cars' pass (0x4af120), then the triangle buckets 8 (mode 5) and 0x20 (mode 4).
+   4. Draw the glows (`Glow_Draw` 0x4af120, [below](#glows)), then the triangle buckets 8 (mode 5) and
+      0x20 (mode 4).
    5. In mode 1, draw the scenery. Then come the sorted objects (`Section_QueueSorted` 0x49d290,
       `Obj_DrawQueued` 0x49cd20) and the queued billboards. With the mode at 0x59ce14 set
       (`World_SetMode` 0x49c420), the billboards come first and the 0x10 bucket and the indexed draw
       are drawn before the sorted objects.
 4. Still with the world flag, but fog off and source-alpha blending in mode 5: draw the 0x10 bucket,
-   the 0x40 bucket (mode 4), the debug 3D lines, `Render_DrawIndexed` 0x4b1530 and 0x4b6240 (pass).
+   the 0x40 bucket (mode 4), the debug 3D lines, the sprites (`Render_DrawIndexed` 0x4b1530,
+   [render.md](render.md#sprites)) and 0x4b6240 (pass).
 5. Call 0x4bc490 (0, 0, 0). Then, with z off, draw 2D layers 3, 2 and 1 over the whole screen with
    culling off.
 6. Run the frame statistics (0x4b21e0) and end the scene.
@@ -244,6 +246,62 @@ The race start moves every cell's cached red 10 away, so the first pass relights
 Not ported yet:
 - the fade of shadows near a car's lights (0x4b6ca0);
 - the shadows of sorted objects (0x4b50b0).
+
+## Glows
+
+A pool of light glows (0x6a2a98, 0x5c bytes each), made with the race (0x4ae170: 160, or 4 with option
+0 set) and emptied when the cars are placed (0x4ae260). `Glow_Add` 0x4ae2f0 takes the first free slot.
+A glow has:
+
+| Offset | Contents |
+|---|---|
+| +0x00 | kind (0 free; 2 seen from in front only, 3 from both sides) |
+| +0x04, +0x10 | position and direction, in the parent's frame when +0x54 is set |
+| +0x1c, +0x28 | a point and the normal of a plane under it (0x4ae420, with +0x44) |
+| +0x34, +0x38 | the sprite's half width and height |
+| +0x3c | level (0 not drawn; 0x4ae3f0) |
+| +0x40 | the pool's size, times the width |
+| +0x44 | the shaft's level (0: none) |
+| +0x48, +0x4c | the sprite's and pool's texture, the shaft's texture |
+| +0x50, +0x51 | on (0x4ae3d0), the pool's level (0: none) |
+| +0x54 | parent object: the glow is skipped when it, or its parent, is not drawn in this pass (+0x17c) |
+
+`Glow_Draw` 0x4af120 takes each glow that is on with a level above 0:
+- **The angle** (kinds 2 and 3): from the camera to the glow, divided by its largest part and made
+  unit, against the glow's direction, through the arcsine table as degrees. Past 90 degrees the
+  factor is (a - 90) x 0x3d7 (full at about 156 degrees); kind 3 also takes (90 - a) x 0x3d7 from
+  behind. At exactly 90 degrees, or a factor of 0, there is no sprite. Other kinds have the factor 1.
+- **The sprite:** grey of factor x level x 254, opaque, its corners (-w, h, w, -h), moved one unit
+  towards the camera and shrunk by 1 - 1/distance to keep its size, into the sprite queue with the
+  glow's texture.
+- **The shaft** (0x4ae470, with +0x44): an upright quad from the glow's foot on the plane, 2 x its
+  height tall and 0.6 w wide along the camera's level right, moved towards the camera by its distance
+  less 3 (at most 10) and shrunk to match. It fades out from 2 to 2.5 above the plane. Bucket 0x10,
+  flags 6 (no z writes, no culling).
+- **The pool** (0x4ae950, with +0x51): a square on the plane under the glow, size x w, its sides from
+  the plane's normal crossed with x. It fades out from 0.4 to 1.0 above the plane and is moved a unit
+  towards the camera. Bucket 8, flags 6.
+
+## Start lights
+
+The start gantry is the stage's `<stage>.bsp` (`Stage_LoadBsp` 0x420020): four rows of three words,
+the gantry's x, y and z axes and its position (0x463290 into 0x547b40). The textures are Common.bfl's
+`lgt_red` and `lgt_gre` (0x463360, blend 1).
+
+When the cars are placed (0x463410, from 0x466360) and the gantry's position is not zero:
+- **The layout:** stage 10 has 7 lights in layout 2 (rally 3) or 3; otherwise 8 lights in layout 1
+  when the rally's bit for the stage is set in 0x51b6f8, else 7 in layout 0.
+- **The frame:** the gantry's axes made unit, their lengths the scales. The glows face the frame's -z.
+- **Each light:** x and y from 0x51b1a8 (per layout and light), z from 0x51b2a8 (per layout), times the
+  scales, through the frame. Its colour (0x51b2b8: 0 red, 1 green) picks the texture and the size
+  (0x51b6c8 per colour and layout, times the x scale). A kind 2 glow, off; a second one moved along
+  the gantry's x by 0x51b6b8 (per layout) when that is not 0.
+
+Each step (`Stage_Step` 0x466520, 0x463bd0) every light's level moves 0.2 towards its state in
+0x51b338 (per layout, countdown step 0-6 and light), shown while above 0. The co-driver sets the step
+(0x463ce0, above 7 becomes 6): 3, 2 and 1 with the countdown's numbers, 0 at the go. The restart
+puts it back to 6 with every light off (0x463d00). In fra02 (layout 1) the reds come on through the
+countdown and two greens at the go.
 
 ## Loading a stage
 

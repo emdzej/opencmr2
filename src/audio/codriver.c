@@ -7,6 +7,7 @@
 #include "game/race.h"
 #include "fixmath.h"
 #include "exe.h"
+#include "game/lights.h"
 #include "pending.h"
 #include "sim/car.h"
 #include "sim/progress.h"
@@ -128,7 +129,7 @@ void Codriver_Start(int p)
     }
     if (!counted[0][left]) {
         counted[0][left] = 1;
-        PENDING_NOTE(0x463ce0, "Countdown_Lights");
+        Lights_Countdown(left + 1);   /* 0x463ce0 */
         if (left == 2) say(base + 0x38);
         else if (left == 1) say(base + 0x39);
         else if (left == 0) say(base + 0x3a);
@@ -174,7 +175,7 @@ void Codriver_Step(int p)
     if (Gs_SelBit24() || Gs_SelBit25()) PENDING_NOTE(0x417090, "Codriver_Step (the arcade)");
     int last = last_point[p], cur = Car_CatIndex(Car_Get(p));
     if (!go_said && p == 0) {
-        PENDING_NOTE(0x463ce0, "Countdown_Lights");
+        Lights_Countdown(0);   /* 0x463ce0 */
         say(base + 0xd);   /* "go" */
         go_said = true;
     }

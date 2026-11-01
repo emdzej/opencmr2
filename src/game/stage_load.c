@@ -11,6 +11,7 @@
 #include "world/section.h"
 #include "world/stage.h"
 #include "world/tod.h"
+#include "game/lights.h"
 #include "pending.h"
 #include "exe.h"
 #include "game/mem.h"
@@ -26,7 +27,14 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     PENDING_NOTE(0x40fec0, "LoadBar_Step");
     /* 2: the horizons for the selection's time of day, the BSP (0x420020), TEMP.C3D */
     Stage_LoadHorizons();
-    PENDING_NOTE(0x420020, "Stage_LoadBsp");
+    {
+        /* Stage_LoadBsp 0x420020: the start gantry's frame, <stage>.bsp */
+        char n[80];
+        snprintf(n, sizeof n, "%s.bsp", stage);
+        uint32_t size;
+        const uint8_t *bsp = Bfl_FindFile(&g_stage_bfl, n, NULL, &size, false);
+        Lights_Gantry(bsp && size >= 48 ? bsp : NULL);   /* 0x463290 */
+    }
     if (!Stage_LoadC3d()) return false;
     /* 3: the collision mesh, the surfaces (0x41fcd0), the walls, the scenery, the start, the centre
        line, the co-driver's notes (0x416720) */

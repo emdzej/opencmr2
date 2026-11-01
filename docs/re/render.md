@@ -138,6 +138,26 @@ state starts as texture "1" and flags -1, so the first triangle always sets it. 
 is unbound, z is turned back on, culling goes back to the default, and the cached blends are
 forgotten. `Tri_Init` empties only the 8 and 0x10 buckets.
 
+## Sprites
+
+Camera-facing quads, up to 800 a frame (0x6c9e00, 0x58 bytes each), made at the race start
+(0x4b1150, which also fills the index list 0x6db200: per sprite 0 3 2, 0 1 3). `Sprite3d_Add`
+0x4b11c0 takes a 0x24-byte sprite:
+- the centre (16.16);
+- four extents, so the corners are (-e1, e0), (-e1, e2), (-e3, e0), (-e3, e2) along right and up;
+- the colour bytes R, G, B, A;
+- a turn about the view (+0x20, 4,096 a turn);
+- a shade (+0x22) and flags (+0x23): 1 mirrors the texture; 2 lights the colour. A lit colour is the
+  colour times the light ramp's full end and times its dark end (0x4b3ae0, the ramp's byte copy at
+  0x6e0b34), mixed as (full (256 - shade) + dark shade) / 256.
+
+Runs of the same texture are counted as the sprites come (0x6c8500). `Render_DrawIndexed` 0x4b1530
+builds four `0x2d2` vertices per sprite from the camera's first two rows (turned by the sprite's
+angle), specular 0xff000000, UVs (0,1) (0,0) (1,1) (1,0), mirrored in u. Then z writes off, a
+`DrawIndexedPrimitive` per run with the run's texture bound (no blend set up), z writes on; the
+queue is emptied and the cached blends forgotten. Two triangles a sprite go to the 2D count
+(0x59ce20).
+
 ## Fixed-point math
 
 The simulation and parts of the renderer work in 16.16, with angles in 4,096 units per turn.

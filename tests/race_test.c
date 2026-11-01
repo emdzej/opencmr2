@@ -16,6 +16,8 @@
 #include "audio/codriver.h"
 #include "audio/crash.h"
 #include "sim/damage.h"
+#include "game/lights.h"
+#include "world/glow.h"
 #include <math.h>
 #include "game/camera.h"
 #include "game/hud.h"
@@ -121,6 +123,19 @@ int main(void)
             printf("frame %4d: state %d, stage time %d, clock %d\n", frame, st, Race_StageTime(0), Race_Clock());
         }
         if (st == 8 && go < 0) go = frame;
+        /* the start lights (0x463410, 0x463bd0): lit by the countdown's steps, the glows queued as
+           sprites; at the go a different set (the greens) */
+        static int lit_count = -1, lit_go = -1;
+        if (st == 7 && frame - seen[7] == 200 && lit_count < 0) {
+            lit_count = 0;
+            for (int i = 0; i < Lights_Count(); i++) lit_count += Lights_Level(i) == 0x10000;
+        }
+        if (st == 8 && frame - go == 30 && lit_go < 0) {
+            lit_go = 0;
+            for (int i = 0; i < Lights_Count(); i++) lit_go += Lights_Level(i) == 0x10000;
+            printf("start lights: %d, %d lit in the countdown, %d after the go; %d glows\n", Lights_Count(), lit_count, lit_go, Glow_Used());
+            CHECK(Lights_Count() >= 7 && lit_count > 0 && lit_go > 0 && Glow_Used() >= Lights_Count());
+        }
         if (st == 8 && frame - go == 60) {
             CHECK(Camera_Kind(0) == 4);
             press_camera = 1;   /* the camera key: from the chase (4) to the far chase (5), blended */

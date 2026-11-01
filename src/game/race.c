@@ -14,6 +14,9 @@
 #include "game/timer.h"
 #include "sim/sim.h"
 #include "sim/damage.h"
+#include "game/lights.h"
+#include "render/sprite3d.h"
+#include "world/glow.h"
 #include "sim/pose.h"
 #include "sim/drive.h"
 #include "sim/fade.h"
@@ -126,7 +129,11 @@ static void Race_Update(uint8_t state, bool flag)
         for (uint32_t i = 0; i < np; i++)
             if (Car_Get((int)i)->s[0xb43] && flag) PENDING_NOTE(0x41d0c0, "Race_PlayerStep");
         Sim_Step();
-        if (car0) PENDING_NOTE(0x466520, "Stage_Step: the start lights 0x463bd0, 0x47dd70, the loose parts 0x47eab0/0x480220");
+        if (car0) {
+            /* Stage_Step 0x466520 */
+            Lights_Step();   /* 0x463bd0 */
+            PENDING_NOTE(0x466520, "Stage_Step's 0x47dd70 and the loose parts 0x47eab0/0x480220");
+        }
         for (int i = 0; i < g_all.n; i++)
             if (Car_Get(i)->s[0xb43]) Fade_Tick(i, false);
         if (car0) {
@@ -169,6 +176,11 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
         Bfl_MountCommon();
         Race_LoadText();   /* 0x478a20 */
         Race_LoadFonts();
+        /* 0x40efa0, in part: the sprite queue (0x4b1150), the glows (0x4ae170: 4 with option 0, else
+           160), the start lights' textures (0x463360, in 0x40f020) */
+        Sprite3d_Init();
+        Glow_Alloc(Gs_Option(0) ? 4 : 0xa0);
+        Lights_Load();
         Pause_Build();   /* 0x403500 */
     }
     Proc_Event(g, slot, 0, 2);
@@ -230,6 +242,8 @@ static void s5_line(ProcGroup *g, uint32_t slot)
     if (slot == 0) {
         if (R.place) {
             if (H->place_cars) H->place_cars();
+            Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
+            Lights_Setup();    /* 0x463410, in 0x466360 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */
             Hud_Init(1);       /* 0x411450 */
             R.place_count = 1;
@@ -364,7 +378,8 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             Engine_Reset();
             Times_Clear();
             Hud_Init(gm8(0x53810c));   /* 0x411450 */
-            PENDING_NOTE(0x41e6b0, "Race_Restart's lights, splits and replay (0x463d00, 0x4584d0, 0x42b800)");
+            Lights_Reset();   /* 0x463d00 */
+            PENDING_NOTE(0x41e6b0, "Race_Restart's splits and replay (0x4584d0, 0x42b800)");
             R.nfinished = 0, R.done = 0;
             memset(R.finished, 0, sizeof R.finished);
             memset(R.shown, 0, sizeof R.shown);

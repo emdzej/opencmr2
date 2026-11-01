@@ -17,7 +17,7 @@ void Section_QueueSorted(const Obj *camera);
 void World_DrawAll(void);                    /* 0x49cd90: every object, z on (no stage sections) */
 /* World_Render 0x49d3f0: the viewport (x, y, w, h), the scene, layer 4 of the 2D queues, with world
    set the stage passes, then layers 3 to 1 over the whole screen. False when the scene can't begin. */
-/* The port, until the cars' pass (0x4af120: levels of detail, lights, reflections) is ported: these
-   cars' object trees are drawn at its place with Obj_Draw. */
+/* The port, until the cars' own drawing is found: these cars' object trees are drawn with Obj_Draw
+   just before the glows (0x4af120). */
 void World_SetCars(Obj **cars, int n);
 bool World_Render(Obj *camera, const int16_t view[4], uint32_t pass, bool world);

@@ -15,6 +15,8 @@ void Light_SetHigh(const int32_t c[3], bool shadow_from_low);
    original also makes the sun light object (0x4b2f80, not ported). */
 void Light_Defaults(void);
 uint32_t Light_TerrainRamp(int32_t intensity);   /* 0x4b3b40 */
+/* 0x4b3ae0: the same ramp from its byte copy (0x6e0b34: R, G, B, 0xff in memory order) */
+uint32_t Light_ByteRamp(int32_t intensity);
 uint32_t Light_ShadowRamp(int32_t intensity);    /* 0x4b3ba0 */
 extern uint32_t g_shadow_rgb;   /* 0x6e0098: bytes R, G, B */
 extern int32_t g_shadow_alpha;  /* 0x6e0b38: 16.16, at most 255 */

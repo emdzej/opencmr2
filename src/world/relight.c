@@ -116,6 +116,13 @@ uint32_t Light_TerrainRamp(int32_t v)
     return ramp[ramp_index(v)];
 }
 
+uint32_t Light_ByteRamp(int32_t v)
+{
+    if (dirty) build_ramps(), dirty = false;
+    uint32_t c = ramp[ramp_index(v)];
+    return 0xff000000u | (c & 0xff) << 16 | (c & 0xff00) | (c >> 16 & 0xff);
+}
+
 uint32_t Light_ShadowRamp(int32_t v)
 {
     if (dirty) build_ramps(), dirty = false;

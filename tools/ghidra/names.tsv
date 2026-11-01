@@ -115,7 +115,7 @@
 004bcbb0	Fog_SetLinear	render	med	Linear vertex fog: FOGTABLEMODE 0, FOGVERTEXMODE 3, start and end
 004bcc20	Fog_Off	render	med	Vertex fog off
 0049e1f0	EnvMap_RenderCube	render	med	Renders six views around an object (cube environment map for reflections), restoring view, projection and viewport
-004b1530	Render_DrawIndexed	render	med	DrawIndexedPrimitive of FVF 0x2d2 vertices from the shared arrays
+004b1530	Render_DrawIndexed	render	high	The sprite queue drawn: four 0x2d2 vertices per sprite turned to the camera, a run per texture
 004a3e20	Tex_SetBlend	render	high	Sets a texture record's blend type (+0x118)
 004a3e40	Render_SetBlend	render	high	SRCBLEND and DESTBLEND, cached as a pair (0x520b1c, 0x520b20)
 004a4850	Tex_Bind	render	high	SetTexture and Tex_SetStageBlend, skipped when (stage, texture) equals the last bind
@@ -586,6 +586,27 @@
 00469b50	Damage_Store	damage	high	This stage's log and panels into the player's carried damage (0x52ebc0 + 0x148 n)
 0046b4e0	Damage_Misfire	damage	high	A broken engine (panel 23 over 0.5) cutting out: the countdown +0x40c, the phase +0x4cc
 00466520	Stage_Step	race	med	Per step: the start lights, 0x47dd70 (some modes), the loose parts while 0x58896c
-00463bd0	Lights_Step	race	med	The start lights' fade (0.2 a step) to the countdown's table 0x51b338
+00463bd0	Lights_Step	game	high	The start lights faded 0.2 a step towards their state at the countdown step (0x51b338)
 00407610	Carried_Get	game	high	A player's carried damage, 0x52ebc0 + 0x148 n (0x106 log bytes, then the panels at +0x108)
 00408290	Carried_Clear	game	high	Every player's carried damage zeroed (0x52ebc0, 0x148 dwords)
+004b1150	Sprite3d_Init	render	high	The sprite queue (800) emptied, its index list made
+004b1500	Sprite3d_Free	render	high	The sprite queue cleared and off
+004b11c0	Sprite3d_Add	render	high	A camera-facing sprite queued (0x24-byte record: centre, extents, colour, turn, shade, flags)
+004b3ae0	Light_ByteRamp	world	high	The terrain ramp's entry from its byte copy (0x6e0b34: R, G, B, 0xff)
+004ae170	Glow_Alloc	world	high	The glow pool (0x5c bytes each) and the shaft's UVs
+004ae200	Glow_Free	world	high	The glow pool freed (at exit)
+004ae260	Glow_Clear	world	high	Every glow slot free
+004ae2f0	Glow_Add	world	high	A glow into the first free slot
+004ae3d0	Glow_Show	world	high	A glow on or off (+0x50)
+004ae3f0	Glow_Level	world	high	A glow's level (+0x3c)
+004ae2a0	Glow_Move	world	high	A glow's position and direction
+004ae420	Glow_Plane	world	high	A glow's plane (point, normal) and shaft level
+004ae230	Glow_Corners	world	high	A sprite's four extents from a half width and height
+004ae470	Glow_Shaft	world	high	A glow's shaft down to its plane (two triangles, bucket 0x10)
+004ae950	Glow_Pool	world	high	A glow's pool of light on its plane (two triangles, bucket 8)
+004af120	Glow_Draw	world	high	Every glow on: the view angle, the sprite, shaft and pool
+00463290	Lights_Gantry	game	high	The start gantry's frame (12 words) kept
+00463360	Lights_Load	game	high	The start lights' red and green textures
+00463410	Lights_Setup	game	high	The start lights' glows from the gantry and the layout tables
+00463ce0	Lights_Countdown	game	high	The start lights' countdown step (above 7: 6)
+00463d00	Lights_Reset	game	high	The start lights off, step 6

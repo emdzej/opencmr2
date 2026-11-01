@@ -1,5 +1,7 @@
 /* The world frame (see frame.h). */
 #include "world/frame.h"
+#include "world/glow.h"
+#include "render/sprite3d.h"
 #include "exe.h"
 #include "render/d3d7.h"
 #include "render/light.h"
@@ -99,8 +101,7 @@ static void flush_layer(int layer)
     Sprite_Flush(layer);
 }
 
-/* Not ported yet, in the order they are called: FUN_004b0480 (camera, pass), the cars' pass FUN_004af120 (camera,
-   pass), the shared-array draw Render_DrawIndexed 0x4b1530, FUN_004b6240 (pass), FUN_004bc490 (0, 0, 0)
+/* Not ported yet, in the order they are called: FUN_004b0480 (camera, pass), FUN_004b6240 (pass), FUN_004bc490 (0, 0, 0)
    over the 3D, and the frame statistics FUN_004b21e0 after the 2D. The 3D line queue (FUN_004bb4c0) is a
    debugging aid nothing fills in the release. */
 bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
@@ -137,7 +138,8 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
             Light_SetMode(5);
             Stage_DrawOverlay();
             Render_AlphaBlend(1);
-            for (int i = 0; i < ncars; i++) Obj_Draw(cars[i], pass);   /* stand-in for 0x4af120 */
+            for (int i = 0; i < ncars; i++) Obj_Draw(cars[i], pass);   /* the port's cars, see frame.h */
+            Glow_Draw(cam, pass);   /* 0x4af120 */
             Poly_Flush(8);
             Light_SetMode(4);
             Poly_Flush(0x20);
@@ -156,6 +158,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
                 D3d_SetRenderState(D3DRS_FOGENABLE, 0);
                 Light_SetMode(5);
                 Poly_Flush(0x10);
+                Sprite3d_Draw(cam);   /* 0x4b1530 */
                 Light_SetMode(1);
                 Section_QueueSorted(cam);
                 Obj_DrawQueued(pass);
@@ -170,6 +173,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
         Light_SetMode(4);
         Poly_Flush(0x40);
         Light_SetMode(5);
+        Sprite3d_Draw(cam);   /* 0x4b1530 */
     }
     Render_ZWrite(0);
     Render_ZEnable(0);
