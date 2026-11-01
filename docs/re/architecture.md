@@ -474,7 +474,14 @@ The first two raise the car's +0xb46 to 1 + 7 times the strength, at most 8.
 
 0x539200 is indexed by any car's number, so cars 4-7 write past the four players' records. The port
 keeps the record, and the times at 0x588a88, in the game state at their addresses. The shake's readers
-(the interior views' head movement, 0x423ff0 and 0x4245e0) are not ported yet.
+are the steering wheels' force feedback (0x423ff0-0x424c00), not a camera:
+- **The set-up** (0x423ff0, 0x424120). For each player whose profile has force feedback on (0x40bd30),
+  the record gets the controller's device and its settings. Three DirectInput effects are made on it,
+  a spring, a damper and a constant force (0x4ab030-0x4ab5c0, `DICONDITION` records at 0x6664a8).
+- **Each step** (0x424710). The effects follow the front wheels' loads and the shakes (inferred from 0x4247a0's car fields).
+- **Without a device** the effect calls fail and nothing is felt.
+
+gasm has no force feedback, so the port leaves these out.
 
 ## Input
 

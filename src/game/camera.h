@@ -19,7 +19,7 @@ int Camera_Next(int player, int state);
 void Camera_Frame(int player, int32_t frac, Obj *camera); /* 0x422140 */
 void Camera_Position(int player, int32_t pos[3]);          /* the step's camera (0x538d28 + 0x38) */
 /* 0x4241d0: a hit's impulse (world axes) into the car's player's shake levels (0x539200: [9] from its
-   third car axis when along, with its sign in [12]; [10] from its length); read by the interior
-   views' head movement (0x423ff0, 0x4245e0, not ported) */
+   third car axis when along, with its sign in [12]; [10] from its length); read by the steering
+   wheels' force feedback (0x423ff0-0x424c00, DirectInput effects; gasm has none, not ported) */
 void Camera_Shake(const Car *c, const int32_t imp[3], bool along);
 int32_t Camera_ShakeLevel(int player, int k);              /* the port: int k of the player's record at 0x539200 */
