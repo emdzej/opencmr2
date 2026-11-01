@@ -73,7 +73,7 @@ Every data file is gzip + `CMPR` + payload, and most payloads are archives with 
 
 VitePress in `docs/` (pnpm: `cd docs && pnpm install && pnpm build`), published to
 https://opencmr2.emdzej.pl by `.github/workflows/pages.yml` (CNAME in `docs/public/CNAME`). Theme
-`docs/.vitepress/theme/cmr2.css` (the 2000 Focus WRC livery: navy, light blue, red). **No emojis**, no
+`docs/.vitepress/theme/cmr2.css` (the game's menus: sage, mint, white, red). **No emojis**, no
 version menu. Don't overstate the state (`docs/guide/status.md`); don't host or link copies of the game. The
 "Built for gasm" badge is gasm's official one, hotlinked from
 `https://gasm.emdzej.pl/badge/built-for-gasm-{light,dark,flat}.svg` (rules: https://gasm.emdzej.pl/dev/badge;

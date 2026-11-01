@@ -63,7 +63,7 @@ export default defineConfig({
 
   head: [
     ["link", { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }],
-    ["meta", { name: "theme-color", content: "#14204a" }],
+    ["meta", { name: "theme-color", content: "#9cb4ac" }],
     ["meta", { property: "og:title", content: "OpenCMR2: Colin McRae Rally 2.0, reimplemented" }],
     [
       "meta",

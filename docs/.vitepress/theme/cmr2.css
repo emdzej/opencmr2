@@ -1,154 +1,202 @@
-/* OpenCMR2 theme: the 2000 Ford Focus WRC livery (Colin McRae's car in the game) and a gravel stage.
-   - livery: navy #14204a, light blue #2f86d6, red #d1232f (the three stripes), on white;
-   - stage: gravel paper #f4f1ea (light), night stage #0b1020 (dark), pace-note white #f4f1ea.
-   Light mode is gravel paper with navy text and blue links; dark mode is the night stage with the light
-   blue as the accent and the red kept for the stripes and warnings. */
+/* OpenCMR2 theme: the game's front end (the language screen and the main menu).
+   - menu: sage #9cb4ac screen, pale mint #d7ebda items, white for the selection and the thin separators
+     ("colin | mcrae | rally | 2.0", "rally | arcade | options"), red #c80000 (the dots of the flag);
+   - type: lowercase Helvetica, as the menus.
+   Light mode is the menu itself: sage with dark ink (white on sage is 2.2:1, so it is kept for the
+   logotype and the decoration), mint panels for code and tables, red for links and buttons. Dark mode is
+   the menu at night: deep sage with mint text. */
 
 :root {
-  --cm-navy: #14204a;
-  --cm-navy-2: #1d2d63;
-  --cm-blue: #2f86d6;
-  --cm-blue-light: #6fb2ee;
-  --cm-red: #d1232f;
-  --cm-red-light: #ec5a63;
-  --cm-gravel: #f4f1ea;
-  --cm-gravel-2: #ebe6db;
-  --cm-night: #0b1020;
-  /* The livery stripes: light blue, red, light blue. */
-  --cm-stripes: linear-gradient(180deg, var(--cm-blue) 0 38%, var(--cm-red) 38% 62%, var(--cm-blue) 62% 100%);
+  --cm-sage: #9cb4ac;
+  --cm-sage-light: #a9bfb7;
+  --cm-sage-dark: #8aa39a;
+  --cm-mint: #d7ebda;
+  --cm-mint-2: #c7ddcc;
+  --cm-ink: #14231e;
+  --cm-red: #c80000;
+  --cm-red-dark: #8a0000;
+  --cm-night: #1c2522;
+  /* The flag's dots, white on the screen. */
+  --cm-dots: radial-gradient(circle, rgba(255, 255, 255, 0.8) 2.4px, transparent 2.9px) 0 50% / 12px 8px repeat-x;
 
-  --vp-c-brand-1: #1f6fbf;
-  --vp-c-brand-2: #2f86d6;
-  --vp-c-brand-3: #1f6fbf;
-  --vp-c-brand-soft: rgba(47, 134, 214, 0.12);
+  --vp-font-family-base: "Helvetica Neue", Helvetica, Arial, sans-serif;
 
-  --vp-c-bg: var(--cm-gravel);
-  --vp-c-bg-alt: var(--cm-gravel-2);
-  --vp-c-bg-elv: #fbfaf7;
-  --vp-c-bg-soft: #e8e3d7;
-  --vp-c-divider: #d8d1c2;
-  --vp-c-gutter: #d8d1c2;
-  --vp-c-text-1: #141a2e;
-  --vp-c-text-2: #4b5266;
+  --vp-c-brand-1: var(--cm-red-dark);
+  --vp-c-brand-2: #a30000;
+  --vp-c-brand-3: var(--cm-red);
+  --vp-c-brand-soft: rgba(200, 0, 0, 0.1);
 
-  --vp-c-tip-1: var(--cm-navy-2);
-  --vp-c-tip-2: #2a3a72;
-  --vp-c-tip-3: #3a4a84;
-  --vp-c-tip-soft: rgba(29, 45, 99, 0.08);
-  --vp-c-danger-1: #b81d28;
+  --vp-c-bg: var(--cm-sage);
+  --vp-c-bg-alt: var(--cm-sage-light);
+  --vp-c-bg-elv: #b4c8c0;
+  --vp-c-bg-soft: #b4c8c0;
+  --vp-c-divider: rgba(255, 255, 255, 0.55);
+  --vp-c-gutter: var(--cm-sage-dark);
+  --vp-c-border: rgba(20, 35, 30, 0.25);
+  --vp-c-text-1: var(--cm-ink);
+  --vp-c-text-2: #2d3f39;
+  --vp-c-text-3: #3d524b;
+
+  --vp-code-block-bg: var(--cm-mint);
+  --vp-code-bg: rgba(215, 235, 218, 0.7);
+  --vp-code-color: var(--cm-ink);
+
+  --vp-c-tip-1: #173a2f;
+  --vp-c-tip-2: #1f4a3c;
+  --vp-c-tip-3: #2a5a4a;
+  --vp-c-tip-soft: rgba(215, 235, 218, 0.55);
+  --vp-c-note-1: var(--cm-ink);
+  --vp-c-note-soft: rgba(215, 235, 218, 0.4);
+  --vp-c-danger-1: var(--cm-red-dark);
   --vp-c-danger-2: var(--cm-red);
-  --vp-c-danger-3: var(--cm-red-light);
-  --vp-c-danger-soft: rgba(209, 35, 47, 0.1);
+  --vp-c-danger-3: #e03030;
+  --vp-c-danger-soft: rgba(200, 0, 0, 0.12);
 
-  --vp-button-brand-bg: var(--cm-navy);
-  --vp-button-brand-hover-bg: var(--cm-navy-2);
-  --vp-button-brand-active-bg: #0e1636;
+  --vp-button-brand-bg: var(--cm-red);
+  --vp-button-brand-hover-bg: #b00000;
+  --vp-button-brand-active-bg: var(--cm-red-dark);
   --vp-button-brand-border: transparent;
   --vp-button-brand-text: #ffffff;
   --vp-button-brand-hover-text: #ffffff;
   --vp-button-brand-active-text: #ffffff;
-  --vp-button-alt-bg: #e4dfd2;
-  --vp-button-alt-hover-bg: #d8d1c2;
-  --vp-button-alt-text: #141a2e;
-  --vp-button-alt-hover-text: #0b1020;
+  --vp-button-alt-bg: var(--cm-mint);
+  --vp-button-alt-hover-bg: #ffffff;
+  --vp-button-alt-text: var(--cm-ink);
+  --vp-button-alt-hover-text: var(--cm-ink);
 
-  --vp-home-hero-name-color: var(--cm-navy);
-  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 45%, rgba(47, 134, 214, 0.35), rgba(209, 35, 47, 0.12) 55%, rgba(244, 241, 234, 0) 75%);
-  --vp-home-hero-image-filter: blur(56px);
+  --vp-home-hero-name-color: #ffffff;
+  --vp-home-hero-image-background-image: none;
 
-  --vp-c-default-soft: rgba(20, 32, 74, 0.06);
+  --vp-c-default-soft: rgba(255, 255, 255, 0.25);
 }
 
 .dark {
-  --vp-c-brand-1: var(--cm-blue-light);
-  --vp-c-brand-2: #92c5f3;
-  --vp-c-brand-3: var(--cm-blue);
-  --vp-c-brand-soft: rgba(111, 178, 238, 0.14);
+  --cm-dots: radial-gradient(circle, rgba(215, 235, 218, 0.35) 2.4px, transparent 2.9px) 0 50% / 12px 8px repeat-x;
+
+  --vp-c-brand-1: #ff7a7a;
+  --vp-c-brand-2: #ff9a9a;
+  --vp-c-brand-3: var(--cm-red);
+  --vp-c-brand-soft: rgba(255, 107, 107, 0.14);
 
   --vp-c-bg: var(--cm-night);
-  --vp-c-bg-alt: #070b17;
-  --vp-c-bg-elv: #121a33;
-  --vp-c-bg-soft: #121a33;
-  --vp-c-divider: #232d4d;
-  --vp-c-gutter: #04060d;
-  --vp-c-text-1: #eceae4;
-  --vp-c-text-2: #a7adc0;
+  --vp-c-bg-alt: #161e1b;
+  --vp-c-bg-elv: #24302c;
+  --vp-c-bg-soft: #24302c;
+  --vp-c-divider: #33433e;
+  --vp-c-gutter: #0f1513;
+  --vp-c-border: #3c4e48;
+  --vp-c-text-1: var(--cm-mint);
+  --vp-c-text-2: var(--cm-sage);
+  --vp-c-text-3: #7e958d;
 
-  --vp-c-tip-1: var(--cm-blue-light);
-  --vp-c-tip-2: #92c5f3;
-  --vp-c-tip-soft: rgba(111, 178, 238, 0.1);
-  --vp-c-danger-1: #f0858c;
-  --vp-c-danger-2: var(--cm-red-light);
-  --vp-c-danger-soft: rgba(236, 90, 99, 0.16);
+  --vp-code-block-bg: #161e1b;
+  --vp-code-bg: #24302c;
+  --vp-code-color: var(--cm-mint);
 
-  --vp-button-brand-bg: var(--cm-blue);
-  --vp-button-brand-hover-bg: #4596df;
-  --vp-button-brand-active-bg: #236fb6;
-  --vp-button-alt-bg: #1a2342;
-  --vp-button-alt-hover-bg: #232d4d;
-  --vp-button-alt-text: #eceae4;
+  --vp-c-tip-1: var(--cm-mint);
+  --vp-c-tip-2: #e6f3e8;
+  --vp-c-tip-3: var(--cm-sage);
+  --vp-c-tip-soft: rgba(156, 180, 172, 0.14);
+  --vp-c-note-1: var(--cm-mint);
+  --vp-c-note-soft: rgba(156, 180, 172, 0.1);
+  --vp-c-danger-1: #ff7a7a;
+  --vp-c-danger-2: #ff6b6b;
+  --vp-c-danger-soft: rgba(255, 107, 107, 0.14);
+
+  --vp-button-brand-bg: var(--cm-red);
+  --vp-button-brand-hover-bg: #e00000;
+  --vp-button-brand-active-bg: #a30000;
+  --vp-button-alt-bg: #24302c;
+  --vp-button-alt-hover-bg: #33433e;
+  --vp-button-alt-text: var(--cm-mint);
   --vp-button-alt-hover-text: #ffffff;
 
-  --vp-home-hero-name-color: var(--cm-gravel);
-  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 45%, rgba(47, 134, 214, 0.3), rgba(209, 35, 47, 0.18) 50%, rgba(11, 16, 32, 0) 75%);
+  --vp-home-hero-name-color: #ffffff;
 }
 
-/* The livery stripes under the navigation bar. */
+/* The flag's dots under the navigation bar. */
 .VPNav::after {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -6px;
-  height: 6px;
-  background: var(--cm-stripes);
+  bottom: -10px;
+  height: 8px;
+  background: var(--cm-dots);
   pointer-events: none;
 }
 
+/* Lowercase, as the menus; the menu strip's thin white separators between the items. */
 .VPNavBarTitle .title {
-  letter-spacing: 0.06em;
-  font-weight: 800;
-  text-transform: uppercase;
+  text-transform: lowercase;
+  font-weight: 400;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+.VPNavBarMenu > :is(.VPNavBarMenuLink, .VPNavBarMenuGroup) ~ :is(.VPNavBarMenuLink, .VPNavBarMenuGroup) {
+  background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)) left center / 1px 28px no-repeat;
+}
+.dark .VPNavBarMenu > :is(.VPNavBarMenuLink, .VPNavBarMenuGroup) ~ :is(.VPNavBarMenuLink, .VPNavBarMenuGroup) {
+  background-image: linear-gradient(rgba(215, 235, 218, 0.4), rgba(215, 235, 218, 0.4));
+}
+.VPNavBarMenuLink,
+.VPNavBarMenuGroup .button {
+  text-transform: lowercase;
+  font-size: 15px !important;
 }
 
+/* The hero's name is the logotype: white and lowercase, like "colin | mcrae | rally | 2.0". */
 .VPHero .name {
-  font-style: italic;
-  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  font-weight: 300;
+  letter-spacing: -0.02em;
 }
 .VPHero .text {
   color: var(--vp-c-text-1);
+  font-weight: 400;
 }
 
 .VPButton {
-  border-radius: 3px !important;
+  border-radius: 2px !important;
   font-weight: 700 !important;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 13px !important;
+  text-transform: lowercase;
+  font-size: 15px !important;
 }
 .VPButton.alt {
-  border: 1px solid var(--vp-c-divider) !important;
+  border: 1px solid transparent !important;
 }
 
-/* Feature cards: stage boards, with the stripes down the left edge. */
+/* Feature cards: menu items, a white separator down the left edge. */
 .VPFeature {
-  position: relative;
-  border: 1px solid var(--vp-c-divider) !important;
-  border-radius: 6px !important;
-  background: var(--vp-c-bg-elv) !important;
-  overflow: hidden;
+  border: 0 !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  transition: background-color 0.2s;
 }
-.VPFeature::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 5px;
-  background: linear-gradient(90deg, var(--cm-blue) 0 38%, var(--cm-red) 38% 62%, var(--cm-blue) 62% 100%);
+.VPFeature:hover,
+a.VPLink:hover > .VPFeature {
+  background: rgba(215, 235, 218, 0.35) !important;
+}
+.VPFeature .title {
+  text-transform: lowercase;
+  font-size: 18px;
+  font-weight: 400;
 }
 .dark .VPFeature {
-  background: linear-gradient(160deg, #141d3a, #0b1020) !important;
+  border-left-color: rgba(215, 235, 218, 0.4) !important;
+}
+.dark .VPFeature:hover,
+.dark a.VPLink:hover > .VPFeature {
+  background: rgba(156, 180, 172, 0.1) !important;
+}
+
+/* The sidebar's selection: a white mark, as the menus' selected item is white. */
+.VPSidebarItem.is-active > .item > .indicator {
+  background-color: #ffffff;
+}
+.dark .VPSidebarItem.is-active > .item > .indicator {
+  background-color: var(--cm-mint);
 }
 
 .vp-doc h2 {
@@ -156,7 +204,21 @@
 }
 
 .vp-doc table th {
-  background: var(--vp-c-bg-soft);
+  background: var(--cm-mint);
+}
+.vp-doc table tr:nth-child(2n) {
+  background: rgba(255, 255, 255, 0.12);
+}
+.vp-doc table td,
+.vp-doc table th {
+  border-color: rgba(20, 35, 30, 0.2);
+}
+.dark .vp-doc table th {
+  background: #24302c;
+}
+.dark .vp-doc table td,
+.dark .vp-doc table th {
+  border-color: var(--vp-c-divider);
 }
 
 .vp-doc a {
@@ -173,14 +235,14 @@
   display: inline-block;
   min-width: 1.6em;
   padding: 0 6px;
-  border: 1px solid #b9b2a3;
+  border: 1px solid #7f978f;
   border-bottom-width: 2px;
-  border-radius: 4px;
-  background: #fbfaf7;
-  color: var(--cm-navy);
+  border-radius: 3px;
+  background: var(--cm-mint);
+  color: var(--cm-ink);
   font-family: var(--vp-font-family-mono);
   font-size: 0.85em;
   line-height: 1.6;
   text-align: center;
 }
-.dark .vp-doc kbd { border-color: #2c3760; background: #141d3a; color: var(--cm-gravel); }
+.dark .vp-doc kbd { border-color: #3c4e48; background: #24302c; color: var(--cm-mint); }

@@ -1,8 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- A pace-note arrow (a right-hand bend) on the three stripes of the 2000 Focus WRC livery. -->
-  <rect width="64" height="64" rx="12" fill="#14204a"/>
-  <rect x="0" y="40" width="64" height="5" fill="#2f86d6"/>
-  <rect x="0" y="46" width="64" height="4" fill="#d1232f"/>
-  <rect x="0" y="51" width="64" height="5" fill="#2f86d6"/>
-  <path d="M18 36 V24 Q18 14 28 14 H38 V8 L50 18 L38 28 V22 H30 Q26 22 26 26 V36 Z" fill="#f4f1ea"/>
+  <!-- The language screen's dot flag: white dots with a red cross, on the menus' sage. -->
+  <rect width="64" height="64" rx="12" fill="#9cb4ac"/>
+  <g fill="#ffffff">
+    <circle cx="14" cy="14" r="5"/><circle cx="50" cy="14" r="5"/>
+    <circle cx="14" cy="50" r="5"/><circle cx="50" cy="50" r="5"/>
+  </g>
+  <g fill="#c80000">
+    <circle cx="32" cy="14" r="5"/><circle cx="14" cy="32" r="5"/><circle cx="32" cy="32" r="5"/>
+    <circle cx="50" cy="32" r="5"/><circle cx="32" cy="50" r="5"/>
+  </g>
 </svg>
