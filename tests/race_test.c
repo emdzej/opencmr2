@@ -7,6 +7,9 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "audio/dsound.h"
+#include "audio/snd.h"
+#include <math.h>
 #include "game/camera.h"
 #include "game/hud.h"
 #include "game/sectors.h"
@@ -80,7 +83,9 @@ int main(void)
     VB_CreatePool();
     memset(&g_world, 0, sizeof g_world);
     g_world.kind = 3;
+    Options_Defaults();
     Profiles_Init();
+    Snd_Init();
     Player_SetProfile(0, 0);
     Profile_Create(0);   /* the front end's player set-up: profile 0, the 205 */
     gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)Car_IdByName("205"));
@@ -133,6 +138,13 @@ int main(void)
                 CHECK(diff > 0);
             }
             printf("HUD race time %d\n", Times_Race());
+            /* the engine (0x47a710): its 13 sounds loaded, the mixer not silent */
+            static float pcm[1470 * 2];
+            Dsb_Mix(pcm, 1470);
+            double e = 0;
+            for (int q = 0; q < 1470 * 2; q++) e += pcm[q] * pcm[q];
+            printf("engine: %d sounds, rms %.4f\n", Snd_Count(), sqrt(e / (1470 * 2)));
+            CHECK(Snd_Count() == 13 && e > 0);
             CHECK(Times_Race() >= 290 && Times_Race() <= 310);
             CHECK(Race_StageTime(0) >= 290 && Race_StageTime(0) <= 310 && CI32(c, 0x778) > 0x8000);
             fin = frame;

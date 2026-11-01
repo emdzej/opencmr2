@@ -502,3 +502,33 @@
 00408760	Profile_SetCameraKind	game	high	The player's profile's camera kind
 00457e00	Car_Cin	car	high	A car's .cin file
 00457e10	Car_CinSection	car	high	Section n of a car's .cin through its u16 offset directory
+00478f50	Engine_Load	audio	high	Each player car's engine sounds: Sounds\car\<engine>.bfl, thirteen WAVs
+00478dc0	Engine_Reset	audio	high	The engine voices and state per car reset; the band tables' pointers set
+0047a710	Engine_Update	audio	high	A car's engine sound step: the mixes by the camera, the loops, the revs as rpm
+00479360	Engine_Mix	audio	high	The engine loops over three rev bands, the backfires and detonations, the chatter
+0047a380	Engine_EaseThrottle	audio	high	The throttle share eased, up 20 and down 10
+00427ab0	Band_In	audio	high	Revs within a band
+00427ad0	Band_Volume	audio	high	A band's volume (percent) between its two nearest steps
+00427b70	Band_Frequency	audio	high	A band's frequency between its two nearest steps
+00427d50	Engine_DistanceFade	audio	high	Full within 2 units of the camera, silent beyond 100
+00427e20	Engine_Doppler	audio	med	The replay's Doppler shift of an engine's frequency
+00427c10	Race_SoundSetup	race	high	The engines at a third of the effects volume and the other volumes
+0047aa60	Engine_SetMaster	audio	high	The engines' master volume (0x58dda8)
+004bb0a0	Vec_Length	math	high	A vector's length, over 512 first beyond 100 units an axis
+00510410	Options_Defaults	game	high	The options block's defaults at start-up (volumes, modes, camera)
+004b7790	Voice_Play	audio	high	A voice for a sound at a volume and frequency, looped from an offset
+004b78a0	Voice_Playing	audio	high	A voice still playing
+004b78d0	Voice_Stop	audio	high	A voice stopped and freed
+004b7910	Voices_StopAll	audio	high	Every voice stopped
+004b7950	Snd_SetMaster	audio	high	The master volume, every voice's volume again
+004b79a0	Voice_SetVolume	audio	high	A voice's volume (0..0x10000)
+004b79e0	Voice_SetFrequency	audio	high	A voice's frequency
+004b7a10	Voice_Volume	audio	high	A voice's volume
+004b7ab0	Voice_Find	audio	high	A voice handle's slot, -1 when stale
+004b7940	Snd_Count	audio	high	The sounds loaded
+004b7740	Snd_Truncate	audio	high	The sounds from an index freed
+004a22c0	Voice_Start	audio	high	A voice's buffer (a duplicate when the sound is in use) set and played
+004a25f0	Voice_ApplyVolume	audio	high	A voice's volume as DirectSound's attenuation (logarithms)
+004a2690	Voice_ApplyFrequency	audio	high	A voice's frequency, 100 at least
+004a26f0	Voice_Release	audio	high	A voice stopped and its buffers released
+004a1d60	Snd_Open	audio	med	DirectSoundCreate and the primary buffer

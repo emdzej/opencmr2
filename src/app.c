@@ -1,6 +1,8 @@
 /* The application (see app.h). For now: the exe check and an empty frame; the front end and the race come
    as they are ported (docs/re/port-plan.md, docs/guide/status.md). */
 #include "app.h"
+#include "audio/dsound.h"
+#include "audio/snd.h"
 #include "bfl.h"
 #include "c3d.h"
 #include "exe.h"
@@ -79,7 +81,9 @@ bool app_init(void)
     plat_log("OpenCMR2: CMR2.exe v1.11 found");
     Math_InitTables();   /* the original fills them at start-up */
     Mem_Init();          /* the game state: the data section from the exe */
-    Profiles_Init();     /* 0x4d15e0's start-up work */
+    Options_Defaults();  /* 0x4d15e0's start-up work */
+    Profiles_Init();
+    Snd_Init();
     decoder_check();
     char car[64], stage[64];
     bool c = plat_param("car", car, sizeof car), st = plat_param("stage", stage, sizeof stage);
@@ -96,7 +100,7 @@ bool app_frame(void)
     return true;
 }
 
-void app_audio(float *stereo, unsigned frames) { memset(stereo, 0, (size_t)frames * 2 * sizeof *stereo); }
+void app_audio(float *stereo, unsigned frames) { Dsb_Mix(stereo, frames); }
 
 void app_exit(void)
 {

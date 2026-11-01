@@ -6,6 +6,7 @@
 #include "game/common.h"
 #include "game/hud.h"
 #include "game/sectors.h"
+#include "audio/engine.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/timer.h"
@@ -121,6 +122,9 @@ static void Race_Update(uint8_t state, bool flag)
         for (uint32_t i = 0; i < np; i++)
             if (Car_Get((int)i)->s[0xb43]) Camera_Step((int)i);   /* 0x4219b0 */
         if (car0) PENDING_NOTE(0x4b0110, "Skids_Step");
+        /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60, 0x418b00) */
+        if (car0 && state > 6 && !gm8(0x52af40))
+            for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i);
         Sim_StepDone(&g_all);
     }
     Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its effects not ported) */
@@ -138,7 +142,10 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
     R.loading = true;
     R.start_count = 0;
     if (slot == 0) {
-        PENDING_NOTE(0x427c10, "Race_Setup 0x427c10, 0x41f560, 0x41f260, 0x478a20, 0x40efa0, 0x475f00");
+        /* 0x427c10: the engines at a third of the effects volume (the co-driver's and the others'
+           volumes, 0x41b040, 0x418560, 0x418d20, not ported) */
+        Engine_Volume((int32_t)(gm32(0x52afb8) >> 7 & 0x7f));
+        PENDING_NOTE(0x41f560, "Race_Setup 0x41f560, 0x41f260, 0x478a20, 0x40efa0, 0x475f00");
         Bfl_MountCommon();
         Race_LoadFonts();
     }
@@ -180,6 +187,10 @@ static void s3_stage(ProcGroup *g, uint32_t slot)
 static void s4_cars(ProcGroup *g, uint32_t slot)
 {
     if (!load_or_quit(g, slot, H->load_cars)) return;
+    if (slot == 0) {
+        Engine_Load((int)players());   /* 0x478f50 in 0x420150 */
+        Engine_Reset();                /* 0x478dc0 */
+    }
     R.place = 1;
     Proc_Event(g, slot, 0, 2);
 }

@@ -2,6 +2,7 @@
 #include "game/profile.h"
 #include "game/gstate.h"
 #include "game/mem.h"
+#include "pending.h"
 
 static uint32_t player_profile(int n) { return gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf; }
 
@@ -66,4 +67,37 @@ void Profile_Create(int player)
     gw8(0x52ff90 + t * 0x650, (uint8_t)((gm8(0x52ff90 + t * 0x650) & 0xfc) | 0x3c));   /* the HUD panels */
     default_camera(player);
     gw32(0x52fa00 + 4 * t, 0);
+}
+
+static void copy_str(uint32_t to, uint32_t from)
+{
+    uint32_t i = 0;
+    do gw8(to + i, gm8(from + i)); while (gm8(from + i++));
+}
+
+void Options_Defaults(void)
+{
+    for (uint32_t a = 0x52afa0; a < 0x52afa0 + 0xe67 * 4; a += 4) gw32(a, 0);
+    copy_str(0x52e8f0, 0x52ea5c);   /* the player's default name (empty until the registry gives one) */
+    gw32(0x52afb0, 0x11);
+    copy_str(0x52e905, 0x52ea5c);
+    gw32(0x52e920, 8);
+    gw32(0x52e930, 8);
+    gw32(0x52b03c, (gm32(0x52b03c) & 0xffc11157) | 0x11154);
+    gw32(0x52afb8, (gm32(0x52afb8) & 0xfcffffff) | 0xbc000000);
+    gw32(0x52afbc, (gm32(0x52afbc) & 0xfff33d19) | 0x33518);
+    gw32(0x52afb4, (gm32(0x52afb4) & 0x807627ff) | 0x42400);
+    gw32(0x52e91c, 10);
+    gw32(0x52e924, 6);
+    gw32(0x52e928, 3);
+    gw32(0x52e92c, 0x1e);
+    /* 0x510570: the chase camera's defaults */
+    gw32(0x52b028, 0x18000);
+    gw32(0x52b02c, 0x68000);
+    gw16(0x52b034, 0x2d);
+    gw32(0x52b030, 0xe0000);
+    gw32(0x52b038, 4);
+    gw32(0x52afb8, (gm32(0x52afb8) & 0xfff93264) | 0x40393264);   /* the volumes: effects 100, ... */
+    PENDING_NOTE(0x406010, "Records_Defaults (0x52b044, 0x52c308, 0x52d5cc)");
+    gw32(0x52afb4, gm32(0x52afb4) & 0x7fffffff);
 }

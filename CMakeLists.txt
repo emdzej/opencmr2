@@ -10,7 +10,7 @@ set(CMR2_WARN -Wall -Wextra -Wno-unused-parameter)
 # The portable core: everything except host backends (no platform headers). The Direct3D 7 device's GL
 # back end (src/render/gl_*.c) is the only GL user; the native build leaves it out (tests and tools run
 # without a GPU; src/render/d3d7.c records the state there).
-file(GLOB CORE_SRC CONFIGURE_DEPENDS src/*.c src/render/*.c src/world/*.c src/game/*.c src/sim/*.c)
+file(GLOB CORE_SRC CONFIGURE_DEPENDS src/*.c src/render/*.c src/world/*.c src/game/*.c src/sim/*.c src/audio/*.c)
 file(GLOB GL_SRC CONFIGURE_DEPENDS src/render/gl_*.c)
 set(HOST_SRC src/vfs_host.c src/platform_host.c)
 foreach(f ${HOST_SRC} src/platform_gasm.c src/app.c)

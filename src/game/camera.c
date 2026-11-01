@@ -462,3 +462,5 @@ void Camera_Frame(int p, int32_t frac, Obj *camera)
     camera->local.m[12] = m[12], camera->local.m[13] = m[13], camera->local.m[14] = m[14];
     for (Obj *o = camera; o; o = o->parent) o->dirty = 1;
 }
+
+void Camera_Position(int p, int32_t pos[3]) { pos[0] = out[p].m[12], pos[1] = out[p].m[13], pos[2] = out[p].m[14]; }

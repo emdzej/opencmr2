@@ -16,3 +16,4 @@ void Camera_Step(int player);                             /* 0x4219b0 */
 /* 0x4218d0: the next kind the cycle may take (0x423970), blended to; returns it */
 int Camera_Next(int player, int state);
 void Camera_Frame(int player, int32_t frac, Obj *camera); /* 0x422140 */
+void Camera_Position(int player, int32_t pos[3]);          /* the step's camera (0x538d28 + 0x38) */
