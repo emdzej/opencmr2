@@ -126,3 +126,26 @@ The port differs from the original in these places:
   straight away through `src/game/play.c`, and returns to the menus after the stage.
 - 206 page callbacks are still logged stubs (`src/fe/stubs.c`): mostly the options, the profiles, the
   championship, the arcade and the network pages.
+
+## The race's menus
+
+The race uses the same menu engine for two more sets of pages.
+
+The pause menu is at 0x401000-0x405500 (`src/game/pause.c`). Its pages are built at the race's start
+(0x403500):
+
+- 0x52ad60, the main page: graphics, sound, controller, restart, exit and continue. The controller row
+  is passed over: 0x402bf0 moves the selection off it.
+- 0x52a670: the music, effects and co-driver volumes.
+- 0x529af8 and 0x52a0c0: the restart and exit confirmations.
+- The graphics, camera and display pages.
+
+Escape (key binding 10, bit 0x400 of the race's input) pauses the game on the line, in the countdown and
+on the stage. While paused the race is not updated, but the fades still run. Restart and exit start a
+fade on every car. At its end the fade posts the race's event 1, which goes to the results state, and
+sets a flag: 0x53810c for a restart, 0x53810d for an exit. The results state (0x41e8d0) then either puts
+the cars back on the line (0x41e6b0, then event 4) or leaves for the front end.
+
+The stage's results are at 0x449100-0x454000: the stage times, the splits and the standings. They are
+drawn over the replay (0x44b330 in state 10's draw). They are not ported yet. In the port, Return skips
+the replay and the results.
