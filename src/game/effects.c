@@ -1,4 +1,9 @@
 /* The race's particle effects (see effects.h). */
+#include "render/dlight.h"
+#include "world/hpc.h"
+#include "world/relight.h"
+#include "world/tre.h"
+#include "game/shadow.h"
 #include "game/effects.h"
 #include <stdbool.h>
 #include <math.h>
@@ -1058,13 +1063,57 @@ static void Wheels_Stones(int car)
     }
 }
 
+/* 0x462aa0 (per car in Race_DrawView 0x40f0c0): the stage's light (the .xhi) under each wheel on a
+   collision triangle (+0xa9e), at its corner point (+0x270 on), its terrain colour kept at 0x543f28
+   (read by Effects_Car); their mean (0 to 1) the car's +0xa70; its colour less the low colour lights
+   the sun for the view's car (0x492e60, a 255th of it) and, with the mean, sets the shadow (0x4984b0) */
+void Car_GroundLight(int car, int view)
+{
+    Car *c = Car_Get(car);
+    uint32_t sum = 0;
+    int n = 0;
+    for (int w = 0; w < 4; w++) {
+        int16_t t = CI16(c, 0xa9e + 2 * (uint32_t)w);
+        if (t < 0) continue;
+        uint16_t idx[3];
+        int32_t tri[9], p[3];
+        Hpc_TriVerts(t, idx);   /* 0x491790 */
+        Hpc_Triangle(tri, t);   /* 0x4917f0 */
+        for (uint32_t k = 0; k < 3; k++) p[k] = CI32(c, 0x270 + 12 * (uint32_t)w + 4 * k);
+        int32_t v = Xhi_At(idx, tri, p);
+        if (v == (int32_t)0xfc190000) continue;
+        sum += (uint32_t)v, n++;
+        uint32_t rgb = Light_ByteRamp(v);   /* 0x4b3ae0 */
+        uint32_t at = 0x543f28 + 4 * (uint32_t)(w + CI8(c, 0xb1a) * 4);
+        for (uint32_t k = 0; k < 3; k++) gw8(at + k, (uint8_t)(rgb >> (8 * k)));
+    }
+    if (n <= 0) return;
+    int32_t mean = (int32_t)(((int64_t)(int32_t)sum << 16) / ((int64_t)n << 16));
+    mean = mean > 0x10000 ? 0x10000 : mean < 0 ? 0 : mean;
+    uint32_t rgb = Light_ByteRamp(mean);
+    uint8_t low[4];
+    Light_GetLow(low);
+    int32_t d[3];
+    for (int k = 0; k < 3; k++) d[k] = (int32_t)((rgb >> (8 * k)) & 0xff) * 0x10000 - low[k] * 0x10000;
+    if (Camera_Car(view) == car) {
+        int32_t s[3];
+        for (int k = 0; k < 3; k++) {
+            s[k] = fx_mul(d[k], 0x106);
+            s[k] = s[k] > 0x10000 ? 0x10000 : s[k] < 0 ? 0 : s[k];
+        }
+        Dlight_SetColour(g_sun, s[0], s[1], s[2]);   /* 0x4b34d0 */
+    }
+    CW32(c, 0xa70, mean);
+    int32_t v = (int32_t)(((int64_t)(mean + iabs(d[0]) + iabs(d[1]) + iabs(d[2])) * 0x55) >> 16);
+    Shadow_Light(car, v > 0x10000 ? 0x10000 : v);
+}
+
 void Effects_Car(int car)
 {
     if (car >= 8) return;
     Car *c = Car_Get(car);
     if (CI32(c, 0xc0c) || (gm32(0x52afd0) >> 25 & 3) == 2) return;
     uint32_t rgba = 0xff000000u | (gm32(0x543f28 + 0x10 * (uint32_t)car) & 0xffffff);   /* 0x463270 */
-    PENDING_NOTE(0x462aa0, "the light under the wheels (0x543f28)");
     light_set(car, rgba);
     if (Camera_Kind(car) != 3) {
         wheels_grass(car);   /* 0x45d540 */

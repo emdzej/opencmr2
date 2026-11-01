@@ -17,6 +17,8 @@ enum { DLIGHT_MAX = 60 };
 Obj *Dlight_Add(int type, int32_t r, int32_t g, int32_t b, const int32_t pos[3], const uint16_t angles[3],
                 Obj *parent);
 void Dlight_Restore(void);                     /* 0x4b2e50: every light set again, the material, ambient B */
+/* 0x4b34d0: a light object's diffuse colour (16.16 per channel, clamped to 0-255), set again */
+void Dlight_SetColour(Obj *o, int32_t r, int32_t g, int32_t b);
 void Dlight_SetAtten(Obj *o, int32_t a);       /* 0x4b3570: a light object's constant attenuation (16.16) */
 void Dlight_Free(D3DLIGHT7 *l);                /* 0x4b3480 */
 void Dlight_FreeAll(void);                     /* 0x4b3450 (at exit) */

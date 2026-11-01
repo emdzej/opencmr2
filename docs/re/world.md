@@ -485,7 +485,7 @@ code (0x45e9a0-0x462d80) uses the same scale.
 
 The effects (exhaust smoke, dust, snow, splashes, leaves, gravel, sparks, paint and glass chips) are
 particles drawn as camera-facing sprites (0x4b11c0). The old Ghidra name of 0x4aff80, `Skids_Reset`, was
-wrong: it kills every particle. The skid marks are elsewhere ([Skid marks](#skid-marks)).
+wrong: it kills every particle. The skid marks and car shadows are elsewhere ([Skid marks](#skid-marks), [Car shadows](#car-shadows)).
 
 **Tables** (0x4b0060, from the race set-up 0x40efa0 with 32 types and 400 particles): types of 0x70
 bytes at 0x6a2cd8 and particles of 0x68 bytes at 0x6a2cdc. Their counts are 0x6a2cd0 and 0x6a2cd4.
@@ -736,6 +736,134 @@ gets new segments; other cars leave none.
     no culling). `skids_blank` is drawn black with a third of the newer segment's alphas at both
     ends. Race_DrawView queues the marks after the world has drawn, so they show with the next
     frame's world.
+
+## Car shadows
+
+The cars' shadows (0x494b10-0x498590, `src/game/shadow.c`) are triangles laid on the ground under each
+car: a patch under each wheel, a quad under the body and an outline cast away from the sun. They go
+into triangle bucket 8 (flags 10: no z write) with no texture, after being pushed one unit toward the
+camera. The bucket is flushed after the stage's overlay and the glows, so the shadows are never hidden
+by small bumps in the ground; whatever is drawn after them covers them.
+
+**Record** (0x2a4 bytes a car at *0x592734, count 0x592738; allocated zeroed by 0x494b50, freed by
+0x494b10, car n's at 0x498570). Points are world positions, 16.16:
+
+| Offset | Field |
+|---|---|
+| +0x000 | four points a wheel (0x30 each): A, B on one side, C, D on the other (A, C forward) |
+| +0x0c0 | the points: the body's quad (0-3), then the outline (4 on); 18 at most |
+| +0x198, +0x1c8 | each wheel patch's front and rear middles (12 bytes a wheel, read by the skid marks) |
+| +0x1f8, +0x240 | the last ground heights of the points and the wheels |
+| +0x250 | the outline's inner ring scale (0x9999 at the placing, then set by 0x4984b0) |
+| +0x254 | each wheel patch's strength (16.16) |
+| +0x264, +0x26c | the ground triangles of the wheels and the points (s16, kept between calls) |
+| +0x290, +0x292 | the quad corner the outline starts from; the number of points (4, or the profile's + 5) |
+| +0x294 | box only: the quad from the box's corners, no outline |
+| +0x298 | the wheel patches on |
+| +0x29c, +0x2a0 | the outline from point 5 (its extra point at 4); the outline in profile order |
+
+**Placing** (0x494bb0, in 0x466360). In modes 5-7 every car but car 0 is box only. Car 0 is set to
+"not box only", and its wheels are set again when 0x4074f0 is 1, which changes nothing since they
+are already on. In the other modes no car is box only. All have their wheels on, scale 0x9999 and
+strengths 1. The profile is the car's .cin section 1:
+
+- byte 0: the profile's point count N;
+- bytes 1-2: the range (first, count) of outline points a damaged car leaves out;
+- +4: a sideways offset W;
+- +8: the wheel patch's half length;
+- +0xc: N pairs (along, across).
+
+The five pointers are kept at 0x592278, 0x5922bc, 0x592344, 0x59229c and 0x5922fc.
+
+**Box corners** (`Car_Shadow` 0x487140, in `Car_PoseInterp` and `Pose_Init`). The drawn pose's eight
+box corners are kept at 0x53c5a0 + 0x60 car. With a, b and c the pose's rows 0-2 times the half
+extents +0x204, +0x208 and +0x20c, the corners are a-b+c, a-b-c, -a-b+c, -a-b-c, a+b+c, a+b-c, -a+b+c
+and -a+b-c, plus the position.
+
+**Each frame** (0x496e00, the first call of 0x4664c0 for each listed car without +0xb70). The pose
+record (0x42ca70), the wheel matrices (0x42cab0) and the box (0x42cac0) are copied to globals.
+
+- **Ground point** (0x5922e0). The position is moved along the ground normal (pose +0xe0) to the
+  plane of the first box corner, taken at the pose's first height (+0xec). In the air (+0xb64) only
+  the height difference times the normal's y is used.
+- **Wheels** (0x497db0, when +0x298 is set). The car's tilt is (up . normal - 0.8) x 5, clamped to 1;
+  in the air it is 1. Each wheel still on the car (its parent not the world) gets:
+  - a centre at the wheel matrix's position in the pose, lowered 0.35 along the car's up row (x 2.5
+    with option 6);
+  - with `Car_PointGround` 0x4932b0 (when on the ground), the centre is dropped to the ground. The
+    strength is 1 - min(4 h, 1), where h is the height it fell, times the tilt;
+  - the forward half length is the wheel's row 2 in the pose times the profile's half length (x 0.6
+    for narrow wheels, 0x42cae0 mode 1). The side half width is up x forward, times 0.35;
+  - the four ends A-D, laid on the ground's plane.
+- **Body quad** (0x4962c0). On the ground (or loose, +0xc00, even when box only):
+  - the forward axis is the car's row 0 laid on the ground, or row 1 when row 0 is within
+    0.99 of the normal. The side axis is forward x normal;
+  - the reach along each axis is the largest positive projection of the eight corners;
+  - the corners are F - S, F + S, S - F and -F - S, from the ground point.
+
+  In the air the car's own rows (+0x360, +0x378) and extents (+0x204, +0x20c) are used, and the
+  corners are the car's +0x270 points moved to the ground point; corners 2 and 3 are swapped. A box-only
+  car takes its box corners 1, 0, 2, 3, at the pose's four heights on the ground. A box-only car
+  driving another model than its class (slot model != +0xb1b) has the quad pulled in or out. The
+  pairs (1, 2), (0, 3), (1, 0) and (2, 3) (bytes at 0x5201c0) are scaled about their middles, by the
+  model's entry in 0x520150 for the first two and in 0x520188 for the others.
+- **Outline** (when not box only and render option bit 0x20 is clear). It uses the sun direction at
+  0x5201c8 (x, z, unit and reversed) and 0x5201d4 (its length, 2 (1 - y)), written by 0x498370 from
+  the sky's sun (0x463070, not ported: the port keeps the exe's initial value, (1, 0) and 1).
+  - The along and across sun terms are the forward axis's horizontal direction dotted with the sun,
+    and crossed with it, each times the length.
+  - The across term is scaled by the car's tilt ((up . normal - 0.8) x 4.9998, clamped to 1).
+  - The N profile points are scaled along the axis by reach / pair 0's along value. They are shifted
+    by the along term and pushed across by the across term and W. The inner points also move toward
+    their neighbour by |cos|.
+  - The points are written in profile order or reversed (+0x2a0). A last point at the kept end
+    crosses the car's whole width. The start corner (+0x290) is 1, 0, 2 or 3 by the two terms' signs.
+  - The outline is then relaxed: going round from its first point, each point must be at least 1.5
+    degrees further round the ground point than the one before (angles from the forward axis, by
+    the arcsine table). A point that is not is moved onto that angle, at its own distance.
+- **Drop.** Unless box only, every point is dropped onto the ground (`Hpc_Ground`), at most 0.5 a
+  frame.
+
+**Drawing** (0x494db0(car, view), in the cars' pass 0x466570). The cars drawn are those not hidden
+(+0xc0c, +0xb68 view) whose view mode 0x46bd20 is not 7. In a shared replay (0x41f3a0) a car is drawn
+with view 1 under 0x407e90 or 0x407e70, or when it is camera 1's car; the port leaves the last case
+pending. The record is copied to 0x592490 and the copy's points (and the wheels' when on) more than 2
+from the view's camera are moved a unit toward it (0x495f50). The colour is 0x4b4a80's shadow colour
+(R, G, B at 0x6e0098) and the alpha is 0 at the outer edges.
+
+- **Wheels** (+0x298). For each wheel still on with a nonzero strength, the live record's front and
+  rear middles are written (+0x198, +0x1c8) for the skid marks. Four triangles join the ends to the
+  copy's middles: (A, B, F), (F, B, R), (F, R, C), (R, D, C). The middles F and R have alpha strength
+  x 230.
+- **Outline** (not box only, bit 0x20 clear). Points 0-1 are quad corners from the start corner,
+  then the N + 1 outline points (a damaged car, Damage +0x4bc, leaves out its range, 0x494d40), then
+  the other two corners. With L the count less the damage range, an inner ring is made toward the
+  quad's centre, by 0.99 - (1 - scale) x 0.14. Three triangles per edge, for L + 4 edges taken modulo
+  L + 4, so the last point is never drawn (the original's). Alpha: the shadow alpha (0x6e0b38) times
+  the car's ground light +0xa70.
+- **Quad** (always). Each edge is cut at 5% and 95%, making 8 points. An inner ring is made at 0.6
+  toward the centre, with three triangles per edge. Alpha: 255 for a box-only car. Otherwise it is
+  255 (1 - min(2 h, 1)), with h the lowest of the car's eight corner heights over their ground
+  (+0x274 - +0x8dc).
+
+**The light under the wheels** (0x462aa0(car, view), for every car in `Race_DrawView` 0x40f0c0 before
+the lamps).
+
+- For each wheel on a collision triangle (+0xa9e), the stage's `.xhi` light (16.16 per collision
+  vertex, 0x6dfe10) is read at the wheel's corner point (+0x270 + 12 w). 0x4b6340 interpolates it on
+  the plane through the triangle's (x, light, z); an edge-on plane gives -1000.
+- The light's terrain colour (0x4b3ae0) is kept at 0x543f28 (4 bytes a wheel). The skid marks and
+  `Effects_Car` read it.
+- The mean light, clamped 0 to 1, is the car's +0xa70. Its colour less the low colour lights the sun
+  (light 0x5920b0, 0x4b34d0) for the view's car (`Camera_Car` 0x422fb0), at a 255th per channel
+  (0x492e60).
+- The mean plus the summed channel differences, x 0x55 / 65536 (at most 1), is passed to 0x4984b0.
+  That sets the record's scale (+0x250) and the texture factor's alpha (render state 60) to
+  100 + 75 v. It also stores (0, 0, 0, 75 v) at 0x520f94, which nothing reads.
+
+**The port.** The port's stand-in for the cars' drawing (see the frame) runs after bucket 8 is flushed,
+so the cars cover their shadows; the original's drawing of the cars is not found yet. The world matrix
+is set back to identity after them, for the queues and billboards drawn next.
 
 ## Loading a stage
 

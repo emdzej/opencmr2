@@ -55,6 +55,12 @@ void Hpc_Triangle(int32_t out[9], int tri)
     }
 }
 
+void Hpc_TriVerts(int tri, uint16_t idx[3])
+{
+    const uint8_t *t = hpc + tris + (size_t)(int16_t)tri * 8;
+    for (int k = 0; k < 3; k++) idx[k] = (uint16_t)rd16(t + 2 * k);
+}
+
 uint32_t Hpc_Surface(int tri) { return hpc[tris + (size_t)(int16_t)tri * 8 + 6] & 0x7f; }
 
 static bool edge(const int32_t p[3], const int32_t *a, const int32_t *b)

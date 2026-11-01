@@ -79,6 +79,8 @@ void Light_SetHigh(const int32_t c[3], bool from_low)
     shadow_colour(from_low);
 }
 
+Obj *g_sun;   /* 0x5920b0 */
+
 void Light_Defaults(void)
 {
     static const uint8_t white[4] = {0xff, 0xff, 0xff, 0xff};
@@ -86,7 +88,7 @@ void Light_Defaults(void)
     /* the sun: white, from (50, 75, 75), under the world */
     static const int32_t sun[3] = {0x320000, 0x4b0000, 0x4b0000};
     static const uint16_t none[3];
-    Dlight_Add(2, 0x10000, 0x10000, 0x10000, sun, none, &g_world);
+    g_sun = Dlight_Add(2, 0x10000, 0x10000, 0x10000, sun, none, &g_world);
     bool f = Tod_Rally() != 3;
     Light_SetLow(white, f);
     Light_SetHigh(full, f);

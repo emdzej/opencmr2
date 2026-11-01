@@ -17,6 +17,7 @@ Tex *Effects_Tex(uint32_t va);      /* the port: the texture the original keeps 
    and the shades (tables at 0x543120-0x543b58 in the game state) */
 void Wheels_Track(int car);
 /* 0x45af00, each frame after it, not in some modes: the car's light and its wheels' effects */
+void Car_GroundLight(int car, int view);   /* 0x462aa0 */
 void Effects_Car(int car);
 /* Wheel_Slip 0x465d70: wheel w's slip as 0..1 (0 for cars from 8) */
 int32_t Wheel_Slip(int car, int w);

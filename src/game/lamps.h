@@ -15,7 +15,7 @@ void Lens_Setup(int i, bool head_on_brakes);   /* 0x477b60 */
 /* 0x466360's loop over the listed cars: the kind 9 tables cleared, then for a car in the race its
    lamps and its lens (the side lamps on the brakes but for handling classes 6, 7 and 10) */
 void Lamps_Place(void);
-/* 0x4664c0: every listed car's lamps once a frame (its first call, 0x496e00, is not ported) */
+/* 0x4664c0: every listed car's lamps once a frame (its first call, 0x496e00, builds the shadow) */
 void Lamps_Frame(const int16_t *cars, int n);
 void Lamps_Step(Car *c);            /* 0x4643f0 */
 void Lens_Step(int i);              /* 0x477ce0 */

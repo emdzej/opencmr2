@@ -4,9 +4,12 @@
 #include "exe.h"
 #include "bfl.h"
 #include "fixmath.h"
+#include "game/effects.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/shadow.h"
+#include "render/polyq.h"
 #include "game/skids.h"
 #include "game/results.h"
 #include "game/select.h"
@@ -102,11 +105,30 @@ static int lens_alpha(uint8_t a)
 static Obj camera;
 static Obj *host_camera(int player) { (void)player; return &camera; }
 static int skids_laid, skids_stamped;
+/* the shadows: the frames drawn, the farthest a wheel's skid centre sat from the car (x, z), the points */
+static int shadow_frames, shadow_points;
+static double shadow_far;
 static void draw(int player, int state)
 {
     (void)state;
     Codriver_Notes(player);   /* the overlays' speech each frame (the 2D drawing is the GPU tests') */
+    for (int i = 0; i < g_all.n; i++) Car_GroundLight(i, player);   /* as play.c */
     Lamps_Lights(player);
+    if (Shadow_Get(0)) {
+        Shadow_Draw(Car_Get(0), player);   /* as play.c; the queue emptied again */
+        Poly_Init();
+        const uint8_t *r = Shadow_Get(0);
+        const int32_t *pos = &Pose_Out(0)[12];
+        for (int w = 0; w < 4; w++) {
+            int32_t f[3], b[3];
+            memcpy(f, r + 0x198 + 12 * w, sizeof f), memcpy(b, r + 0x1c8 + 12 * w, sizeof b);
+            double dx = ((f[0] + b[0]) / 2 - pos[0]) / 65536.0, dz = ((f[2] + b[2]) / 2 - pos[2]) / 65536.0;
+            double d = sqrt(dx * dx + dz * dz);
+            if (d > shadow_far && shadow_frames < 1000) shadow_far = d;   /* (later the test moves the car and loosens its parts) */
+        }
+        shadow_frames++;
+        shadow_points = (int16_t)(r[0x292] | r[0x293] << 8);
+    }
     Skids_Centres(player);   /* as play.c, without the drawing */
     Skids_Add(player);
     int laid = 0, stamped = 0;
@@ -535,6 +557,9 @@ int main(void)
            with its frame), all dead after the finish (0x465530 at state 9) */
         int laid = 0;
         for (uint32_t i = 0; i < 800; i++) laid += gm8(0x548220 + i) != 0;
+        printf("shadows: %d frames drawn, %d points, the wheels' centres at most %.2f from the car (the first 1000)\n", shadow_frames,
+               shadow_points, shadow_far);
+        CHECK(shadow_frames > 0 && shadow_points > 4 && shadow_far > 0.5 && shadow_far < 2.5);
         printf("skids: %d segments laid at most, %d after, span %d, frame %u\n", skids_laid, laid, gms32(0x51bca8), gm32(0x588750));
         CHECK(skids_laid > 0 && skids_stamped == skids_laid && laid == 0 && gms32(0x51bca8) == 2);
     }

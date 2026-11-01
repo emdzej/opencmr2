@@ -783,3 +783,25 @@
 004658e0	Skids_DrawCar	world	high	A car's skid quads between segments laid up to L frames apart
 00465ea0	Clamp255	world	high	A value clamped to 0..255
 0042cae0	Pose_Narrow	sim	high	The wheels drawn narrow
+0x494b50	Shadow_Alloc	world	confirmed	zeroed shadow records, 0x2a4 a car
+0x494b10	Shadow_Free	world	confirmed	frees the shadow records
+0x498570	Shadow_Get	world	confirmed	car n's shadow record
+0x494bb0	Shadow_Place	world	confirmed	the shadows' parts and profiles when the cars are placed
+0x496e00	Shadow_Build	world	confirmed	a car's shadow points each frame
+0x497db0	Shadow_Wheels	world	confirmed	the wheels' shadow patches
+0x4962c0	Shadow_Quad	world	confirmed	the body's shadow quad
+0x494db0	Shadow_Draw	world	confirmed	a car's shadow triangles (bucket 8)
+0x495f50	Shadow_TowardCamera	world	confirmed	moves the shadow points a unit toward the camera
+0x494d40	Shadow_Damaged	world	inferred	whether a damaged car leaves out part of its outline
+0x498370	Shadow_SunDirection	world	confirmed	the sun direction the outline is cast along
+0x4984b0	Shadow_Light	world	confirmed	outline scale and texture factor alpha from the ground light
+0x487140	Car_Shadow	sim	confirmed	the drawn pose's eight box corners
+0x42ca70	Pose_Out	sim	confirmed	car's drawn pose record
+0x42cab0	Pose_WheelM	sim	confirmed	car's wheel matrices
+0x42cac0	Pose_Box	sim	confirmed	car's box corners
+0x462aa0	Car_GroundLight	game	confirmed	the stage light under each wheel, sun colour, shadow light
+0x4b6340	Xhi_At	world	confirmed	the .xhi light on a collision triangle's plane
+0x491790	Hpc_TriVerts	world	confirmed	a collision triangle's vertex indices
+0x4917f0	Hpc_TriPoints	world	inferred	a collision triangle's points
+0x4b34d0	Dlight_SetColour	render	confirmed	sets a device light's colour, clamped
+0x492e60	Sun_FromGround	game	inferred	the sun colour from the ground light, a 255th a channel

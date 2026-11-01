@@ -12,6 +12,7 @@
 
 void Camera_Reset(int player);                            /* the port: both records cleared */
 void Camera_Select(int player, int kind, bool smooth);    /* 0x422fe0 / 0x421720 */
+int Camera_Car(int player);                               /* 0x422fb0: the car the current camera follows */
 int Camera_Kind(int player);                              /* 0x422f50 */
 void Camera_Step(int player);                             /* 0x4219b0 */
 /* 0x4218d0: the next kind the cycle may take (0x423970), blended to; returns it */

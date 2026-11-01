@@ -18,6 +18,6 @@ void World_DrawAll(void);                    /* 0x49cd90: every object, z on (no
 /* World_Render 0x49d3f0: the viewport (x, y, w, h), the scene, layer 4 of the 2D queues, with world
    set the stage passes, then layers 3 to 1 over the whole screen. False when the scene can't begin. */
 /* The port, until the cars' own drawing is found: these cars' object trees are drawn with Obj_Draw
-   just before the glows (0x4af120). */
+   just after the ground's decals (bucket 8: the glows' pools 0x4af120, the cars' shadows). */
 void World_SetCars(Obj **cars, int n);
 bool World_Render(Obj *camera, const int16_t view[4], uint32_t pass, bool world);

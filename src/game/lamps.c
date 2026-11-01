@@ -1,4 +1,5 @@
 /* The cars' lamps (see lamps.h). */
+#include "game/shadow.h"
 #include "game/lamps.h"
 #include "game/weather.h"
 #include "game/car_load.h"
@@ -329,7 +330,7 @@ void Lamps_Frame(const int16_t *cars, int n)
     for (int i = 0; i < n; i++) {
         Car *c = Car_Get(cars[i]);
         if (CI32(c, 0xc0c)) continue;
-        if (!CI32(c, 0xb70)) PENDING_NOTE(0x496e00, "0x496e00 (per car, before the lamps)");
+        if (!CI32(c, 0xb70)) Shadow_Build(c);   /* 0x496e00 */
         Lens_Step(i);   /* by the place in the list, as the original */
         Lamps_Step(c);
     }

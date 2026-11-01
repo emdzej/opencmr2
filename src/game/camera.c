@@ -356,6 +356,7 @@ void Camera_Reset(int p)
     memset(&prev[p], 0, sizeof prev[p]);
 }
 
+int Camera_Car(int p) { return slots[cur[p] + 2 * p].car; }   /* 0x422fb0 */
 int Camera_Kind(int p) { return out[p].kind != 8 ? slots[cur[p] + 2 * p].kind : 8; }   /* 0x422f50 */
 
 void Camera_Select(int p, int kind, bool smooth)

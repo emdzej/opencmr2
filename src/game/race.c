@@ -1,5 +1,6 @@
 /* The race (see race.h). The original keeps the race's variables at 0x537dd0-0x538124; they are the
    fields of R, named by address where the meaning is open. */
+#include "game/shadow.h"
 #include "game/race.h"
 #include "game/weather.h"
 #include "game/skids.h"
@@ -254,6 +255,7 @@ static void s4_cars(ProcGroup *g, uint32_t slot)
     if (!load_or_quit(g, slot, H->load_cars)) return;
     if (slot == 0) {
         Weather_Alloc(g_all.n);        /* 0x45e5b0 in Cars_Load */
+        Shadow_Alloc(g_all.n);         /* 0x494b50 */
         Engine_Load((int)players());   /* 0x478f50 in 0x420150 */
         Engine_Reset();                /* 0x478dc0 */
     }
@@ -271,6 +273,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
             Skids_Load();      /* 0x465600 */
             Lamps_Place();     /* 0x466360's cars */
+            Shadow_Place();        /* 0x494bb0, in 0x466360 */
             Weather_RaceStart();   /* Race_StartLights 0x45eca0, in 0x466360 */
             Lights_Setup();    /* 0x463410, in 0x466360 */
             Effects_Types();   /* 0x45a170, the end of 0x466360 */

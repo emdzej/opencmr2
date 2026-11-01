@@ -13,3 +13,8 @@ void Pose_Snap(int car);              /* 0x42c870 */
 void Cars_ShellsToCamera(const Obj *camera);   /* 0x429810 */
 /* 0x42cae0: the wheels drawn narrow (and with mode 1 the hubs turned) */
 bool Pose_Narrow(const Car *c, int mode);
+/* The drawn pose's records: the car's 63 ints (0x42ca70: the main matrix, the ground normal at 56,
+   the four heights at 59), its wheels' four 16-int matrices (0x42cab0) and its box's 8 corners (0x42cac0) */
+const int32_t *Pose_Out(int n);
+const int32_t *Pose_WheelM(int n);
+const int32_t *Pose_Box(int n);

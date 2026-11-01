@@ -15,6 +15,7 @@ void Light_SetHigh(const int32_t c[3], bool shadow_from_low);
 /* 0x4918d0: low (255, 255, 255, 255) and high 255 (the shadow choice by the rally, 3 otherwise); the
    sun first: a directional light under the world (Dlight_Add). */
 void Light_Defaults(void);
+extern struct Obj *g_sun;   /* 0x5920b0: the sun's light object */
 uint32_t Light_TerrainRamp(int32_t intensity);   /* 0x4b3b40 */
 /* 0x4b3ae0: the same ramp from its byte copy (0x6e0b34: R, G, B, 0xff in memory order) */
 uint32_t Light_ByteRamp(int32_t intensity);

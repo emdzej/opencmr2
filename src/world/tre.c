@@ -4,6 +4,7 @@
 #include "render/mesh.h"
 #include "render/rstate.h"
 #include "world/relight.h"
+#include "fixmath.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -160,4 +161,25 @@ void Stage_DrawOverlay(void)
         if (me) Mesh_Draw(&g_tre, me, 1, 0, 1);
     }
     Render_ZWrite(1);
+}
+
+static int32_t xhi(uint16_t i)
+{
+    const uint8_t *p = g_tre_xhi + 4 * (size_t)i;
+    return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24);
+}
+
+int32_t Xhi_At(const uint16_t idx[3], const int32_t t[9], const int32_t p[3])
+{
+    if (!g_tre_xhi) return (int32_t)0xfc190000;
+    int32_t x0 = t[0], z0 = t[2], y0 = xhi(idx[0]);
+    int32_t a[3] = {t[3] - x0, xhi(idx[1]) - y0, t[5] - z0}, b[3] = {t[6] - x0, xhi(idx[2]) - y0, t[8] - z0};
+    Vec_Unit(a);
+    Vec_Unit(b);
+    int32_t n[3] = {fx_mul(a[1], b[2]) - fx_mul(a[2], b[1]), fx_mul(a[2], b[0]) - fx_mul(a[0], b[2]),
+                    fx_mul(a[0], b[1]) - fx_mul(a[1], b[0])};
+    Vec_Unit(n);
+    if (!n[1]) return (int32_t)0xfc190000;
+    int32_t d = fx_mul(n[2], z0) + fx_mul(n[0], x0) + fx_mul(n[1], y0) - fx_mul(p[2], n[2]) - fx_mul(p[0], n[0]);
+    return (int32_t)(((int64_t)d << 16) / n[1]);
 }

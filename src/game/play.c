@@ -1,4 +1,8 @@
 /* The race started by the game (see play.h). */
+#include "pending.h"
+#include "game/effects.h"
+#include "game/gstate.h"
+#include "game/shadow.h"
 #include "game/play.h"
 #include "game/lamps.h"
 #include "game/timer.h"
@@ -80,10 +84,22 @@ static void draw(int player, int state)
     int32_t cp[3] = {camera.world.m[12], camera.world.m[13], camera.world.m[14]};
     Sky_Follow(cp);
     Cars_ShellsToCamera(&camera);
+    for (int i = 0; i < g_all.n; i++) Car_GroundLight(i, player);   /* 0x462aa0 */
     Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */
     /* per car the passes (0x46b8f0, not ported), then the fallen-off parts hidden (0x46b670) */
     for (int i = 0; i < g_all.n; i++) Parts_HideFallen(Car_Get(g_all.car[i]));
     Obj_Frame(&g_world, &camera);
+    /* the cars' pass 0x466570: each car's shadow but those the view hides (0x46bd20's 7) */
+    bool multi = Gs_SelBits14() > 1 && Race_State(0) == 10;   /* 0x41f3a0, as weather.c */
+    for (int i = 0; i < g_all.n; i++) {
+        const Car *c = Car_Get(g_all.car[i]);
+        int n = CI8(c, 0xb1a);
+        if (CI32(c, 0xc0c) || CI32(c, 0xb68 + 4 * (uint32_t)player)) continue;
+        if (!multi) {
+            if (gm32(0x588cd4 + 4u * (uint32_t)(player + n * 2)) != 7) Shadow_Draw(c, player);
+        } else if (Gs_SelBit27() || Gs_SelBit26()) Shadow_Draw(c, 1);
+        else PENDING_NOTE(0x466570, "the cars' pass: Camera_Car(1)'s car in a shared replay");
+    }
     Weather_Draw(player);   /* 0x460330, at the end of the cars' pass 0x466570 */
     Race_DrawOverlays(player);
     int16_t view[4] = {0, 0, (int16_t)w, (int16_t)h};

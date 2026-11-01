@@ -71,6 +71,15 @@ Obj *Dlight_Add(int type, int32_t r, int32_t g, int32_t b, const int32_t pos[3],
     return o;
 }
 
+void Dlight_SetColour(Obj *o, int32_t r, int32_t g, int32_t b)
+{
+    if (!o || !o->light) return;
+    int32_t c[3] = {r, g, b};
+    for (int k = 0; k < 3; k++) c[k] = c[k] < 0 ? 0 : c[k] > 0xff0000 ? 0xff0000 : c[k];
+    o->light->diffuse.r = fl(c[0]), o->light->diffuse.g = fl(c[1]), o->light->diffuse.b = fl(c[2]);
+    D3d_SetLight(o->light_index, o->light);
+}
+
 /* With the device (re)made (0x4a78a0): the lights set and on again, a white material (diffuse and
    ambient 1, no specular or emissive) and ambient B from the low colour, set. */
 void Dlight_Restore(void)

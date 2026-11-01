@@ -15,10 +15,13 @@ extern const uint8_t *g_tre_xhi;   /* DAT_006dfe10: the .xhi, kept for the relig
 extern bool g_tre_have;   /* DAT_006dfd98 != 0: the shadow tables exist */
 
 /* Tre_Load 0x4b5620: the parse of data (NULL: no shadows, as at low scenery detail), the .xhi kept
-   (0x6dfe10, not used yet). Needs the sections and the scenery. */
+   (0x6dfe10, read by Xhi_At). Needs the sections and the scenery. */
 void Tre_Load(uint8_t *data, uint32_t size, const uint8_t *xhi);
 /* Tre_Parse 0x4b4aa0 (see the format page). */
 bool Tre_Parse(uint8_t *data, uint32_t size);
-void Tre_Free(void);   /* the port; 0x4b5510 frees the original's */
+void Tre_Free(void);
+/* 0x4b6340: the .xhi's light (16.16 per collision vertex) at p's x and z, on the plane through the
+   triangle's three vertices (x, light, z); -1000 (0xfc190000) without the .xhi or for an edge-on plane */
+int32_t Xhi_At(const uint16_t idx[3], const int32_t tri[9], const int32_t p[3]);   /* the port; 0x4b5510 frees the original's */
 /* Stage_DrawOverlay 0x49cf80: the listed cells' shadow meshes, identity world, z writes off. */
 void Stage_DrawOverlay(void);

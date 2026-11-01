@@ -12,7 +12,7 @@
 #include "sim/car.h"
 #include "sim/pose.h"
 #include "sim/sim.h"
-#include "world/shadow.h"
+#include "game/shadow.h"
 #include "world/tod.h"
 
 /* The game-state tables (docs/re/world.md#skid-marks). A segment is 0x28 bytes: +0 its age (nothing

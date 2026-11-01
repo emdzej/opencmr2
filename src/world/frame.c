@@ -141,9 +141,14 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
             Light_SetMode(5);
             Stage_DrawOverlay();
             Render_AlphaBlend(1);
-            for (int i = 0; i < ncars; i++) Obj_Draw(cars[i], pass);   /* the port's cars, see frame.h */
             Glow_Draw(cam, pass);   /* 0x4af120 */
             Poly_Flush(8);
+            /* the port's cars (see frame.h) after the ground's decals (the shadows and the lamps' pools,
+               no z writes, a unit toward the camera), which they cover; then the world's matrix again */
+            Light_SetMode(5);
+            Render_AlphaBlend(1);
+            for (int i = 0; i < ncars; i++) Obj_Draw(cars[i], pass);
+            identity_world();
             Light_SetMode(4);
             Poly_Flush(0x20);
             Light_SetMode(1);

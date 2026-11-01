@@ -13,6 +13,7 @@
 enum { P_MAIN = 0, P_SECOND = 16, P_WHEEL = 32, P_NORMAL = 56, P_HEIGHT = 59, P_INTS = 63 };
 static int32_t prev[CAR_MAX][P_INTS], cur[CAR_MAX][P_INTS], out[CAR_MAX][P_INTS];   /* 0x53a3a8, 0x53ad10, 0x53b560 */
 static int32_t wheel_m[CAR_MAX][4][16];   /* 0x53bda0 */
+static int32_t box[CAR_MAX][8][3];        /* 0x53c5a0: the car's box corners in the world */
 static int16_t spin[CAR_MAX][4];          /* 0x53a230: the wheels' turn */
 static uint32_t spinning[CAR_MAX][4];     /* 0x53ac48 */
 
@@ -37,6 +38,23 @@ static void blend1(int32_t *o, const int32_t *a, const int32_t *b, int32_t k)
     memset(o, 0, 16 * sizeof *o);
     o[15] = 0x10000;
     for (int i = 0; i < 3; i++) o[i] = f[i], o[4 + i] = u[i], o[8 + i] = s[i], o[12 + i] = p[i];
+}
+
+const int32_t *Pose_Out(int n) { return out[n]; }                  /* 0x42ca70 */
+const int32_t *Pose_WheelM(int n) { return wheel_m[n][0]; }        /* 0x42cab0 */
+const int32_t *Pose_Box(int n) { return box[n][0]; }               /* 0x42cac0 */
+
+/* Car_Shadow 0x487140: the eight corners of the box of half extents e (the car's +0x204) on rows m
+   and the position p: with a, b, c the rows 0, 1, 2 times ex, ey, ez, the corners a-b+c, a-b-c,
+   -a-b+c, -a-b-c, a+b+c, a+b-c, -a+b+c, -a+b-c */
+static void car_box(int32_t o[8][3], const int32_t *m, const Car *c)
+{
+    static const int8_t sgn[8][3] = {{1, -1, 1}, {1, -1, -1}, {-1, -1, 1}, {-1, -1, -1}, {1, 1, 1}, {1, 1, -1}, {-1, 1, 1}, {-1, 1, -1}};
+    int32_t e[3] = {CI32(c, 0x204), CI32(c, 0x208), CI32(c, 0x20c)};
+    for (int k = 0; k < 3; k++) {
+        int32_t a = fx_mul(m[k], e[0]), b = fx_mul(m[4 + k], e[1]), cc = fx_mul(m[8 + k], e[2]);
+        for (int i = 0; i < 8; i++) o[i][k] = sgn[i][0] * a + sgn[i][1] * b + sgn[i][2] * cc + m[12 + k];
+    }
 }
 
 void Pose_Snap(int car) { gw32(0x53acf0 + 4 * (uint32_t)car, 1); }   /* 0x42c870 */
@@ -165,7 +183,7 @@ void Car_PoseInterp(void)
         Vec_Unit(nn);
         memcpy(&out[n][P_NORMAL], nn, sizeof nn);
         for (int q = 0; q < 4; q++) out[n][P_HEIGHT + q] = lerp(prev[n][P_HEIGHT + q], cur[n][P_HEIGHT + q], f);
-        PENDING_NOTE(0x487140, "Car_Shadow");
+        car_box(box[n], out[n], c);   /* Car_Shadow 0x487140 */
     }
     PENDING_NOTE(0x42be30, "Car_PoseInterp 0x42be30");
 }
@@ -179,6 +197,8 @@ void Pose_Init(int n)
         memset(&cur[k][P_WHEEL], 0, 24 * sizeof(int32_t));
         cur[k][P_NORMAL] = 0, cur[k][P_NORMAL + 1] = 0x10000, cur[k][P_NORMAL + 2] = 0;
         memcpy(prev[k], cur[k], sizeof prev[k]);
+        memcpy(out[k], cur[k], sizeof out[k]);
+        car_box(box[k], out[k], c);   /* Car_Shadow 0x487140 */
         gw32(0x53acf0 + 4 * (uint32_t)k, 1);
     }
 }
