@@ -157,5 +157,12 @@ state 9 once every player has finished (0x44a1b0). For one player on a single st
 5. The choices (0x44af70, 0x453c50): restart, restart at the service area, quit. Each fades out and posts
    the race's event 1, as the pause menu does.
 
-The board's table (the computer drivers' times, 0x455ca0-0x455de0) is not ported yet, nor are the other
-modes' pages.
+The computer drivers' times come from the stage's `.tm` file for the difficulty (Stage_LoadTm 0x455300,
+`src/game/opponents.c`). The file holds sixteen drivers, each with a base, a random range and dry and
+wet adjustments, and each split's dry and wet times. From these, 0x455470-0x456960 work out:
+
+- each driver's rating, whose order is the final standings;
+- each driver's split times, shaken within the difficulty's limits.
+
+The players' times go in at their splits (0x455590). The weather's change along the stage is not ported,
+so the model takes the stage as dry throughout. The other modes' result pages are not ported yet.
