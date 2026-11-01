@@ -201,7 +201,6 @@ void Fe_LoadDots(void)
     }
 }
 
-void Fe_LoadDmd(void) { PENDING_NOTE(0x4d5ca0, "the dot-matrix pictures (dmd)"); }
 
 /* 0x4d2590: each car's front and back pictures (frontend\Textures\cars\<name>F01, B01) and the three
    liveries; the alternate Focus and Lancer cars and the Integrale's share their first car's. The

@@ -13,6 +13,8 @@
 #include "game/proc.h"
 #include "game/profile.h"
 #include "game/race.h"
+#include "game/play.h"
+#include "game/weather.h"
 #include "game/timer.h"
 #include "pending.h"
 #include "render/d3d7.h"
@@ -37,8 +39,8 @@ static int player;               /* DAT_00818ac8 */
 static Obj scene, camera;        /* DAT_00817fc8, DAT_00817fc4 (0x4d0840) */
 static Tex *title_tex, *bink_tex, *copyright[4];   /* DAT_00817fd0, DAT_00817ebc, DAT_00817fd4 */
 static int ncopyright;
-static bool first_run;           /* DAT_00523d68 */
-static bool to_stage;            /* DAT_008180f9 (DAT_008180fa: to the race) */
+static bool to_game = true;      /* DAT_00523d68: on to the game (the start-up sets it) */
+static bool to_stage, to_race;   /* DAT_008180f9, DAT_008180fa: the demo's ways out */
 static uint32_t pause_count = (uint32_t)-1;   /* DAT_00523d6c */
 static uint32_t pause_start;     /* DAT_00817ff0 */
 static BflSlot res, res_lang, common, texts[5];   /* 0x818250, 0x818260, 0x818240, 0x818200 */
@@ -198,7 +200,7 @@ static void st_startup(ProcGroup *g, uint32_t s)
     /* srand(time()) is the app's fixed seed; the Sku_Type of the registry is EUROPE: territory 0 */
     gw32(0x52ea54, 0);
     Fe_LanguageCount();   /* 0x4f4b40 */
-    first_run = true;
+    to_game = true;
     to_stage = false;
     bool first = gm8(0x516120) != 0;
     gw8(0x8180fc, first);
@@ -306,7 +308,8 @@ uint32_t Fe_MenuTime(void) { return since_menu; }
 static void st_rally_movie(ProcGroup *g, uint32_t s)
 {
     (void)g, (void)s;
-    PENDING_NOTE(0x4d1cc0, "the rally's movie");
+    /* the movie (FrontEnd\Videos\<region>\<rally>.bik) only for the first stage of a championship
+       or single rally; the port has no Bink decoder */
     Proc_Event(&group, 0, 0, 2);
 }
 
@@ -329,12 +332,55 @@ static void st_pause(ProcGroup *g, uint32_t s)
     }
 }
 
-/* 0x4d1e90 (state 9): out of the front end */
+/* 0x4d1e90 (state 9): out of the front end: the championship's tables, the options' mode byte, the
+   weather and the cars' set-ups, the selection kept in the mode word, the front end's memory and
+   textures freed, then the stage set-up (mode 2) or the race (mode 3) */
 static void st_leave(ProcGroup *g, uint32_t s)
 {
     (void)g, (void)s;
-    PENDING_NOTE(0x4d1e90, "leaving the front end");
+    uint32_t m = gm32(0x52afb4) >> 3 & 0x7f;
+    gw8(0x52ea59, 0);
+    gw8(0x817574, (uint8_t)(gm32(0x52e890) >> 0x11 & 1));   /* 0x4d0590 */
+    if (m != 4) Fe_ChampTables();   /* 0x4cf060 */
+    PENDING_NOTE(0x4a2b50, "the music's stop");
+    Fe_OptionsMode();   /* 0x4eabc0 */
+    if (!to_stage) {
+        if (m < 8 || m > 12) Weather_Choose();   /* 0x40dc30 */
+        Fe_CarSetups();     /* 0x406820 */
+        gw8(0x52f2a8, 0xff);   /* 0x4068d0 */
+        PENDING_NOTE(0x406580, "the unlocks' new marks");
+        if (!gm8(0x52ea52)) {
+            if (to_game || to_stage || to_race) {
+                uint32_t sel = gm32(0x52f2ac);   /* 0x4ea9c0: rally and stage into bits 23-30 */
+                gw32(0x52afb4, (((sel >> 5 & 0xf) << 4 | (sel & 0xf)) << 0x17) | (gm32(0x52afb4) & 0x807fffffu));
+            }
+            /* GameInfo.rcf, the leaderboards, Controller.rcf and the profiles are saved here
+               (0x4ea840, 0x40e470, 0x40bff0, 0x4eb3e0): not yet by the port */
+        }
+    }
+    Fe_Teardown();   /* 0x49c0f0 to the front end's mark, 0x4a5be0, 0x4a5d10 */
+    if (m != 4) Fe_AgeProfiles();   /* 0x4ec1a0 */
     Proc_Event(&group, 0, 0, 2);
+    if (!to_game) {
+        if (to_stage) Game_SetMode(2);
+        else if (to_race) Game_SetMode(3);
+        else PENDING_NOTE(0x4a9a40, "the quit");
+        return;
+    }
+    if (m == 0 || m == 1) {
+        Fe_Stamp();
+        Game_SetMode(2);
+        return;
+    }
+    Game_SetMode(m == 2 || m == 3 || m == 8 || m == 9 || m == 10 ? 2 : 3);
+    gw32(0x5320a4, Timer_Centis());   /* 0x40af20 */
+}
+
+/* 0x4d2070: leave the menus: on to the game (event 0, the rally's movie first), or the demo's way */
+void Fe_Leave(bool game, bool stage, bool race)
+{
+    to_game = game, to_stage = stage, to_race = race;
+    Proc_Event(&group, 0, game || stage || race ? 0 : 7, 2);
 }
 
 /* 0x4d1080 (state 1): the title texture and the copyright pieces below it */
@@ -424,7 +470,9 @@ int Game_Frame(void)
         return 0;
     }
     if (m == 2) {
+        /* World_Frame 0x4ff450, the set-up and service screens, is not ported: straight to the race */
         PENDING_NOTE(0x4ff450, "World_Frame (the stage set-up screens)");
+        if (!Play_Begin()) Game_SetMode(0);
         return 0;
     }
     if (m == 3) return Race_Frame();

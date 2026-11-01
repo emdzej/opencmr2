@@ -134,39 +134,6 @@ static void build_meshes(void)
     }
 }
 
-typedef struct { const char *stage; char *path, *tex; size_t cap; char country[4]; bool found; } Find;
-
-static void find_file(const char *name, bool is_dir, void *user)
-{
-    Find *f = user;
-    char want[80];
-    snprintf(want, sizeof want, "%shi.bfl", f->stage);
-    size_t l = strlen(name);
-    if (!is_dir && !strcasecmp(name, want)) f->found = true;
-    if (!is_dir && l == 10 && !strcasecmp(name + 3, "hit.bfl")) snprintf(f->country, sizeof f->country, "%.3s", name);
-}
-
-static void find_dir(const char *name, bool is_dir, void *user)
-{
-    Find *f = user;
-    if (!is_dir || f->found) return;
-    char dir[128];
-    snprintf(dir, sizeof dir, "Game/Tracks/%s", name);
-    f->country[0] = 0;
-    vfs_list(dir, find_file, f);
-    if (f->found) {
-        snprintf(f->path, f->cap, "Game\\Tracks\\%s\\%shi.bfl", name, f->stage);
-        snprintf(f->tex, f->cap, "Game\\Tracks\\%s\\%shit.bfl", name, f->country);
-    }
-}
-
-static bool find_stage(const char *stage, char *path, char *tex, size_t cap)
-{
-    Find f = {stage, path, tex, cap, "", false};
-    vfs_list("Game/Tracks", find_dir, &f);
-    return f.found;
-}
-
 /* The car's model path and its set's texture archive (f99a1N.c3d, f99a1L.c3d use f99a1.bfl). */
 static void car_paths(const char *car, char *path, char *tex, size_t cap)
 {
@@ -253,7 +220,7 @@ bool viewer_init(const char *car, const char *stage)
     VB_CreatePool();
     if (stage) {
         /* Game\Tracks\<country>\<stage>Hi.bfl, the country's textures in <ccc>hit.bfl beside it */
-        if (!find_stage(stage, path, tex, sizeof path)) {
+        if (!Stage_Find(stage, path, tex, sizeof path)) {
             plat_log("viewer: no such stage");
             return false;
         }
