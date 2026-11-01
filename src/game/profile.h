@@ -10,6 +10,7 @@
    bytes) cleared and set: the mode and option words' defaults (the volumes in 0x52afb8: effects at
    bits 7-13, speech at 14-20), the chase camera's (0x510570), the best times' tables (0x406010) */
 void Options_Defaults(void);
+void Records_Defaults(uint32_t block);   /* 0x406010: 0x52b044, 0x52c308, 0x52d5cc */
 void Profiles_Init(void);              /* 0x4eadb0 */
 void Player_SetProfile(int player, int profile);   /* the front end's player set-up (port) */
 /* 0x4ebf20: the player's profile cleared to the defaults: camera 4, the automatic box, the HUD panels

@@ -220,7 +220,7 @@ void fe_4d9c40(Menu *m)
     uint32_t rec = 0x52b044 + 0x654 + idx * 8;
     print_time(t, sizeof t, gm32(rec + 4) >> 7 & 0xffff);
     Font_Print(1, t, w * 0x3a / 0x280 + x, ty, C(0x52496c), 0x21);
-    snprintf(t, sizeof t, "%.4s", (const char *)gm(rec));
+    snprintf(t, sizeof t, "%s", (const char *)gm(rec));
     Font_Print(1, t, x, ty, C(0x52496c), 0x21);
     Font_Print(1, Text_Get(0x193), x, ty - line, C(0x52496c), 0x21);
     /* the players' own: those set up without a guest profile (0x4085a0 false) */

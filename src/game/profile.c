@@ -76,6 +76,57 @@ static void copy_str(uint32_t to, uint32_t from)
     do gw8(to + i, gm8(from + i)); while (gm8(from + i++));
 }
 
+/* 0x406010: a records block (0x12c4 bytes) to its defaults, every holder "cmr" (0x516184): the 15
+   entries at the start; for each rally 15 entries (6:00.00 and flags 0x780), the 11 stages' records
+   (8:00.00; the super special's, 4:00.00, is written over the next table's first word, as the
+   original does) and their ten splits (one or two minutes apart); 45 entries from +0xff8; nine from
+   +0x1210 with six splits each */
+static void rec_name(uint32_t a) { copy_str(a, 0x516184); }
+void Records_Defaults(uint32_t p)
+{
+    uint32_t e = p + 4;
+    for (int i = 0; i < 15; i++, e += 12) {
+        rec_name(e - 4);
+        gw32(e, (gm32(e) & 0xffffc000u) | 0x3c000);
+        gw16(e + 4, 0);
+        gw8(e + 6, 0);
+    }
+    e = p + 0xb8;
+    uint32_t splits10 = p + 0x9dc, ss = p + 0x6a8;
+    for (uint32_t R = 0xcb; R < 0x123; R += 0xb, splits10 += 0xdc, ss += 0x58) {
+        for (int i = 0; i < 15; i++, e += 12) {
+            rec_name(e - 4);
+            gw32(e, (gm32(e) & 0xffff8780u) | 0x780);
+            gw32(e + 4, 360000);
+        }
+        for (uint32_t s = 0; s < 0xb; s++) {
+            uint32_t a = p + (s + R) * 8;
+            rec_name(a - 4);
+            uint32_t u = gm32(a);
+            gw32(a, u & ~0x7fu);
+            if (s == 10) gw32(ss, (u & 0xffaee000u) | 0x2ee000);
+            else gw32(a, (u & 0xffddc000u) | 0x5dc000);
+        }
+        for (uint32_t s = 0; s < 0xb; s++)
+            for (uint32_t i = 0; i < 10; i++) {
+                if (s == 10) gw16(splits10 + 2 * i, (uint16_t)(i * 12000));
+                else gw16(p - 0x6c8 + (s + R) * 0x14 + 2 * i, (uint16_t)(i * 6000));
+            }
+    }
+    e = p + 0xff8;
+    for (int i = 0; i < 45; i++, e += 12) {
+        rec_name(e - 4);
+        gw32(e, (gm32(e) & 0xffff0280u) | 0x280);
+    }
+    e = p + 0x1214;
+    uint32_t sp = p + 0x1258;
+    for (int i = 0; i < 9; i++, e += 8) {
+        rec_name(e - 4);
+        gw32(e, (gm32(e) & 0xffaee000u) | 0x2ee000);
+        for (uint32_t k = 0; k < 6; k++, sp += 2) gw16(sp, (uint16_t)(k * 6000));
+    }
+}
+
 void Options_Defaults(void)
 {
     for (uint32_t a = 0x52afa0; a < 0x52afa0 + 0xe67 * 4; a += 4) gw32(a, 0);
@@ -99,7 +150,9 @@ void Options_Defaults(void)
     gw32(0x52b030, 0xe0000);
     gw32(0x52b038, 4);
     gw32(0x52afb8, (gm32(0x52afb8) & 0xfff93264) | 0x40393264);   /* the volumes: effects 100, ... */
-    PENDING_NOTE(0x406010, "Records_Defaults (0x52b044, 0x52c308, 0x52d5cc)");
+    Records_Defaults(0x52b044);
+    Records_Defaults(0x52c308);
+    Records_Defaults(0x52d5cc);
     gw32(0x52afb4, gm32(0x52afb4) & 0x7fffffff);
 }
 
