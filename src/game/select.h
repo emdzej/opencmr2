@@ -5,3 +5,11 @@
 
 void Sel_ModeFlags(void);   /* 0x408020 */
 void Sel_Reset(void);       /* 0x409a30 */
+
+/* 0x4069a0: the CPU cars of an arcade race (0x52f2a9's low four bits); 0x40d640 sets them */
+int Sel_CpuCount(void);
+void Sel_SetCpuCount(int n);
+/* 0x40dfa0 (the arcade's car chosen): the six CPU cars at 0x52ea98 by the first player's car's class:
+   its own car and one or two others of the same group (0x40e180, 0x40e210), the cheat's fixed sets */
+void Sel_CpuCars(void);
+int Sel_CpuCar(int i);   /* 0x52ea98 + 4 i */

@@ -9,6 +9,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/profile.h"
+#include "game/select.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
 #include "text.h"
@@ -306,4 +307,174 @@ void fe_4f1a40(Menu *m, MenuItem *it)
     }
     fe_4f0ac0(m, it);
     Menu_Goto(&pg_824a38);
+}
+
+/* ---- the arcade's car select (0x826f60) and transmission (0x826d80) ---- */
+
+/* 0x4faa50: the strip of the player's open cars in the arcade modes (5-7; none in the others), at the
+   player's car; the slide at rest, but the selection and its time not reset (unlike 0x4f17d0) */
+void fe_4faa50(Menu *m, bool back)
+{
+    (void)back;
+    int p = Fe_SetupPlayer();
+    Fe_SetPlayer(p);
+    FeScroll *s = Fe_Scroll(2);
+    s->page = m;
+    m->sel = 0;
+    int k = 0;
+    for (int car = 0; car < 0x16; car++) {
+        if (mode() != 7 && mode() != 5 && mode() != 6) continue;
+        if (!car_open(p, car, true)) continue;
+        car_of[k] = (uint8_t)car;
+        m->items[k].text = (int16_t)(car + 0x98);
+        if (car == player_car(p)) m->sel = (int8_t)k;
+        k++;
+    }
+    m->n = (int8_t)k;
+    int w, h;
+    screen(&w, &h);
+    s->gap = w * 0x18 / 0x280;
+    s->n = m->n;
+    s->off = s->off0 = 0;
+    for (int i = 0; i < m->n; i++) {
+        char b[256];
+        snprintf(b, sizeof b, "%s", Text_Get(m->items[i].text));
+        s->width[i] = Font_TextWidth(2, Text_Lower(b));
+    }
+}
+
+/* 0x4d8950: the same code as 0x4d7db0 */
+void fe_4d8950(Menu *m) { fe_4d7db0(m); }
+
+/* 0x4facd0: the car chosen, the CPU cars by it (0x40dfa0); the item's page (the transmission) follows,
+   as the menu takes it after this (the original's own goto, to 0x826ba0 or the driver select, is
+   overridden) */
+void fe_4facd0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_car(Fe_SetupPlayer(), car_of[m->sel]);
+    Sel_CpuCars();
+    if (Fe_ToSet() == 0) Menu_Goto(&pg_826ba0);
+    else {
+        Menu_SetParent(&pg_8241b8, m);
+        Menu_Goto(&pg_8241b8);
+    }
+}
+
+/* 0x4fac70: the box's item at the player's choice; back here the car strip measured again */
+void fe_4fac70(Menu *m, bool back)
+{
+    m->items[0].value = auto_box(Fe_SetupPlayer());
+    Fe_SetPlayer(Fe_SetupPlayer());
+    if (back) fe_4faa50(Fe_Scroll(2)->page, false);
+}
+
+/* 0x4fad40: the box chosen: on to 0x826ba0 with every player set, else the next driver select */
+void fe_4fad40(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    Menu_Goto(Fe_ToSet() == 0 ? &pg_826ba0 : &pg_8241b8);
+}
+
+/* 0x4d8ed0: as 0x4d8480 for every item: a row each between lines (the lines by the selected row lit),
+   its arrow (Ar_640A lit, Ar_640D not, placed by Ar_640A's size), and for the transmission item (0x88)
+   its label and values (the chosen lit) */
+void fe_4d8ed0(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    char who[64], name[16] = "";
+    snprintf(who, sizeof who, Text_Get(0xdc), (int)(gm32(0x52afb4) >> 13 & 0xf) - Fe_ToSet());
+    uint32_t prof = Player_Word(Fe_SetupPlayer()) >> 0x12 & 0xf;
+    if (prof != 0xf) snprintf(name, sizeof name, "%s", (const char *)gm(0x52fa18 + prof * 0x650));
+    const char *names[2] = {who, name};
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 3, names, 2);
+    int row = h * 0x24 / 0x1e0;
+    int16_t top = (int16_t)((h * 0x38 / 0x1e0 + h * 0x176 / 0x1e0) / 2 - row * m->n / 2);
+    int16_t r[4] = {(int16_t)(w * 99 / 0x280), top, (int16_t)(w * 0x11a / 0x280), 1};
+    Rect_Fill(r, gm(m->sel == 0 ? 0x524974 : 0x524978), 1);
+    r[1]++;
+    Rect_Fill(r, gm(m->sel == 0 ? 0x524968 : 0x52496c), 1);
+    Tex *a = g_fe.arrow_a;
+    int16_t aw = a ? (int16_t)a->width : 0, ah = a ? (int16_t)a->height : 0;
+    for (int i = 0; i < m->n; i++) {
+        bool on = m->sel == i;
+        Tex *t = on ? g_fe.arrow_a : g_fe.arrow_d;
+        uint32_t c = on ? 0x524968 : 0x52496c;
+        if (t) {
+            Rect16 src = {0, 0, t->width, t->height};
+            Rect16 dst = {(int16_t)(w * 100 / 0x280), (int16_t)(h * 0x14 / 0x1e0 + top + row * i - ah / 2), aw, ah};
+            Sprite_Add(&src, &dst, t, 1, 0, NULL, NULL, gm(c), 8);
+        }
+        MenuItem *it = &m->items[i];
+        if (it->id == 0x88) {
+            char prev[128];
+            snprintf(prev, sizeof prev, "%s", Text_Get(it->text));
+            int x = w * 0x7a / 0x280, y = h * 0x18 / 0x1e0 + r[1];
+            Font_Print(1, prev, x, y, gm(c), 0x11);
+            for (int v = 0; v < it->count; v++) {
+                x = w * 10 / 0x280 + x + Font_TextWidth(1, prev);
+                Font_Print(1, Text_Get(v + 0x131), x, y, gm(it->value == v ? 0x524968 : 0x52496c), 0x11);
+                snprintf(prev, sizeof prev, "%s", Text_Get(v + 0x131));
+            }
+        }
+        bool lit = m->sel == i || m->sel == i + 1;
+        r[1] = (int16_t)(row * (i + 1) + top);
+        Rect_Fill(r, gm(lit ? 0x524974 : 0x524978), 1);
+        r[1]++;
+        Rect_Fill(r, gm(lit ? 0x524968 : 0x52496c), 1);
+    }
+    Strip_Draw(Fe_Scroll(2), false);
+    Fe_Hint(Text_Get(0x57), true);
+}
+
+/* 0x4fad90 (mode 6, the menus back to the first player's input) and 0x4fae70 (mode 7): the car
+   chosen, the CPU cars by it */
+void fe_4fad90(Menu *m, MenuItem *it)
+{
+    (void)it;
+    Fe_SetPlayer(0);
+    set_car(Fe_SetupPlayer(), car_of[m->sel]);
+    Sel_CpuCars();
+}
+
+void fe_4fae70(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_car(Fe_SetupPlayer(), car_of[m->sel]);
+    Sel_CpuCars();
+}
+
+/* 0x4fadd0 (mode 6): the box chosen; players left: the driver select (back to here for two); else
+   with two players 0x827320 (back to here), with one 0x828220 (back to here, and 0x827320 back to
+   0x828220) */
+void fe_4fadd0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    bool two = (gm32(0x52afb4) >> 13 & 0xf) == 2;
+    if (Fe_ToSet() != 0) {
+        if (two) Menu_SetParent(&pg_8241b8, m);
+        Menu_Goto(&pg_8241b8);
+        return;
+    }
+    if (two) {
+        Menu_SetParent(&pg_8241b8, m);
+        Menu_SetParent(&pg_827320, m);
+        Menu_Goto(&pg_827320);
+        return;
+    }
+    Menu_SetParent(&pg_827320, &pg_828220);
+    Menu_SetParent(&pg_828220, m);
+    Menu_Goto(&pg_828220);
+}
+
+/* 0x4faea0 (mode 7): the box chosen; on to 0x826420 with every player set, else the driver select */
+void fe_4faea0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    Menu_Goto(Fe_ToSet() == 0 ? &pg_826420 : &pg_8241b8);
 }

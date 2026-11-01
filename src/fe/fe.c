@@ -540,7 +540,16 @@ int Game_Frame(void)
         if (!raced) Game_SetMode(0);
         return 0;
     }
-    if (m == 3) return Race_Frame();
+    if (m == 3) {
+        /* the arcade modes come straight here (0x4d0c60): the port's stage and car set-up (which the
+           original does in the race's states 3 and 4) first */
+        if (!raced) {
+            raced = Play_Begin();
+            if (!raced) Game_SetMode(0);
+            return 0;
+        }
+        return Race_Frame();
+    }
     return 0;
 }
 

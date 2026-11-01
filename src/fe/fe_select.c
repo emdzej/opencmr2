@@ -284,8 +284,8 @@ static Menu *next_after_driver(void)
     switch (mode()) {
     case 4: return &pg_81bc98;   /* 0x4f8430 */
     case 5: return &pg_826f60;   /* 0x4fa300 */
-    case 6: return &pg_826d80;   /* 0x4fa310 */
-    case 7: return &pg_828500;   /* 0x4fa320 */
+    case 6: return &pg_828500;   /* 0x4fa310 */
+    case 7: return &pg_827e60;   /* 0x4fa320 */
     default: return &pg_821e18;  /* 0x4f83f0 */
     }
 }
@@ -530,3 +530,213 @@ int Fe_ToSet(void) { return to_set; }
 int Fe_SetupPlayer(void) { return (int)players() - to_set - 1; }
 void Fe_PlayerTitle(char *dst, size_t cap) { snprintf(dst, cap, Text_Get(0xdc), (int)players() - to_set); }
 void Fe_ClearGuests(void) { guests = 0; }
+
+/* ---- the arcade (page 0x8267e0 and its players page 0x8276e0) ---- */
+
+/* 0x4e2500: the arcade's title, its list, the main strip */
+void fe_4e2500(Menu *m)
+{
+    const char *names[1] = {Text_Get(0x94)};
+    Fe_Header();
+    Fe_Titles(m, title_x(), title_y(), true, 2, names, 1);
+    List_Draw(m, NULL, -1, -1, 0, true);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+/* 0x4ef740: going on from the arcade page: the mode by the item (5 the first, 6 the second; the third,
+   7, also one player), the rally and stage back to the first */
+void fe_4ef740(Menu *m, bool back)
+{
+    if (back) return;
+    gw32(0x52afb4, gm32(0x52afb4) & ~0x20000u);   /* 0x4ea950 */
+    switch (m->sel) {
+    case 0: Fe_SetMode(5); break;
+    case 1: Fe_SetMode(6); break;
+    case 2:
+        Fe_SetMode(7);
+        gw32(0x52afb4, (gm32(0x52afb4) & 0xfffe1fffu) | 1u << 13);   /* 0x4ea8c0 */
+        to_set = (uint8_t)players();
+        gw32(0x52afb4, gm32(0x52afb4) & ~0x20000u);
+        break;
+    default: break;
+    }
+    set_rally(0);
+    set_stage(0);
+}
+
+/* 0x4fa890: the players strip (scroller 4) for the arcade's players page: the items' widths as they
+   are (not lowered, unlike 0x4f3610), its slide and selection kept; the selection at the players
+   (the first beyond two) */
+void fe_4fa890(Menu *m, bool back)
+{
+    (void)back;
+    Sel_SetCpuCount(5);   /* 0x40d640 */
+    FeScroll *s = Fe_Scroll(4);
+    s->t = Fe_Now();
+    s->page = m;
+    s->n = m->n;
+    for (int i = 0; i < m->n; i++) s->width[i] = Font_TextWidth(2, Text_Get(m->items[i].text));
+    m->sel = (int8_t)(players() > 2 ? 0 : (int)players() - 1);
+}
+
+void fe_4f9520(Menu *m) { fe_4f39f0(m); }
+
+/* 0x4fa910: the players chosen: straight to the driver select (no split screen choice) */
+void fe_4fa910(Menu *m, MenuItem *it)
+{
+    (void)it;
+    gw32(0x52afb4, (gm32(0x52afb4) & 0xfffe1fffu) | ((uint32_t)(m->sel + 1) & 0xf) << 13);   /* 0x4ea8c0 */
+    Sel_SetCpuCount(players() == 1 ? 5 : 0);
+    to_set = (uint8_t)players();
+    gw32(0x52afb4, gm32(0x52afb4) & ~0x20000u);   /* 0x4ea950 */
+    Menu_SetParent(&pg_8241b8, m);
+    players_page = m;
+    Menu_Goto(&pg_8241b8);
+}
+
+/* 0x4fa9b0: the arcade's third item: one player, to the driver select */
+void fe_4fa9b0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    gw32(0x52afb4, (gm32(0x52afb4) & 0xfffe1fffu) | 1u << 13);
+    to_set = (uint8_t)players();
+    gw32(0x52afb4, gm32(0x52afb4) & ~0x20000u);
+    Menu_SetParent(&pg_8241b8, m);
+    players_page = m;
+    Menu_Goto(&pg_8241b8);
+}
+
+/* ---- the arcade's difficulty (0x826600, 0x828220) and locations (0x827320, 0x826420) ---- */
+
+static bool option(int n) { return gm32(0x52e890) >> n & 1; }   /* 0x406410 */
+static void item_on(Menu *m, int i, bool on) { m->items[i].flags = (uint8_t)(on ? m->items[i].flags | 1 : m->items[i].flags & ~1); }
+
+/* 0x4faa00: the third difficulty open with the unlocks' bit 1 (0x52b03c) or option 13; the selection
+   at the difficulty (0x405d90) */
+void fe_4faa00(Menu *m, bool back)
+{
+    (void)back;
+    item_on(m, 2, (gm32(0x52b03c) & 2) || option(0xd));
+    int d = (int)Gs_Mode2();
+    m->sel = (int8_t)(d < m->n ? d : m->n - 1);
+}
+
+/* 0x4fb010: the locations open by the unlocks word (2 bits a difficulty at bits 2, 4, 6: three
+   locations a step), on both location pages; in mode 7 or with two players the best of the three,
+   one player by the difficulty. Single race novice for one player shows three; otherwise eight, the
+   seventh and eighth with the unlocks' bits 20 and 21 (or option 13). The strip (scroller 10). */
+void fe_4fb010(Menu *m, bool back)
+{
+    (void)back;
+    Fe_SetPlayer(0);
+    FeScroll *s = Fe_Scroll(10);
+    s->t = Fe_Now();
+    s->n = m->n;
+    s->page = m;
+    for (int i = 0; i < 8; i++) item_on(&pg_827320, i, false), item_on(&pg_826420, i, false);
+    uint32_t u = gm32(0x52b03c);
+    int a = (int)(u >> 2 & 3) * 3, b = (int)(u >> 4 & 3) * 3, c = (int)(u >> 6 & 3) * 3, k;
+    if (mode() == 7 || players() != 1) k = a > b ? (a > c ? a : c) : (b > c ? b : c);
+    else switch (Gs_Mode2()) {
+    case 0: k = a; break;
+    case 1: k = b; break;
+    case 2: k = c; break;
+    default: k = 0x7fffffff; break;   /* the original takes the page's address here: all open */
+    }
+    for (int i = 0; i < 6; i++) {
+        bool on = i < k || option(0xd);
+        item_on(&pg_827320, i, on), item_on(&pg_826420, i, on);
+    }
+    Menu *last = mode() == 7 ? &pg_826420 : &pg_827320;
+    if (mode() != 7 && Gs_Mode2() == 0 && players() == 1) {
+        s->n = 3, m->n = 3;
+        for (int i = k; i < 3; i++) item_on(&pg_827320, i, false);
+    } else {
+        s->n = 8, m->n = 8;
+        if ((u & 0x100000) || option(0xd)) item_on(last, 6, true);
+        if ((u & 0x200000) || option(0xd)) item_on(last, 7, true);
+    }
+    int w, h;
+    screen(&w, &h);
+    s->gap = w * 0x18 / 0x280;
+    s->n = m->n;
+    s->off = s->off0 = 0;
+    for (int i = 0; i < m->n; i++) {
+        char t[256];
+        snprintf(t, sizeof t, "%s", Text_Get(m->items[i].text));
+        s->width[i] = Font_TextWidth(2, Text_Lower(t));
+    }
+}
+
+void fe_4fb360(Menu *m) { (void)m; Scroll_Update(Fe_Scroll(10)); }
+
+/* 0x4fb370: the location (three stages each: the rally and stage index), the CPU cars (none with two
+   players); single race on to its next page (0x828040, two players 0x827aa0), otherwise three laps and
+   the start */
+void fe_4fb370(Menu *m, MenuItem *it)
+{
+    (void)it;
+    gw32(0x52f2ac, (gm32(0x52f2ac) & 0xfffff3ffu) | ((uint32_t)(m->sel / 3) & 3) << 10);   /* 0x40d600 */
+    gw32(0x52f2ac, (gm32(0x52f2ac) & 0xffffcfffu) | ((uint32_t)(m->sel % 3) & 3) << 12);   /* 0x406960 */
+    Sel_ModeFlags();
+    Sel_SetCpuCount(players() == 2 ? 0 : 5);
+    if (mode() == 6) {
+        Menu_Goto(players() == 2 ? &pg_827aa0 : &pg_828040);
+        return;
+    }
+    gw32(0x52f2ac, (gm32(0x52f2ac) & 0xfff0ffffu) | 3u << 16);   /* 0x40d620 */
+    Menu_Goto(&pg_8214b8);
+}
+
+/* 0x4dc710: the trail (arcade, single race), the strip (scroller 10), the location's picture */
+void fe_4dc710(Menu *m)
+{
+    const char *names[2] = {Text_Get(0x94), Text_Get(0xe2)};
+    Fe_Titles(m, title_x(), title_y(), true, 3, names, 2);
+    Fe_Header();
+    Strip_Draw(Fe_Scroll(10), true);
+    PENDING_NOTE(0x4dbd80, "the arcade location's picture and records");
+}
+
+/* ---- the single race's options (0x828040): laps, and the CPU cars (two players: an on/off) ---- */
+
+static uint32_t opts(void) { return gm32(0x52afbc); }
+
+/* 0x4f3220: the laps (0x52afbc bits 3-7) into the first list; the second: with two players an on/off
+   (bit 11, id 2), else the CPU cars, 1-5 (bits 8-10, id 1); the start item selected */
+void fe_4f3220(Menu *m, bool back)
+{
+    (void)back;
+    m->items[0].value = (uint8_t)((opts() >> 3 & 0x1f) - 1);
+    if (players() == 2) {
+        m->items[1].id = 2;
+        m->items[1].value = 0;
+        m->items[1].count = 2;
+        m->items[1].value = (opts() >> 0xb & 1) != 0;
+    } else {
+        m->items[1].id = 1;
+        m->items[1].count = 5;
+        m->items[1].value = (uint8_t)((opts() >> 8 & 7) - 1);
+    }
+    m->sel = 2;
+}
+
+/* 0x4f0090: the laps and the CPU cars (none with two players, the on/off kept instead) kept, the
+   start */
+void fe_4f0090(Menu *m, MenuItem *it)
+{
+    (void)it;
+    uint32_t laps = (uint32_t)m->items[0].value + 1;
+    gw32(0x52f2ac, (gm32(0x52f2ac) & 0xfff0ffffu) | (laps & 0xf) << 16);   /* 0x40d620 */
+    gw32(0x52afbc, (opts() & 0xffffff07u) | (laps & 0x1f) << 3);           /* 0x4eaa90 */
+    if (players() == 2) {
+        Sel_SetCpuCount(0);
+        gw32(0x52afbc, (opts() & 0xfffff7ffu) | (m->items[1].value & 1u) << 0xb);   /* 0x4eac80 */
+    } else {
+        uint32_t n = (uint32_t)m->items[1].value + 1;
+        Sel_SetCpuCount((int)n);
+        gw32(0x52afbc, (opts() & 0xfffff8ffu) | (n & 7) << 8);   /* 0x4eaa60 */
+        gw32(0x52afbc, opts() & 0xfffff7ffu);
+    }
+    Menu_Goto(&pg_8214b8);
+}
