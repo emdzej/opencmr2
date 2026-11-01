@@ -327,9 +327,21 @@ are the cells times their sensitivity plus the carried part, and give the factor
 from rest (0x469100); glass past its limits (0x51bfac to break, 0x51bfcc to crack) changes the polygons'
 texture frames (0x4694a0) and plays 0x418cd0 (0x4692f0).
 
+**Between stages.** At a car's finish `Damage_Finish` 0x469a80 (once; it then sets +0x28c, so later
+hits dent but are not logged) keeps the panels in 255ths (clamped above only), the part values and
+the fallen-off flags as this stage's. When the replay ends (0x41f2b0) `Damage_Store` 0x469b50 copies
+each player's log (+0x106, 0x106 bytes) and panels (+0x24c, 0x40 bytes) to the carried damage at
+0x52ebc0 + 0x148 x (the race's first player + n) (0x407610; the panels at +0x108), which the next
+set-up reads. The pause's restart zeroes all of it (0x408290) in modes 0-5 and 8-10.
+
+**The misfire.** Each step (0x46b4e0, at the end of the cars' first pass) an engine panel (23, +0x29c)
+over 0.5 gives a badness b = 0.8 x clamp(2(p - 0.5), 0, 1). A countdown (+0x40c, 1.0 a step) runs
+two phases, +0x4cc set while cutting out: running for (1 - b)(250 r + 50) steps, then cutting out for
+15 b r, with r = rand() / 32767 in 16.16 (through the FPU: the float 0x5112f0 and the double 65536
+at 0x5112e0). Only this function touches +0x4cc; the countdown's reader is not found yet.
+
 Not ported: the loose parts (0x480000; their slot bytes at 0x590c24 are kept), the glass pieces
-(0x49a910), the relighting marks (0x4b4100), the restart's set-up (0x42b800) and the end of stage
-(`Damage_Finish` 0x469a80, which carries the log).
+(0x49a910), the relighting marks (0x4b4100) and the restart's set-up (0x42b800).
 
 ## Cameras
 

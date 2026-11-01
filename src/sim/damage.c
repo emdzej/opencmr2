@@ -854,3 +854,61 @@ void Damage_Reset(Car *c)
     panels(c);
     glass(c, true);
 }
+
+/* Damage_Finish 0x469a80: at the car's finish, once (the log's +0x28c then stops the logging), the
+   panels as 255ths (clamped above only), the part values and the fallen-off flags as this stage's */
+void Damage_Finish(int car)
+{
+    Car *c = Car_Get(car);
+    const Dmg *d = of(c);
+    uint8_t *l = logs[idx(c)];
+    if (rd32(l + 0x28c) != 0) return;
+    wr32(l + 0x28c, 1);
+    for (uint32_t j = 0; j < 34; j++) {
+        int32_t v = fx_mul(R(d, 0x240 + 4 * j), 0xff0000) >> 16;
+        l[0x24c + j] = (uint8_t)(v > 0xff ? 0xff : v);
+    }
+    memcpy(l + 0x280, d->s + 0x4c0, 12);
+    memcpy(l + 0x270, d->s + 0x4b0, 16);
+}
+
+/* Damage_Store 0x469b50: this stage's log (hits and panels) into the player's carried damage
+   (0x52ebc0 + 0x148 per player from the race's first, 0x407610), for Damage_Setup of the next stage */
+void Damage_Store(int car)
+{
+    Car *c = Car_Get(car);
+    const uint8_t *l = logs[idx(c)];
+    uint32_t dst = 0x52ebc0 + 0x148u * (uint32_t)(Gs_Byte537ef6() + CI8(c, 0xb1a));
+    for (uint32_t j = 0; j < 0x106; j++) gw8(dst + j, l[0x106 + j]);
+    for (uint32_t j = 0; j < 0x40; j++) gw8(dst + 0x108 + j, l[0x24c + j]);
+}
+
+/* 0x46b4e0, each step: an engine more than half broken (panel 23, +0x29c) cuts out. Its badness
+   b = 0.8 * clamp(2 (p - 0.5), 0, 1); a countdown (+0x40c, in steps) runs the two phases (+0x4cc
+   set while cutting out): running for (1 - b)(250 r + 50) steps, cutting out for 15 b r, r from rand
+   (0 to 1 in 16.16). The second phase's added term multiplies by 0, as the original does. */
+void Damage_Misfire(Car *c)
+{
+    Dmg *d = of(c);
+    int32_t p = R(d, 0x29c);
+    if (p <= 0x8000) return;
+    int32_t t = fx_mul(p - 0x8000, 0x20000);
+    t = t < 0 ? 0 : t > 0x10000 ? 0x10000 : t;
+    int32_t b = fx_mul(t, 0xcccc);
+    if (R(d, 0x40c) > 0) {
+        W(d, 0x40c, R(d, 0x40c) - 0x10000);
+        return;
+    }
+    /* fild, fmul by the float 1/32767 (0x5112f0, 0x38000100) and the double 65536 (0x5112e0), fistp */
+    double f = (double)crt_rand() * (double)0x1.0002p-15f * 65536.0;
+    int32_t r = (int32_t)nearbyint(f);
+    if (R(d, 0x4cc) != 0) {
+        W(d, 0x4cc, 0);
+        W(d, 0x40c, fx_mul(0x10000 - b, fx_mul(r, 0xfa0000)));
+        W(d, 0x40c, R(d, 0x40c) + fx_mul(0x10000 - b, 0x320000));
+    } else {
+        W(d, 0x4cc, 1);
+        W(d, 0x40c, fx_mul(b, fx_mul(r, 0xf0000)));
+        W(d, 0x40c, R(d, 0x40c) + fx_mul(b, 0));
+    }
+}

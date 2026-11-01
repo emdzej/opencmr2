@@ -582,3 +582,10 @@
 0049c4b0	Mesh_SetFrame1	render	high	Stage 1 frame index (+0x30) of the polygons matching a flag mask
 004b1ea0	Mesh_RestoreColours	render	high	Vertex colours back from the polygons' corner colours, then the upload
 004b4100	Relight_MarkMesh	render	med	Marks a model's mesh in the relighting table (0x6e0124) as changed
+00469a80	Damage_Finish	damage	high	At a car's finish: the panels as 255ths, parts and flags into this stage's log; logging off
+00469b50	Damage_Store	damage	high	This stage's log and panels into the player's carried damage (0x52ebc0 + 0x148 n)
+0046b4e0	Damage_Misfire	damage	high	A broken engine (panel 23 over 0.5) cutting out: the countdown +0x40c, the phase +0x4cc
+00466520	Stage_Step	race	med	Per step: the start lights, 0x47dd70 (some modes), the loose parts while 0x58896c
+00463bd0	Lights_Step	race	med	The start lights' fade (0.2 a step) to the countdown's table 0x51b338
+00407610	Carried_Get	game	high	A player's carried damage, 0x52ebc0 + 0x148 n (0x106 log bytes, then the panels at +0x108)
+00408290	Carried_Clear	game	high	Every player's carried damage zeroed (0x52ebc0, 0x148 dwords)

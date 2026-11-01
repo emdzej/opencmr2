@@ -10,6 +10,7 @@
 #include "sim/drivetrain.h"
 #include "sim/gearbox.h"
 #include "sim/grip.h"
+#include "sim/damage.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -174,7 +175,7 @@ void Sim_StepCars(const int16_t *list, int n)
         PENDING_NOTE(0x460c80, "Weather_CarValue");   /* the weather state is not ported: dry */
         Car_SurfaceGrip(c, 0);
         clutch_counter(c);
-        PENDING_PASS(0x46b4e0, "Damage_Step");
+        Damage_Misfire(c);   /* 0x46b4e0 */
     }
     for (int i = n - 1; i >= 0; i--) {
         Car *c = Car_Get(list[i]);

@@ -4,8 +4,8 @@
    which the models keep in their vertex colours), adds to a 3 x 3 grid of cells over the car, and the
    cells set 34 panels whose values are the handling factors (engine, steering, brakes, drag) and the
    glass. Each hit is logged (20 entries, the weakest replaced) and the log is carried between stages,
-   replayed by Damage_Reset. Not ported: the loose parts (0x480000), the glass pieces (0x49a910), the
-   relighting marks (0x4b4100) and the end of stage (0x469a80). */
+   replayed by Damage_Reset. Not ported: the loose parts (0x480000), the glass pieces (0x49a910) and the
+   relighting marks (0x4b4100). */
 #pragma once
 #include "sim/car.h"
 #include <stdbool.h>
@@ -32,3 +32,6 @@ void Damage_Setup(bool again, bool keep, const int16_t *cars, int n);
 /* The port: Cars_Load 0x456d90's damage calls (Damage_Alloc, before the cars in the original, then
    after the lists Damage_Clear, Damage_ResetLogs and Damage_Setup for every car). */
 void Damage_CarsLoaded(void);
+void Damage_Finish(int car);   /* 0x469a80: at the finish, this stage's panels and parts kept, logging off */
+void Damage_Store(int car);    /* 0x469b50: this stage's log into the player's carried damage (0x52ebc0) */
+void Damage_Misfire(Car *c);   /* 0x46b4e0: a broken engine's cutting out (the countdown +0x40c) */

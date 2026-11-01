@@ -13,6 +13,7 @@
 #include "game/mem.h"
 #include "game/timer.h"
 #include "sim/sim.h"
+#include "sim/damage.h"
 #include "sim/pose.h"
 #include "sim/drive.h"
 #include "sim/fade.h"
@@ -125,7 +126,7 @@ static void Race_Update(uint8_t state, bool flag)
         for (uint32_t i = 0; i < np; i++)
             if (Car_Get((int)i)->s[0xb43] && flag) PENDING_NOTE(0x41d0c0, "Race_PlayerStep");
         Sim_Step();
-        if (car0) PENDING_NOTE(0x466520, "Damage_Step");
+        if (car0) PENDING_NOTE(0x466520, "Stage_Step: the start lights 0x463bd0, 0x47dd70, the loose parts 0x47eab0/0x480220");
         for (int i = 0; i < g_all.n; i++)
             if (Car_Get(i)->s[0xb43]) Fade_Tick(i, false);
         if (car0) {
@@ -287,7 +288,7 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
     if (fin) {
         R.nfinished++;
         R.finished[slot] = 1;
-        PENDING_NOTE(0x469a80, "Damage_Finish");
+        Damage_Finish((int)slot);   /* 0x469a80 */
         R.finish_at[slot] = Timer_Centis();
         Proc_Event(g, slot, 0, 2);
     }
@@ -324,6 +325,7 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
 {
     if (R.skip || gm8(0x817574)) {
         R.skip = false;
+        for (int i = 0; i < (int)players(); i++) Damage_Store(i);   /* 0x469b50 */
         for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
     }
     if (slot != 0) return;
@@ -350,6 +352,8 @@ static void s11_results(ProcGroup *g, uint32_t slot)
         uint32_t m = Gs_Mode();
         bool service = Pause_ServiceAsked();
         Pause_ClearAsks();
+        /* the players' carried damage dropped (0x408290) in the modes the original's switch lists */
+        if (m <= 5 || (m >= 8 && m <= 10)) memset(gm(0x52ebc0), 0, 0x148 * 4);
         if ((m == 2 || m == 3 || m == 9 || m == 10) && !service && R.kind != 4) {
             /* 0x41e6b0: the cars back on the line, the co-driver, sectors and timers again, then
                every process to the line (event 4) */

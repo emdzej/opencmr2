@@ -294,7 +294,35 @@ int main(void)
             int32_t crumple4 = DI32(dr, 0x284);
             printf("damage: replayed crumple %.4f, none carried %.4f, a round hit %.4f\n", crumple2 / 65536.0, crumple3 / 65536.0, crumple4 / 65536.0);
             CHECK(crumple2 == crumple1 && crumple3 == 0 && crumple4 > 0);
-            Damage_Reset(c);
+            /* the finish (0x469a80) keeps the panels as 255ths and stops the logging; the store
+               (0x469b50) carries the log to the next stage's set-up, which replays it */
+            Damage_Finish(0);
+            int logged = lg[0x20a], panel = lg[0x24c + 23];
+            Car_Damage(c, nose, back, 0x8000, 1, false);
+            Damage_Store(0);
+            Damage_Setup(false, false, g_all.car, g_all.n);
+            int carried = lg[0x104];
+            int32_t crumple5 = DI32(dr, 0x284);
+            printf("damage: %d logged at the finish (none after), engine panel %d/255, %d carried, crumple %.4f\n",
+                   logged, panel, carried, crumple5 / 65536.0);
+            CHECK(logged == 2 && lg[0x20a] == 2 && carried == 2 && crumple5 > 0);
+            /* the misfire (0x46b4e0): a broken engine (panel 23 at 1.0) cuts out for up to 12 steps,
+               then runs for up to 250 */
+            uint8_t *dw = Damage_Get(0);
+            uint8_t one[4] = {0, 0, 1, 0}, zero[4] = {0};
+            memcpy(dw + 0x29c, one, 4), memcpy(dw + 0x40c, zero, 4), memcpy(dw + 0x4cc, zero, 4);
+            Damage_Misfire(c);
+            int32_t cut = DI32(dr, 0x40c), cutting = DI32(dr, 0x4cc);
+            int steps = 0;
+            while (DI32(dr, 0x40c) > 0 && steps < 100) Damage_Misfire(c), steps++;
+            Damage_Misfire(c);
+            int32_t run = DI32(dr, 0x40c);
+            printf("damage: cuts out for %.2f steps (%d counted), then runs for %.2f\n", cut / 65536.0, steps, run / 65536.0);
+            CHECK(cutting == 1 && cut >= 0 && cut <= 12 * 0x10000 && DI32(dr, 0x4cc) == 0 &&
+                  run >= fx_mul(0x3333, 50 << 16) && run <= fx_mul(0x3333, 300 << 16));
+            memset(gm(0x52ebc0), 0, 0x148 * 4);
+            Damage_ResetLogs();
+            Damage_Setup(false, false, g_all.car, g_all.n);
             Damage_SetDents(0, 0);
             for (uint32_t i = 0; i < 3; i++) CW32(c, 0x5c4 + 4 * i, keep[i]);
         }
