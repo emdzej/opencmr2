@@ -273,6 +273,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
             Skids_Load();      /* 0x465600 */
             Lamps_Place();     /* 0x466360's cars */
+            Glass_Setup();     /* 0x49ab90, in 0x466360 */
             Shadow_Place();        /* 0x494bb0, in 0x466360 */
             Weather_RaceStart();   /* Race_StartLights 0x45eca0, in 0x466360 */
             Chips_Setup();     /* 0x498dd0, in 0x466360 */

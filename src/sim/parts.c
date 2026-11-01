@@ -591,7 +591,7 @@ void Parts_Step(const CarList *l)
             if (cur->parent) Mat_Mul(&cur->world, &cur->local, cur->parent);
             if (cur->fn) cur->fn();
         }
-        if (!CI32(cur_car, 0xc0c)) PENDING_NOTE(0x49ab20, "Glass_Pieces (0x49a870 per piece)");
+        Glass_Pieces(cur_car);   /* 0x49ab20 */
     }
     PENDING_NOTE(0x484e00, "Parts_Pieces (the .cin section 3 pieces: 0x484f40, 0x4853c0, 0x4854a0)");
 }

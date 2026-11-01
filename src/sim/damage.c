@@ -5,6 +5,7 @@
 #include "game/camera.h"
 #include "game/gstate.h"
 #include "game/mem.h"
+#include "game/effects.h"
 #include "game/timer.h"
 #include "render/mesh.h"
 #include "sim/sim.h"
@@ -682,8 +683,7 @@ static void glass(Car *c, bool quiet)
             glass_frames(c, 2, (int)i);
             W(d, 0x490 + 4 * i, 1), W(d, 0x470 + 4 * i, 1);
             if (!quiet) {
-                (void)id;
-                PENDING_NOTE(0x49a910, "Glass_Shatter (the pieces)");
+                Glass_Queue(d->s, c, id);   /* 0x49a910 */
                 if (CI8(c, 0xb1a) < players()) Crash_Glass(CI8(c, 0xb1a), snd, CI8(c, 0xb1a));
             }
         } else if ((int32_t)gm32(0x51bfcc + 4 * i) < v && !cracked && !broken) {

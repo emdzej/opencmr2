@@ -850,3 +850,10 @@
 0x4994f0	PaintChip_Draw	game	confirmed	the paint chip's triangle in the car's paint
 0x499710	PaintChip_Spawn	game	confirmed	the chip's car, shape and light
 0x498dd0	Chips_Setup	game	confirmed	the spark colour, ten chip shapes, the cars' .cin section 2
+0x499de0	Glass_Shards	game	confirmed	a broken panel's grid of glass chips
+0x49a870	Glass_Window	game	confirmed	a panel kind's corners from the .cin, then its glass
+0x49a910	Glass_Queue	game	confirmed	a broken panel queued as glass pieces
+0x49ab20	Glass_Pieces	game	confirmed	a car's queued glass thrown
+0x49ab90	Glass_Setup	game	confirmed	the glass triangle's uv and thirty glass shapes
+0x499ac0	GlassChip_Draw	game	confirmed	a glass chip pulled toward the camera
+0x499a80	GlassChip_Spawn	game	confirmed	a glass chip's shape, tint and light

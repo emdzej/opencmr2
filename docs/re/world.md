@@ -805,8 +805,26 @@ the shape), times the light ramp's colour at the scale. The ten shapes are made 
 (0x498dd0, after `Race_StartLights`): three random corners of 0 to 1, less a "centre" (the middle of
 the first two, then halfway to the third, not the true centre), times 0.2.
 
-Not ported yet: `Stage_Step`'s 0x47dd70 and the glass chips (0x499de0, callbacks 0x499ac0, 0x499a80).
-On screen the sparks are not yet checked: the runs so far hit no metal faces.
+**Glass.** When the damage breaks a panel (0x4692f0), `Glass_Queue` 0x49a910 compares its id with the
+damage record's first four panels (+0x460-+0x463): the side windows queue one piece (kinds 0, 1), the
+front and rear screens two each (2 and 3, 4 and 5), each with the car's impact (+0x5c4); other panels
+throw nothing. The queue (ten a car) is thrown at the end of the car's loose parts step
+(`Glass_Pieces` 0x49ab20, last first). A piece (0x49a870) takes its four corners from the car's .cin
+section 2 (+12) by the indices at 0x5203e0, z negated by the flags after them. `Glass_Shards` 0x499de0
+turns them by the car's orientation and cuts the panel in a grid of 10 x 7 cells. The panel's normal
+is the cross of corner 0 less 1 and the diagonal, written over the diagonal while it is computed (so
+its y and z use the new x), then turned by the car's orientation a second time. Each cell throws a
+glass chip (type 28) at a random point in it: along the normal by up to 0.1 of a force (0.6 plus 0.2
+of the impact along the normal, at most 1), less near the panel's edges, and away from the middle by
+the rest. The chips (spawn 0x499a80: one of thirty shapes at random) are drawn (0x499ac0) at alpha
+0xaa in a tint from 0x5203d8 times the light ramp at the car's light, each corner pulled toward the
+camera by up to 1.5, with no age test. The thirty shapes (at most 0.1 from their centre) are made at
+the race start (0x49ab90, before 0x494bb0).
+
+Checked headless: a crash into a sign on fin01 breaks a side window and throws its 70 chips.
+
+Not ported yet: `Stage_Step`'s 0x47dd70. On screen the sparks are not yet checked: the runs so far hit
+no metal faces.
 
 ## Skid marks
 

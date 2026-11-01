@@ -20,6 +20,13 @@ void Wheels_Track(int car);
 void Car_GroundLight(int car, int view);   /* 0x462aa0 */
 void Effects_Car(int car);
 void Chips_Setup(void);
+void Glass_Setup(void);   /* 0x49ab90 (0x466360, before 0x494bb0): the glass shapes */
+/* 0x49a910 (the damage's glass 0x4692f0, a panel broken): the panel id against the damage record's
+   first four (+0x460-+0x463): the side windows queue kind 0 or 1, the front and rear screens two each
+   (2 and 3, 4 and 5), with the car's impact (+0x5c4); the others none */
+void Glass_Queue(const uint8_t *dmg, const Car *c, uint8_t id);
+/* 0x49ab20 (the end of each car in Parts_Step 0x480bb0): the queue thrown, last first (0x49a870) */
+void Glass_Pieces(Car *c);
 /* Sparks_Add 0x499750 (scrapes: the walls 0x48fb80, the loose parts 0x483100, the cars' contacts
    0x48ae90, the scenery 0x469e40, 0x46a500): 1 to most (16.16) at random of sparks (type 26) at pos
    (relative to the car's first model's place), each with a velocity from the three rows (along,

@@ -78,6 +78,7 @@ static Tex *load_num(uint32_t name, int n)
    first two corners, then halfway from that to the third: not the true centre) and scaled by 0.2; per
    car its .cin section 2 (0x592cf8) and that plus 12 (0x592d18) */
 static int32_t rand_pos(void);
+static uint8_t exe_u8(uint32_t va) { const uint8_t *p = exe_data(va, 1); return p ? *p : 0; }
 static const uint8_t *chip_cin[CAR_MAX];   /* 0x592cf8 (+12 at 0x592d18): each car's .cin section 2 */
 void Chips_Setup(void)
 {
@@ -330,8 +331,54 @@ static void cb_499710(Particle *p, PType *t, void *a)
     p->car = (int16_t)(p->car + crt_rand() % 10);
     p->scale = CI32(c, 0xa70);
 }
-static void cb_499ac0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x499ac0, "the glass chips' draw"); }
-static void cb_499a80(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x499a80, "the glass chips' spawn"); }
+enum { GLASS_TRI = 0x592d38, GLASS_SHAPES = 0x5928c0 };
+/* 0x499ac0, the glass chips' draw: glass shape (car >> 8; 0-29 of 0x49ab90's) at the particle (plus
+   its base's place), tinted (0x5203d8 + 4 tint: tint 1 for the kind 6 and 7 panels, 0 else) times the
+   light ramp at its scale over 255, alpha 0xaa; each corner then moved toward the camera by its
+   distance, at most 1.5 (no age test, unlike the sparks and paint) */
+static void cb_499ac0(Particle *p, PType *t, void *a)
+{
+    const Obj *cam = a;
+    int shape = p->car >> 8, tint = p->car - (shape << 8);
+    if (!cam || !p->base || shape < 0 || shape > 29) return;
+    uint32_t lc = Light_ByteRamp(p->scale);
+    uint8_t c[4];
+    for (int k = 0; k < 3; k++) {
+        int32_t f = fx_mul((int32_t)((lc >> (8 * k)) & 0xff) << 16, 0x106);
+        if (f > 0x10000) f = 0x10000;
+        c[k] = (uint8_t)(((int64_t)f * ((int32_t)exe_u8(0x5203d8 + 4 * (uint32_t)tint + (uint32_t)k) << 16)) >> 32);
+    }
+    c[3] = 0xaa;
+    uint32_t sh = GLASS_SHAPES + 0x24 * (uint32_t)shape;
+    PolyVert v[3];
+    for (uint32_t i = 0; i < 3; i++) {
+        uint32_t at = GLASS_TRI + 0x18 * i;
+        int32_t q[3], d[3];
+        for (uint32_t k = 0; k < 3; k++) q[k] = gms32(sh + 0xc * i + 4 * k) + p->drawn[k] + p->base[12 + k];
+        for (int k = 0; k < 3; k++) d[k] = cam->local.m[12 + k] - q[k];
+        int32_t l = (int32_t)vlen(d);
+        if (l > 0x18000) {
+            int32_t r = (int32_t)(0x180000000LL / l);
+            for (int k = 0; k < 3; k++) d[k] = fx_mul(d[k], r);
+        }
+        for (uint32_t k = 0; k < 3; k++) gw32(at + 4 * k, (uint32_t)(q[k] + d[k]));
+        for (uint32_t k = 0; k < 4; k++) gw8(at + 0xc + k, c[k]);
+        v[i].x = gms32(at), v[i].y = gms32(at + 4), v[i].z = gms32(at + 8);
+        memcpy(v[i].rgba, c, 4);
+        v[i].u = gms32(at + 0x10), v[i].v = gms32(at + 0x14);
+    }
+    Poly_Add(&v[0], &v[1], &v[2], t->tex, 0x14);
+}
+/* 0x499a80, after the emitter (its argument: the car's light, then the tint as 16.16): a random shape
+   0-29 in the high byte, the tint in the low, the light as the scale */
+static void cb_499a80(Particle *p, PType *t, void *a)
+{
+    (void)t;
+    const int32_t *g = a;
+    int16_t s = (int16_t)(crt_rand() % 0x1e << 8);
+    p->car = (int16_t)(s + (int16_t)((uint32_t)g[1] >> 16));
+    p->scale = g[0];
+}
 
 /* the box extents (-e, e, e, -e) of most types */
 #define BOX(e) (int32_t)-(e), (e), (e), (int32_t)-(e)
@@ -1286,6 +1333,160 @@ void Sparks_Add(int32_t strength, const int32_t pos[3], Car *c, const int32_t ro
         d[0x46c] = 1, d[0x46d] = d[0x46e] = d[0x46f] = 0;
         if (d[0x469] < 0xfe) d[0x469] = (uint8_t)(d[0x469] + 2);
     }
+}
+
+/* ---- glass (0x499de0-0x49ab90) ---- */
+
+/* 0x49ab90 (in 0x466360, first after the cars' lamps): the glass triangle's uv (0.5, 0), (0, 1), (1, 1)
+   and thirty glass shapes (0x5928c0): three random corners of 0 to 1 less their "centre" (as the paint
+   chips' 0x498dd0), each cut to 0.1 long at most */
+void Glass_Setup(void)
+{
+    gw32(GLASS_TRI + 0x10, 0x8000), gw32(GLASS_TRI + 0x14, 0);
+    gw32(GLASS_TRI + 0x28, 0), gw32(GLASS_TRI + 0x2c, 0x10000);
+    gw32(GLASS_TRI + 0x40, 0x10000), gw32(GLASS_TRI + 0x44, 0x10000);
+    for (uint32_t b = GLASS_SHAPES; b + 0x10 < 0x592d08; b += 0x24) {
+        for (uint32_t k = 0; k < 9; k++) gw32(b + 4 * k, (uint32_t)rand_pos());
+        int32_t c[3];
+        for (uint32_t k = 0; k < 3; k++) c[k] = fx_mul(gms32(b + 0xc + 4 * k) - gms32(b + 4 * k), 0x8000) + gms32(b + 4 * k);
+        for (uint32_t k = 0; k < 3; k++) c[k] = fx_mul(gms32(b + 0x18 + 4 * k) - c[k], 0x8000) + c[k];
+        for (uint32_t i = 0; i < 3; i++) {
+            int32_t v[3];
+            for (uint32_t k = 0; k < 3; k++) v[k] = gms32(b + 0xc * i + 4 * k) - c[k];
+            int32_t l = (int32_t)vlen(v);
+            if (l > 0x1999) {
+                int32_t r = (int32_t)(0x19990000LL / l);
+                for (int k = 0; k < 3; k++) v[k] = fx_mul(v[k], r);
+            }
+            for (uint32_t k = 0; k < 3; k++) gw32(b + 0xc * i + 4 * k, (uint32_t)v[k]);
+        }
+    }
+}
+
+/* 0x499de0: a broken panel's glass. Its four corners (in the car's frame) are turned by the car's
+   orientation; rows 0 to 10 of a grid run from corner 0 toward 1 and from 3 toward 2 in tenths
+   (0x592f38, eight points a row), each row cut in sevenths between its ends. The panel's normal is the
+   cross of (corner 0 less 1) and the diagonal (0 less 2), written over the diagonal as it goes (so its
+   y and z use the new x: kept), then turned by the car's orientation again and made unit. The force is
+   0.6 plus 0.2 of the impact's (+0x5c4) size along that normal, at most 1. Each of the 10 x 7 cells
+   throws a chip (type 28) at a random point of it (along both edges by a random share), moving along
+   the normal by (1 less its distance from the panel's middle over half the diagonal, at most 0.8)
+   times a random share times 0.1 of the force, and away from the middle by its offset (not made unit)
+   times what is left of that; its ground 4 below, the car's first model its base, the car's light and
+   the tint (kinds 6 and 7: never, the callers give 0-5) its argument. */
+static void glass_shards(int32_t cn[12], const int32_t imp[3], int kind, Car *c)
+{
+    int32_t arg[2] = {CI32(c, 0xa70), 0};
+    for (int i = 0; i < 4; i++) {
+        int32_t o[3];
+        vec_mul3(o, cn + 3 * i, c);
+        cn[3 * i] = o[0], cn[3 * i + 1] = o[1], cn[3 * i + 2] = o[2];
+    }
+    enum { GRID = 0x592f38 };
+    int32_t e1[3], e2[3];
+    for (int k = 0; k < 3; k++) e1[k] = cn[3 + k] - cn[k], e2[k] = cn[6 + k] - cn[9 + k];
+    for (int r = 0; r < 11; r++) {
+        uint32_t row = GRID + 0x60 * (uint32_t)r;
+        int32_t f = fx_mul(r << 16, 0x1999);
+        for (uint32_t k = 0; k < 3; k++) {
+            gw32(row + 4 * k, (uint32_t)(fx_mul(e1[k], f) + cn[k]));
+            gw32(row + 0x54 + 4 * k, (uint32_t)(fx_mul(e2[k], f) + cn[9 + k]));
+        }
+    }
+    for (int r = 0; r < 11; r++) {
+        uint32_t row = GRID + 0x60 * (uint32_t)r;
+        int32_t d[3];
+        for (uint32_t k = 0; k < 3; k++) d[k] = gms32(row + 0x54 + 4 * k) - gms32(row + 4 * k);
+        for (uint32_t j = 1; j < 7; j++) {
+            int32_t f = fx_mul((int32_t)(j << 16), 0x249b);
+            for (uint32_t k = 0; k < 3; k++) gw32(row + 0xc * j + 4 * k, (uint32_t)(fx_mul(d[k], f) + gms32(row + 4 * k)));
+        }
+    }
+    int32_t D[3] = {cn[0] - cn[6], cn[1] - cn[7], cn[2] - cn[8]};
+    int32_t half = fx_mul((int32_t)vlen(D), 0x8000);
+    int32_t inv = half ? (int32_t)(0x100000000LL / half) : 0;
+    int32_t C[3];
+    for (int k = 0; k < 3; k++) C[k] = fx_mul(D[k], 0x8000) + cn[6 + k];
+    int32_t A[3] = {cn[0] - cn[3], cn[1] - cn[4], cn[2] - cn[5]};
+    D[0] = fx_mul(A[1], D[2]) - fx_mul(A[2], D[1]);   /* in place, as the original */
+    D[1] = fx_mul(A[2], D[0]) - fx_mul(A[0], D[2]);
+    D[2] = fx_mul(A[0], D[1]) - fx_mul(A[1], D[0]);
+    int32_t n[3];
+    vec_mul3(n, D, c);
+    Vec_Unit(n);
+    int32_t dn = fx_mul(n[2], imp[2]) + fx_mul(n[0], imp[0]) + fx_mul(n[1], imp[1]);
+    if (dn < 0) dn = -dn;
+    int32_t force = fx_mul(fx_mul(dn, 0x8000), 0x6666) + 0x9999;
+    if (force > 0x10000) force = 0x10000;
+    const int32_t *base = c->main ? c->main->local.m : NULL;
+    uint8_t passes = c->second ? c->second->mask : 0;
+    arg[1] = (kind == 7 || kind == 6) << 16;
+    for (int r = 0; r < 10; r++)
+        for (int j = 0; j < 7; j++) {
+            uint32_t a0 = GRID + 0x60 * (uint32_t)r + 0xc * (uint32_t)j, b0 = a0 + 0x60, c0 = a0 + 0xc;
+            int32_t u[3], w[3], pos[3], dv[3], vel[3];
+            for (uint32_t k = 0; k < 3; k++) u[k] = gms32(b0 + 4 * k) - gms32(a0 + 4 * k), w[k] = gms32(c0 + 4 * k) - gms32(a0 + 4 * k);
+            int32_t s1 = rand_pos();
+            for (int k = 0; k < 3; k++) u[k] = fx_mul(u[k], s1);
+            int32_t s2 = rand_pos();
+            for (int k = 0; k < 3; k++) w[k] = fx_mul(w[k], s2);
+            for (uint32_t k = 0; k < 3; k++) pos[k] = gms32(a0 + 4 * k) + u[k] + w[k];
+            for (int k = 0; k < 3; k++) dv[k] = pos[k] - C[k];
+            int32_t ratio = (int32_t)(((int64_t)(int32_t)vlen(dv) * inv) >> 16);
+            if (ratio > 0xcccc) ratio = 0xcccc;
+            int32_t s = fx_mul(0x10000 - ratio, rand_pos());
+            int32_t f10 = fx_mul(force, 0x1999);
+            int32_t along = fx_mul(s, f10), away = fx_mul(0x10000 - s, f10);
+            for (int k = 0; k < 3; k++) vel[k] = fx_mul(n[k], along) + fx_mul(dv[k], away);
+            Particle_Emit(0x1c, pos, vel, -0x40000, base, NULL, 0, arg, passes);
+        }
+}
+
+/* 0x49a870: panel kind's four corners from the car's .cin section 2 (+12, 0x592d18) by the indices at
+   0x5203e0 + 0x14 kind, each z negated by the flags after them; then its glass */
+static void glass_window(int kind, const int32_t imp[3], Car *c)
+{
+    int n = CI8(c, 0xb1a);
+    const uint8_t *pts = kind < 6 && n >= 0 && n < CAR_MAX && chip_cin[n] ? chip_cin[n] + 0xc : NULL;
+    if (!pts) return;   /* the original reads from address 0 */
+    int32_t cn[12];
+    for (uint32_t i = 0; i < 4; i++) {
+        const uint8_t *q = pts + 0xc * exe_u8(0x5203e0 + 0x14 * (uint32_t)kind + i);
+        for (int k = 0; k < 3; k++) cn[3 * i + (uint32_t)k] = (int32_t)((uint32_t)q[4 * k] | q[4 * k + 1] << 8 | q[4 * k + 2] << 16 | (uint32_t)q[4 * k + 3] << 24);
+        if (exe_u32(0x5203e4 + 0x14 * (uint32_t)kind + 4 * i)) cn[3 * i + 2] = -cn[3 * i + 2];
+    }
+    glass_shards(cn, imp, kind, c);
+}
+
+/* the car's queue of broken panels: a count (0x592870), ten kinds (0x592ee8) and impacts (0x593358) */
+static uint32_t gq(int car, uint32_t n) { return (uint32_t)car * 10 + n; }
+static void glass_push(int car, uint8_t kind, const Car *c)
+{
+    uint32_t i = gq(car, gm8(0x592870 + (uint32_t)car));
+    gw8(0x592ee8 + i, kind);
+    for (uint32_t k = 0; k < 3; k++) gw32(0x593358 + 0xc * i + 4 * k, (uint32_t)CI32(c, 0x5c4 + 4 * k));
+    gw8(0x592870 + (uint32_t)car, (uint8_t)(gm8(0x592870 + (uint32_t)car) + 1));
+}
+
+void Glass_Queue(const uint8_t *d, const Car *c, uint8_t id)
+{
+    int car = CI8(c, 0xb1a);
+    if (id == d[0x462]) glass_push(car, 2, c), glass_push(car, 3, c);
+    else if (id == d[0x463]) glass_push(car, 4, c), glass_push(car, 5, c);
+    else if (id == d[0x460]) glass_push(car, 0, c);
+    else if (id == d[0x461]) glass_push(car, 1, c);
+}
+
+void Glass_Pieces(Car *c)
+{
+    if (CI32(c, 0xc0c)) return;
+    int car = CI8(c, 0xb1a);
+    for (int i = gm8(0x592870 + (uint32_t)car) - 1; i >= 0; i--) {
+        uint32_t q = gq(car, (uint32_t)i);
+        int32_t imp[3] = {gms32(0x593358 + 0xc * q), gms32(0x593358 + 0xc * q + 4), gms32(0x593358 + 0xc * q + 8)};
+        glass_window(gm8(0x592ee8 + q), imp, c);
+    }
+    gw8(0x592870 + (uint32_t)car, 0);
 }
 
 void Effects_Backfire(int car, int frames)
