@@ -439,3 +439,9 @@ void Fe_SetMode(uint32_t m)
     gw32(0x52afb4, (gm32(0x52afb4) & 0xfffffc07u) | (m & 0x7f) << 3);
     if (m > 7) gw8(0x52e920, (uint8_t)(gm32(0x52afb4) >> 3 & 0x7f));
 }
+
+void Fe_SetPlayer(int n)
+{
+    uint32_t mw = gm32(0x52afb4);
+    player = n >= 1 && n <= 3 && !(mw >> 17 & 1) && (mw >> 3 & 0x7f) != 4 ? n : 0;
+}

@@ -3,6 +3,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "pending.h"
+#include "game/timer.h"
 
 static uint32_t player_profile(int n) { return gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf; }
 
@@ -100,4 +101,126 @@ void Options_Defaults(void)
     gw32(0x52afb8, (gm32(0x52afb8) & 0xfff93264) | 0x40393264);   /* the volumes: effects 100, ... */
     PENDING_NOTE(0x406010, "Records_Defaults (0x52b044, 0x52c308, 0x52d5cc)");
     gw32(0x52afb4, gm32(0x52afb4) & 0x7fffffff);
+}
+
+uint32_t Player_Word(int n) { return gm32(0x531350 + 0x30u * (uint32_t)n); }
+static void set_word(int n, uint32_t v) { gw32(0x531350 + 0x30u * (uint32_t)n, v); }
+static uint32_t prof_word(uint32_t p, uint32_t off) { return gm32(0x52fa1c + p * 0x650 + off); }
+static bool prof_used(uint32_t p) { return gm8(0x52fa18 + p * 0x650) && !(prof_word(p, 0) & 0x200000); }
+
+bool Player_HasProfile(int n)
+{
+    if ((Player_Word(n) & 0x3c0000) == 0x3c0000) return false;
+    if ((gm32(0x52afb4) >> 3 & 0x7f) == 4) return true;
+    return Player_Word(n) >> 0x1a & 1;
+}
+
+void Player_AssignProfile(int n, int profile)
+{
+    uint32_t w = Player_Word(n);
+    if ((w & 0x3c0000) != 0x3c0000) return;
+    if (profile != -1) {
+        uint32_t p = (uint32_t)profile, f = prof_word(p, 0x40);
+        set_word(n, ((f & 0x40) << 1 | (p & 0xf)) << 0x12 | (w & 0xfdc3ffc0) | (f & 0x1f));
+        return;
+    }
+    /* the first profile not in use, unless a lower player has it */
+    uint32_t pick = 0;
+    while (pick < 4 && prof_used(pick)) pick++;
+    bool found = pick < 4;
+    for (int i = 0; found && i < n; i++)
+        if ((Player_Word(i) >> 0x12 & 0xf) == pick) found = false;
+    if (!found) {
+        /* else of those no player has, the lowest +0x40 bits 7-14; all equal, the longest unused */
+        uint32_t cand[4], nc = 0;
+        for (uint32_t p = 0; p < 4; p++) {
+            bool taken = false;
+            for (int i = 0; i < 0x10; i++)
+                if ((Player_Word(i) >> 0x12 & 0xf) == p) taken = true;
+            if (!taken) cand[nc++] = p;
+        }
+        uint32_t low = 0xff;
+        bool same = true;
+        pick = (uint32_t)n;
+        for (uint32_t k = 0; k < nc; k++) {
+            uint32_t v = prof_word(cand[k], 0x40) >> 7 & 0xff;
+            if ((prof_word(cand[0], 0x40) >> 7 & 0xff) != v) same = false;
+            if (v <= low) low = v, pick = cand[k];
+        }
+        uint32_t now = Timer_Centis(), age = 0;
+        if (same)
+            for (uint32_t k = 0; k < nc; k++)
+                if (age <= now - gm32(0x531654 + 4 * cand[k])) pick = cand[k], age = now - gm32(0x531654 + 4 * cand[k]);
+    }
+    set_word(n, (pick & 0xf) << 0x12 | (Player_Word(n) & 0xffc3ffff));
+    gw32(0x531654 + 4 * (Player_Word(n) >> 0x12 & 0xf), Timer_Centis());
+}
+
+void Player_DefaultCamera(int n)
+{
+    /* 0x4eaae0 the options' camera defaults (0x52b028-0x52b034), 0x4088a0 into the profile (or in
+       mode 4 the challenge record 0x52f490) and 0x408d00 its changed flag */
+    uint32_t v[5] = {0, gm32(0x52b028), gm32(0x52b02c), gm16(0x52b034), gm32(0x52b030)};
+    if ((gm32(0x52afb4) >> 3 & 0x7f) == 4) {
+        for (int i = 0; i < 5; i++) gw32(0x52f490 + 0xc4u * (uint32_t)n + 4u * (uint32_t)i, v[i]);
+        gw8(0x52f3ec + 0xc4u * (uint32_t)n, gm8(0x52f3ec + 0xc4u * (uint32_t)n) | 2);
+        return;
+    }
+    uint32_t p = Player_Word(n) >> 0x12 & 0xf;
+    if (p == 0xf) return;
+    for (int i = 0; i < 5; i++) gw32(0x53003c + p * 0x650 + 4u * (uint32_t)i, v[i]);
+    gw32(0x52fa00 + 4 * p, 1);
+}
+
+void Player_SetGuest(int n, bool guest)
+{
+    uint32_t w = Player_Word(n), p = w >> 0x12 & 0xf;
+    if (p == 0xf) return;
+    uint32_t g = (uint32_t)guest << 0x1a;
+    gw32(0x52fa1c + p * 0x650, (prof_word(p, 0) & 0xffdfffff) | (uint32_t)guest << 0x15);
+    set_word(n, (w & 0xfbffffff) | g | 0x2000);
+    if (guest) {
+        set_word(n, (w & 0xfbffe000) | g | 0x2000);
+        gw32(0x531354 + 0x30u * (uint32_t)n, 0);
+        Player_DefaultCamera(n);
+        /* the camera: the option's (0x4eaca0) into the profile of the player's number and its own,
+           as the original indexes both */
+        gw32(0x52fa60 + 0x650u * (uint32_t)n, gm32(0x52b038));
+        gw32(0x52fa60 + 0x650u * p, gm32(0x52b038));
+    }
+}
+
+void Player_DropProfile(int n)
+{
+    if ((Player_Word(n) & 0x3c0000) != 0x3c0000) set_word(n, (Player_Word(n) & 0xffffdfff) | 0x3c0000);
+}
+
+void Players_DropAll(void)
+{
+    for (int n = 0; n < 0x10; n++) set_word(n, (Player_Word(n) & 0xffffdfff) | 0x3c0000);
+}
+
+/* the profiles in use that no player (of the first four) has */
+static int free_profiles(uint32_t out[4])
+{
+    bool had[4] = {0};
+    for (uint32_t p = 0; p < 4; p++)
+        for (int n = 0; n < 4; n++)
+            if ((Player_Word(n) >> 0x12 & 0xf) == p) { had[p] = true; break; }
+    int k = 0;
+    for (uint32_t p = 0; p < 4; p++)
+        if (!had[p] && prof_used(p)) out[k++] = p;
+    return k;
+}
+
+int Profiles_Free(void) { uint32_t f[4]; return free_profiles(f); }
+const char *Profile_FreeName(int i)
+{
+    uint32_t f[4];
+    return i < free_profiles(f) ? (const char *)gm(0x52fa18 + f[i] * 0x650) : NULL;
+}
+int Profile_FreeIndex(int i)
+{
+    uint32_t f[4];
+    return i < free_profiles(f) ? (int)f[i] : -1;
 }

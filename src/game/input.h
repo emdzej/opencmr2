@@ -18,3 +18,9 @@ typedef struct {
 void Input_SetMenuMode(bool on);     /* 0x49ea90 */
 void Input_PollAll(void);            /* 0x49eab0: 0x49e960 for each record */
 InputRecord *Input_Record(int n);    /* 0x49ead0 */
+
+/* The typed characters (WM_CHAR into the queue 0x6ed3f4, 30 deep): 0x4b7cd0 takes the next one, false
+   when none; 0x4b7c80 empties the queue. The port makes them from the key presses (letters lower
+   case, digits, space, '.', backspace 8). */
+bool Input_NextChar(int *c);
+void Input_FlushChars(void);

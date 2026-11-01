@@ -15,3 +15,11 @@ void Fe_SetScrollPrev(int i);             /* DAT_00525398 */
 void Fe_DifficultyNames(void);            /* 0x4d2790 */
 void Fe_BuildControllers(void);           /* 0x4fa4d0 */
 void Fe_SetMode(uint32_t m);              /* 0x4ea8e0: the mode word's bits 3-9 (and 0x52e920 for the network) */
+void Fe_SetPlayer(int n);                 /* 0x4ea480: the player whose input runs the menus (1-3 when
+                                             not alternating and not a challenge, else 0) */
+/* 0x4d3360: the page's items as a column of arrowed rows (the selected lit), from item `first`,
+   centred on cy (-1: the screen's middle above the strip) at x (-1: 122 of 640); with hdr a header
+   row on a band first */
+void List_Draw(Menu *m, const char *hdr, int cy, int x, int first, bool lit);
+/* 0x4d3fa0: n titles in a row, the last lit */
+void Fe_TitleRow(int x, int y, const char *const *names, int n);

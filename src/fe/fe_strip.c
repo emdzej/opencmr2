@@ -264,7 +264,7 @@ int Fe_Titles(Menu *m, int x, int y, bool current, int depth, const char *const 
     if (names && k >= 1 && !current) s = names[k - 1];
     else if (m->title) s = m->title;
     else s = Text_Get(m->text);
-    snprintf(b, sizeof b, "%s", s);
+    snprintf(b, sizeof b, "%s", s ? s : "");
     return title(x, y, current ? C68 : C6c, current, b);
 }
 
@@ -317,4 +317,65 @@ void Fe_DotPicture(int16_t px, int16_t py, const uint8_t *cells)
                                (uint8_t)(((int64_t)((pc >> 16 & 0xff) << 16) * k) >> 32), (uint8_t)(pc >> 24)};
             Sprite_Add(&src, &d, t, 1, 0, NULL, NULL, rgba, 8);
         }
+}
+
+void Fe_TitleRow(int x, int y, const char *const *names, int n)
+{
+    for (int i = 0; i < n; i++)
+        if (names[i]) {
+            char b[256];
+            snprintf(b, sizeof b, "%s", names[i]);
+            x = title(x, y, i == n - 1 ? C68 : C6c, i == n - 1, b);
+        }
+}
+
+void List_Draw(Menu *m, const char *hdr, int cy, int xo, int first, bool lit)
+{
+    Tex *on = g_fe.arrow_a, *off = g_fe.arrow_d;
+    if (!on || !off) return;
+    int w, h;
+    screen(&w, &h);
+    int cnt = 0;
+    for (int i = 0; i < m->n; i++) cnt += (m->items[i].flags & MIF_SELECTABLE) != 0;
+    int tx, ax;
+    if (xo == -1) tx = w * 0x7a / 0x280, ax = w * 100 / 0x280;
+    else tx = (w * 0x7a / 0x280 - w * 0x18 / 0x280) + xo, ax = (w * 100 / 0x280 - w * 0x18 / 0x280) + xo;
+    if (cy == -1) cy = (h * 8 / 0x1e0 + h * 0x26 / 0x1e0 + h * 0x180 / 0x1e0) / 2;
+    int row = h * 0x24 / 0x1e0, rows = cnt - first + (hdr != NULL);
+    int top = cy - row * rows / 2;
+    int lx = xo == -1 ? w * 99 / 0x280 : (w * 99 / 0x280 - w * 0x18 / 0x280) + xo;
+    int16_t r[4] = {(int16_t)lx, (int16_t)(hdr ? top + row : top), (int16_t)(w * 0x11a / 0x280), 1};
+    uint32_t c1 = m->sel == first ? C68 : C6c, c2 = m->sel == first ? C74 : C78;
+    Rect_Fill(r, col(c2), 1);
+    r[1]++;
+    Rect_Fill(r, col(c1), 1);
+    for (int k = 0; k < rows; k++) {
+        while (!(m->items[first].flags & MIF_SELECTABLE)) first++;
+        int16_t ay = (int16_t)(h * 0x14 / 0x1e0 + top + row * k - off->height / 2);
+        if (!hdr || k != 0) {
+            MenuItem *it = &m->items[first];
+            Tex *t;
+            uint32_t c;
+            if (m->sel == first && lit) c = C68, t = on;
+            else t = off, c = (it->flags & MIF_ENABLED) && lit ? C6c : C70;
+            Rect16 src = {0, 0, t->width, t->height}, dst = {(int16_t)ax, ay, on->width, on->height};
+            Sprite_Add(&src, &dst, t, 1, 0, NULL, NULL, col(c), 8);
+            const char *s = it->text == -1 ? it->label : Text_Get(it->text);
+            Font_Print(1, s ? s : "", tx, h * 0x18 / 0x1e0 + r[1], col(c), 0x11);
+            uint32_t a, b;
+            if (m->sel == first || m->sel == first + 1) a = C68, b = C74;
+            else if (!(it->flags & MIF_ENABLED) && !(m->items[first + 1].flags & MIF_ENABLED)) a = C70, b = C7c;
+            else a = C6c, b = C78;
+            r[1] = (int16_t)(row * (k + 1) + top);
+            Rect_Fill(r, col(b), 1);
+            r[1]++;
+            Rect_Fill(r, col(a), 1);
+            first++;
+        } else {
+            int16_t band[4] = {r[0], (int16_t)top, r[2], (int16_t)row};
+            Rect_Fill(band, col(C78), 4);
+            Font_Print(1, hdr, tx, h * 0x18 / 0x1e0 + top, gm(0x524984), 0x11);
+            r[1] = (int16_t)(row + top);
+        }
+    }
 }

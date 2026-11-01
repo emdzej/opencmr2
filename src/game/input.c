@@ -72,3 +72,34 @@ void Input_PollAll(void)
 {
     for (int i = 0; i < 8; i++) poll(i);
 }
+
+static int chars[30], nchars;
+
+static void take_presses(void)
+{
+    static const char map[0x40] = {
+        0, 0, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 0, 0, 8, 0,
+        'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', 0, 0, 0, 0, 'a', 's',
+        'd', 'f', 'g', 'h', 'j', 'k', 'l', 0, 0, 0, 0, 0, 'z', 'x', 'c', 'v',
+        'b', 'n', 'm', 0, '.', 0, 0, 0, 0, ' ', 0, 0, 0, 0, 0, 0};
+    uint8_t codes[32];
+    int n = plat_key_presses(codes, 32);
+    for (int i = 0; i < n; i++)
+        if (codes[i] < 0x40 && map[codes[i]] && nchars < 30) chars[nchars++] = map[codes[i]];
+}
+
+bool Input_NextChar(int *c)
+{
+    take_presses();
+    if (!nchars) return false;
+    *c = chars[0];
+    for (int i = 1; i < nchars; i++) chars[i - 1] = chars[i];
+    nchars--;
+    return true;
+}
+
+void Input_FlushChars(void)
+{
+    take_presses();
+    nchars = 0;
+}
