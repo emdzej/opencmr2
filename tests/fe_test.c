@@ -108,6 +108,20 @@ int main(void)
     printf("race at frame %u\n", frame);
     for (int i = 0; i < 400 && Race_State(0) != 7 && Race_State(0) != 8; i++) step();
     CHECK(Race_State(0) == 7 || Race_State(0) == 8);
+    /* restart: Escape, up twice to "restart stage", Enter; up twice on the confirmation, Enter: the
+       fade, then the cars on the line again */
+    for (int i = 0; i < 200; i++) step();
+    int t_before = Race_StageTime(0);
+    press(0x01);
+    CHECK(Pause_Active());
+    press(0xc8), press(0xc8), press(ENTER);
+    press(0xc8), press(0xc8), press(ENTER);
+    for (int i = 0; i < 200 && Pause_Active(); i++) step();
+    CHECK(!Pause_Active());
+    for (int i = 0; i < 30; i++) step();
+    printf("after the restart: state %d, stage time %d (was %d)\n", Race_State(0), Race_StageTime(0), t_before);
+    CHECK(Race_State(0) == 5 || Race_State(0) == 7);
+    for (int i = 0; i < 400 && Race_State(0) != 8; i++) step();
     /* Escape pauses; up to "exit", Enter; up to "quit game", Enter: the fade, the results' exit, the
        menus */
     press(0x01);
