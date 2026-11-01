@@ -146,6 +146,16 @@ fade on every car. At its end the fade posts the race's event 1, which goes to t
 sets a flag: 0x53810c for a restart, 0x53810d for an exit. The results state (0x41e8d0) then either puts
 the cars back on the line (0x41e6b0, then event 4) or leaves for the front end.
 
-The stage's results are at 0x449100-0x454000: the stage times, the splits and the standings. They are
-drawn over the replay (0x44b330 in state 10's draw). They are not ported yet. In the port, Return skips
-the replay and the results.
+The stage's results are at 0x448e00-0x454400 (`src/game/results.c`). They are drawn over the replay
+(0x44b330 in state 10's draw). Their input runs in each step of state 10 (0x448e70). They are started by
+state 9 once every player has finished (0x44a1b0). For one player on a single stage the pages are:
+
+1. The replay's title and the driver (0x44b7b0).
+2. The stage time page (0x44bcd0): each split's time and the total, beside the stage record's.
+3. "Congratulations" (0x44d790), only when the time beat the record. 0x4cfa10 writes the new record.
+4. The standings board against the computer drivers (0x44d960).
+5. The choices (0x44af70, 0x453c50): restart, restart at the service area, quit. Each fades out and posts
+   the race's event 1, as the pause menu does.
+
+The board's table (the computer drivers' times, 0x455ca0-0x455de0) is not ported yet, nor are the other
+modes' pages.
