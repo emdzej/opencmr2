@@ -5,6 +5,9 @@
 #include "pending.h"
 #include "fixmath.h"
 #include "game/gstate.h"
+#include "game/mem.h"
+#include "game/camera.h"
+#include "game/race.h"
 #include "sim/road_follow.h"
 #include "sim/step.h"
 #include "sim/progress.h"
@@ -23,6 +26,7 @@ void Drive_ReadInput(uint32_t *held, uint32_t *pressed)
         if (k[0x39]) h |= ACT_HANDBRAKE;  /* Space */
         if (k[0x1e]) h |= ACT_GEAR_UP;    /* A */
         if (k[0x2c]) h |= ACT_GEAR_DOWN;  /* Z */
+        if (k[0x2e]) h |= ACT_CAMERA;     /* C */
     }
     uint32_t p = plat_pad(0);
     if (p & PAD_RIGHT) h |= ACT_RIGHT;
@@ -32,13 +36,37 @@ void Drive_ReadInput(uint32_t *held, uint32_t *pressed)
     if (p & PAD_A) h |= ACT_HANDBRAKE;
     if (p & PAD_R) h |= ACT_GEAR_UP;
     if (p & PAD_L) h |= ACT_GEAR_DOWN;
+    if (p & PAD_X) h |= ACT_CAMERA;
     *held = h;
     *pressed = h & ~last;
     last = h;
 }
 
+/* 0x408760: the player's profile keeps the camera chosen */
+static void profile_camera(int player, int kind)
+{
+    uint32_t t = gm32(0x531350 + 0x30u * (uint32_t)player) >> 0x12 & 0xf;
+    if (Gs_Mode() == 4) {
+        gw8(0x52f3e4 + 0xc4u * (uint32_t)player, (uint8_t)kind);
+        gw8(0x52f3ec + 0xc4u * (uint32_t)player, (uint8_t)(gm8(0x52f3ec + 0xc4u * (uint32_t)player) | 2));
+        return;
+    }
+    if (t == 0xf) return;
+    if (gm32(0x52fa1c + t * 0x650) & 0x200000) PENDING_NOTE(0x405fd0, "Profile_Camera (0x405fd0)");
+    gw32(0x52fa60 + t * 0x650, (uint32_t)kind);
+    gw32(0x52fa00 + 4 * t, 1);
+}
+
 void Car_ControlsFromInput(Car *c, uint32_t held, uint32_t pressed)
 {
+    /* the camera key (0x51f4be's mask): the next camera (0x47b970), kept in the profile in the race's
+       line and stage states; not from the trackside (7) or behind (10) views */
+    int player = CI8(c, 0xb1a), kind = Camera_Kind(player);
+    if (kind != 10 && kind != 7 && (pressed & ACT_CAMERA) && player < (int)Gs_SelBits14()) {
+        int state = Race_State(player);
+        int now = Camera_Next(player, state);
+        if ((state == 7 || state == 8) && now >= 1 && now <= 5) profile_camera(player, now);
+    }
     CW32(c, 0xb8c, 0);
     CW32(c, 0xb90, 0);
     CW32(c, 0xb88, 0);

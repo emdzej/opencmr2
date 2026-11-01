@@ -287,6 +287,8 @@ bool viewer_init(const char *car, const char *stage)
                box for --param gears=manual */
             Player_SetProfile(0, 0);
             Profile_Create(0);
+            char cam[8];   /* --param camera=<kind>: the profile's camera (1, 2 interior; 4, 5 chase) */
+            if (plat_param("camera", cam, sizeof cam)) gw32(0x52fa60, (uint32_t)atoi(cam));
             int id = Car_IdByName(car);   /* and the car (the player record's low six bits) */
             if (id >= 0) gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)id);
             char g[16];

@@ -5,7 +5,11 @@
    on the start (Car_Place). Ported for a player in a rally; the other modes' choices are logged. */
 #pragma once
 #include <stdbool.h>
+#include <stdint.h>
 
 void Car_LodTable(void);       /* 0x457c50 */
 bool Car_Load(int n);          /* 0x457000 */
 int Car_IdByName(const char *name);   /* the port: the car table's index of a name ("205"), -1 none */
+const uint8_t *Car_Cin(int n);       /* 0x457e00: car n's .cin */
+/* Car_CinSection 0x457e10: section k of the .cin through its u16 offset directory */
+const uint8_t *Car_CinSection(int n, int k);

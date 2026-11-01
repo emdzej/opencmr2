@@ -5,8 +5,10 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "exe.h"
+#include "game/car_load.h"
 #include "pending.h"
 #include <string.h>
+#include <math.h>
 
 /* A camera record, 0x64 bytes */
 typedef struct {
@@ -230,6 +232,68 @@ static void chase_step(Cam *k, const int32_t *r, int flag)
     chase_place(k, r);
 }
 
+/* The interior views (0x486740-0x486c00): per record the mode (0 the bonnet, 1 the roof, 2 behind;
+   0x590d8c) and the car (0x590ec0); the offset from section 4 of the car's .cin, 12 bytes a mode */
+static uint8_t in_mode[8], in_car[8];
+static int32_t in_fov[8];   /* 0x590db0 */
+
+/* the followed frame looking along the car (mode 2 backwards), pitched down 10 degrees for the bonnet */
+static void interior_target(int32_t *t, const int32_t *r, int mode)
+{
+    memcpy(t, r, 16 * sizeof *t);
+    if (mode == 2) t[0] = r[8], t[1] = r[9], t[2] = r[10], t[8] = -r[0], t[9] = -r[1], t[10] = -r[2];
+    else t[0] = -r[8], t[1] = -r[9], t[2] = -r[10], t[8] = r[0], t[9] = r[1], t[10] = r[2];
+    int32_t deg = mode == 0 ? 10 : 0;
+    pitch(t, (uint16_t)llrint((double)llrint(deg * 65536.0) * (1.0 / 5760.0)));
+}
+
+/* 0x4869e0: the camera at the .cin's offset for its mode in its own frame, from the followed frame */
+static void interior_place(Cam *k, const int32_t *r)
+{
+    PENDING_NOTE(0x4869e0, "Interior_Place (the split screen's modes)");
+    int32_t off[3] = {0, 0, 0};
+    const uint8_t *sec = Car_CinSection(in_car[k->slot], 4);
+    if (sec)
+        for (int q = 0; q < 3; q++) {
+            const uint8_t *b = sec + 12 * in_mode[k->slot] + 4 * q;
+            off[q] = (int32_t)((uint32_t)b[0] | b[1] << 8 | b[2] << 16 | (uint32_t)b[3] << 24);
+        }
+    FxMat m, a, o;
+    Mat_Identity(&m);
+    m.m[12] = off[0], m.m[13] = off[1], m.m[14] = off[2];
+    k->m[12] = k->m[13] = k->m[14] = 0;
+    memcpy(a.m, k->m, sizeof a.m);
+    Mat_Mul(&o, &m, &a);
+    memcpy(k->m, o.m, sizeof o.m);
+    k->m[12] += r[12], k->m[13] += r[13], k->m[14] += r[14];
+    k->f48 = in_fov[k->slot];
+    k->f4c = 0x1999, k->f54 = 0xa000, k->f58 = 0, k->f5c = 0x10000, k->f50 = 0;
+}
+
+/* 0x486740 / 0x486910 */
+static void interior_init(Cam *k, const int32_t *r, int mode)
+{
+    in_mode[k->slot] = (uint8_t)mode;
+    in_car[k->slot] = k->car;
+    in_fov[k->slot] = 0x10000;   /* 0x486b20: set for the interior kinds */
+    PENDING_NOTE(0x486740, "Interior_Init (the cockpit objects, types 9 and 5)");
+    int32_t t[16];
+    interior_target(t, r, mode);
+    memcpy(k->m, t, sizeof t);
+    interior_place(k, r);
+}
+
+/* 0x486810: forward taken at once, up eased (by 0.3 dt, at once with flag) */
+static void interior_step(Cam *k, const int32_t *r, int flag)
+{
+    int32_t t[16], o[16];
+    interior_target(t, r, in_mode[k->slot]);
+    int32_t ku = flag ? 0x10000 : fx_mul(gms32(0x519c8c), 0x4ccc);
+    blend(o, k->m, t, 0x10000, ku, 0x10000, 0);
+    memcpy(k->m, o, sizeof o);
+    interior_place(k, r);
+}
+
 /* 0x423300: a camera of a kind made for its car */
 static void cam_init(Cam *k, int kind, int sub)
 {
@@ -237,10 +301,13 @@ static void cam_init(Cam *k, int kind, int sub)
     k->kind = kind;
     const int32_t *r = follow(k->car);
     switch (kind) {
+    case 1: interior_init(k, r, 1); break;
+    case 2: interior_init(k, r, 0); break;
+    case 10: interior_init(k, r, 2); break;
     case 4: chase_init(k, r, 0); break;
     case 5: chase_init(k, r, 4); break;
     case 6: chase_init(k, r, 3); break;
-    default: PENDING_NOTE(0x423300, "Camera_Init (kinds 1-3, 7, 10)"); chase_init(k, r, 0); break;
+    default: PENDING_NOTE(0x423300, "Camera_Init (kinds 3, 7)"); chase_init(k, r, 0); break;
     }
 }
 
@@ -251,8 +318,9 @@ static void cam_step(Cam *k)
     int flag = CI32(c, 0xc04) != 0;
     const int32_t *r = follow(k->car);
     switch (k->kind) {
+    case 1: case 2: case 10: interior_step(k, r, flag || CI32(c, 0xb60)); break;
     case 4: case 5: case 6: chase_step(k, r, flag); break;
-    default: PENDING_NOTE(0x423460, "Camera_Step (kinds 1-3, 7, 10)"); break;
+    default: PENDING_NOTE(0x423460, "Camera_Step (kinds 3, 7)"); break;
     }
     PENDING_NOTE(0x4930b0, "Camera_GroundLift");
     k->f60 = 0;
@@ -316,6 +384,28 @@ void Camera_Select(int p, int kind, bool smooth)
     cur[p] = (uint8_t)(1 - cur[p]);
 }
 
+/* 0x423970: a kind the cycle may take: 1, 3, 4, 5 when they can be had, 2 but in the replay */
+static bool cyclable(int p, int kind, int state)
+{
+    switch (kind) {
+    case 2: if (state == 10) return false; /* fall through */
+    case 1: case 4: case 5: return true;
+    case 3: PENDING_NOTE(0x476520, "Camera_Allowed (kind 3)"); return false;
+    default: return false;
+    }
+    (void)p;
+}
+
+int Camera_Next(int p, int state)
+{
+    int kind = slots[cur[p] + 2 * p].kind;
+    do {
+        if (++kind == 0xb) kind = 0;
+    } while (!cyclable(p, kind, state));
+    Camera_Select(p, kind, true);
+    return kind;
+}
+
 void Camera_Step(int p)
 {
     PENDING_NOTE(0x538f00, "Camera_LookAround");
@@ -332,8 +422,29 @@ void Camera_Step(int p)
     cam_step(o);
     int32_t dt = gms32(0x519c8c);
     if (sw[p] != dt && sw[p] - dt >= 0) {
-        PENDING_NOTE(0x4219b0, "Camera_Step (a switch's blend)");
-        out[p].kind = 8;
+        /* the switch's blend: f = what is left over 12.5 steps, a = -f half turns, the share of the new
+           camera 1 - (1 - (cos a + 1) / 2)^2; between a chase-like kind (4, 5, 10) and an interior (1,
+           2) +0x5c bumps by the sine of that share's half turn */
+        int32_t f = (int32_t)(((int64_t)sw[p] << 16) / 0xc8000);
+        uint16_t a = (uint16_t)llrint((double)(f * 0xb4) * (-1.0 / 5760.0));
+        int32_t g = 0x10000 - (g_sin[(0x400 - a) & 0xfff] + 0x10000) / 2;
+        int32_t k = 0x10000 - fx_mul(g, g);
+        Cam m;
+        m = out[p];
+        int32_t mm[16];
+        blend(mm, c->m, o->m, k, k, k, 1);   /* 0x423de0 */
+        memcpy(m.m, mm, sizeof mm);
+        m.f48 = lerp(c->f48, o->f48, k), m.f4c = lerp(c->f4c, o->f4c, k), m.f54 = lerp(c->f54, o->f54, k);
+        m.f58 = lerp(c->f58, o->f58, k), m.f5c = lerp(c->f5c, o->f5c, k), m.f50 = lerp(c->f50, o->f50, k);
+        m.f60 = lerp(c->f60, o->f60, k);
+        bool chase_was = c->kind == 4 || c->kind == 5 || c->kind == 10, in_was = c->kind == 1 || c->kind == 2;
+        bool chase_now = o->kind == 4 || o->kind == 5 || o->kind == 10, in_now = o->kind == 1 || o->kind == 2;
+        if ((chase_was && in_now) || (in_was && chase_now)) {
+            uint16_t b = (uint16_t)llrint((double)(k * 0xb4) * (1.0 / 5760.0));
+            m.f5c += g_sin[b & 0xfff];
+        }
+        m.kind = 8;
+        out[p] = m;
         sw[p] -= dt;
         return;
     }

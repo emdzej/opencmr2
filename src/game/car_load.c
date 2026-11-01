@@ -16,6 +16,8 @@
 #include <strings.h>
 
 static C3d models[CAR_MAX];
+static uint8_t *cins[CAR_MAX];     /* 0x5428c4 region: the cars' .cin files */
+static uint32_t cin_size[CAR_MAX];
 static BflSlot textures[CAR_MAX];   /* the slots' texture archives (0x542634 + 0x24 n) */
 
 static const char *car_name(int id) { return exe_str(exe_u32(0x516bb0 + 4u * (uint32_t)id)); }   /* 0x40ee60 */
@@ -87,7 +89,9 @@ bool Car_Load(int n)
     if (!d) return false;
     uint32_t size = File_LastSize();
     snprintf(tex, sizeof tex, "Game\\Cars\\%s.cin", name);
-    PENDING_NOTE(0x4a3dc0, "Car_Cin");   /* the .cin's use */
+    cins[n] = File_Load(tex, 1);
+    cin_size[n] = cins[n] ? File_LastSize() : 0;
+    PENDING_NOTE(0x4a3dc0, "Car_Load 0x4a3dc0");
     snprintf(tex, sizeof tex, "Game\\Cars\\%s%c%d.bfl", name, letter, set);
     if (!Bfl_Mount(&textures[n], tex)) return false;
     C3d *m = &models[n];
@@ -110,4 +114,14 @@ bool Car_Load(int n)
     Damage_Reset(c);
     PENDING_NOTE(0x42cb50, "Car_Load (the wheels' other models)");
     return true;
+}
+
+const uint8_t *Car_Cin(int n) { return n >= 0 && n < CAR_MAX ? cins[n] : NULL; }
+
+const uint8_t *Car_CinSection(int n, int k)
+{
+    const uint8_t *c = Car_Cin(n);
+    if (!c) return NULL;
+    uint32_t off = (uint32_t)(c[2 * (k > 0 ? k : 0)] | c[2 * (k > 0 ? k : 0) + 1] << 8);
+    return off < cin_size[n] ? c + off : NULL;
 }

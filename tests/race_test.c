@@ -7,6 +7,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/camera.h"
 #include "game/hud.h"
 #include "game/sectors.h"
 #include "game/car_load.h"
@@ -53,11 +54,13 @@ static bool load_cars(void)
     return true;
 }
 
+static int press_camera;
 static void input(int player, uint32_t *held, uint32_t *pressed)
 {
     (void)player;
     *held = ACT_THROTTLE;
-    *pressed = 0;
+    *pressed = press_camera ? ACT_CAMERA : 0;
+    press_camera = 0;
 }
 
 static Obj camera;
@@ -94,6 +97,14 @@ int main(void)
             printf("frame %4d: state %d, stage time %d, clock %d\n", frame, st, Race_StageTime(0), Race_Clock());
         }
         if (st == 8 && go < 0) go = frame;
+        if (st == 8 && frame - go == 60) {
+            CHECK(Camera_Kind(0) == 4);
+            press_camera = 1;   /* the camera key: from the chase (4) to the far chase (5), blended */
+        }
+        if (st == 8 && frame - go == 120) {
+            printf("camera kind after the key: %d\n", Camera_Kind(0));
+            CHECK(Camera_Kind(0) == 5);
+        }
         if (getenv("RACE_DBG") && st >= 7 && frame % 30 == 0) {
             Car *c = Car_Get(0);
             printf("  pos %.1f %.1f %.1f b43 %d a98 %08x f%d st%d gear %d b84 %d b20 %d b24 %d b1f %d b48 %d revs %.3f thr %d hb %d b9c %d km/h %.1f\n",

@@ -7,10 +7,12 @@
 
 /* Action bits as the input record holds them (the masks at 0x51f4b0-0x51f4bc): low and high halves
    of each pair. */
-enum { ACT_RIGHT = 1, ACT_LEFT = 2, ACT_THROTTLE = 4, ACT_BRAKE = 8, ACT_HANDBRAKE = 16, ACT_GEAR_UP = 32, ACT_GEAR_DOWN = 64 };
+enum { ACT_RIGHT = 1, ACT_LEFT = 2, ACT_THROTTLE = 4, ACT_BRAKE = 8, ACT_HANDBRAKE = 16, ACT_GEAR_UP = 32, ACT_GEAR_DOWN = 64,
+       ACT_CAMERA = 128 };
 
 /* The port's stand-in for the key bindings (the front end's options, not ported): arrows steer,
-   throttle and brake, space the handbrake, A and Z the gears; the pad's d-pad, B, Y, A, R and L. */
+   throttle and brake, space the handbrake, A and Z the gears, C the camera; the pad's d-pad, B, Y, A, R,
+   L and X. */
 void Drive_ReadInput(uint32_t *held, uint32_t *pressed);
 /* 0x47b0e0's digital path for car c: the controls (+0x1d0-+0x1d8) from the held and pressed bits, the
    steering and pedals digital (+0xb88, +0xb8c, +0xb90 clear); gears only once the race runs (+0xb9c). */
