@@ -106,7 +106,6 @@ the C reader and `tools/cmr2fmt.py`.
 | 0x180 | u32 | asks its section whether it is active (with a section and type bit 12 clear) |
 | 0x184 | u32 | takes its parent's world matrix as it is |
 
-How they are used: [world.md](../re/world.md).
 
 Car wheels show the convention: the left wheels have `-1.0` on the diagonal (mirrored) and their
 translation is the hub position. Vertices are in the object's space; chaining the first matrix up the

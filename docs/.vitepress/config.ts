@@ -53,9 +53,8 @@ export default defineConfig({
     "A faithful reimplementation of Colin McRae Rally 2.0 (Codemasters, 2000) in C11 for the gasm runtime, using the data from your own copy of the game.",
   cleanUrls: true,
   lastUpdated: true,
-  srcExclude: ["README.md", "AGENTS.md", "CONTEXT.md"],
-  // The reverse-engineering notes keep their README.md (it is also what GitHub shows in docs/re/).
-  rewrites: { "re/README.md": "re/index.md" },
+  // The reverse-engineering notes (docs/re/) stay in the repository and are not published.
+  srcExclude: ["README.md", "AGENTS.md", "CONTEXT.md", "re/**"],
   sitemap: { hostname: "https://opencmr2.emdzej.pl" },
   // The browser player is a static page in public/play/, not a Markdown page.
   ignoreDeadLinks: [/^\/play\//],
@@ -83,7 +82,7 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/", activeMatch: "/guide/" },
       { text: "How-tos", link: "/howto/extract-cd", activeMatch: "/howto/" },
-      { text: "Reverse engineering", link: "/re/", activeMatch: "/(re|formats|internals)/" },
+      { text: "File formats", link: "/formats/", activeMatch: "/(formats|internals)/" },
       // A static app in docs/public/play/: target _self makes it a full page load, not a VitePress route.
       { text: "Play", link: "/play/", target: "_self" },
     ],
@@ -108,18 +107,6 @@ export default defineConfig({
         },
       ],
       "/": [
-        {
-          text: "Reverse engineering",
-          items: [
-            { text: "Overview", link: "/re/" },
-            { text: "Architecture", link: "/re/architecture" },
-            { text: "Renderer", link: "/re/render" },
-            { text: "World", link: "/re/world" },
-            { text: "Front end", link: "/re/frontend" },
-            { text: "Inventory", link: "/re/inventory" },
-            { text: "Port plan", link: "/re/port-plan" },
-          ],
-        },
         {
           text: "File formats",
           items: [

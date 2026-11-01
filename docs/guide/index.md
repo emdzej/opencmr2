@@ -16,8 +16,7 @@ OpenGL ES 3.0 (WebGL 2 in the browser).
 - [Game data](game-data.md): what you need from your copy of the game.
 - [Running on gasm](gasm.md): how OpenCMR2 will be packaged and run.
 
-The reverse-engineering notes are public: [architecture](../re/architecture.md), the
-[file formats](../formats/index.md) and the [port plan](../re/port-plan.md).
+The [file formats](../formats/index.md) of the disc are documented here.
 
 ## Sibling projects
 

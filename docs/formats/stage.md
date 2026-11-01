@@ -51,7 +51,7 @@ Every stage archive has the same 25 members plus 48 horizon files. Names use the
 | `NNNN[bli\|clo\|sto].hor` | 80 B each | `Stage_LoadHorizons` 0x41fd30 | Horizon/fog colours for 12 times of day (0500 ... 2400) x 4 weather variants (clear, blizzard, cloudy, storm) |
 
 The simulation reads these in place; most are fixed-size record arrays in 16.16 fixed point. Their field
-layouts are the main reverse-engineering task of the stage step of the [port plan](../re/port-plan.md).
+layouts are the main reverse-engineering task of the stage step of the port plan.
 
 ## .hpc
 
@@ -147,8 +147,7 @@ where it is). Nothing in the release reads either value.
 
 ## .hor
 
-Time-of-day records of 80 bytes, 48 per stage (12 times x 4 weather sets, see
-[world.md](../re/world.md#time-of-day)). Known fields:
+Time-of-day records of 80 bytes, 48 per stage (12 times x 4 weather sets). Known fields:
 
 | Offset | Field |
 |---|---|
@@ -181,8 +180,7 @@ points a step for the nearest one, and re-syncs to it every 26 steps.
 ## fin.dat
 
 `Stage_LoadFinDat` 0x490c30 reads `<stage>fin.dat` (2,213 records in fra02); `Section_Init` 0x4b8270
-files each record in front of its cell's list. The walls hold the cars on the stage (the collision in
-[architecture](../re/architecture.md#walls)). A record, 0x30 bytes, 16.16 values:
+files each record in front of its cell's list. The walls hold the cars on the stage (the collision). A record, 0x30 bytes, 16.16 values:
 
 | Offset | Size | Field |
 |---|---|---|

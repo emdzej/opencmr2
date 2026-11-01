@@ -6,8 +6,8 @@
   containers, models, textures, sound and music documented ([file formats](../formats/index.md)).
 - The program `CMR2.exe` v1.11 analysed in Ghidra: 3,583 functions, the main loop, the mode and process
   framework, the file layer, the model loader, the renderer's use of Direct3D 7, the input defaults and the
-  network layer identified ([architecture](../re/architecture.md), [inventory](../re/inventory.md)).
-- The [port plan](../re/port-plan.md): eleven steps from the file layer to network play, each ending with
+  network layer identified.
+- The port plan: eleven steps from the file layer to network play, each ending with
   a check. Its early questions are answered: the simulation runs in fixed 40 ms steps, replays are input
   recordings, the handling is in the code.
 - Step 1: `opencmr2.wasm` builds for gasm 0.16.0 and starts from the CD image or the CD's
@@ -48,7 +48,7 @@
 
 - The front end, started: the boot screens, the menu engine, all 94 pages built, and the pages from the
   language through the main menu, mode, difficulty, players, driver, tag, car, transmission, country,
-  stage and weather to the start ([front end](../re/frontend.md)). Leaving it chooses the rally's
+  stage and weather to the start. Leaving it chooses the rally's
   weather and set-ups and starts the race; after the stage it comes back to the menus. In the race,
   Escape opens the pause menu (sound volumes, restart, exit); after the finish the results show the
   split and stage times and the stage record, and offer a restart or the way out. The set-up and

@@ -10,9 +10,6 @@ hero:
       text: Get started
       link: /guide/
     - theme: alt
-      text: Port plan
-      link: /re/port-plan
-    - theme: alt
       text: Status
       link: /guide/status
 
@@ -27,18 +24,14 @@ features:
     details: One opencmr2.wasm for macOS, Linux, Windows and the browser on the gasm WebAssembly game runtime. The original's Direct3D 7 rendering goes to OpenGL ES 3.0 (WebGL 2 in the browser).
     link: /guide/gasm
     linkText: Running on gasm
-  - title: Reverse engineered in the open
-    details: The architecture of the original program, its function map and the formats of every file on the disc are published with the code.
-    link: /re/
-    linkText: Reverse-engineering notes
   - title: Every format, documented
     details: The gzip/CMPR containers and archives, PP_F models, stages, cars, DXT5 textures, MS ADPCM music, Bink movies, text and fonts.
     link: /formats/
     linkText: File formats
   - title: A plan, step by step
     details: Eleven steps from the file layer to network play, each ending with a check that runs headless against your data.
-    link: /re/port-plan
-    linkText: Port plan
+    link: /guide/status
+    linkText: Status
 ---
 
 <div class="vp-doc" style="max-width: 1152px; margin: 48px auto 0; padding: 0 24px;">
