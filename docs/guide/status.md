@@ -43,7 +43,7 @@
 - The race around it: the original's process framework and race states, with the countdown, the stage
   time from the go, the splits and the finish (the sectors); the original's stage and car loading, the
   common archives and race fonts, the chase camera, the drawn poses (body on its suspension, wheels),
-  the recovery's fade and the HUD's stage clock, the interior views and the camera key, and the engine
+  the recovery's fade, the HUD's stage clock, split bar, split difference and standings, the interior views and the camera key, and the engine
   sounds and the co-driver's pace notes through a DirectSound emulation and mixer. 
 
 - The front end, started: the boot screens, the menu engine, all 94 pages built, and the pages from the
@@ -65,9 +65,9 @@ step) and the race's cameras and HUD.
 | Stage data (`.tre`, `.hpc`, `.cat`, ...) | `.tre`, `.hpc`, `.csp`, `.hor`, `.cat`, `fin.dat` ported; `.srf`, `.tsc` open |
 | Renderer (Direct3D 7 to GLES 3) | Device, state layer, textures, meshes, 2D and text ported; reflections and 16-bit formats open |
 | World (objects, stage sections) | Object trees, terrain, scenery, sky, shadows, lights and the frame function ported; the cars' draw pass open |
-| Race flow | Process framework, race states, Race_Update, Stage_Load, Car_Load, sectors and the race clock ported for one player in a rally; the chase camera, the HUD's clock; the other cameras and HUD panels, the replay and results open |
-| Front end | The process, menu engine, every page's construction and the single-stage path's pages ported; the options, profiles, championship, arcade and network pages, the music, the saves, mode 2's set-up and service screens open |
+| Race flow | Process framework, race states, Race_Update, Stage_Load, Car_Load, sectors and the race clock ported for one player in a rally; the chase camera, the HUD's clock, split bar, split difference and standings, the pause menu and the results; the other cameras, the HUD's messages and the other modes' panels, and the replay open |
+| Front end | The process, menu engine, every page's construction and the single-stage path's pages ported; the options, profiles, championship, arcade and network pages, the saves, mode 2's set-up and service screens open |
 | Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls, rolls and is recovered; car-to-car and scenery collisions, damage and the step's other entities open |
-| Sound | A DirectSound emulation and mixer, the sound layer, the engine loops and the co-driver's calls ported; backfires, surfaces, menus, music open |
+| Sound | A DirectSound emulation and mixer, the sound layer, the engine loops and the co-driver's calls ported; the menus' sounds and music ported; backfires and surfaces open |
 | Movies (Bink 1) | Not started |
 | Network (DirectPlay 4) | Located; last step |
