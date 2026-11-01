@@ -836,3 +836,7 @@
 0x4ba870	Proj_Point	render	confirmed	a camera-space point through the 16.16 projection
 0x492bb0	Sky_DiscColour	world	confirmed	the disc's first polygon corner colour
 0x46f4a0	Sky_Position	track	confirmed	the dome's local position
+0x4b50b0	Light_SunObjects	world	confirmed	sorted 0x800 meshes: per-vertex extras from the sun direction, capped by the ground light
+0x4b3860	Light_GroundAt	world	confirmed	the nearest stage vertex's extra (and colour) within sqrt(32000) in x and z
+0x4b4040	Light_CornerSun	world	confirmed	a polygon corner's normal on a direction, times 4, 0 to 1
+0x4b5320	Light_SunObjectsThen	world	confirmed	0x4b50b0 then the empty 0x4a3240

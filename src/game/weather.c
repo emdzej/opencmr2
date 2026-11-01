@@ -914,8 +914,8 @@ static void sun_direction(void)
     Shadow_SunDirection(p);
 }
 
-/* Shadow_SetSortedDir 0x4b5340 (through Shadow_SortedDirFromSun 0x4b5760): the sorted objects' shadows cast along the sun's direction, negated
-   (0x6dfdd8; their reader 0x4b50b0 is not ported) */
+/* Shadow_SetSortedDir 0x4b5340 (through Shadow_SortedDirFromSun 0x4b5760): the sun's direction negated (0x6dfdd8) for the sorted
+   objects' sun light (Light_SunObjects 0x4b50b0) */
 static void sorted_shadow_direction(void)
 {
     for (int k = 0; k < 3; k++) gw32(0x6dfdd8 + 4 * (uint32_t)k, (uint32_t)fx_mul(gms32(0x5477f8 + 4 * (uint32_t)k), -0x10000));

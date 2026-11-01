@@ -30,3 +30,12 @@ void Relight_Free(void);
    scenery and tree shadows recoloured from the ramps and uploaded again. */
 void Section_Relight(int cell);
 void Light_RelightAll(void);   /* 0x4b3f20 */
+/* 0x4b50b0: o and the siblings after it: each sorted mesh object with mesh flag 0x800 gets per-vertex
+   extras (intensities) of its normals on the sun's direction (0x6dfdd8, into the object's frame: its
+   local matrix when prev is -1.0, else its world one), at most the light of the ground under it (the
+   nearest stage vertex's, 0x4b3860), that eased halfway from prev when it moved over 0.05. Returns the
+   last ground light (with no such object the original returns its first argument, the object pointer;
+   the port gives prev). Nothing in the exe turns these extras into colours (the movable scenery's caller
+   0x4b5320 follows with 0x4a3240, an empty function). */
+struct Obj;
+int32_t Light_SunObjects(struct Obj *o, int32_t prev);

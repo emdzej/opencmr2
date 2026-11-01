@@ -245,7 +245,14 @@ the frame with `glReadPixels`.
 **The sun's direction** (`Sun_Direction` 0x463070, also at the race start): the sun's point
 (`Sky_SunPoint` 0x492890, raised by the sky's offset) divided by its largest axis and made unit, kept at
 0x5477f8 for the shadows' outlines (0x498370). At the race start `Shadow_SetSortedDir` 0x4b5340 also
-keeps it negated at 0x6dfdd8 for the sorted objects' shadows (0x4b50b0, not ported).
+keeps it negated at 0x6dfdd8 for `Light_SunObjects` 0x4b50b0. That runs on every cell's objects in
+`Light_RelightAll` 0x4b3f20 (each with the siblings after it), which at the race start comes before
+0x4b5340, so the first relight uses the previous direction (zero in the first race). For each sorted
+mesh object with mesh flag 0x800 it writes the mesh's per-vertex extras: each polygon corner's normal
+on the direction (into the object's frame) times 4, from 0 to 1, at most the light of the ground under
+the object (the extra of the nearest stage vertex within sqrt(32000) in x and z, 0x4b3860). Nothing in
+the exe turns these extras into colours: the other caller, the movable scenery's 0x4b5320, follows it
+with 0x4a3240, an empty function.
 
 **Lightning** (0x45f890): the bolt is the clouds' vertex nearest the sun within 100 (`Sky_BoltVertex`
 0x492910). `Sky_BoltTexture` 0x492b50 would put one of three bolt textures on B, but none is ever
@@ -414,9 +421,8 @@ colours differ from the current ones gets the following, and its buffers are upl
   scaled by its factor.
 
 The race start moves every cell's cached red 10 away, so the first pass relights them all (0x4b3f20).
-Not ported yet:
-- the fade of shadows near a car's lights (0x4b6ca0);
-- the shadows of sorted objects (0x4b50b0).
+Before each cell is relit there, its objects get their sun light (`Light_SunObjects` 0x4b50b0, see [The
+sky](#the-sky)). Not ported yet: the fade of shadows near a car's lights (0x4b6ca0).
 
 ## Device lights
 

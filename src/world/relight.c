@@ -10,6 +10,8 @@
 #include "world/tod.h"
 #include "world/stage.h"
 #include "world/tre.h"
+#include "game/mem.h"
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -223,8 +225,79 @@ void Section_Relight(int cell)
     Mesh_UploadVerts(&g_tre, me);
 }
 
-/* Each cell's cached low red moved 10 away (so it differs), then relit. The original first passes the
-   cell's objects to 0x4b50b0 (the shadows of sorted objects with mesh flag 0x800, not ported). */
+/* 0x4b3860: the light at a point: the extra (intensity) of the nearest vertex of its cell's stage mesh
+   in x and z within sqrt(32000), 1.0 without one. (It also returns that vertex's colour, unused here.) */
+static int32_t ground_light(const int32_t p[3])
+{
+    int32_t v = 0x10000;
+    float k = (float)(1.0 / 65536.0), best = 32000.0f;
+    float px = (float)p[0] * k, pz = (float)p[2] * k;
+    int cell = Section_Find(p);
+    uint8_t *me = cell >= 0 ? g_sec[cell].mesh : NULL;
+    if (!me) return v;
+    const uint8_t *vt = C3d_Ref(&g_stage_mesh, me + 0x0c, g_stage_mesh.verts);
+    const uint8_t *ex = C3d_Ref(&g_stage_mesh, me + 0x34, g_stage_mesh.vx);
+    uint32_t n = rd32(me + 0x10);
+    for (uint32_t i = 0; vt && ex && i < n; i++) {
+        float x, z;
+        memcpy(&x, vt + (size_t)i * C3D_VERTEX, 4), memcpy(&z, vt + (size_t)i * C3D_VERTEX + 8, 4);
+        float dx = x - px, dz = z - pz, d = dx * dx + dz * dz;
+        if (d < best) v = (int32_t)rd32(ex + 4 * i), best = d;
+    }
+    return v;
+}
+
+/* 0x4b4040: a polygon corner's vertex normal (16.16) on the direction, times 4, from 0 to 1 */
+static int32_t corner_light(const C3d *m, const uint8_t *me, const uint8_t *poly, int corner, const int32_t d[3])
+{
+    const uint8_t *vt = C3d_Ref(m, me + 0x0c, m->verts);
+    const uint8_t *v = vt + (size_t)(poly[0x40 + 2 * corner] | poly[0x41 + 2 * corner] << 8) * C3D_VERTEX;
+    int32_t nrm[3];
+    for (int k = 0; k < 3; k++) {
+        float f;
+        memcpy(&f, v + 0x0c + 4 * k, 4);
+        nrm[k] = (int32_t)lrintf(f * 65536.0f);
+    }
+    int32_t r = fx_mul(fx_mul(nrm[2], d[2]) + fx_mul(nrm[0], d[0]) + fx_mul(nrm[1], d[1]), 0x40000);
+    return r < 0 ? 0 : r > 0x10000 ? 0x10000 : r;
+}
+
+int32_t Light_SunObjects(Obj *o, int32_t prev)
+{
+    int32_t v = prev;
+    if (!o) return 0;
+    for (; o; o = o->next) {
+        uint8_t *me = o->mesh;
+        if (o->kind != 0 || !o->sorted || !me || !o->model || !(rd32(me + 0x30) & 0x800)) continue;
+        const FxMat *m = prev == -0x10000 ? &o->local : &o->world;
+        int32_t sd[3], d[3];
+        for (int k = 0; k < 3; k++) sd[k] = (int32_t)gm32(0x6dfdd8 + 4 * (uint32_t)k);
+        for (int k = 0; k < 3; k++) d[k] = fx_mul(m->m[4 * k + 2], sd[2]) + fx_mul(m->m[4 * k + 1], sd[1]) + fx_mul(m->m[4 * k], sd[0]);   /* Vec_RotateT 0x4b9da0 */
+        int32_t pos[3] = {m->m[12], m->m[13], m->m[14]};
+        Vec_Unit(d);
+        v = ground_light(pos);
+        if (prev != -0x10000) {
+            int32_t diff = v - prev;
+            if (abs(diff) > 0xccc) v = fx_mul(diff, 0x8000) + prev;
+        }
+        const C3d *c = o->model;
+        const uint8_t *polys = C3d_Ref(c, me + 0x24, c->polys);
+        uint8_t *ex = (uint8_t *)C3d_Ref(c, me + 0x34, c->vx);
+        int32_t np = (int32_t)rd32(me + 0x28);
+        for (int32_t i = 0; polys && ex && i < np; i++) {
+            const uint8_t *poly = polys + (size_t)i * 0x4c;
+            for (int k = 0; k < 3; k++) {
+                uint8_t *e = ex + 4 * (size_t)(poly[0x40 + 2 * k] | poly[0x41 + 2 * k] << 8);
+                int32_t l = corner_light(c, me, poly, k, d);
+                wr32(e, (uint32_t)(v < l ? v : l));
+            }
+        }
+    }
+    return v;
+}
+
+/* Each cell's cached low red moved 10 away (so it differs), its objects (each with the siblings after
+   it) lit by the sun (0x4b50b0, from their local matrices), then the cell relit. */
 void Light_RelightAll(void)
 {
     if (!cache_low) return;
@@ -233,6 +306,7 @@ void Light_RelightAll(void)
         memcpy(c, &cache_low[i], 4);
         c[0] = (uint8_t)(low[0] < 0xf0 ? low[0] + 10 : low[0] - 10);
         memcpy(&cache_low[i], c, 4);
+        for (Obj *o = g_sec[i].objs; o; o = o->section_next) Light_SunObjects(o, -0x10000);
         Section_Relight(i);
     }
 }
