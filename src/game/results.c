@@ -11,6 +11,8 @@
 #include "game/race.h"
 #include "game/hud.h"
 #include "game/sectors.h"
+#include "game/opponents.h"
+#include "world/tod.h"
 #include "pending.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
@@ -184,14 +186,81 @@ static bool stage_record(int p, int id, const char *name)
     return true;
 }
 
-/* the board page (0x44d960): the stage's standings against the computer drivers, not ported yet */
-static void draw_pending(Menu *m)
+/* 0x44ec30: a box around row k's place */
+static void place_box(int k)
 {
-    (void)m;
-    PENDING_NOTE(0x44d790, "the results' splits and standings (0x44d790, 0x44d960)");
+    int w, h;
+    screen(&w, &h);
+    int x0 = w * 0x20 / 0x280, x1 = w * 0x41 / 0x280, y0 = h * 0x82 / 0x1e0 + k * (h * 0x34 / 0x1e0), y1 = h * 0xa3 / 0x1e0 + k * (h * 0x34 / 0x1e0);
+    int16_t a[4] = {(int16_t)(x0 + 2), (int16_t)y0, (int16_t)(x1 - x0 - 4), 2};
+    Rect_Fill(a, C(0x519ecc), 2);
+    int16_t b[4] = {(int16_t)(x0 + 2), (int16_t)(y1 - 2), (int16_t)(x1 - x0 - 4), 2};
+    Rect_Fill(b, C(0x519ecc), 2);
+    int16_t c[4] = {(int16_t)(x1 - 2), (int16_t)y0, 2, (int16_t)(y1 - y0)};
+    Rect_Fill(c, C(0x519ecc), 2);
+    int16_t d[4] = {(int16_t)x0, (int16_t)y0, 2, (int16_t)(y1 - y0)};
+    Rect_Fill(d, C(0x519ecc), 2);
+}
+
+/* 0x40ede0: a car's name in the race's text */
+static const char *car_name(int car) { return Text_Get(car + 0xc2); }
+
+/* 0x44d960: the rally and stage, then six places from the page's value: the name (a player's
+   highlighted), the car, the time and the place (or "=" for a tie) */
+static void draw_board(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
     dim();
-    title(0x47);
+    char stage[64];
+    uint32_t st = Tod_Stage();
+    if (st == 10) snprintf(stage, sizeof stage, "%s", Text_Get(0xba));
+    else snprintf(stage, sizeof stage, exe_str(0x516098), Text_Get(0x40), (int)st + 1);
+    if (mode() == 0 || mode() == 1) PENDING_NOTE(0x44d960, "the board's title in a rally (with the day)");
+    const char *t[2] = {Text_Get((int)Tod_Rally()), stage};
+    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 2);
+    for (int k = 0; k < 6; k++) {
+        int idx = m->items[0].value + k, driver = Opp_Order(idx);
+        int32_t tm = Opp_Time(idx);
+        int who = -1;
+        for (int p = 0; p < (int)(gm32(0x52afb4) >> 13 & 0xf); p++)
+            if (Opp_Place(p) == idx) { who = p; break; }
+        char b[96];
+        int y = h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - h * 8 / 0x1e0;
+        snprintf(b, sizeof b, "%s", who >= 0 ? player_name(who) : exe_str(0x5166b4 + 0x14u * (uint32_t)(driver < 0 || driver > 15 ? 0 : driver)));
+        Font_Print(1, b, w * 0x5c / 0x280, y, C(0x519ecc), 9);
+        print_time(b, sizeof b, tm);
+        Font_Print(1, b, w * 0x21e / 0x280, y, C(0x519ecc), 9);
+        if (who >= 0) {
+            snprintf(b, sizeof b, "%s", car_name((int)(gm32(0x531350 + 0x30u * (uint32_t)who) & 0x3f)));
+            Text_ToFontCase(b);
+            int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - 1),
+                            (int16_t)(w * 0x41 / 0x280 - w * 0x20 / 0x280), (int16_t)(h * 0xa3 / 0x1e0 - h * 0x82 / 0x1e0 + 1)};
+            Rect_Fill(r, C(0x519ed8), 2);
+        } else {
+            int car = driver >= 0 && driver <= 0xe ? gm8(0x51681c + (uint32_t)driver) : 0;   /* 0x407fc0 */
+            snprintf(b, sizeof b, "%s", car_name(car));
+            Text_ToFontCase(b);
+            place_box(k);
+        }
+        Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k, C(0x519ecc), 0x21);
+        if (Opp_Time(idx - 1) == tm) snprintf(b, sizeof b, "%s", exe_str(0x519f70));
+        else snprintf(b, sizeof b, exe_str(0x517dd0), idx + 1);
+        int x0 = w * 0x20 / 0x280, y0 = h * 0x82 / 0x1e0;
+        Font_Print(1, b, (w * 0x41 / 0x280 - x0) / 2 + x0, h * 8 / 0x1e0 + (h * 0xa3 / 0x1e0 - y0) / 2 + (h * 0x34 / 0x1e0) * k + y0, C(0x519ecc), 0x12);
+    }
     Font_SetLayer(2);
+}
+
+/* 0x449ba0 for the board: the list starts five above the best player's place (at most 10) */
+static void board_enter(Menu *m, bool back)
+{
+    (void)back;
+    int best = 0x10;
+    for (int p = 0; p < (int)(gm32(0x52afb4) >> 13 & 0xf); p++)
+        if (Opp_Place(p) < best) best = Opp_Place(p);
+    if (best > 5) m->items[0].value = (uint8_t)(best - 5);
+    if (m->items[0].value > 10) m->items[0].value = 10;
 }
 
 /* 0x453c50: the choices: each item's name (with the next player's for id 0x3ea) and its description,
@@ -288,10 +357,9 @@ void Results_Start(bool again)
     Menu_SetCallbacks(&pg_times, NULL, NULL, draw_times, NULL);
     Menu_Init(&pg_splits, NULL, 0, &pg_times, false, NULL, 1, 0, 0);
     Menu_AddPage(&pg_splits, NULL, 0, &pg_board, NULL, 0);
-    Menu_SetCallbacks(&pg_splits, NULL, NULL, draw_pending, NULL);
     Menu_Init(&pg_board, NULL, 0, NULL, false, NULL, 1, 0, 0);
     Menu_AddList(&pg_board, NULL, 0, 0xb, 0, false, to_target, 0);
-    Menu_SetCallbacks(&pg_board, NULL, NULL, draw_pending, NULL);
+    Menu_SetCallbacks(&pg_board, board_enter, NULL, draw_board, NULL);
     Menu_SetCallbacks(&pg_splits, NULL, NULL, draw_record, NULL);
     if (mode() != 2 && mode() != 3) PENDING_NOTE(0x44a1b0, "the results' pages of the other modes");
     /* the stage record (not in a challenge, with the cheats' options, after a recovery's penalty, or
