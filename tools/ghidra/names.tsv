@@ -480,3 +480,14 @@
 00448cf0	Times_Finished	race	high	A car's finish: done, its time kept
 00408a00	Profile_HudFlags	game	high	The player's profile's HUD panel flags (+0x574)
 004ebf20	Profile_Create	frontend	high	A player's profile cleared to the defaults (camera, box, HUD panels, chase settings)
+00458090	Sectors_Init	race	high	The splits from the centre line's flagged points; the race's cars (Stage_Load)
+00458a00	Sectors_Points	race	high	The split points (0x542c7c, 16.16) and their count
+00458100	Sectors_Start	race	high	Every car's sector record at the start (0x424c50)
+00458bd0	Sectors_StartCar	race	high	A car's sector record: its point, the next split, the finish split
+004581d0	Sectors_Step	race	high	Each car's sector record stepped to its point, the events cleared
+00458e00	Sectors_Move	race	high	A car's sector point stepped towards its point, splits and finish counted
+00458fd0	Sectors_CheckSplit	race	high	The next split point reached: the split's events
+00459180	Sectors_CheckFinish	race	high	The finish split reached: the car's finished flag
+00459320	Cat_Before	race	high	The point before (round a both-ways course, else 0)
+004213a0	Car_CatIndex16	sim	high	The car's progress record +0x14
+00459250	Camera_TracksideHint	camera	med	The trackside camera's hints from the centre line's records (+0x1c-+0x28)

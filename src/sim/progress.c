@@ -218,4 +218,5 @@ int32_t Car_StageShare(const Car *c)
 int Car_PointsPassed(const Car *c) { return (int)rec[CI8(c, 0xb1a)].passed; }
 
 int Car_CatIndex(const Car *c) { return finish ? (int)rec[CI8(c, 0xb1a)].idx : 0; }
+int Car_CatIndex16(const Car *c) { return finish ? (int)rec[CI8(c, 0xb1a)].idx16 : 0; }
 const uint8_t *Cat_Record(int i) { return finish ? cat + (size_t)i * CAT_REC : NULL; }

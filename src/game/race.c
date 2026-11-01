@@ -5,6 +5,7 @@
 #include "game/camera.h"
 #include "game/common.h"
 #include "game/hud.h"
+#include "game/sectors.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/timer.h"
@@ -45,7 +46,6 @@ static struct {
     bool loading;           /* DAT_00538108 */
     uint8_t start_count;    /* DAT_0053811c */
     bool skip;              /* DAT_00817574 */
-    uint8_t race_done[CAR_MAX];   /* 0x542e92 + 0x1c n: past the finish */
     int32_t t_start[4], t_elapsed[4];   /* 0x58da10, 0x58da30 */
 } R;
 
@@ -57,22 +57,12 @@ int Race_State(int p) { return p < R.group.n ? Proc_State(&R.group, (uint32_t)p)
 int32_t Race_Clock(void) { return R.clock << 2; }
 int32_t Race_StageTime(int p) { return R.t_elapsed[p]; }
 int32_t Race_Countdown(void) { return R.countdown; }
-bool Race_Finished(int p) { return R.race_done[p]; }
+bool Race_Finished(int p) { return Sectors_Finished(p); }
 
 /* the stage timers 0x478130-0x4781c0: started, run, cleared, read */
 static void timer_start(int p) { R.t_start[p] = Race_Clock(); }
 static void timer_run(int p) { R.t_elapsed[p] = Race_Clock() - R.t_start[p]; }
 static void timer_clear(int p) { R.t_elapsed[p] = 0; }
-
-/* 0x4581d0 after the cars' progress: the sectors (0x458e00, the 0x1c-byte records at 0x542e78) count
-   each car through the stage and flag it past the finish. Not ported: the port flags a car once its
-   share of the stage (Car_StageShare) reaches 1. */
-static void sectors(void)
-{
-    PENDING_NOTE(0x4581d0, "Race_Sectors");
-    for (int i = 0; i < g_all.n; i++)
-        if (!R.race_done[i] && Car_StageShare(Car_Get(g_all.car[i])) >= 0x10000) R.race_done[i] = 1;
-}
 
 static void Race_Update(uint8_t state, bool flag)
 {
@@ -124,7 +114,7 @@ static void Race_Update(uint8_t state, bool flag)
             if (Car_Get(i)->s[0xb43]) Fade_Tick(i, false);
         if (car0) {
             for (int i = 0; i < g_all.n; i++) Car_Progress(Car_Get(g_all.car[i]));   /* 0x4209f0 */
-            sectors();
+            Sectors_Step();   /* 0x4581d0 */
             Times_Step();   /* 0x448120 */
             PENDING_NOTE(0x45e7f0, "Race_Step 0x45e7f0");
         }
@@ -201,6 +191,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
     if (slot == 0) {
         if (R.place) {
             if (H->place_cars) H->place_cars();
+            Sectors_Start();   /* 0x458100, in 0x424c50 */
             R.place_count = 1;
             R.place = 0;
         }

@@ -1,5 +1,6 @@
 /* Stage_Load 0x41f930 (see stage_load.h). */
 #include "game/stage_load.h"
+#include "game/sectors.h"
 #include "sim/progress.h"
 #include "world/fin.h"
 #include "world/obj.h"
@@ -25,6 +26,7 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     Stage_LoadScenery();
     Stage_LoadCsp(stage);
     Stage_LoadCat(stage);
+    Sectors_Init();   /* 0x458090 */
     PENDING_NOTE(0x416720, "Codriver_LoadCod");
     /* 4: the trackside cameras' splines (0x48caa0), the sections */
     PENDING_NOTE(0x48caa0, "Stage_LoadTsc");

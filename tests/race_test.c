@@ -8,6 +8,7 @@
 #include "game/mem.h"
 #include "game/race.h"
 #include "game/hud.h"
+#include "game/sectors.h"
 #include "game/car_load.h"
 #include "world/tod.h"
 #include "game/stage_load.h"
@@ -143,6 +144,23 @@ int main(void)
     CHECK(seen[5] && seen[7] && seen[8] && seen[5] < seen[7] && seen[7] < seen[8]);
     /* the countdown: five seconds of 40 ms steps from its first frame, 300 frames at 60 Hz */
     CHECK(seen[8] - seen[7] >= 299 && seen[8] - seen[7] <= 302 && fin > 0);
+    /* the sectors (0x4581d0): the car walked along the centre line passes each split and finishes */
+    {
+        Car *c = Car_Get(0);
+        int splits = 0, at = -1;
+        for (int i = Car_CatIndex(c); i < Cat_Points() && at < 0; i++) {
+            int32_t p[3];
+            Cat_Point(i, p);
+            CW32(c, 0x2d0, p[0]), CW32(c, 0x2d8, p[2]);
+            Car_Progress(c);
+            Sectors_Step();
+            splits += Sectors_Split(0);
+            if (Sectors_Finished(0)) at = i;
+        }
+        printf("sectors: %d split points, %d passed, finished at point %d of %d\n", Sectors_Count(), splits, at,
+               Cat_FinishPoint());
+        CHECK(at > 0 && splits >= 1);
+    }
     printf("race_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
 }
