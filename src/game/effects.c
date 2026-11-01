@@ -73,7 +73,7 @@ static Tex *load_num(uint32_t name, int n)
 
 /* 0x499020: two records of the sparks and the chips (0x592888 and 0x593728), three pairs of 16.16
    values each */
-/* 0x498dd0 (in 0x466360, the cars placed): the spark triangle's colour 0xfffefefe; ten chip triangles
+/* Chips_Setup 0x498dd0 (in 0x466360, the cars placed): the spark triangle's colour 0xfffefefe; ten chip triangles
    (0x592d80, three corners of 0 to 1 at random), each moved by its "centre" (the middle of the
    first two corners, then halfway from that to the third: not the true centre) and scaled by 0.2; per
    car its .cin section 2 (0x592cf8) and that plus 12 (0x592d18) */
@@ -242,7 +242,7 @@ static void tri_corner(PolyVert *pv, uint32_t at)
     for (int k = 0; k < 4; k++) pv->rgba[k] = gm8(at + 0xc + (uint32_t)(k == 3 ? 3 : 2 - k));
     pv->u = gms32(at + 0x10), pv->v = gms32(at + 0x14);
 }
-/* 0x499070, the sparks' draw (while under 19 steps old... left): a streak from the particle along its
+/* Spark_Draw 0x499070, the sparks' draw (while under 19 steps old... left): a streak from the particle along its
    velocity (at most 0.35 long, then twice that), as wide as a quarter of that length across the line
    to the camera, at the particle's alpha, in the 0x10 queue (no culling) */
 static void cb_499070(Particle *p, PType *t, void *a)
@@ -276,14 +276,14 @@ static void cb_499070(Particle *p, PType *t, void *a)
     tri_corner(&v0, SPARK_TRI), tri_corner(&v1, SPARK_TRI + 0x18), tri_corner(&v2, SPARK_TRI + 0x30);
     Poly_Add(&v0, &v1, &v2, t->tex, 0x14);
 }
-/* 0x4994d0, after each step: while more than 7.5 steps are left, the type's starting alpha */
+/* Spark_Post 0x4994d0, after each step: while more than 7.5 steps are left, the type's starting alpha */
 static void cb_4994d0(Particle *p, PType *t, void *a)
 {
     (void)a;
     if (p->life > 0x77fff) p->alpha = t->alpha0;
 }
 enum { CHIP_TRI = 0x593718, CHIP_SHAPES = 0x592d80 };
-/* 0x4994f0, the paint chips' draw (under 19 steps left): chip shape (car & 0xff; 0-9) of the ten
+/* PaintChip_Draw 0x4994f0, the paint chips' draw (under 19 steps left): chip shape (car & 0xff; 0-9) of the ten
    0x498dd0 made, at the particle (plus its base's place), in its car's paint (the .cin section 2's
    colour 0 for shapes 0-2, 1 for 3-5, 2 after) times the light ramp's colour at its scale (the car's
    light, 0xa70, the spawn put there) over 255 */
@@ -321,7 +321,7 @@ static void cb_4994f0(Particle *p, PType *t, void *a)
     }
     Poly_Add(&v[0], &v[1], &v[2], t->tex, 0x14);
 }
-/* 0x499710, after the emitter: the car (the argument) in the high byte, a random shape 0-9 in the
+/* PaintChip_Spawn 0x499710, after the emitter: the car (the argument) in the high byte, a random shape 0-9 in the
    low, and the car's light (+0xa70) as the scale */
 static void cb_499710(Particle *p, PType *t, void *a)
 {
@@ -332,7 +332,7 @@ static void cb_499710(Particle *p, PType *t, void *a)
     p->scale = CI32(c, 0xa70);
 }
 enum { GLASS_TRI = 0x592d38, GLASS_SHAPES = 0x5928c0 };
-/* 0x499ac0, the glass chips' draw: glass shape (car >> 8; 0-29 of 0x49ab90's) at the particle (plus
+/* GlassChip_Draw 0x499ac0, the glass chips' draw: glass shape (car >> 8; 0-29 of 0x49ab90's) at the particle (plus
    its base's place), tinted (0x5203d8 + 4 tint: tint 1 for the kind 6 and 7 panels, 0 else) times the
    light ramp at its scale over 255, alpha 0xaa; each corner then moved toward the camera by its
    distance, at most 1.5 (no age test, unlike the sparks and paint) */
@@ -369,7 +369,7 @@ static void cb_499ac0(Particle *p, PType *t, void *a)
     }
     Poly_Add(&v[0], &v[1], &v[2], t->tex, 0x14);
 }
-/* 0x499a80, after the emitter (its argument: the car's light, then the tint as 16.16): a random shape
+/* GlassChip_Spawn 0x499a80, after the emitter (its argument: the car's light, then the tint as 16.16): a random shape
    0-29 in the high byte, the tint in the low, the light as the scale */
 static void cb_499a80(Particle *p, PType *t, void *a)
 {
@@ -1337,7 +1337,7 @@ void Sparks_Add(int32_t strength, const int32_t pos[3], Car *c, const int32_t ro
 
 /* ---- glass (0x499de0-0x49ab90) ---- */
 
-/* 0x49ab90 (in 0x466360, first after the cars' lamps): the glass triangle's uv (0.5, 0), (0, 1), (1, 1)
+/* Glass_Setup 0x49ab90 (in 0x466360, first after the cars' lamps): the glass triangle's uv (0.5, 0), (0, 1), (1, 1)
    and thirty glass shapes (0x5928c0): three random corners of 0 to 1 less their "centre" (as the paint
    chips' 0x498dd0), each cut to 0.1 long at most */
 void Glass_Setup(void)
@@ -1363,7 +1363,7 @@ void Glass_Setup(void)
     }
 }
 
-/* 0x499de0: a broken panel's glass. Its four corners (in the car's frame) are turned by the car's
+/* Glass_Shards 0x499de0: a broken panel's glass. Its four corners (in the car's frame) are turned by the car's
    orientation; rows 0 to 10 of a grid run from corner 0 toward 1 and from 3 toward 2 in tenths
    (0x592f38, eight points a row), each row cut in sevenths between its ends. The panel's normal is the
    cross of (corner 0 less 1) and the diagonal (0 less 2), written over the diagonal as it goes (so its
@@ -1442,7 +1442,7 @@ static void glass_shards(int32_t cn[12], const int32_t imp[3], int kind, Car *c)
         }
 }
 
-/* 0x49a870: panel kind's four corners from the car's .cin section 2 (+12, 0x592d18) by the indices at
+/* Glass_Window 0x49a870: panel kind's four corners from the car's .cin section 2 (+12, 0x592d18) by the indices at
    0x5203e0 + 0x14 kind, each z negated by the flags after them; then its glass */
 static void glass_window(int kind, const int32_t imp[3], Car *c)
 {
