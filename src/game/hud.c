@@ -15,6 +15,9 @@
 #include "sim/sim.h"
 #include "sim/progress.h"
 #include "fixmath.h"
+#include "audio/snd.h"
+#include "audio/codriver.h"
+#include "game/common.h"
 #include "pending.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -195,6 +198,27 @@ void Times_Step(void)
     }
 }
 
+void Hud_LoadSounds(void)
+{
+    /* the first three's ids kept: up 0x536ecc, down 0x537060, blip 0x536cb0 */
+    static const uint32_t names[5] = {0x517d30, 0x517d24, 0x517d18, 0x517d0c, 0x517d00}, ids[3] = {0x536ecc, 0x537060, 0x536cb0};
+    for (int i = 0; i < 5; i++) {
+        if (i < 3) gw32(ids[i], (uint32_t)Snd_Count());
+        Snd_LoadNamed(exe_str(names[i]), Bfl_CommonArc());
+    }
+}
+
+/* 0x411ab0: at a split, "up" at 22,050 Hz when ahead of the reference, else "down" at 11,025, at
+   half the speech volume; not with 0x52ea52 set, nor for a car whose type record (0x537f3c, 0x41f3d0)
+   has +4 set (that table is not ported; a player's car is taken as clear) */
+static void split_beep(bool ahead)
+{
+    if (Gs_Byte52ea52()) return;
+    int32_t v = Codriver_Level() / 2;
+    if (ahead) Voice_Play((int)gm32(0x536ecc), v, 0x5622, 0, false, false);
+    else Voice_Play((int)gm32(0x537060), v, 0x2b11, 0, false, false);
+}
+
 /* 0x413330's rally part: at a split its index, the time there, the place at it */
 static void rally_split(int p)
 {
@@ -210,7 +234,7 @@ static void rally_split(int p)
         int32_t mine = idx < 12 ? my_split[p][idx] : 0, prev = idx == 0 ? hud_time[p] : my_split[p][idx - 1 < 12 ? idx - 1 : 11];
         int32_t rp = idx == 0 ? gms32(0x536e90) : ref_split[idx - 1];
         gw32(BAR_COL(p, idx) - 4, gm32(mine - prev < ref_split[idx < 12 ? idx : 11] - rp ? 0x51709c : 0x5170a0));
-        if (idx != 0) PENDING_NOTE(0x411ab0, "Hud_SplitBeep");
+        if (idx != 0) split_beep(mine < ref_time[p]);   /* 0x411ab0 */
     }
     split_idx[p] = idx;
     uint32_t m = Gs_Mode();

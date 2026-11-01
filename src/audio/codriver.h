@@ -12,6 +12,7 @@ bool Codriver_LoadSpeech(void);            /* 0x416770 (0x416710) */
 bool Codriver_LoadCod(const char *stage);  /* 0x416720 (with 0x416670) */
 void Codriver_Reset(void);                 /* 0x416670 */
 void Codriver_Volume(int32_t speech_percent);   /* 0x418560 */
+int32_t Codriver_Level(void);              /* 0x418570: the speech volume, 16.16 */
 void Codriver_Start(int player);           /* 0x416f70: each step of the countdown */
 void Codriver_Step(int player);            /* 0x417090: each step of the stage */
 void Codriver_Notes(int player);           /* 0x4177d0's speech, each frame */

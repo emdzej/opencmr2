@@ -150,14 +150,14 @@ int main(void)
                 CHECK(diff > 0);
             }
             printf("HUD race time %d\n", Times_Race());
-            /* the engine (0x47a710): its 13 sounds loaded, the mixer not silent */
+            /* the engine (0x47a710): its 13 sounds loaded (after the co-driver's 59 and the HUD's 5), the mixer
+               not silent */
             static float pcm[1470 * 2];
             Dsb_Mix(pcm, 1470);
             double e = 0;
             for (int q = 0; q < 1470 * 2; q++) e += pcm[q] * pcm[q];
             printf("engine: %d sounds, rms %.4f\n", Snd_Count(), sqrt(e / (1470 * 2)));
-            CHECK(Snd_Count() == 59 + 13 && e > 0);
-   /* the co-driver's 59 and the engine's 13 */
+            CHECK(Snd_Count() == 59 + 5 + 13 && e > 0);
             CHECK(Times_Race() >= 290 && Times_Race() <= 310);
             CHECK(Race_StageTime(0) >= 290 && Race_StageTime(0) <= 310 && CI32(c, 0x778) > 0x8000);
             fin = frame;

@@ -36,6 +36,7 @@ static bool ahead;               /* DAT_00537354: calls within six points */
 static int said;                 /* the port: the words queued, for the tests */
 int Codriver_Said(void) { return said; }
 
+int32_t Codriver_Level(void) { return volume; }
 void Codriver_Volume(int32_t speech_percent) { volume = fx_mul((speech_percent << 16) / 100, 0x10000); }   /* 0x418560 */
 
 /* 0x416770: the speech names in the order the code pushes them (each a "%s%s" of the sounds'

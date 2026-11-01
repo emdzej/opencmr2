@@ -198,8 +198,9 @@ static void s3_stage(ProcGroup *g, uint32_t slot)
 {
     if (!load_or_quit(g, slot, H->load_stage)) return;
     if (slot == 0) {
-        PENDING_NOTE(0x418ff0, "Race_LoadSounds 0x418ff0, 0x4188c0, 0x411120");
+        PENDING_NOTE(0x418ff0, "Race_LoadSounds 0x418ff0, 0x4188c0 (the surfaces', the collisions')");
         Codriver_LoadSpeech();   /* 0x416710 */
+        Hud_LoadSounds();        /* 0x411120 */
     }
     Proc_Event(g, slot, 0, 2);
 }
