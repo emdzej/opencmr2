@@ -1,6 +1,7 @@
 /* The race's particle effects (see effects.h). */
 #include "game/effects.h"
 #include <stdbool.h>
+#include <math.h>
 #include <string.h>
 #include "world/tod.h"
 #include "game/weather.h"
@@ -9,6 +10,8 @@
 #include "exe.h"
 #include "fixmath.h"
 #include "game/common.h"
+#include "game/gstate.h"
+#include "game/race.h"
 #include "game/lamps.h"
 #include "game/mem.h"
 #include "game/timer.h"
@@ -598,6 +601,227 @@ static void wheels_grass(int car)
     }
 }
 
+/* rand() as 0..1 (0x5112f0 times 0x5112e0) and as -1..0 (times 0x5112e8), rounded by fistp */
+static int32_t rand_pos(void)
+{
+    return (int32_t)nearbyint((double)crt_rand() * (double)(float)(1.0 / 32767.0) * 65536.0);
+}
+static int32_t rand_neg(void)
+{
+    return (int32_t)nearbyint((double)crt_rand() * (double)(float)(1.0 / 32767.0) * -65536.0);
+}
+
+static void vscale(int32_t out[3], const int32_t v[3], int32_t k)
+{
+    for (int a = 0; a < 3; a++) out[a] = fx_mul(v[a], k);
+}
+
+static void car_vec(int32_t out[3], const Car *c, uint32_t o)
+{
+    for (int a = 0; a < 3; a++) out[a] = CI32(c, o + 4 * (uint32_t)a);
+}
+
+static int32_t iabs(int32_t v) { return v < 0 ? (int32_t)(0u - (uint32_t)v) : v; }
+
+/* Wheel_Slip 0x465d70: wheel w's slip as 0..1, the larger of |+0x880| less 0.05 and |+0x870| less
+   0.15, each from 0 */
+static int32_t Wheel_Slip(int car, int w)
+{
+    if (car >= 8) return 0;
+    Car *c = Car_Get(car);
+    int32_t a = (int32_t)((uint32_t)iabs(CI32(c, 0x880 + 4 * (uint32_t)w)) - 0xccc);
+    if (a < 0) a = 0;
+    int32_t b = (int32_t)((uint32_t)iabs(CI32(c, 0x870 + 4 * (uint32_t)w)) - 0x2666);
+    if (b < 0) b = 0;
+    if (a < b) a = b;
+    if (a <= 0) return 0;
+    a = fdiv(a, 0x10000);
+    return a < 0x10000 ? a : 0x10000;
+}
+
+/* Car_RecordFlag 0x41f3d0: the +4 word of the car's record in the table at 0x537f3c (a heap pointer
+   per car, set up by the race's loads); that table is not ported: clear, as for a player's car */
+static int32_t Car_RecordFlag(int car)
+{
+    (void)car;
+    PENDING_NOTE(0x41f3d0, "the cars' records (0x537f3c)");
+    return 0;
+}
+
+/* Wheels_Dust 0x45b580: what each touching wheel throws up: dust (type 8) or snow (type 4) from
+   one axle, snow only (type 6) from the other (the second: the rear on a car whose +0xb1e is 7, else
+   the front). Dust comes from a dusty material or surface (+0xaae, +0xac6) that passes a random
+   draw, in any rally but 0, or from a wheel spinning (Wheel_Slip from 0.9) on materials 0xd and
+   0x18; none in the rain. Snow from materials 0x11 and 0x13-0x17 (the second axle 0x13-0x15, not in
+   heavy snow). The colour is by rally and surface, white on snow; it starts white and stays from
+   wheel to wheel when not set. Then fewer below 30 of wheel 0's speed (at that fraction), 30% fewer
+   on the second axle, half from any car but 0. The particle sits between the wheel's ground point
+   and its axle partner's (w ^ 1), nearer its own (much nearer on the second axle), moved back along
+   the last mark's run by up to all of it, and is thrown back with a quarter of the wheel's velocity
+   (+0x42c) and a tenth of its rise; scaled down above 35 (second axle 50) of wheel 2's speed, else
+   plus 0.4 of (0.1 of the +0x870 slip along the wheel's forward axis and 0.3 of -0.5..0.5 along its
+   side axis). A car with its record flag (0x41f3d0) or in race state 9 takes type 7 (11 with dust)
+   placed by the wheel's velocity. */
+static void Wheels_Dust(int car)
+{
+    uint8_t rgb[4] = {0xff, 0xff, 0xff, 0xff};   /* (kept from wheel to wheel) */
+    if (car >= 8) return;
+    Car *c = Car_Get(car);
+    int count = 100;   /* (raised by half on a slipping wheel and never read) */
+    for (int w = 0; w < 4; w++) {
+        bool rear = w == 2 || w == 3;
+        bool rwd = CI8(c, 0xb1e) == 7;
+        /* the second axle: the rear on a car whose +0xb1e is 7, else the front */
+        bool second = rwd == rear;
+        int32_t mat = CI16(c, 0xaae + 2 * (uint32_t)w);
+        int16_t s = CI16(c, 0xac6 + 2 * (uint32_t)w);
+        bool a = mat == 0xb || s == 0x5b || s == 0x5c || s == 0x5d;
+        bool b = mat == 0xa || mat == 6 || s == 0x1b || s == 0x1c || s == 0x11 || s == 0x12 || s == 0x48;
+        bool d9 = mat == 9;
+        bool spin = (mat == 0xd || mat == 0x18) && Wheel_Slip(car, w) >= 0xe666;
+        if (d9 && rand_pos() > 0x3333) d9 = false;
+        if (b && rand_pos() > 0x6666) b = false;
+        if (a && rand_pos() > 0x8000) a = false;
+        Tod_Rally();   /* (called twice, the first unused) */
+        bool dust = ((Tod_Rally() & 0xff) != 0 && (a || b || d9)) || spin;
+        if (Weather_Kind(car) == 1 && fx_mul(Weather_Level(car), 0xff0000) >> 16 > 1) {
+            dust = false;   /* none in the rain */
+        } else if (dust && iabs(Car_WheelSpeed(c, 0, 0)) > 0x1e0000 && car < (int)Gs_SelBits14()) {
+            PENDING_NOTE(0x45c750, "the player's wheel spin tally (0x45c750 car, w, 1, 0)");
+        }
+        if (second) {
+            dust = false;   /* (types 10 and 11 from the second axle never) */
+        } else if (dust) {
+            rgb[0] = 0xeb, rgb[1] = 0xb8, rgb[2] = 0xa0;
+            bool light = s == 2 || s == 3 || s == 4 || s == 5 || s == 0x11 || s == 0x1b || s == 0x5d;
+            bool dark = s == 8 || s == 9 || s == 0xa || s == 0x12 || s == 0x1c || s == 0x5b;
+            bool white = s == 6 || s == 0xa;
+            switch (Tod_Rally() & 0xff) {
+            case 0: rgb[0] = 0x90, rgb[1] = 0x7f, rgb[2] = 0x78; break;
+            case 1:
+                if (light) rgb[0] = 0xeb, rgb[1] = 0xb8, rgb[2] = 0xa0;
+                else rgb[0] = 0x9c, rgb[1] = 0x8f, rgb[2] = 0x87;
+                break;
+            case 4: rgb[0] = 0xb6, rgb[1] = 0x91, rgb[2] = 0x43; break;
+            case 5:
+                if (white) rgb[0] = 0xff, rgb[1] = 0xff, rgb[2] = 0xff;
+                else if (dark) rgb[0] = 0x7a, rgb[1] = 0x71, rgb[2] = 0x5c;
+                else rgb[0] = 0xbb, rgb[1] = 0x86, rgb[2] = 0x3e;
+                break;
+            case 7: dust = false; break;   /* (no dust in rally 7; the colour stays set) */
+            case 8: rgb[0] = 0x9c, rgb[1] = 0x8f, rgb[2] = 0x87; break;
+            default: rgb[0] = rgb[1] = rgb[2] = 0xf0; break;
+            }
+        }
+        /* snow: materials 0x11 and 0x13-0x17, on the second axle only 0x13-0x15 */
+        bool snow = mat == 0x11 || (mat >= 0x13 && mat <= 0x17);
+        bool snow2 = mat >= 0x13 && mat <= 0x15;
+        if (second && !snow2) snow = false;
+        else if (snow) rgb[0] = rgb[1] = rgb[2] = 0xff;
+        if ((second && Car_RecordFlag(car)) ||
+            (snow && second && Weather_Kind(car) == 2 && fx_mul(Weather_Level(car), 0xff0000) >> 16 > 100))
+            snow = false;
+        bool on = dust || snow;
+        if (!CI32(c, 0xbac + 4 * (uint32_t)w)) on = false;
+        int32_t limit = second ? 0x320000 : 0x230000;
+        int type = 4;
+        int32_t sp = iabs(Car_WheelSpeed(c, 0, 0));
+        if (sp < 0x1e0000 && rand_pos() > fdiv(sp, 0x1e0000)) on = false;
+        if (second) {
+            type = 6;
+            if (!Car_RecordFlag(car) && rand_pos() > 0xb333) on = false;
+        }
+        if (car > 0 && rand_pos() > 0x8000) continue;
+        if (!on) continue;
+        if (type == 4) crt_rand();   /* (a rand() % 2 left unused) */
+        int n = 4 * car + w;
+        int32_t run[3];
+        for (int k = 0; k < 3; k++)
+            run[k] = gms32(v3(0x543200, n) + 4 * (uint32_t)k) - gms32(v3(0x543400, n) + 4 * (uint32_t)k);
+        int32_t slip = (int32_t)((uint32_t)iabs(CI32(c, 0x880 + 4 * (uint32_t)w)) - 0xccc);
+        int32_t side = (int32_t)((uint32_t)iabs(CI32(c, 0x870 + 4 * (uint32_t)w)) - 0xccc);
+        int32_t wv[3], fwd[3], lat[3];
+        uint32_t wo = 0x42c + 0xc * (uint32_t)w;   /* the wheel's velocity */
+        car_vec(wv, c, wo);
+        /* the forward (+0x6b4 front, +0x6c0 rear) axis times the +0x870 slip, the side axis (+0x6cc,
+           +0x6d8) times -0.5..0.5 */
+        int32_t ax[3];
+        car_vec(ax, c, rear ? 0x6c0 : 0x6b4);
+        vscale(fwd, ax, CI32(c, 0x870 + 4 * (uint32_t)w));
+        int32_t r = -0x8000 - rand_neg();
+        car_vec(ax, c, rear ? 0x6d8 : 0x6cc);
+        vscale(lat, ax, r);
+        bool even;
+        if (type == 5) {   /* (never: the type is 4 or 6 here) */
+            vscale(lat, lat, 0x1999);
+            even = true;
+        } else {
+            vscale(lat, lat, 0x4ccc);
+            even = false;
+        }
+        if (!second) even = true;
+        vscale(fwd, fwd, 0x1999);
+        int32_t vel[3];
+        for (int k = 0; k < 3; k++) vel[k] = fwd[k] + wv[k] + lat[k];
+        if ((slip > 0 || side > 0) && fdiv(slip, 0x20000) + fdiv(side, 0x8000) > 0x8000) count = count * 3 / 2;
+        if (Car_RecordFlag(car) || Race_State(car) == 9) {
+            /* (the original reads the race's process slot of any car; the port's Race_State is -1
+               past the players) */
+            type = 7;
+            even = true;
+        }
+        if (dust) type += 4;
+        int32_t back[3];
+        vscale(back, run, rand_neg());
+        /* the fraction towards the axle partner (w ^ 1): 0..1, on the second axle divided by
+           1.33..10.33 and by 3..17 unless even (always even on the first) */
+        int32_t t = rand_pos();
+        if (!even) t = fdiv(t, 0x1547a - 9 * rand_neg());
+        if (second && !even) t = fdiv(t, 0x30000 - 14 * rand_neg());
+        int32_t p0[3], p1[3], pt[3];
+        for (int k = 0; k < 3; k++) {
+            p0[k] = fx_mul(gms32(v3(0x543200, 4 * car + (w ^ 1)) + 4 * (uint32_t)k), t);
+            p1[k] = fx_mul(gms32(v3(0x543200, n) + 4 * (uint32_t)k), 0x10000 - t);
+            pt[k] = p0[k] + p1[k];
+        }
+        int arg = car;
+        uint8_t shade = gm8(0x543120 + (uint32_t)n);
+        uint8_t passes = c->second->mask;
+        if (type == 6 || type == 10 || type == 4 || type == 8) {
+            int32_t pos[3], v[3];
+            for (int k = 0; k < 3; k++) pos[k] = pt[k] - CI32(c, 0x2d0 + 4 * (uint32_t)k) + back[k];
+            if (type != 4 && type != 8 && !rwd && rear) {
+                /* (never: types 6 and 10 on the rear axle mean +0xb1e is 7) 0.4 of the car's length
+                   (wheel 2 less wheel 0) forward */
+                int32_t len[3];
+                for (int k = 0; k < 3; k++)
+                    len[k] = gms32(v3(0x543200, 4 * car + 2) + 4 * (uint32_t)k) -
+                             gms32(v3(0x543200, 4 * car) + 4 * (uint32_t)k);
+                vscale(len, len, 0x6666);
+                for (int k = 0; k < 3; k++) pos[k] += len[k];
+            }
+            v[0] = -(wv[0] / 4), v[1] = wv[1] / 10, v[2] = -(wv[2] / 4);
+            int32_t ws = iabs(Car_WheelSpeed(c, 2, 0));
+            if (ws > limit) {
+                int32_t f = fdiv(limit, ws);
+                vscale(v, v, f);
+            } else {
+                int32_t dv[3];
+                for (int k = 0; k < 3; k++) dv[k] = vel[k] - wv[k];
+                vscale(dv, dv, 0x6666);
+                for (int k = 0; k < 3; k++) v[k] += dv[k];
+            }
+            Particle_Emit(type, pos, v, pos[1] - 0x10000, NULL, rgb, shade, &arg, passes);
+        } else {
+            /* types 7 and 11: the point less the wheel's velocity, thrown with that velocity */
+            int32_t pos[3];
+            for (int k = 0; k < 3; k++) pos[k] = pt[k] - wv[k];
+            Particle_Emit(type, pos, wv, pt[1] - 0x10000, NULL, rgb, shade, &arg, passes);
+        }
+    }
+    (void)count;
+}
+
 void Effects_Car(int car)
 {
     if (car >= 8) return;
@@ -608,7 +832,8 @@ void Effects_Car(int car)
     light_set(car, rgba);
     if (Camera_Kind(car) != 3) {
         wheels_grass(car);   /* 0x45d540 */
-        PENDING_NOTE(0x45b580, "the wheels' dust and gravel 0x45b580, the splashes 0x45c820, 0x49b3e0");
+        Wheels_Dust(car);    /* 0x45b580 */
+        PENDING_NOTE(0x45c820, "the splashes 0x45c820, 0x49b3e0");
     }
     PENDING_NOTE(0x45af90, "the exhaust's flames 0x45af90");
 }

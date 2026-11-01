@@ -542,8 +542,33 @@ each listed car (its list index used as the car number) the sounds run (0x464c60
   - The spawn callback (0x45de80) notes the car at +0x64. The after-step callbacks add the car's
     position each step (0x45dea0, 0x45d270, 0x45d3a0), so the particles move with it. The leaves'
     0x45d3a0 also sways them on a circle picked by the particle's address.
-- Not ported yet: the dust and gravel (0x45b580), the splashes (0x45c820), 0x49b3e0, and the exhaust's
-  flames (0x45af90).
+- **Dust and snow** (0x45b580) come from each wheel on the ground (+0xbac).
+  - **The axles.** One axle throws dust (type 8) or snow (type 4); the other only snow (type 6). That
+    second axle is the rear on a car whose +0xb1e is 7, otherwise the front.
+  - **Dust** comes from a dusty material or surface (+0xaae, +0xac6), each kind passing a random draw
+    (material 9 a fifth of the time, the 0xa group two fifths, the 0xb group half), in any rally but 0.
+    It also comes from a wheel spinning to 0.9 (`Wheel_Slip` 0x465d70, from +0x880 and +0x870) on
+    materials 0xd and 0x18. There is none in the rain, and none in rally 7 (after its colour is set).
+  - **Snow** comes from materials 0x11 and 0x13-0x17; on the second axle only 0x13-0x15, and not in
+    heavy snow.
+  - **The colour** is by rally and surface, white on snow. It starts white and is kept from wheel to
+    wheel when not set.
+  - **Fewer particles.** Below 30 of wheel 0's speed, only at that fraction. 30% fewer on the second
+    axle, and half for any car but 0.
+  - **The place.** A random point between the wheel's ground point and its axle partner's (w ^ 1).
+    On the second axle the fraction is also divided by 1.33-10.33 and by 3-17. The point is moved
+    back along the last mark's run by up to all of it. It is relative to the car.
+  - **The velocity.** A quarter of the wheel's velocity (+0x42c), x and z negated, and a tenth of its
+    rise. Above 35 of wheel 2's speed (50 on the second axle) it is scaled down to that speed.
+    Otherwise 0.4 of the wheel's slip along its axes is added: a tenth of +0x870 along the forward
+    axis (+0x6b4 front, +0x6c0 rear) and 0.3 of -0.5 to 0.5 along the side axis (+0x6cc, +0x6d8).
+  - **A finished car** (race state 9), or one whose record flag is set (0x41f3d0, not ported: clear),
+    takes type 7 (11 with dust). It is placed back by the wheel's velocity and thrown with it.
+  - **Quirks kept.** The rally is read twice. An unused rand() % 2 is drawn for type 4. A counter
+    raised on a slipping wheel is never read. Branches for type 5 and a forward shift on the rear
+    axle cannot run.
+  - The player's wheel spin tallies (0x45c750) are not ported.
+- Not ported yet: the splashes (0x45c820), 0x49b3e0, and the exhaust's flames (0x45af90).
 
 The other emitters are not ported yet: `Stage_Step`'s 0x47dd70, the sparks (0x499750) and the chips
 (0x499de0). Neither are the detail dust's lamp follower 0x45d2d0 or the sparks' and chips' callbacks.

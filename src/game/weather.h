@@ -12,4 +12,5 @@ void Weather_Choose(void);   /* 0x40dc30 */
 /* 0x460bf0 / 0x460c10: car n's weather record (0x547ac8 + 0x178 n) wet, and its level; the records
    (Weather_Step 0x45f4a0) are not ported: dry */
 bool Weather_Wet(int car);
+uint8_t Weather_Kind(int car);   /* 0x460bf0 as the original: the record's type byte (callers test 1 and 2) */
 int32_t Weather_Level(int car);

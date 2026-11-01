@@ -677,6 +677,11 @@
 00460bf0	Weather_Wet	world	high	A car's weather record: wet
 00460c10	Weather_Level	world	high	A car's weather record: its level
 00463270	Fx_WheelLight	world	high	The light colour under a car's wheel (0x543f28)
+0045b580	Wheels_Dust	world	high	The wheels' dust and snow particles (types 4, 6, 8; 7/11 for a flagged car)
+00465d70	Wheel_Slip	world	high	A wheel's slip as 0..1 from +0x880 and +0x870
+0041f3d0	Car_RecordFlag	race	medium	The +4 word of a car's record in the table at 0x537f3c
+0041b390	Race_Procs	race	high	The race's process group (0x537dd0)
+0045c750	Stats_WheelSpin	game	medium	A player's per-wheel spin tallies in its profile record (via 0x408a60)
 004b2f80	Dlight_Add	render	high	A Direct3D light record (point, spot, directional) set and on, with an object under a parent
 004b2e50	Dlight_Restore	render	high	Every light set again, a white material and ambient B, after the device set-up
 004b3570	Dlight_SetAtten	render	high	A light object's attenuation0 (16.16) set

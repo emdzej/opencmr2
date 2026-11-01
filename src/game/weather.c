@@ -179,3 +179,4 @@ void Weather_Choose(void)
 
 bool Weather_Wet(int car) { (void)car; PENDING_NOTE(0x45f4a0, "the weather records (0x547ac8)"); return false; }
 int32_t Weather_Level(int car) { (void)car; return 0; }
+uint8_t Weather_Kind(int car) { return Weather_Wet(car) ? 1 : 0; }
