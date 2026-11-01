@@ -7,3 +7,6 @@
 void Timer_Sample(uint32_t ms);   /* 0x4a9b70 */
 uint32_t Timer_Now(void);         /* 0x4a9b60 */
 uint32_t Timer_Centis(void);      /* 0x4a9b80 */
+/* timeGetTime(): the port's millisecond clock, the app's frame time (set once a frame) */
+void Time_Set(uint32_t ms);
+uint32_t Time_Get(void);

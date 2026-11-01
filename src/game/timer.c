@@ -26,3 +26,7 @@ uint32_t Timer_Centis(void)
     last = c;
     return total;
 }
+
+static uint32_t wall;
+void Time_Set(uint32_t ms) { wall = ms; }
+uint32_t Time_Get(void) { return wall; }
