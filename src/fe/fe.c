@@ -432,6 +432,10 @@ int Game_Frame(void)
 }
 
 void Fe_SetPage(Menu *m) { page = m; }
-static int scroll_prev, scroll_cur;   /* DAT_00525398, DAT_0052539c */
-void Fe_SetScrollPos(int i) { scroll_prev = scroll_cur = i; }
 const char *g_fe_difficulty[3];
+
+void Fe_SetMode(uint32_t m)
+{
+    gw32(0x52afb4, (gm32(0x52afb4) & 0xfffffc07u) | (m & 0x7f) << 3);
+    if (m > 7) gw8(0x52e920, (uint8_t)(gm32(0x52afb4) >> 3 & 0x7f));
+}

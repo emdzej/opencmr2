@@ -1238,7 +1238,7 @@ static void build_4fa780(void)
 }
 
 /* 0x4fa4d0: the controller pages (0x40c050 between them, the input devices) */
-static void build_controllers(void)
+void Fe_BuildControllers(void)
 {
     build_4fa540();
     build_4fa5d0();
@@ -1249,7 +1249,7 @@ static void build_controllers(void)
 }
 
 /* 0x4d2790: the difficulties' names */
-static void difficulty_names(void)
+void Fe_DifficultyNames(void)
 {
     g_fe_difficulty[0] = Text_Get(0xd0);
     g_fe_difficulty[1] = Text_Get(0xd1);
@@ -1279,7 +1279,7 @@ void Pages_Build(bool first, bool full)
     uint32_t terr = gm32(0x52ea54);
     if (terr == 2 || terr == 3) {
         Text_Select(0);
-        build_controllers();
+        Fe_BuildControllers();
     } else if (!first) {
         /* back from the options: the language page returns there, at the current language */
         Text_Select((int)(mw & 7));
@@ -1344,7 +1344,7 @@ void Pages_Build(bool first, bool full)
     build_4f6b40();
     build_4f6c90();
     build_4f6d10();
-    if (!first) build_controllers();
+    if (!first) Fe_BuildControllers();
     build_4f5fc0();
     build_4f6d70();
     build_4f6dd0();
@@ -1393,7 +1393,7 @@ void Pages_Build(bool first, bool full)
             pg_81d6d8.sel = 3;
             Fe_SetScrollPos(3);
         }
-        difficulty_names();
+        Fe_DifficultyNames();
         return;
     }
     /* the first time: rally, single stage, the second arcade item */
@@ -1401,5 +1401,5 @@ void Pages_Build(bool first, bool full)
     Fe_SetScrollPos(1);
     pg_823a38.sel = 2;
     pg_8267e0.sel = 1;
-    difficulty_names();
+    Fe_DifficultyNames();
 }
