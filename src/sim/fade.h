@@ -20,3 +20,5 @@ void Fade_Tick(int ch, bool paused);                  /* 0x4284d0 */
 void Fade_Level(int ch, int32_t frac, bool paused);   /* 0x4285b0: between the last two steps */
 int32_t Fade_LevelOf(int ch);   /* 0x53a06c */
 int32_t Fade_Arg(int ch);       /* 0x53a20c */
+int32_t Fade_Hold(int ch);      /* 0x53a0cc: held while paused */
+int32_t Fade_Colour(int ch);    /* 0x53a00c: the overlay's colour (rgb) */

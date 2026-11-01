@@ -28,4 +28,6 @@ int32_t Race_StageTime(int player);   /* 0x4781c0 */
 int32_t Race_Countdown(void);      /* DAT_00537fc0: 1/100 s into the countdown */
 bool Race_Finished(int player);    /* 0x4582b0 */
 void Race_Skip(void);              /* 0x4d0590: the key that ends the replay and the results */
-uint32_t Game_Mode(void);          /* 0x4057d0 */
+uint32_t Game_Mode(void);
+/* The overlays' part of 0x40f8d0 ported so far: the fade (0x428680). The host calls it in its draw. */
+void Race_DrawOverlays(int player);          /* 0x4057d0 */

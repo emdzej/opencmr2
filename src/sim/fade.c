@@ -16,6 +16,8 @@ bool Fade_Active(int ch) { return F[ch & 7].mode != 0; }
 bool Fade_Rising(int ch) { return Fade_Active(ch) && 0 < F[ch & 7].t; }
 int32_t Fade_LevelOf(int ch) { return F[ch & 7].level; }
 int32_t Fade_Arg(int ch) { return F[ch & 7].a; }
+int32_t Fade_Hold(int ch) { return F[ch & 7].b; }
+int32_t Fade_Colour(int ch) { return F[ch & 7].c; }
 
 void Fade_Start(int ch, int32_t dur, FadeFn fn, int mode, int32_t a, int32_t b, int32_t c, bool force)
 {

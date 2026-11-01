@@ -138,6 +138,8 @@ uint32_t D3d_FvfStride(uint32_t fvf);
 
 /* The device on a mode (DirectDraw's SetDisplayMode and CreateDevice reduced to this): defaults set. */
 bool D3d_Open(int width, int height, int bpp);
+/* The display mode's size (PTR_DAT_00520b74 +0x00, +0x04). */
+void D3d_ScreenSize(int *width, int *height);
 void D3d_Close(void);
 
 /* IDirect3DDevice7 */

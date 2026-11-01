@@ -233,6 +233,7 @@ static void host_draw(int player, int state)
     Cars_ShellsToCamera(&V.camera);   /* 0x429810, in 0x40f0c0 */
     Obj_Frame(&g_world, &V.camera);
     title();
+    Race_DrawOverlays(player);
     static const int16_t full[4] = {0, 0, 640, 480};
     World_Render(&V.camera, full, 0, true);
 }

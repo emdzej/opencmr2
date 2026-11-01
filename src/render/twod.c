@@ -1,4 +1,5 @@
 /* The 2D queues (see twod.h). */
+#include <math.h>
 #include "render/twod.h"
 #include "fixmath.h"
 #include "render/d3d7.h"
@@ -180,3 +181,22 @@ void Tri_Flush(int layer)
     Tex_ForgetBlend();
     Render_ForgetBlend();
 }
+
+void Rect_Fill(const int16_t r[4], const uint8_t rgba[4], int layer)
+{
+    int sw, sh;
+    D3d_ScreenSize(&sw, &sh);
+    int x = r[0], y = r[1], w = r[2], h = r[3];
+    if (w <= 0 || h <= 0 || (x < 0 && w + x < 0) || (y < 0 && h + y < 0) || x >= sw || y >= sh) return;
+    if (x < 0) w += x, x = 0;
+    if (sw < w + x) w = sw - x - 1;
+    if (y < 0) h += y, y = 0;
+    if (sh < h + y) h = sw - y - 1;   /* (the width: the original's slip) */
+    int32_t x0 = (int32_t)llrint(x * 65536.0), y0 = (int32_t)llrint(y * 65536.0);
+    int32_t x1 = 0x8000 - (int32_t)llrint((w - 1 + x) * -65536.0), y1 = 0x8000 - (int32_t)llrint((h - 1 + y) * -65536.0);
+    int32_t a[2] = {x0, y0}, b[2] = {x1, y0}, c[2] = {x0, y1}, d[2] = {x1, y1};
+    Tri_Add(a, b, c, rgba, layer);
+    Tri_Add(b, d, c, rgba, layer);
+}
+
+int Tri_Queued(void) { return ntri[0] + ntri[1] + ntri[2] + ntri[3]; }

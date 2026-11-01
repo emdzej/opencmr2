@@ -19,6 +19,8 @@
 #include "sim/progress.h"
 #include "sim/sim.h"
 #include "sim/pose.h"
+#include "sim/fade.h"
+#include "render/twod.h"
 #include "vfs.h"
 #include "vfs_host.h"
 #include "world/fin.h"
@@ -121,6 +123,19 @@ int main(void)
         }
     }
     CHECK(stage_loads == 1 && car_loads == 1);
+    /* the recovery's fade drawn over the view (0x428680): two triangles queued once it runs */
+    if (Game_Mode() == 3) {
+        CW32(Car_Get(0), 0xbf8, 1);
+        for (int k = 0; k < 6; k++, frame++) {
+            Timer_Sample((uint32_t)((uint64_t)frame * 1000 / 60));
+            Race_Frame();
+        }
+        Tri_Init();
+        int before = Tri_Queued();
+        Race_DrawOverlays(0);
+        printf("fade: level %.3f, %d triangles queued\n", Fade_LevelOf(0) / 65536.0, Tri_Queued() - before);
+        CHECK(Fade_LevelOf(0) > 0 && Tri_Queued() - before == 2);
+    }
     CHECK(seen[5] && seen[7] && seen[8] && seen[5] < seen[7] && seen[7] < seen[8]);
     /* the countdown: five seconds of 40 ms steps from its first frame, 300 frames at 60 Hz */
     CHECK(seen[8] - seen[7] >= 299 && seen[8] - seen[7] <= 302 && fin > 0);

@@ -85,6 +85,8 @@ static void defaults(void)
     st.viewport = (D3DVIEWPORT7){0, 0, (uint32_t)st.width, (uint32_t)st.height, 0.0f, 1.0f};
 }
 
+void D3d_ScreenSize(int *width, int *height) { *width = st.width, *height = st.height; }
+
 bool D3d_Open(int width, int height, int bpp)
 {
     st.width = width;

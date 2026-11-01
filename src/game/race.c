@@ -12,6 +12,8 @@
 #include "sim/fade.h"
 #include "sim/progress.h"
 #include "exe.h"
+#include "render/d3d7.h"
+#include "render/twod.h"
 #include "pending.h"
 #include <string.h>
 
@@ -309,10 +311,30 @@ static void s12_quit(ProcGroup *g, uint32_t slot)
     set_mode(0);
 }
 
+/* 0x428680 (in the overlays, 0x40f8d0): a player's fade as a rectangle over the view, its alpha the
+   level (0x53a06c) of the fade of the car the camera follows, its colour the fade's (0x53a00c), on the
+   fade's layer (0x53a20c: the recovery's 2) */
+static void fade_overlay(int p, bool paused)
+{
+    int car = p;   /* 0x422fb0: the camera's car */
+    if (paused && Fade_Hold(p)) return;
+    if (p >= (int)players() || Fade_LevelOf(car) <= 0) return;
+    uint32_t a = (uint32_t)Fade_LevelOf(car) * 0xff >> 16;
+    if (a > 0xff) a = 0xff;
+    uint32_t c = (uint32_t)Fade_Colour(p);
+    uint8_t rgba[4] = {(uint8_t)c, (uint8_t)(c >> 8), (uint8_t)(c >> 16), (uint8_t)a};
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    const int16_t r[4] = {0, 0, (int16_t)w, (int16_t)h};   /* 0x464b10: the one player's viewport */
+    Rect_Fill(r, rgba, Fade_Arg(car));
+}
+
 static void draw(ProcGroup *g, uint32_t slot)
 {
     if (H->draw) H->draw((int)slot, Proc_State(g, slot));
 }
+
+void Race_DrawOverlays(int player) { fade_overlay(player, gm8(0x52af40) != 0); }
 
 /* The table at 0x5190b0 in its order; 6 (the intro camera, 0x472e00) and 13 (0x41e5c0) are not ported */
 static const ProcState states[14] = {

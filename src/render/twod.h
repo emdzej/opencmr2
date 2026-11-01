@@ -22,7 +22,11 @@ void Sprite_Flush(int layer);                           /* 0x4a3650 */
 /* Tri_Add 0x4bb650: corners in 16.16 screen pixels (x, y), one colour (rgba bytes); layer 2, 3, 4, or
    any other value for the first queue. Up to 1,024 a layer (but see twod.c). */
 void Tri_Add(const int32_t a[2], const int32_t b[2], const int32_t c[2], const uint8_t rgba[4], int layer);
-void Tri_Flush(int layer);                              /* 0x4bb850 */
+void Tri_Flush(int layer);
+/* Rect_Fill 0x4a5e40: a rectangle (x, y, w, h) in one colour as two triangles, clipped to the screen
+   (the height against the width, as the original does) */
+int Tri_Queued(void);   /* the port: triangles waiting in the queues */
+void Rect_Fill(const int16_t r[4], const uint8_t rgba[4], int layer);                              /* 0x4bb850 */
 uint32_t Twod_Prims(void);
 void Twod_CountPrims(uint32_t n);   /* the triangle queues count into it too */
 void Twod_ResetPrims(void);         /* World_Render 0x49d3f0 zeroes it each frame */                              /* DAT_0059ce20: 2D triangles drawn */
