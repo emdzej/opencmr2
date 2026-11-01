@@ -1,0 +1,91 @@
+/* The site's theme (docs/.vitepress/theme/cmr2.css): the game's menus. Sage screen, mint panels, white
+   separators, the language flag's red; dark ink on the sage (white on it is 2.2:1). */
+:root {
+  --sage: #9cb4ac;
+  --sage-light: #a9bfb7;
+  --mint: #d7ebda;
+  --ink: #14231e;
+  --ink-2: #2d3f39;
+  --red: #c80000;
+  --red-dark: #8a0000;
+  --line: rgba(255, 255, 255, 0.85);
+  --ok: #173a2f;
+  --warn: #6b4a00;
+  --bad: var(--red-dark);
+  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --dots: radial-gradient(circle, rgba(255, 255, 255, 0.8) 2.4px, transparent 2.9px) 0 50% / 12px 8px repeat-x;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; color: var(--ink); font: 15px/1.6 var(--font); }
+html, body { background: var(--sage); }
+a { color: var(--red-dark); text-decoration: underline; text-underline-offset: 3px; }
+a:hover { color: var(--red); }
+code { font-family: var(--mono); font-size: .88em; background: rgba(215, 235, 218, 0.7); padding: .1em .35em; border-radius: 3px; }
+kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid #7f978f; border-bottom-width: 2px;
+  border-radius: 3px; background: var(--mint); font-family: var(--mono); font-size: .85em; line-height: 1.6; text-align: center; }
+/* Lowercase light Helvetica, as the menus. */
+h1 { font-size: 2.4rem; line-height: 1.15; margin: 1.8rem 0 .6rem; font-weight: 300; letter-spacing: -0.02em; text-transform: lowercase; }
+h2 { font-size: 1.25rem; margin: 0 0 .6rem; font-weight: 400; text-transform: lowercase; }
+.small { font-size: .85rem; color: var(--ink-2); }
+
+.bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0 24px; height: 64px; background: var(--sage); }
+.bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -10px; height: 8px; background: var(--dots); pointer-events: none; }
+.brand { display: flex; align-items: center; gap: .55rem; color: var(--ink); font-size: 20px; text-decoration: none; letter-spacing: -0.01em; }
+.bar nav { display: flex; font-size: 15px; }
+.bar nav a { color: var(--ink); text-decoration: none; padding: 0 12px; }
+.bar nav a + a { border-left: 1px solid var(--line); }
+.bar nav a[aria-current] { color: var(--red-dark); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 8px 24px 32px; }
+.lead { color: var(--ink-2); max-width: 60rem; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin: 1.4rem 0; }
+/* Menu items: a white separator down the left edge. */
+.card { border-left: 1px solid var(--line); padding: 4px 22px 8px; }
+.card ul { padding-left: 1.2rem; margin: 0; }
+.card li { margin: .35rem 0; }
+.row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .8rem 0; }
+
+/* Buttons: mint, the primary one in the flag's red. */
+button { font: inherit; font-size: 15px; font-weight: 700; text-transform: lowercase; cursor: pointer; border-radius: 2px;
+  padding: .45rem 1.15rem; border: 1px solid transparent; background: var(--mint); color: var(--ink); }
+button:hover { background: #fff; }
+button.primary { background: var(--red); color: #fff; }
+button.primary:hover { background: #b00000; }
+button.link { background: none; border: none; padding: .45rem .2rem; color: var(--red-dark); font-weight: 400; text-decoration: underline; }
+button.link:hover { background: none; color: var(--red); }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.checks { list-style: none; padding: 0 !important; margin: .8rem 0 0 !important; }
+.checks li { padding-left: 1.4rem; position: relative; }
+.checks li::before { position: absolute; left: 0; font-weight: 700; }
+.checks li.ok::before { content: "+"; color: var(--ok); }
+.checks li.bad { color: var(--bad); }
+.checks li.bad::before { content: "x"; }
+progress { width: 100%; height: 10px; accent-color: var(--red); margin-top: .8rem; }
+
+.message { max-width: 60rem; padding: .6rem 1rem; border-left: 4px solid #fff; background: rgba(215, 235, 218, 0.6); }
+.message.warn { border-color: var(--warn); }
+.message.error { border-color: var(--red); }
+
+/* The game: 4:3 in the window (the original's modes are all 4:3); the full screen in fullscreen, where the
+   game draws at the display's size. */
+#game { margin: 1rem 0; }
+.stage { position: relative; background: #000; overflow: hidden; margin: 0 auto;
+  width: min(100%, calc((100vh - 150px) * 4 / 3)); aspect-ratio: 4 / 3; box-shadow: 0 0 0 1px var(--line); }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; box-shadow: none; }
+.stage:-webkit-full-screen { width: 100vw; height: 100vh; aspect-ratio: auto; box-shadow: none; }
+.toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: center; margin-top: .8rem; }
+.toolbar button { padding: .35rem .9rem; font-size: .85rem; }
+
+#controls { margin-top: 2rem; }
+
+.foot .powered { margin: 0 0 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.foot .powered img { display: block; }
+.foot { max-width: 1100px; margin: 0 auto; padding: 24px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: .8rem; text-align: center; }
+
+[hidden] { display: none !important; }
+@media (max-width: 640px) { .bar nav a:not([aria-current]):not(:last-child) { display: none; } }

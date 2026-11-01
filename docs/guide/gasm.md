@@ -23,5 +23,6 @@ gasm-run opencmr2.wasm --asset cd=CMR2.ISO
 gasm-run opencmr2.wasm --asset-dir cd --headless 600 --screenshot /tmp/frame.png   # unattended test run
 ```
 
-Releases will include ready bundles (macOS app, Linux and Windows folders) with the runner, and a page to
-play in the browser. None exist yet: see [Status](status.md).
+In the browser: the [player](/play/){target="_self"} ([Playing in the browser](playing.md)). Releases will
+include ready bundles (macOS app, Linux and Windows folders) with the runner; none exist yet: see
+[Status](status.md).

@@ -80,6 +80,11 @@ version menu. Don't overstate the state (`docs/guide/status.md`); don't host or 
 don't recolor, stretch or crop). New pages go in the sidebar in `docs/.vitepress/config.ts`; dead links fail
 the build.
 
+The browser player is the static page `docs/public/play/` (copied from `../opennfspu`): `docs/scripts/copy-wasm.sh`
+puts `opencmr2.wasm` there and `docs/scripts/vendor-web.sh` the pinned gasm/csfs runtime (both git-ignored; the
+Pages workflow builds the module). `node tools/web-play-test.mjs [cd] [out] [image]` checks it in headless
+Chrome against `gasm-run`.
+
 ## Unattended runs
 
 Always `--headless` for gasm-run; never open a window, never use macOS `screencapture`.

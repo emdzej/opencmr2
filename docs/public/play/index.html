@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play | OpenCMR2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Run Colin McRae Rally 2.0 (2000) in your browser with OpenCMR2, using the data from your own CD.">
+<meta name="theme-color" content="#9cb4ac">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="play.css">
+<script type="importmap">
+{ "imports": {
+  "@emdzej/csfs-core": "./vendor/csfs/core/index.js",
+  "@emdzej/csfs-fsa": "./vendor/csfs/fsa/index.js",
+  "@emdzej/csfs-opfs": "./vendor/csfs/opfs/index.js"
+} }
+</script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/"><img src="/favicon.svg" alt="" width="26" height="26"> opencmr2</a>
+  <nav>
+    <a href="/guide/">guide</a>
+    <a href="/guide/status">status</a>
+    <a href="/play/" aria-current="page">play</a>
+    <a href="https://github.com/emdzej/opencmr2">github</a>
+  </nav>
+</header>
+
+<main>
+  <section id="setup">
+    <h1>colin mcrae rally 2.0 in your browser</h1>
+    <p class="lead">OpenCMR2 runs here as <code>opencmr2.wasm</code> on the
+      <a href="https://gasm.emdzej.pl">gasm</a> runtime: the same module as on the desktop, a port of the
+      original game's code, reading the stages, cars, sounds and music from <strong>your own Colin McRae
+      Rally 2.0 CD</strong>. Nothing from the game is on this site, and nothing you pick leaves your
+      computer.</p>
+    <p class="lead small">OpenCMR2 is a work in progress: the menus and a single stage run, much of the game
+      is still missing. See <a href="/guide/status">Status</a>.</p>
+
+    <div class="cols">
+      <div class="card">
+        <h2>What you need</h2>
+        <ul>
+          <li><strong>Colin McRae Rally 2.0</strong> for PC (Codemasters, 2000; the program
+            <code>CMR2.exe</code> version 1.11): the CD as an <code>.iso</code> image, its files copied off
+            the disc, or an installed copy. See <a href="/guide/game-data">Game data</a>.</li>
+          <li>A browser with WebAssembly, Web Workers, WebGL 2 and OffscreenCanvas: a recent Chrome, Edge,
+            Firefox, or Safari 17 and later.</li>
+          <li>About 610 MB of browser storage to import the data (once; later visits start at once), or
+            none to play without importing.</li>
+          <li>A keyboard, or a gamepad.</li>
+        </ul>
+      </div>
+      <div class="card" id="choose">
+        <h2 id="choose-title">Choose your game</h2>
+        <div id="imported" hidden>
+          <p><strong>Imported:</strong> <span id="imported-desc"></span></p>
+          <div class="row">
+            <button id="play-opfs" class="primary">Play</button>
+            <button id="remove">Remove imported data</button>
+          </div>
+          <p class="small" id="storage"></p>
+          <p class="small" id="persist-row" hidden>The browser may clear site data when disk space runs low.
+            <button id="persist" class="link">Keep it</button></p>
+          <p class="small">Or choose the game again below to replace it.</p>
+        </div>
+        <div class="row">
+          <button id="pick-image" class="primary">Choose a disc image</button>
+          <button id="pick-folder">Choose the CD's folder</button>
+        </div>
+        <p class="small">An <code>.iso</code> image of the CD (<a href="/howto/extract-cd">how to make one</a>),
+          or a folder with the CD's files (<code>FrontEnd</code>, <code>Game</code>, <code>data1.hdr</code>,
+          ...) or an installed game. The program is read from the installer cabinet on the CD.</p>
+        <input id="folder-input" type="file" webkitdirectory multiple hidden>
+        <input id="image-input" type="file" accept=".iso,.bin,.ISO,.BIN" hidden>
+
+        <div id="check" hidden>
+          <ul id="check-list" class="checks"></ul>
+          <div class="row" id="check-actions">
+            <button id="import" class="primary">Import and play</button>
+            <button id="play-direct">Play without importing</button>
+          </div>
+          <p class="small">Importing copies the files the game reads into this site's private browser storage
+            (OPFS). Playing without importing reads them from what you picked, which you'll need to pick
+            again next time.</p>
+        </div>
+
+        <div id="progress" hidden>
+          <progress id="progress-bar" max="1" value="0"></progress>
+          <p class="small" id="progress-text"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="game" hidden>
+    <div id="stage" class="stage">
+      <canvas id="screen" width="640" height="480" aria-label="Colin McRae Rally 2.0" tabindex="0"></canvas>
+    </div>
+    <div class="toolbar">
+      <button id="fullscreen">Fullscreen</button>
+      <button id="sound">Sound: on</button>
+      <button id="stop">Stop</button>
+      <span id="status" class="small"></span>
+    </div>
+  </section>
+
+  <p id="message" class="message" role="status" hidden></p>
+
+  <section id="controls">
+    <h2>Controls</h2>
+    <p>The game reads the keyboard directly, with the original's default keys: the cursor keys and
+      <kbd>Enter</kbd> in the menus, <kbd>Esc</kbd> to go back or pause. More in
+      <a href="/guide/playing">Playing in the browser</a>.</p>
+    <p class="small">Holding <kbd>Esc</kbd> for a second stops the game. In fullscreen the browser takes
+      <kbd>Esc</kbd> to leave fullscreen. Options and saves are kept in this browser.</p>
+  </section>
+</main>
+
+<footer class="foot"><p class="powered">Powered by <a href="https://gasm.emdzej.pl"><img src="https://gasm.emdzej.pl/badge/built-for-gasm-light.svg" alt="Built for gasm" width="120" height="44"></a></p>
+  OpenCMR2 is released under the GPL-3.0. Colin McRae Rally 2.0 is &copy; 2000 The Codemasters Software
+  Company Limited. OpenCMR2 contains no original code or assets and is not affiliated with Codemasters.</footer>
+
+<script type="module" src="play.js"></script>
+</body>
+</html>

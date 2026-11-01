@@ -57,7 +57,7 @@ export default defineConfig({
   // The reverse-engineering notes keep their README.md (it is also what GitHub shows in docs/re/).
   rewrites: { "re/README.md": "re/index.md" },
   sitemap: { hostname: "https://opencmr2.emdzej.pl" },
-  // The browser player will be a static page in public/play/, not a Markdown page.
+  // The browser player is a static page in public/play/, not a Markdown page.
   ignoreDeadLinks: [/^\/play\//],
   markdown: { config: htmlAsTextUnlessReal },
 
@@ -84,6 +84,8 @@ export default defineConfig({
       { text: "Guide", link: "/guide/", activeMatch: "/guide/" },
       { text: "How-tos", link: "/howto/extract-cd", activeMatch: "/howto/" },
       { text: "Reverse engineering", link: "/re/", activeMatch: "/(re|formats|internals)/" },
+      // A static app in docs/public/play/: target _self makes it a full page load, not a VitePress route.
+      { text: "Play", link: "/play/", target: "_self" },
     ],
 
     sidebar: {
@@ -95,6 +97,7 @@ export default defineConfig({
             { text: "Status", link: "/guide/status" },
             { text: "Game data", link: "/guide/game-data" },
             { text: "Running on gasm", link: "/guide/gasm" },
+            { text: "Playing in the browser", link: "/guide/playing" },
           ],
         },
       ],
