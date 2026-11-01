@@ -157,7 +157,8 @@ flat box (0x98 bytes per car at 0x590ed0), runs the car-to-car contacts 0x48a1f0
 have them (0x46bd50), then per car (the list from its end) the scenery objects 0x4878a0 (with +0xb64
 clear) and the walls 0x48e0a0, and keeps the box's four corners for the next step. Ported in
 `src/sim/walls.c`, the scenery in `src/sim/scenery.c` and the damage in `src/sim/damage.c`
-([below](#damage)); the car-to-car contacts, knocking scenery down and the sparks are pending.
+([below](#damage)), the car-to-car contacts in `src/sim/contact.c` ([below](#car-to-car)); knocking
+scenery down is pending.
 
 - **The box** (0x486c30, once a step): the forward row flattened (the up row when the car points
   nearly straight up or down) and made unit, the side axis across it, the half lengths as the furthest
@@ -264,6 +265,51 @@ goes through. `0x487f60` then builds the contact point and normal:
 - the normal is the sum of the axes of the corners' faces, made unit;
 - for a fixed object with corners listed on one side only, the push is kept only along the normal;
 - the response thresholds are 0.5 and 1.34.
+
+The cars the pushed car touches (the contact lists, [below](#car-to-car)) move with it
+(Cars_PushGroup 0x48c870), by the normal part of the push (`n (n . p)`), not by the move the car took
+(`n (n . p) - p`): a quirk of all three callers that keep the push along the normal (0x487f60,
+0x489750, 0x48a5f0), kept. The walls' pushes (0x48e580, 0x48fb80) move the touching cars by the move
+itself, without their flat boxes.
+
+## Car to car
+
+Cars_Collide 0x48a1f0 runs in the collision pass when the mode has the cars collide (0x46bd50). Ported
+in `src/sim/contact.c`.
+
+- **The pairs:** every pair of the list, when one of the second car's four cells (+0xb00..+0xb06) is
+  one of the first's (an unset `-1` matches too) and their spheres (+0x758) overlap (0x487b80). Such
+  cars are marked as near. Cars with +0xc08 or +0xc0c, or both with +0xc18, are skipped.
+- **The test** (0x48a5f0): both flat boxes made, then 0x488640 with the second car as the object and
+  each car taking half of each push (the second car's box record points at its corners and position,
+  +0x90 and +0x94, so it moves). The contact point is the mean of the listed corners (each car's
+  eight-corner points), relative to the first car; the normal is the sum of the met faces' axes, made
+  unit. With corners listed one way only, each car's push is kept along the normal and the cars it
+  touches move with it. The contact goes into each car's frame (+0x5dc). The pair is then listed as
+  touching (0x5913dc counts, 0x5913f8 eight per car), until the next step's pass.
+- **The response** (0x48ae90): the contacts clamped to the half sizes in x and z (0x48c6e0); each
+  contact point's velocity (spin across it, turned into the world, plus +0x408) along the normal. The
+  common velocity is the two weighted by the masses (+0x75c). The restitution term is the difference
+  times 0 (`0x48b0c7`), so the hit is fully inelastic. Each car's change is the common velocity less
+  its own.
+- **A knock:** a change above 0.6 makes a knock (unless the car is already loose, +0xc00, or both
+  cars have +0xb64): the contact is lowered by four units along the car's up column, the car is made
+  loose and +0x96c set to 1.0.
+- **Not upright:** a car that is not upright (+0xb35 not 1) passes a downward share of its impulse to
+  the other.
+- **Applying it:** the impulses times 0x519c90 go into +0x5c4 (world). Each one's turn about the
+  contact goes into +0x5d0, twice (four times for a knock), clamped (0x48c750).
+- **The damage:** each car is damaged at the first listed corner (kind 0 for the car whose corner it
+  is, 2 for the other). With option 4 each impulse is turned into velocity (twice, less the impulse).
+- **The sparks:** when the sliding speed (the relative velocity less its normal part) is above 0.2,
+  sparks fly along it at each car, at 0.8 of the corner's flat offset, with a strength of twice the
+  speed (at most 1.0), up to 9 of them, 0.4 of them chips (0x499750). There are none while either car
+  is recovering (+0xb70). With no corner listed (the crossing-edges case) the original's locals still
+  hold the two impulses and are used as the offsets (kept).
+- **After the pairs:** a car's +0xc08 (passing through the others) lasts while +0x970 runs down by the
+  step, then until it is near no car; +0x974 counts its time at a quarter. With the option 0 weapon
+  (the super special, or selection bits 24 or 27) each car's box is tested against the balls
+  (0x47d850, pending).
 
 ## Damage
 

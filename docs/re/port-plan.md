@@ -189,8 +189,7 @@ with them. Next:
   logged:
   - the body pose 0x432c20, damage 0x46b4e0 and the hit damage 0x466ef0; in the recovery, the
     co-driver's rewind 0x417780, the skid marks 0x4aff80 and the splits 0x421d80;
-  - in the collision pass: the car-to-car contacts 0x48a1f0, the scenery objects 0x4878a0, the
-    sparks 0x499750;
+  - in the collision pass: the option 0 balls 0x47d850;
 
   - the rest of Sim_Step (0x43f630 for the second car list, 0x425950, 0x426fc0, 0x444c10 and
     others).

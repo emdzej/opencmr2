@@ -8,6 +8,17 @@
 #include "sim/car.h"
 #include <stdbool.h>
 
+/* The box test's results (0x5914a8 the first box's push, 0x5914b8 the second's, 0x5915f4/0x5914d4
+   the counts of the first's corners in the second and back, their corners and face axes) */
+typedef struct {
+    int32_t push[3], opush[3];
+    int8_t ncar, nobj;
+    uint8_t car_at[4], car_ax[4], obj_at[4], obj_ax[4];
+} CollBoxes;
+/* 0x488640 with two cars' flat boxes (0x48a5f0): b takes the share k of each push */
+bool Scenery_BoxPair(Car *a, int32_t *ba, Car *b, int32_t *bb, int32_t k, CollBoxes *w);
+void Car_ClampTurn(Car *c);    /* 0x48c750 */
+
 void Scenery_CollInit(void);   /* 0x471dd0 (Stage_Load's end) */
 void Scenery_CollFree(void);   /* 0x472720 */
 int Car_Scenery(Car *c);       /* 0x4878a0 */

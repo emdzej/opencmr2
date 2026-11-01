@@ -47,6 +47,7 @@
 #include "sim/fade.h"
 #include "sim/scenery.h"
 #include "sim/walls.h"
+#include "sim/contact.h"
 #include "render/twod.h"
 #include "vfs.h"
 #include "vfs_host.h"
@@ -326,6 +327,33 @@ int main(void)
             int32_t gap = fx_mul(ux, bp[0] - CI32(c, 0x2d0)) + fx_mul(uz, bp[2] - CI32(c, 0x2d8)) - ext - 0x10000;
             printf("scenery: a box %s, the faces %.3f apart after the push\n", hitbox ? "hit" : "missed", gap / 65536.0);
             CHECK(hitbox && iabs32(gap) < 0x800);
+            /* car to car (0x48a1f0): car 0 copied into slot 1 half a unit into its nose, car 0 at 10
+               units a second, car 1 still: each takes half the push (the faces meet), and the hit
+               is inelastic with equal masses (the impulses equal and opposite along the axis) */
+            {
+                Car keep0 = *c, *d = Car_Get(1), keep1 = *d;
+                *d = *c;
+                CW8(d, 0xb1a, 1);
+                int32_t sh = 2 * ext - 0x8000, s3[3] = {fx_mul(ux, sh), 0, fx_mul(uz, sh)};
+                for (uint32_t k = 0; k < 3; k++) {
+                    CW32(d, 0x2d0 + 4 * k, CI32(d, 0x2d0 + 4 * k) + s3[k]);
+                    for (uint32_t i = 0; i < 8; i++) CW32(d, 0x270 + 12 * i + 4 * k, CI32(d, 0x270 + 12 * i + 4 * k) + s3[k]);
+                    CW32(c, 0x2e8 + 4 * k, CI32(c, 0x2d0 + 4 * k)), CW32(d, 0x2e8 + 4 * k, CI32(d, 0x2d0 + 4 * k));
+                    CW32(c, 0x5c4 + 4 * k, 0), CW32(d, 0x5c4 + 4 * k, 0), CW32(c, 0x420 + 4 * k, 0), CW32(d, 0x420 + 4 * k, 0);
+                    CW32(d, 0x408 + 4 * k, 0);
+                }
+                CW32(c, 0x408, fx_mul(ux, 0xa0000)), CW32(c, 0x40c, 0), CW32(c, 0x410, fx_mul(uz, 0xa0000));
+                Walls_BoxRec(0)[B_VALID] = 0, Walls_BoxRec(1)[B_VALID] = 0;
+                int16_t two[2] = {0, 1};
+                Cars_Collide(two, 2);
+                int32_t sep = fx_mul(ux, CI32(d, 0x2d0) - CI32(c, 0x2d0)) + fx_mul(uz, CI32(d, 0x2d8) - CI32(c, 0x2d8)) - 2 * ext;
+                int32_t ja = fx_mul(ux, CI32(c, 0x5c4)) + fx_mul(uz, CI32(c, 0x5cc)), jb = fx_mul(ux, CI32(d, 0x5c4)) + fx_mul(uz, CI32(d, 0x5cc));
+                printf("cars: the boxes %.3f apart after the push, impulses %.3f and %.3f along the axis, knocked %d %d\n",
+                       sep / 65536.0, ja / 65536.0, jb / 65536.0, CI32(c, 0xc00), CI32(d, 0xc00));
+                CHECK(iabs32(sep) < 0x800 && ja < 0 && jb > 0 && iabs32(ja + jb) < 0x100);
+                *c = keep0, *d = keep1;
+                Walls_BoxRec(0)[B_VALID] = 0, Walls_BoxRec(1)[B_VALID] = 0;
+            }
             /* the damage (0x4669f0, 0x466ef0): with dents on the set-up fills the second model's slots;
                a flat hit of 0.5 on the nose logs an entry, dents the meshes (the crumple, +0x284) and
                raises the cells; Damage_Reset with that entry carried replays it to the same crumple,

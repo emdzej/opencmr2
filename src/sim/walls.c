@@ -11,6 +11,7 @@
 #include "pending.h"
 #include "sim/scenery.h"
 #include "sim/damage.h"
+#include "sim/contact.h"
 #include <math.h>
 
 static int32_t box_rec[CAR_MAX][B_INTS];
@@ -98,13 +99,6 @@ static void box_make(int32_t *b, Car *c)
     box_corners(b, pos);
 }
 
-/* 0x48c870: the cars in contact with this one (the lists at 0x5913dc/0x5913f8, made by the car-to-car
-   pass 0x48a1f0) moved with it. The pass is not ported, so the lists are empty. */
-static void push_group(const int32_t move[3])
-{
-    (void)move;
-}
-
 /* The move of the car, its eight box corners and its flat box's four corners */
 static void move_car(const int32_t m[3])
 {
@@ -114,7 +108,7 @@ static void move_car(const int32_t m[3])
         for (uint32_t k = 0; k < 3; k++) CW32(c, 0x270 + 12 * i + 4 * k, CI32(c, 0x270 + 12 * i + 4 * k) + m[k]);
     for (int i = 0; i < 4; i++)
         for (int k = 0; k < 3; k++) W.box[B_CORNER + 3 * i + k] += m[k];
-    push_group(m);
+    Cars_PushGroup(CI8(c, 0xb1a), -1, m, false);   /* 0x48c870: the cars in contact, not their flat boxes */
 }
 
 /* 0x48f400: no box corner's y strictly between the ends' y (the wall is above or below the car) */
@@ -437,6 +431,8 @@ int32_t *Walls_CarBox(Car *c)
     return b;
 }
 
+int32_t *Walls_BoxRec(int n) { return box_rec[n]; }
+
 void Walls_Bumps(Car *c) { bumps(c); }
 
 void Walls_RotT(const Car *c, int32_t out[3], const int32_t v[3])
@@ -513,7 +509,7 @@ void Car_Walls(Car *c, int n)
 void Sim_Collide(const int16_t *list, int n)
 {
     for (int i = n - 1; i >= 0; i--) box_rec[list[i]][B_VALID] = 0;
-    PENDING_NOTE(0x48a1f0, "Cars_Collide (car to car)");
+    if (Gs_CarsCollide()) Cars_Collide(list, n);
     for (int i = n - 1; i >= 0; i--) {
         int k = list[i];
         Car *c = Car_Get(k);

@@ -4,6 +4,7 @@
 #include "sim/scenery.h"
 #include "sim/damage.h"
 #include "sim/walls.h"
+#include "sim/contact.h"
 #include "world/section.h"
 #include "world/stage.h"
 #include "fixmath.h"
@@ -50,6 +51,11 @@ static struct {
     uint8_t car_at[4], car_ax[4];   /* 0x5914c4, 0x590ec8: those corners, the axis (0 forward, 2 side) */
     uint8_t obj_at[4], obj_ax[4];   /* 0x590ecc, 0x5914a4 */
 } S;
+
+/* For the car-to-car test (0x48a5f0): the second box is a car's (its record's +0x90/+0x94 point at
+   its corners and position), so its share of a push moves it, and its centre is read as it moves */
+static Car *pair_b;
+static int32_t *pair_bb;
 
 static int32_t rd32(const uint8_t *p) { return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24); }
 static int32_t iabs(int32_t v) { return v < 0 ? -v : v; }
@@ -237,6 +243,7 @@ static bool near(int32_t ra, int32_t rb, const int32_t a[3], const int32_t b[3])
 }
 
 static void car_pos(const Car *c, int32_t p[3]) { p[0] = CI32(c, 0x2d0), p[1] = CI32(c, 0x2d4), p[2] = CI32(c, 0x2d8); }
+static void other_pos(int32_t p[3]) { if (pair_b) car_pos(pair_b, p); else memcpy(p, S.pos, sizeof S.pos); }
 
 /* The car, its eight box corners and its flat box's four corners moved by m (y too when all3) */
 static void move_by(Car *c, int32_t *b, const int32_t m[3], bool all3)
@@ -331,9 +338,10 @@ static bool cyl_hit(Car *c, int32_t *b, int32_t k)
     } else
         for (int i = 0; i < 3; i++) S.n[i] = b[(kind == 1 ? B_FWD : B_SIDE) + i];
     int32_t d = fx_mul(S.n[2], S.push[2]) + fx_mul(S.n[0], S.push[0]) + fx_mul(S.n[1], S.push[1]);
-    int32_t m[3] = {fx_mul(S.n[0], d) - S.push[0], fx_mul(S.n[1], d) - S.push[1], fx_mul(S.n[2], d) - S.push[2]};
+    int32_t nd[3] = {fx_mul(S.n[0], d), fx_mul(S.n[1], d), fx_mul(S.n[2], d)};
+    int32_t m[3] = {nd[0] - S.push[0], nd[1] - S.push[1], nd[2] - S.push[2]};
     move_by(c, b, m, true);
-    PENDING_NOTE(0x48c870, "Cars_PushGroup");   /* the cars in contact moved with it: none without the car-to-car pass */
+    Cars_PushGroup(CI8(c, 0xb1a), -1, nd, true);   /* quirk kept: the cars in contact move by n d, not the move */
     S.soft = 0x8000, S.hard = 0x1578d;
     return true;
 }
@@ -359,15 +367,19 @@ static void obj_box(int32_t *o, const Vol *v, const int32_t pos[3])
     o[B_VALID] = 1;
 }
 
-/* 0x4894b0: a box push of t along u: the object's share t k (kept, as the object box has no corners
-   to move), the car's the rest (the car, its eight corners and its flat box's) */
+/* 0x4894b0: a box push of t along u: the object's share t k (kept, and for a car moved as well; an
+   object box has no corners to move), the car's the rest (the car, its eight corners and its flat
+   box's) */
 static void box_push(Car *c, int32_t *b, const int32_t u[3], int32_t t, int32_t k)
 {
     for (int i = 0; i < 3; i++) S.n[i] = u[i];
     if (t <= 0) return;
     int32_t m = fx_mul(t, k);
-    if (k != 0)
-        for (int i = 0; i < 3; i++) S.opush[i] += fx_mul(u[i], m);
+    if (k != 0) {
+        int32_t q[3];
+        for (int i = 0; i < 3; i++) q[i] = fx_mul(u[i], m), S.opush[i] += q[i];
+        if (pair_b) move_by(pair_b, pair_bb, q, true);
+    }
     if (k != 0x10000) {
         int32_t p[3], r = -(t - m);
         for (int i = 0; i < 3; i++) p[i] = fx_mul(u[i], r), S.push[i] += p[i];
@@ -493,7 +505,9 @@ static bool box_box(Car *c, int32_t *b, int32_t *o, int32_t k)
     memset(S.push, 0, sizeof S.push);
     memset(S.opush, 0, sizeof S.opush);
     int32_t last[3] = {CI32(c, 0x2e8), CI32(c, 0x2ec), CI32(c, 0x2f0)};
-    int32_t x = S.pos[0] - last[0], z = S.pos[2] - last[2];
+    int32_t op[3];
+    other_pos(op);
+    int32_t x = op[0] - last[0], z = op[2] - last[2];
     uint32_t l = Fx_Sqrt((uint32_t)fx_mul(x, x) + (uint32_t)fx_mul(z, z));
     int32_t u[3] = {0, 0, 0};
     if (l) {
@@ -508,13 +522,27 @@ static bool box_box(Car *c, int32_t *b, int32_t *o, int32_t k)
     bool found = any;
     int32_t back[3] = {-u[0], -u[1], -u[2]};
     any = false;
-    t = corners_in(b, o, S.pos, back, &S.ncar, S.car_at, S.car_ax, &any);
+    other_pos(op);
+    t = corners_in(b, o, op, back, &S.ncar, S.car_at, S.car_ax, &any);
     if (any) box_push(c, b, u, t, k);
     found = found || any;
     if (!found && edges(b, o, u, &t)) {
         found = true;
         box_push(c, b, u, t, k);
     }
+    return found;
+}
+
+bool Scenery_BoxPair(Car *a, int32_t *ba, Car *b, int32_t *bb, int32_t k, CollBoxes *w)
+{
+    pair_b = b, pair_bb = bb;
+    bool found = box_box(a, ba, bb, k);
+    pair_b = NULL, pair_bb = NULL;
+    memcpy(w->push, S.push, sizeof w->push);
+    memcpy(w->opush, S.opush, sizeof w->opush);
+    w->ncar = S.ncar, w->nobj = S.nobj;
+    memcpy(w->car_at, S.car_at, 4), memcpy(w->car_ax, S.car_ax, 4);
+    memcpy(w->obj_at, S.obj_at, 4), memcpy(w->obj_ax, S.obj_ax, 4);
     return found;
 }
 
@@ -549,9 +577,10 @@ static bool box_hit(Car *c, int32_t *b, uint32_t f)
     Vec_Unit(n);
     if (!movable && (S.ncar == 0 || S.nobj == 0)) {
         int32_t d = fx_mul(n[2], S.push[2]) + fx_mul(n[0], S.push[0]) + fx_mul(n[1], S.push[1]);
-        int32_t m[3] = {fx_mul(n[0], d) - S.push[0], fx_mul(n[1], d) - S.push[1], fx_mul(n[2], d) - S.push[2]};
+        int32_t nd[3] = {fx_mul(n[0], d), fx_mul(n[1], d), fx_mul(n[2], d)};
+        int32_t m[3] = {nd[0] - S.push[0], nd[1] - S.push[1], nd[2] - S.push[2]};
         move_by(c, b, m, true);
-        PENDING_NOTE(0x48c870, "Cars_PushGroup");
+        Cars_PushGroup(CI8(c, 0xb1a), -1, nd, true);   /* as in cyl_hit: by n d */
     }
     memcpy(S.n, n, sizeof n);
     int32_t l[3];
@@ -580,7 +609,7 @@ static void cross(int32_t o[3], const int32_t a[3], const int32_t b[3])
 }
 
 /* 0x48c750: the turn impulse within 8, 4 and 8 times the impulse scale (0x519c90) */
-static void clamp_turn(Car *c)
+void Car_ClampTurn(Car *c)
 {
     int32_t k = gms32(0x519c90), lim[3] = {fx_mul(k, 0x80000), fx_mul(k, 0x40000), fx_mul(k, 0x80000)};
     for (uint32_t i = 0; i < 3; i++) {
@@ -663,7 +692,7 @@ static bool respond(Car *c, const Entry *e, int id)
         if (hard) CW32(c, 0x40c, CI32(c, 0x40c) + 0x4000);
     }
     for (uint32_t i = 0; i < 3; i++) CW32(c, 0x5d0 + 4 * i, CI32(c, 0x5d0 + 4 * i) + t[i]);
-    clamp_turn(c);
+    Car_ClampTurn(c);
     int8_t n = CI8(c, 0xb3f);
     if (n < 5) {
         CW16(c, 0xae0 + 2 * (uint32_t)n, (uint16_t)id);

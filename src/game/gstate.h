@@ -10,6 +10,8 @@ static inline uint32_t Gs_ModeBit17(void) { return gm32(0x52afb4) >> 0x11 & 1; }
 static inline uint32_t Gs_ModeBit19(void) { return gm32(0x52afb4) >> 0x13 & 1; }    /* 0x405e00 */
 static inline uint32_t Gs_Bit30(void) { return gm32(0x52afb8) >> 0x1e & 1; }        /* 0x406310 */
 static inline uint8_t Gs_Byte52ea52(void) { return gm8(0x52ea52); }                 /* 0x406320 */
+/* 0x407270: a rally, rally 8, stage index 11: the head-to-head super special, run at night */
+static inline bool Gs_SuperSpecial(void) { return (gm32(0x52afb4) >> 3 & 0x7f) == 0 && (gm32(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160; }
 /* 0x4063f0: option n, bit n of the options word's third byte */
 static inline bool Gs_Option(uint32_t n) { return (gm8(0x52afc2) & (1u << (n & 31))) != 0; }
 static inline uint32_t Gs_SelBits14(void) { return gm32(0x52f2ac) >> 0xe & 3; }     /* 0x4074f0 */

@@ -358,7 +358,7 @@
 0048c870	Cars_PushGroup	sim	med	Moves the cars in contact with one (lists at 0x5913dc) by a vector
 0048c900	Cars_PushOne	sim	med	The recursive part of Cars_PushGroup
 004878a0	Car_Scenery	sim	med	The car against the scenery objects of its cells
-0048a1f0	Cars_Collide	sim	low	The car-to-car contacts
+0048a1f0	Cars_Collide	sim	high	The car-to-car contacts: the pairs sharing a cell and within reach, boxes, response, the +0xc08 timers
 00466ef0	Car_Damage	sim	med	Damage from a hit: point, normal, kind
 0042f9d0	Car_FreeLift	sim	high	The loose body lifted out of the ground by its deepest free corner, or lowered onto the nearest
 0042fb20	Car_FreeSettle	sim	high	The loose body's rows against the ground: spin pulled and locked as an axis crosses, roll counters, hit
@@ -857,3 +857,10 @@
 0x49ab90	Glass_Setup	game	confirmed	the glass triangle's uv and thirty glass shapes
 0x499ac0	GlassChip_Draw	game	confirmed	a glass chip pulled toward the camera
 0x499a80	GlassChip_Spawn	game	confirmed	a glass chip's shape, tint and light
+00487b80	Coll_Near	sim	high	Two spheres (reaches summed) overlap
+00488640	Coll_BoxBox	sim	high	A car's flat box against another box: corners in each, else crossing edges; pushes along the approach
+004894b0	Coll_BoxPush	sim	high	A box push of t along u split by k between the two boxes (through their +0x90/+0x94 pointers)
+0048a5f0	Cars_Contact	sim	high	Car-to-car box test (half each), contact point and normal, the pushes along the normal
+0048ae90	Cars_Respond	sim	high	Car-to-car response: inelastic impulse by the masses, knocks, damage, sparks
+0048c6e0	Vec_ClampHalf	sim	high	A contact within the half sizes (x and z; y with the flag)
+0048c750	Car_ClampTurn	sim	high	The turn impulse within 8, 4, 8 times 0x519c90
