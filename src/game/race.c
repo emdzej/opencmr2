@@ -3,6 +3,7 @@
 #include "game/race.h"
 #include "game/proc.h"
 #include "game/camera.h"
+#include "game/common.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/timer.h"
@@ -144,7 +145,11 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
 {
     R.loading = true;
     R.start_count = 0;
-    if (slot == 0) PENDING_NOTE(0x427c10, "Race_Setup 0x427c10, 0x41f560, 0x41f260, Bfl_MountCommon, 0x478b50");
+    if (slot == 0) {
+        PENDING_NOTE(0x427c10, "Race_Setup 0x427c10, 0x41f560, 0x41f260, 0x478a20, 0x40efa0, 0x475f00");
+        Bfl_MountCommon();
+        Race_LoadFonts();
+    }
     Proc_Event(g, slot, 0, 2);
 }
 

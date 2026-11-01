@@ -462,3 +462,13 @@
 00428680	Fade_DrawOverlay	race	high	A player's fade as a rectangle over the view, alpha the level
 004a5e40	Rect_Fill	render	high	A one-colour rectangle as two 2D triangles, clipped (the height against the width)
 00464b10	View_Rect	race	high	A player's viewport rectangle (full, halves for split screen)
+00478b50	Race_LoadFonts	race	high	Seven font slots from the Com archive (general\hel_13pt ... ocr_60pt)
+004552a0	Bfl_ComSlot	file	high	The Com<res> archive's slot (0x541f18)
+004125f0	Hud_Draw	hud	high	A player's HUD panels by the profile's display flags and the mode
+004137e0	Hud_SplitDelta	hud	med	The split time's difference to the reference (+/-)
+00414ed0	Hud_Standings	hud	med	The drivers around the player and their times (rally)
+00413fe0	Hud_TimePanel	hud	med	The stage time panel (rally)
+00415bd0	Hud_Time	hud	high	A time as MM:SS:cc in a font, optionally on a box
+00415db0	Hud_TimeSigned	hud	high	Hud_Time with a + or - prefix
+00410100	Race_IntroInfo	race	med	The stage's name and records over the view, fading in the first 2.25 s
+00411f70	Hud_Update	hud	med	The HUD's per-player state each step (0x536e04, 18 ints a player)
