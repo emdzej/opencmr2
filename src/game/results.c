@@ -9,6 +9,8 @@
 #include "game/mem.h"
 #include "game/pause.h"
 #include "game/race.h"
+#include "game/hud.h"
+#include "game/sectors.h"
 #include "pending.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
@@ -21,6 +23,7 @@ static Menu *page, *next;          /* DAT_00541cc8, DAT_00541ccc */
 static Menu *shown;                /* DAT_00541dfc */
 static int settle;                 /* DAT_00541e00 */
 static bool active;
+static char holder[32];            /* DAT_00519ee0: the stage record's holder, lower case */
 
 static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }
 static const uint8_t *C(uint32_t va) { return gm(va); }   /* 0x519ecc, 0x519ed0, 0x519ed4 */
@@ -68,11 +71,81 @@ static void draw_title(Menu *m)
     Font_SetLayer(2);
 }
 
-/* the times, splits and board pages (0x44bcd0, 0x44d790, 0x44d960): their tables not ported yet */
+
+/* 0x454df0: titles in a row in the big font, lower case, with separators */
+static void titles(int x, int y, const char *const *t, int n)
+{
+    int w, h;
+    screen(&w, &h);
+    for (int i = 0; i < n; i++) {
+        char b[128];
+        snprintf(b, sizeof b, "%s", t[i]);
+        Text_Lower(b);
+        Font_Print(2, b, x, y, C(0x519ecc), 0x11);
+        if (i == n - 1) break;
+        x = w * 8 / 0x280 + x + Font_TextWidth(2, b);
+        int16_t r[4] = {(int16_t)x, (int16_t)(y - h * 0x1e / 0x1e0), 2, (int16_t)(h * 0x29 / 0x1e0)};
+        Rect_Fill(r, C(0x519ecc), 2);
+        x = x + 2 + w * 8 / 0x280;
+    }
+}
+
+static void print_time(char *b, size_t n, int32_t t) { snprintf(b, n, exe_str(0x519f58), t / 6000, t % 6000 / 100, t % 100); }   /* 0x4de170 */
+
+/* 0x44bcd0's rally part: a column for the player and one for the stage record (or the second
+   player): the driver, each split's time and the total */
+static void draw_times(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    dim();
+    if (mode() >= 4 && mode() != 8 && mode() != 9 && mode() != 10) {
+        PENDING_NOTE(0x44bcd0, "the results' times in the championship and arcade");
+        return;
+    }
+    const char *t[1] = {Text_Get(0x48)};
+    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 1);
+    int cols = Gs_ModeBit19() ? 1 : 2, shown = Sectors_Shown();
+    for (int col = 0; col < cols; col++) {
+        bool record = Gs_SelBits14() == 1 && col == 1;
+        uint32_t c = record ? 0x519ed0 : 0x519ecc;
+        int x = w * 0x1e / 0x280 + (w * 0x166 / 0x280) * col, dy = 0, top = 0;
+        if (shown == 2) top = -(h * 0x1e / 0x1e0), dy = h * 0xe6 / 0x1e0 - h * 0x91 / 0x1e0;
+        int y0 = h * 0x91 / 0x1e0 + dy + top;
+        char b[160];
+        const char *name;
+        if (record) {
+            snprintf(b, sizeof b, "%s", Text_Get(0x6d));
+            Text_Lower(b);
+            Font_Print(1, b, x, y0, C(c), 0x11);
+            name = holder;
+        } else {
+            Font_Print(1, Text_Get(0x89), x, y0, C(c), 0x11);
+            name = player_name(Race_Base() + col);
+        }
+        snprintf(b, sizeof b, Text_Get(0x9b), name);
+        Font_Print(1, b, x, h * 0x1e / 0x1e0 + y0, C(c), 0x11);
+        Font_Print(1, Text_Get(0x8a), x, h * 0x19 / 0x1e0 + h * 0x91 / 0x1e0 + shown * h * 0x1e / 0x1e0 + dy, C(c), 0x11);
+        int tx = w * 0xb1 / 0x280 + (w * 0x166 / 0x280) * col, i = 0;
+        for (; i < shown; i++) {
+            int32_t v = record ? gms32(0x817448 + 4u * (uint32_t)(i + 1)) - gms32(0x817448 + 4u * (uint32_t)i)
+                               : Times_Split(col, i + 1) - Times_Split(col, i);
+            print_time(b, sizeof b, v);
+            Font_Print(1, b, tx, h * 0x91 / 0x1e0 + dy + (h * 0x1e / 0x1e0) * i, C(c), 0x11);
+        }
+        int32_t total = record ? gms32(0x817448 + 4u * (uint32_t)shown) : Times_Finish(col);
+        snprintf(b, sizeof b, exe_str(0x519f58), total / 6000, total / 100 % 60, total % 100);
+        Font_Print(1, b, tx, h * 0x19 / 0x1e0 + h * 0x91 / 0x1e0 + dy + (h * 0x1e / 0x1e0) * i, C(c), 0x11);
+    }
+    Font_SetLayer(2);
+}
+
+/* the splits and board pages (0x44d790, 0x44d960): their tables not ported yet */
 static void draw_pending(Menu *m)
 {
     (void)m;
-    PENDING_NOTE(0x44bcd0, "the results' times, splits and standings (0x44bcd0, 0x44d790, 0x44d960)");
+    PENDING_NOTE(0x44d790, "the results' splits and standings (0x44d790, 0x44d960)");
     dim();
     title(0x47);
     Font_SetLayer(2);
@@ -158,6 +231,9 @@ static void build_end(Menu *parent, int16_t restart_text)
 void Results_Start(bool again)
 {
     PENDING_NOTE(0x44a1b0, "the results' records and championship tables (0x4cf3b0-0x4cfff0)");
+    /* the stage record's holder (0x52b044 + 0x654), lower case */
+    snprintf(holder, sizeof holder, "%s", (const char *)gm(0x52b044 + 0x654 + ((gm32(0x52f2ac) & 0x1f) * 0xb + (gm32(0x52f2ac) >> 5 & 0x1f)) * 8));
+    Text_Lower(holder);
     if (!again) Input_SetMenuMode(true);
     Menu_Start();
     /* 0x449100's pages on the one-player stage's way */
@@ -166,7 +242,7 @@ void Results_Start(bool again)
     Menu_SetCallbacks(&pg_title, NULL, NULL, draw_title, NULL);
     Menu_Init(&pg_times, NULL, 0, &pg_title, false, NULL, 1, 0, 0);
     Menu_AddPage(&pg_times, NULL, 0, &pg_splits, NULL, 0);
-    Menu_SetCallbacks(&pg_times, NULL, NULL, draw_pending, NULL);
+    Menu_SetCallbacks(&pg_times, NULL, NULL, draw_times, NULL);
     Menu_Init(&pg_splits, NULL, 0, &pg_times, false, NULL, 1, 0, 0);
     Menu_AddPage(&pg_splits, NULL, 0, &pg_board, NULL, 0);
     Menu_SetCallbacks(&pg_splits, NULL, NULL, draw_pending, NULL);

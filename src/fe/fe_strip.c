@@ -32,27 +32,6 @@ static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }
 static const uint8_t *col(uint32_t va) { return gm(va); }   /* the colours at 0x524968-0x52497c */
 enum { C68 = 0x524968, C6c = 0x52496c, C70 = 0x524970, C74 = 0x524974, C78 = 0x524978, C7c = 0x52497c };
 
-/* 0x4aa090: lower case for the fonts, and their stand-ins for a few signs */
-static char *fe_lower(char *s)
-{
-    for (unsigned char *p = (unsigned char *)s; *p; p++) {
-        unsigned char c = *p;
-        if ((c >= 'A' && c <= 'Z') || (c >= 0xc0 && c <= 0xdf)) *p = (unsigned char)(c + 0x20);
-        switch (c) {
-        case '$': *p = 0xa9; break;
-        case '*': *p = 0xae; break;
-        case '{': *p = 0xbd; break;
-        case '|': *p = 0xb1; break;
-        case '}': *p = 0xbe; break;
-        case '~': *p = 0xa3; break;
-        case 0x99: *p = 0xd7; break;
-        case 0xd3: *p = 0xf3; break;
-        case 0xf7: *p = 0xbc; break;
-        }
-    }
-    return s;
-}
-
 static const char *item_text(const Menu *m, int i) { return Text_Get(m->items[i].text); }
 
 void Scroll_Measure(FeScroll *s, Menu *m)
@@ -66,7 +45,7 @@ void Scroll_Measure(FeScroll *s, Menu *m)
     for (int i = 0; i < m->n; i++) {
         char b[256];
         snprintf(b, sizeof b, "%s", item_text(m, i));
-        s->width[i] = Font_TextWidth(2, fe_lower(b));
+        s->width[i] = Font_TextWidth(2, Text_Lower(b));
     }
     s->t = Fe_Now();
     s->page = m;
@@ -130,7 +109,7 @@ static void print2(const char *s, int x, int y, uint32_t c, bool lower)
 {
     char b[256];
     snprintf(b, sizeof b, "%s", s);
-    Font_Print(2, lower ? fe_lower(b) : b, x, y, col(c), 0x11);
+    Font_Print(2, lower ? Text_Lower(b) : b, x, y, col(c), 0x11);
 }
 
 void Strip_Draw(FeScroll *s, bool lit)

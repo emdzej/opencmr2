@@ -12,3 +12,6 @@ void Sectors_Step(void);     /* 0x4581d0 (Race_Update) */
 bool Sectors_Finished(int car);   /* 0x4582b0 */
 bool Sectors_Split(int car);      /* 0x458250: a split passed this step */
 int Sectors_Count(void);          /* 0x542c74: the split points */
+bool Sectors_Moved(int car);          /* 0x458230 */
+int Sectors_SplitIndex(int car);      /* 0x458370 */
+int Sectors_Shown(void);              /* 0x4583c0 */

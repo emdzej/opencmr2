@@ -1,5 +1,7 @@
 /* The race times and the HUD (see hud.h). */
 #include "game/hud.h"
+#include <string.h>
+#include "game/sectors.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
@@ -16,15 +18,18 @@ static bool capped;                    /* DAT_0053d1d8 */
 static int32_t finish[CAR_MAX];        /* 0x53d1b8 */
 static uint8_t done[CAR_MAX];          /* 0x53d1da */
 static int32_t hud_time[4];            /* 0x536e0c + 0x48 n */
+static int32_t splits[4][9];           /* 0x53e190: the players' times at each split */
 
 void Times_Clear(void)
 {
     shown = clock_ = 0;
     for (int i = 0; i < CAR_MAX; i++) done[i] = 0;
+    memset(splits, 0, sizeof splits);
 }
 
 int32_t Times_Race(void) { return shown; }
 int32_t Times_Finish(int car) { return car == -1 ? -1 : finish[car]; }
+int32_t Times_Split(int p, int k) { return p >= 0 && p < 4 && k >= 0 && k < 9 ? splits[p][k] : 0; }
 
 /* 0x448de0: the clock 4 a step; the time shown off by -1 to 2 (rand() & 3, less one); at an hour the
    clock stops at 59:59.99 (unless 0x53d1d9) */
@@ -49,8 +54,12 @@ void Times_Step(void)
        at the finish 0x448cf0, the time kept */
     for (int i = 0; i < g_all.n; i++) {
         int k = g_all.car[i];
-        if (done[k] || !Race_Finished(k)) continue;
-        done[k] = 1;
+        if (done[k] || !Sectors_Moved(k)) continue;
+        /* 0x4487a0's rally part: a player's time at the split */
+        if (Sectors_Split(k) && k < (int)Gs_SelBits14() && Sectors_SplitIndex(k) >= 0 && Sectors_SplitIndex(k) < 9)
+            splits[k][Sectors_SplitIndex(k)] = shown;
+        if (!Race_Finished(k)) continue;
+        done[k] = 1;   /* 0x448cf0 */
         finish[k] = shown;
     }
 }

@@ -29,6 +29,10 @@ static bool both_ways, laps_mode; /* DAT_00542cae, DAT_00542cad */
 int Sectors_Count(void) { return nsplits; }
 bool Sectors_Finished(int car) { return car >= 0 && car < CAR_MAX && rec[car].finished; }
 bool Sectors_Split(int car) { return car >= 0 && car < CAR_MAX && rec[car].split; }
+bool Sectors_Moved(int car) { return car >= 0 && car < CAR_MAX && rec[car].moved; }
+int Sectors_SplitIndex(int car) { return car >= 0 && car < CAR_MAX ? rec[car].splits : 0; }
+/* the splits shown (DAT_00542cac, 0x458a00's end): one fewer than the points in a rally */
+int Sectors_Shown(void) { return Gs_SelBit24() || Gs_SelBit25() ? nsplits : nsplits - 1; }
 
 /* 0x420190 for a rally: the players */
 static int race_cars(void) { return (int)Gs_SelBits14(); }

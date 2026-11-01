@@ -92,3 +92,25 @@ char *Text_ToFontCase(char *str)
     }
     return str;
 }
+
+/* 0x4aa090: lower case for the fonts, and their stand-ins for a few signs */
+char *Text_Lower(char *s)
+{
+    for (unsigned char *p = (unsigned char *)s; *p; p++) {
+        unsigned char c = *p;
+        if ((c >= 'A' && c <= 'Z') || (c >= 0xc0 && c <= 0xdf)) *p = (unsigned char)(c + 0x20);
+        switch (c) {
+        case '$': *p = 0xa9; break;
+        case '*': *p = 0xae; break;
+        case '{': *p = 0xbd; break;
+        case '|': *p = 0xb1; break;
+        case '}': *p = 0xbe; break;
+        case '~': *p = 0xa3; break;
+        case 0x99: *p = 0xd7; break;
+        case 0xd3: *p = 0xf3; break;
+        case 0xf7: *p = 0xbc; break;
+        }
+    }
+    return s;
+}
+

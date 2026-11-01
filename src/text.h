@@ -13,3 +13,4 @@ void Text_Select(int file);       /* Text_Select 0x4a3c30 */
 const char *Text_Get(int i);      /* Text_Get 0x4a3c60 */
 void Text_Free(void);             /* Text_Free 0x4a3d80 */
 char *Text_ToFontCase(char *s);   /* Text_ToFontCase 0x4a9f90, in place */
+char *Text_Lower(char *s);       /* 0x4aa090: lower case for the fonts, and their stand-ins for a few signs; in place */
