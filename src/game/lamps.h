@@ -23,6 +23,10 @@ void Lens_Step(int i);              /* 0x477ce0 */
 void Lens_Set(int i, bool left, bool right, uint8_t bit);
 /* 0x477c80: group k's left and right levels (0-255 as 16.16 fractions, 255 = 0xff00) */
 void Lens_Get(int i, int32_t *left, int32_t *right, int k);
+/* 0x464960 (Race_DrawView, for the camera's car): the car's headlights on below full daylight
+   (+0xb58), the two lights' attenuation from the daylight and the headlights' lens (1,000 with the
+   lens dark), lights 1 and 2 kept on while it is lit, and the lights moved ahead of the car */
+void Lamps_Lights(int car);
 int Lamps_Count(int car);           /* the port: the car's lamps */
 Tex *Lamps_SpriteTex(int k);        /* 0x547fac + 4 k: group k's sprite texture */
 Tex *Lens_Tex(int i);               /* the port: car i's lens texture (NULL: none) */

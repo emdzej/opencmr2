@@ -42,7 +42,9 @@ extern int g_nobjs;            /* DAT_00683370 */
    parent, the roots (+0x24 = -1) go under it (Obj_Attach 0x4ac200); every object's +0x24 is then -1.
    Returns the first object (the model's), NULL if it has none. */
 Obj *C3d_Objects(const C3d *m, Obj *parent);
-void Obj_FreeAll(void);   /* the port */
+void Obj_FreeAll(void);   /* the port (each object's 0x4ac680) */
+Obj *Obj_New(Obj *parent);                                          /* 0x4ac6f0 */
+void Obj_Place(Obj *o, const int32_t pos[3], const uint16_t a[3]);  /* 0x4ac3d0 */
 void Obj_Attach(Obj *o, Obj *parent);   /* 0x4ac200 */
 bool Obj_Active(const Obj *o);          /* 0x4ac390 */
 /* Obj_UpdateTree 0x4ac280: world matrices of the dirty objects (or those under a dirty parent) of a

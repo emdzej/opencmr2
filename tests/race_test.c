@@ -30,6 +30,8 @@
 #include "game/profile.h"
 #include "game/timer.h"
 #include "game/lamps.h"
+#include "render/dlight.h"
+#include "world/relight.h"
 #include "render/d3d7.h"
 #include "render/mesh.h"
 #include "sim/car.h"
@@ -101,6 +103,7 @@ static void draw(int player, int state)
 {
     (void)state;
     Codriver_Notes(player);   /* the overlays' speech each frame (the 2D drawing is the GPU tests') */
+    Lamps_Lights(player);
 }
 static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, draw, host_camera};
 
@@ -454,6 +457,22 @@ int main(void)
         CHECK(defined == 30 && PType_Get(0)->tex && smoke_steps == 9 && stone->alive && stone->rest &&
               stone->pos[1] == 0 && drawn == 1);
         Particles_KillAll();
+    }
+    {
+        /* the lights: the sun, then the headlights' two, their attenuation from the daylight (the
+           test's second stage load, without the front end's Play_End, adds three more) */
+        int n = Dlight_Count() - 3;
+        D3DLIGHT7 *sun = Dlight_Get(n), *h1 = Dlight_Get(n + 1), *h2 = Dlight_Get(n + 2);
+        CHECK(sun && h1 && h2);
+        if (!sun || !h1 || !h2) return 1;
+        Lamps_Lights(0);
+        uint8_t hi[4];
+        Light_GetHigh(hi);
+        printf("lights: %d, sun %u (%.3f %.3f %.3f), headlights %u %u, high %u %u %u, attenuation %.3f, on %d\n",
+               Dlight_Count(), sun->type, sun->direction.x, sun->direction.y, sun->direction.z, h1->type, h2->type,
+               hi[0], hi[1], hi[2], h1->attenuation0, CI32(Car_Get(0), 0xb58));
+        CHECK(n % 3 == 0 && h1->attenuation0 == 1025 && sun->type == D3DLIGHT_DIRECTIONAL && sun->direction.y < -0.6f &&
+              h1->type == D3DLIGHT_POINT && h1->range == 60 && h1->attenuation0 == h2->attenuation0);
     }
     printf("race_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;

@@ -677,3 +677,17 @@
 00460bf0	Weather_Wet	world	high	A car's weather record: wet
 00460c10	Weather_Level	world	high	A car's weather record: its level
 00463270	Fx_WheelLight	world	high	The light colour under a car's wheel (0x543f28)
+004b2f80	Dlight_Add	render	high	A Direct3D light record (point, spot, directional) set and on, with an object under a parent
+004b2e50	Dlight_Restore	render	high	Every light set again, a white material and ambient B, after the device set-up
+004b3570	Dlight_SetAtten	render	high	A light object's attenuation0 (16.16) set
+004b3480	Dlight_Free	render	high	A light record freed (the count drops even when not found)
+004b3450	Dlight_FreeAll	render	high	Every light record freed (at exit)
+004648f0	Lamps_Daylight	world	high	(R + G + B - 70) / 550 of the high colour, 0 to 1
+00464960	Lamps_Lights	world	high	The headlights' flag, the two lights' attenuation and places for the camera's car
+004b6ef0	Light_SetKeep	render	high	Sets 0x5210c0: lights 1 and 2 kept on after a mode change
+004ac6f0	Obj_New	world	high	A new object in the first free table place, under a parent
+004ac140	Obj_Init	world	high	An object's defaults (kind 3, every pass, sorted, identity matrices)
+004ac3d0	Obj_Place	world	high	An object's rest matrix back, then turned and moved
+004ac260	Obj_SetData	world	high	An object's kind (+0x178) and data (+0xc)
+004b3850	Light_GetHigh	world	high	Returns the high light colour's bytes
+004ac680	Obj_Free	world	high	An object's data freed by kind and its table place cleared

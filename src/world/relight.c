@@ -3,6 +3,8 @@
 #include "exe.h"
 #include "fixmath.h"
 #include "render/d3d7.h"
+#include "render/dlight.h"
+#include "render/light.h"
 #include "render/mesh.h"
 #include "world/section.h"
 #include "world/tod.h"
@@ -12,7 +14,6 @@
 #include <string.h>
 
 static uint8_t low[4];                     /* 0x6e01ec */
-static uint32_t low_argb;                  /* 0x6e020c */
 static int32_t base[3], slope[3], high[3]; /* 0x6e0118, 0x6e0348, 0x6e01a0 */
 static uint8_t high_rgb[4];                /* 0x6dfdc4 */
 static bool dirty;                         /* 0x6e0244 */
@@ -53,7 +54,7 @@ static void shadow_colour(bool from_low)
 
 void Light_SetLow(const uint8_t c[4], bool from_low)
 {
-    low_argb = (uint32_t)c[3] << 24 | (uint32_t)c[0] << 16 | (uint32_t)c[1] << 8 | c[2];
+    g_ambient_b = (uint32_t)c[3] << 24 | (uint32_t)c[0] << 16 | (uint32_t)c[1] << 8 | c[2];
     if (c[0] != low[0] || c[1] != low[1] || c[2] != low[2]) dirty = true;
     memcpy(low, c, 4);
     for (int i = 0; i < 3; i++) {
@@ -61,10 +62,11 @@ void Light_SetLow(const uint8_t c[4], bool from_low)
         slope[i] = high[i] - c[i] * 0x10000;
     }
     shadow_colour(from_low);
-    D3d_SetRenderState(D3DRS_AMBIENT, low_argb);
+    D3d_SetRenderState(D3DRS_AMBIENT, g_ambient_b);
 }
 
 void Light_GetLow(uint8_t c[4]) { memcpy(c, low, 4); }
+void Light_GetHigh(uint8_t c[4]) { memcpy(c, high_rgb, 4); }
 
 void Light_SetHigh(const int32_t c[3], bool from_low)
 {
@@ -81,6 +83,10 @@ void Light_Defaults(void)
 {
     static const uint8_t white[4] = {0xff, 0xff, 0xff, 0xff};
     static const int32_t full[3] = {0xff0000, 0xff0000, 0xff0000};
+    /* the sun: white, from (50, 75, 75), under the world */
+    static const int32_t sun[3] = {0x320000, 0x4b0000, 0x4b0000};
+    static const uint16_t none[3];
+    Dlight_Add(2, 0x10000, 0x10000, 0x10000, sun, none, &g_world);
     bool f = Tod_Rally() != 3;
     Light_SetLow(white, f);
     Light_SetHigh(full, f);

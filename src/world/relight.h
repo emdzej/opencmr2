@@ -9,10 +9,11 @@
 /* 0x4b3740: the low colour (R, G, B, A); the device ambient (0x8b) set to it. */
 void Light_SetLow(const uint8_t c[4], bool shadow_from_low);
 void Light_GetLow(uint8_t c[4]);   /* 0x4b3840 */
+void Light_GetHigh(uint8_t c[4]);  /* 0x4b3850: its bytes (R, G, B; the fourth unset) */
 /* 0x4b3f90: the high colour, 16.16 per channel. */
 void Light_SetHigh(const int32_t c[3], bool shadow_from_low);
 /* 0x4918d0: low (255, 255, 255, 255) and high 255 (the shadow choice by the rally, 3 otherwise); the
-   original also makes the sun light object (0x4b2f80, not ported). */
+   sun first: a directional light under the world (Dlight_Add). */
 void Light_Defaults(void);
 uint32_t Light_TerrainRamp(int32_t intensity);   /* 0x4b3b40 */
 /* 0x4b3ae0: the same ramp from its byte copy (0x6e0b34: R, G, B, 0xff in memory order) */

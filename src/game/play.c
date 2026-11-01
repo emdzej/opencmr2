@@ -1,5 +1,6 @@
 /* The race started by the game (see play.h). */
 #include "game/play.h"
+#include "game/lamps.h"
 #include "game/timer.h"
 #include "game/camera.h"
 #include "game/car_load.h"
@@ -76,6 +77,7 @@ static void draw(int player, int state)
     int32_t cp[3] = {camera.world.m[12], camera.world.m[13], camera.world.m[14]};
     Sky_Follow(cp);
     Cars_ShellsToCamera(&camera);
+    Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */
     Obj_Frame(&g_world, &camera);
     Race_DrawOverlays(player);
     int16_t view[4] = {0, 0, (int16_t)w, (int16_t)h};
@@ -103,17 +105,8 @@ bool Play_Begin(void)
     camera.kind = 3;
     camera.mask = 0xff;
     Mat_Identity(&camera.world);
-    /* the viewer's light and material and the race's far plane (the race's own set-up, 0x45eca0, to
-       come) */
-    D3DLIGHT7 l = {0};
-    l.type = D3DLIGHT_DIRECTIONAL;
-    l.diffuse = (D3DCOLORVALUE){1, 1, 1, 1};
-    l.direction = (D3DVECTOR){-0.4f, -0.8f, 0.45f};
-    D3d_SetLight(0, &l);
-    D3d_LightEnable(0, true);
-    D3DMATERIAL7 mat = {{1, 1, 1, 1}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, 0};
-    D3d_SetMaterial(&mat);
-    g_ambient_a = g_ambient_b = 0xff404040u;
+    /* the race's far plane (the race's own set-up, 0x45eca0, to come); the lights are the stage's sun
+       (Light_Defaults) and the headlights' (Lamps_Setup) */
     Light_SetMode(4);
     D3d_SetTextureStageState(0, D3DTSS_MINFILTER, 2);
     Proj_Set((int32_t)(2.598f * 65536), (int32_t)(3.464f * 65536), 250 << 16, 6554);

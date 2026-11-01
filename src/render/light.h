@@ -1,6 +1,7 @@
 /* Lighting modes (0x4b6f00): which of the first three lights are on, which ambient colour, and whether
    the vertex colour feeds the material. The lights and the two ambient colours are set up by the stage
-   and car lighting code (0x4b2e50, 0x4b2f80, 0x4b34d0-0x4b35b0, 0x4ad8d0; step 5). */
+   and car lighting code (render/dlight.h: 0x4b2e50, 0x4b2f80; the setters 0x4b34d0-0x4b35b0 but 0x4b3570
+   are not ported). */
 #pragma once
 #include <stdint.h>
 

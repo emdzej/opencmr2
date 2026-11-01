@@ -16,6 +16,7 @@
 #include "viewer.h"
 #include "fe/fe.h"
 #include "game/timer.h"
+#include "render/dlight.h"
 #include "render/d3d7.h"
 #include "render/mesh.h"
 #include "render/rstate.h"
@@ -53,6 +54,7 @@ bool app_init(void)
     gl_dev_register();
     if (!D3d_Open(640, 480, 32)) return false;
     Render_InitStates();
+    Dlight_Restore();   /* 0x4b2e50, in the device's set-up 0x4a78a0 */
     VB_CreatePool();
     playing = true;
     return true;

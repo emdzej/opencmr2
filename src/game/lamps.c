@@ -4,10 +4,14 @@
 #include "game/common.h"
 #include "game/mem.h"
 #include "game/timer.h"
+#include "render/dlight.h"
+#include "render/light.h"
 #include "render/tex.h"
 #include "sim/damage.h"
 #include "sim/sim.h"
 #include "world/glow.h"
+#include "world/relight.h"
+#include "world/stage.h"
 #include "c3d.h"
 #include "exe.h"
 #include "fixmath.h"
@@ -25,6 +29,10 @@ static int32_t hazard[CAR_MAX];      /* 0x547ce0: the hazards' clock */
 /* 0x543580 / 0x5431c0 (0x45a150, 0x45b530): the kind 9 lamps' records and glows, two a car (their
    readers 0x45af90 and 0x45d2d0 are not ported) */
 static const uint8_t *k9_rec[16];
+/* the headlights' lights (0x547fec, 0x547ff0) and their offsets in the car (0x547fe0, 0x547fa0); the
+   attenuation last set is 0x547ff4 */
+static Obj *head_light[2];
+static int32_t ahead[2][3];
 static Glow *k9_glow[16];
 
 /* A lens (0x58d6d0 + 0x48 n): the textures of the second model's and the interior's lenses, the
@@ -88,9 +96,13 @@ void Lamps_Setup(Car *c)
 {
     int n = car_of(c);
     if (n == 0) {
-        /* the headlights' two lights (0x4b2f80, ahead of the car by 30 and 15: 0x547fe0, 0x547fa0),
-           moved by 0x464960 in Race_DrawView */
-        PENDING_NOTE(0x4b2f80, "the headlights' lights");
+        /* the headlights' two point lights, grey 20, ahead of the car by 30 and 15, under the world */
+        static const int32_t zero[3];
+        static const uint16_t none[3];
+        ahead[0][0] = 0x1e0000, ahead[0][1] = ahead[0][2] = 0;
+        ahead[1][0] = 0xf0000, ahead[1][1] = ahead[1][2] = 0;
+        head_light[0] = Dlight_Add(0, 0x140000, 0x140000, 0x140000, zero, none, &g_world);
+        head_light[1] = Dlight_Add(0, 0x140000, 0x140000, 0x140000, zero, none, &g_world);
     }
     int count;
     uint8_t *lamp = table(n, &count);
@@ -134,7 +146,7 @@ void Lamps_Setup(Car *c)
                     }
                 }
             }
-    gw32(0x547ff4, 0xffff0000);   /* the headlights' last range */
+    gw32(0x547ff4, 0xffff0000);   /* the headlights' last attenuation */
     memset(hazard, 0, sizeof hazard);
 }
 
@@ -322,4 +334,42 @@ void Lamps_Frame(const int16_t *cars, int n)
         Lamps_Step(c);
     }
     PENDING_NOTE(0x45f4a0, "Weather_Step");
+}
+
+/* 0x4648f0: the daylight from the high colour, (R + G + B - 70) / 550, 0 to 1 (a 16-bit difference) */
+static int32_t daylight(void)
+{
+    uint8_t c[4];
+    Light_GetHigh(c);
+    int16_t d = (int16_t)(c[0] + c[1] + c[2] - 0x46);
+    int32_t v = (int32_t)(((int64_t)d << 32) / 0x2260000);
+    return v < 0 ? 0 : v > 0x10000 ? 0x10000 : v;
+}
+
+void Lamps_Lights(int car)
+{
+    Car *c = Car_Get(car);
+    int32_t day = daylight();
+    CW32(c, 0xb58, day != 0x10000);
+    int32_t a = fx_mul(day, 0x4c0000);
+    int32_t l;
+    Lens_Get(car, &l, &l, 4);
+    if (l == 0) a = 0x3e80000;
+    g_lights_keep = l != 0;   /* 0x4b6ef0 */
+    l = 0x10000 - l;
+    l = l < 0 ? 0 : l > 0x10000 ? 0x10000 : l;
+    a += fx_mul(l, 0x190000);
+    if (a != gms32(0x547ff4)) {
+        Dlight_SetAtten(head_light[0], a);
+        Dlight_SetAtten(head_light[1], a);
+        gw32(0x547ff4, (uint32_t)a);
+    }
+    if (!c->main) return;
+    const int32_t *m = c->main->local.m;   /* +0x98 */
+    for (int i = 0; i < 2; i++) {
+        int32_t p[3];
+        for (int k = 0; k < 3; k++)   /* 0x4b9c20, then the car's place */
+            p[k] = fx_mul(m[8 + k], ahead[i][2]) + fx_mul(m[4 + k], ahead[i][1]) + fx_mul(m[k], ahead[i][0]) + m[12 + k];
+        Obj_SetPosition(head_light[i], p);
+    }
 }

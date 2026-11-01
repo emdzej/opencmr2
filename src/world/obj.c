@@ -1,5 +1,6 @@
 /* Scene objects (see obj.h). */
 #include "world/obj.h"
+#include "render/dlight.h"
 #include "render/mesh.h"
 #include "world/section.h"
 #include <stdlib.h>
@@ -7,7 +8,7 @@
 
 Obj *g_objs[OBJ_MAX];
 int g_nobjs;
-static Obj *blocks[256];   /* the port's allocations, one per model */
+static Obj *blocks[1024];   /* the port's allocations, one per model or made object */
 static int nblocks;
 static FxMat view_fixed;   /* PTR_DAT_00520b78 + 0x2424 */
 static int32_t view_hold;  /* DAT_006838d0: View_Set works while this is below 5 (0 so far) */
@@ -42,7 +43,7 @@ void Obj_Attach(Obj *o, Obj *parent)
 
 Obj *C3d_Objects(const C3d *m, Obj *parent)
 {
-    if (!m->nobj || nblocks == 256 || g_nobjs + m->nobj > OBJ_MAX) return NULL;
+    if (!m->nobj || nblocks == 1024 || g_nobjs + m->nobj > OBJ_MAX) return NULL;
     Obj *o = calloc(m->nobj, sizeof *o);
     if (!o) return NULL;
     blocks[nblocks++] = o;
@@ -81,8 +82,49 @@ Obj *C3d_Objects(const C3d *m, Obj *parent)
     return o;
 }
 
+/* 0x4ac6f0: the first free place in the table (none: NULL), the object as 0x4ac140 sets it (kind 3,
+   every pass, no section, drawn sorted, its three matrices identity, dirty) and under the parent. Its
+   slot is the count of objects, not its place (the original's; the two differ once one is freed). */
+Obj *Obj_New(Obj *parent)
+{
+    int i = 0;
+    while (i < OBJ_MAX && g_objs[i]) i++;
+    if (i == OBJ_MAX || nblocks == 1024) return NULL;
+    Obj *o = calloc(1, sizeof *o);
+    if (!o) return NULL;
+    blocks[nblocks++] = o;
+    o->kind = 3;
+    o->mask = 0xff;
+    o->section = -1;
+    o->sorted = 1;
+    o->dirty = 1;
+    Mat_Identity(&o->rest);
+    Mat_Identity(&o->local);
+    Mat_Identity(&o->world);
+    Obj_Attach(o, parent);
+    g_objs[i] = o;
+    o->slot = (int16_t)g_nobjs++;
+    return o;
+}
+
+/* 0x4ac3d0: kinds 0-3 get the rest matrix back and the turn and move (kinds 1 and 2 also keep the
+   two, at +0x10 and +0x1c); then not inheriting, dirty with the ancestors. */
+void Obj_Place(Obj *o, const int32_t pos[3], const uint16_t a[3])
+{
+    if (!o) return;
+    if (o->kind >= 0 && o->kind <= 3) {
+        o->local = o->rest;
+        Obj_Rotate(o, pos, a);
+    }
+    o->inherit = 0;
+    for (; o; o = o->parent) o->dirty = 1;
+}
+
+/* With the objects their lights go (0x4ac680's kind 1). */
 void Obj_FreeAll(void)
 {
+    for (int i = 0; i < OBJ_MAX; i++)
+        if (g_objs[i] && g_objs[i]->kind == 1 && g_objs[i]->light) Dlight_Free(g_objs[i]->light);
     for (int i = 0; i < nblocks; i++) free(blocks[i]);
     nblocks = 0;
     memset(g_objs, 0, sizeof g_objs);

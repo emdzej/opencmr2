@@ -247,6 +247,50 @@ Not ported yet:
 - the fade of shadows near a car's lights (0x4b6ca0);
 - the shadows of sorted objects (0x4b50b0).
 
+## Device lights
+
+The Direct3D lights are records at 0x6dffa4: up to 60 of them, each a `D3DLIGHT7` with the slot's
+index at +0x68. `Dlight_Add` 0x4b2f80 takes the type, a 16.16 colour, a position, three angles and
+a parent object. It fills the first free slot and sets the light and switches it on. The colour is
+the diffuse; its alpha is 1/65536. The defaults are a direction of (0, 0, 1), a falloff of 1, an
+attenuation0 of 1, a theta of 0.5 and a phi of 1. By type:
+
+| Type | Direct3D | Fields |
+|---|---|---|
+| 0 | point | ambient = the colour, range 60, attenuation (0, 0, 0.1) |
+| 1 | spot | ambient = the colour, range 100, theta 0.2, phi 2, attenuation (0, 0, 0) |
+| 2 | directional | direction = -position made unit (the inline table square root) |
+| 3 | 4 (parallel point) | nothing else |
+
+With a parent, a new object is made under it (0x4ac6f0, set up by 0x4ac140: kind 3, every pass,
+sorted, identity matrices). It becomes kind 1 with the record as its data (0x4ac260) and is placed at
+the position, turned by the angles (0x4ac3d0). `Obj_Commit` then moves a point or spot light to the
+object's world position each time the object is dirty. The object is returned; without a parent the
+function returns 0. Freeing an object of kind 1 frees its record (0x4ac680, 0x4b3480). The count at
+0x6e0b48 drops even when the record is not found, and a freed light stays switched on.
+
+The device set-up (0x4a78a0) calls 0x4b2e50, which sets every light again and switches it on. It also
+sets a white material (diffuse and ambient 1) and recomputes ambient B (0x6e020c) from the low colour.
+
+The lights of a stage:
+- **The sun** (0, `Light_Defaults` 0x4918d0, with the horizons). A white directional light from
+  (50, 75, 75), under the world. `Light_SetMode` 2 and 3 switch it on for the cars.
+- **The headlights** (1 and 2, `Lamps_Setup` for car 0). Two grey point lights of 20 under the world.
+  `Light_SetMode` 0 and 1 switch on one each.
+
+**Each view** (0x464960 in `Race_DrawView`, for the camera's car):
+- **The daylight** (0x4648f0) is (R + G + B - 70) / 550 of the high colour, clamped to 0-1. The
+  difference is taken as 16 bits.
+- **The headlights' flag.** +0xb58 is set below full daylight.
+- **The attenuation0** starts at the daylight times 76. When the headlights' lens level (group 4,
+  `Lens_Get`) is 0, it is 1,000 instead, which leaves the lights dark. Then (1 - level) times 25 is
+  added.
+- The attenuation is set on both lights when it differs from the last value (0x547ff4).
+  `Lamps_Setup` resets that value to -1.
+- **Lights 1 and 2** stay on after a mode change (0x5210c0, 0x4b6ef0) while the lens is lit.
+- **The two lights move** to 30 and 15 ahead of the car (0x547fe0, 0x547fa0). Each offset is turned
+  by the main object's local matrix and added to its place.
+
 ## Glows
 
 A pool of light glows (0x6a2a98, 0x5c bytes each), made with the race (0x4ae170: 160, or 4 with option
@@ -329,7 +373,7 @@ and a shaft table (0x547ff8), five entries each by the lamp's texture byte.
   and are listed, two a car, in 0x543580 and 0x5431c0 for code not ported (0x45af90, 0x45d2d0).
 - With dents on, each lamp notes the damage slot vertex nearest its position at rest (the squared
   distance, under 1000, the first of equals). Each frame it is moved by that vertex's dent.
-- Car 0 also makes the headlights' two lights, 30 and 15 units ahead (0x4b2f80, not ported).
+- Car 0 also makes the headlights' two lights, 30 and 15 units ahead (0x4b2f80, see [Device lights](#device-lights)).
 
 **The lens** (0x477b60): the second model's type 0xe object. Its +0x2c is zeroed and its first polygon's
 texture, given blend type 2, is the lens. The interior model's lens is the same (the port does not load
