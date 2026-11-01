@@ -184,7 +184,7 @@ int Font_Height(int i)
 void Font_SetLayer(int l) { layer = l; }
 
 /* Font_SetCurrent 0x40b580 */
-static void set_current(int i, const uint8_t rgba[4])
+void Font_SetCurrent(int i, const uint8_t rgba[4])
 {
     cur = &slots[i];
     memcpy(cur_rgba, rgba, 4);
@@ -192,10 +192,10 @@ static void set_current(int i, const uint8_t rgba[4])
 
 /* Font_DrawGlyph 0x40b7c0: the glyph's atlas rectangle at (x, y) as a sprite turning about its middle
    (angle 0), flip value 8 (no flip). */
-static void draw_glyph(unsigned char ch, int16_t x, int16_t y)
+void Font_DrawGlyph(unsigned char ch, int16_t x, int16_t y)
 {
     Glyph g;
-    if (!Font_Glyph(&cur->f, ch, &g)) return;
+    if (!cur || !Font_Glyph(&cur->f, ch, &g)) return;
     Rect16 src = {(int16_t)g.x, (int16_t)g.y, (int16_t)g.w, (int16_t)g.h};
     Rect16 dst = {x, y, (int16_t)g.w, (int16_t)g.h};
     int32_t centre[3] = {g.w / 2 + x, g.h / 2 + y, 0};
@@ -224,7 +224,7 @@ void Font_Print(int slot, const char *str, int x, int y, const uint8_t rgba[4], 
     }
     if (flags & 0x10) cy = (int16_t)(cy - h[0x218 + 10]);
     if (flags & 0x20) cy = (int16_t)(cy - (int16_t)rd16(h + 8));
-    set_current(i0, rgba);
+    Font_SetCurrent(i0, rgba);
     for (int i = 0; i < len; i++) {
         unsigned char c = s[i];
         if (c == ' ') cx = (int16_t)(cx + (int16_t)rd16(h + 0x0c));
@@ -248,7 +248,7 @@ void Font_Print(int slot, const char *str, int x, int y, const uint8_t rgba[4], 
                         break;
                     }
                 }
-            draw_glyph(c, cx, cy);
+            Font_DrawGlyph(c, cx, cy);
             cx = (int16_t)(cx + g.w + adv);
         }
     }

@@ -34,3 +34,9 @@ void Fe_CarSetups(void);                  /* 0x406820 */
 void Fe_AgeProfiles(void);                /* 0x4ec1a0 */
 void Fe_Teardown(void);                   /* 0x49c0f0 to the mark, 0x4a5be0, 0x4a5d10 */
 void Fe_ClearGuests(void);                /* DAT_00819744 = 0 */
+void Fe_LettersInit(void);                 /* 0x4f3dd0 */
+void Fe_LettersUpdate(void);               /* 0x4f4050 */
+void Fe_LettersDraw(void);                 /* 0x4f45a0 */
+void Fe_LettersTrail(void);                /* 0x4f4650 */
+void Fe_LettersTrails(void);               /* 0x4f4760 */
+int Fe_ScrollPrev(void);                   /* 0x4f25b0: DAT_00525398 */

@@ -25,6 +25,7 @@ static bool pulse_up = true;          /* DAT_00524b8c */
 FeScroll *Fe_Scroll(int k) { return &scroll[k]; }
 void Fe_SetScrollPos(int i) { scroll_prev = scroll_cur = i; }
 void Fe_SetScrollPrev(int i) { scroll_prev = i; }
+int Fe_ScrollPrev(void) { return scroll_prev; }
 uint32_t Fe_MainTime(void) { return main_time; }
 
 static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }

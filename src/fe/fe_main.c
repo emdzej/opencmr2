@@ -81,7 +81,7 @@ void fe_4ef300(Menu *m, bool back)
 {
     (void)back;
     idle_since = Fe_Now();
-    PENDING_NOTE(0x4f3dd0, "the main menu's letters");
+    Fe_LettersInit();   /* 0x4f3dd0 */
     Scroll_Measure(Fe_Scroll(0), m);
     gw32(0x52afb4, gm32(0x52afb4) & ~0x80000u);
 }
@@ -91,6 +91,7 @@ void fe_4ef420(Menu *m)
 {
     (void)m;
     Scroll_Update(Fe_Scroll(0));
+    Fe_LettersUpdate();   /* 0x4f4050 */
     uint32_t now = Fe_Now();
     uint32_t held = 0;
     for (int i = 0; i < 8; i++) held |= Input_Record(i)->held;   /* 0x49e940 */
@@ -109,7 +110,9 @@ void fe_4d4ba0(Menu *m)
     Fe_Header();
     Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, -1, NULL, -1);
     Strip_DrawMain(m, true, NULL);
-    /* 0x4f45a0 the letters; 0x4f4650 and 0x4f4760 their pictures for items 1 and 2 */
+    Fe_LettersDraw();
+    if (m->items[m->sel].id == 1) Fe_LettersTrail();
+    if (m->items[m->sel].id == 2) Fe_LettersTrails();
 }
 
 /* 0x4f25d0: the strip's place kept; drivers (item 0) sets mode 2 and the driver flag; the selection

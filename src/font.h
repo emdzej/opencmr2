@@ -48,3 +48,6 @@ void Font_SetLayer(int layer);                    /* 0x40bab0: the sprite layer 
 /* Font_Print 0x40b880: s at (x, y) in rgba; flags 4 right-aligned, 2 centred (each line), 0x10 up by the
    first glyph's byte +0x0a, 0x20 up by the height. Draws three numbers from rand() first. */
 void Font_Print(int slot, const char *s, int x, int y, const uint8_t rgba[4], uint32_t flags);
+void Font_SetCurrent(int slot, const uint8_t rgba[4]);    /* 0x40b580 */
+/* 0x40b7c0: one glyph of the current font at (x, y), turning about its middle (angle 0) */
+void Font_DrawGlyph(unsigned char ch, int16_t x, int16_t y);
