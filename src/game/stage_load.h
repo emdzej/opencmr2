@@ -8,3 +8,4 @@
 bool Stage_Load(const char *stage, const char *path, const char *tex);
 bool Stage_Find(const char *stage, char *path, char *tex, size_t cap);   /* the port */
 void Stage_Name(char *dst, size_t cap);   /* the port: "fra02" from the selection */
+bool Stage_Arcade(char *stage, size_t scap, char *path, char *tex, size_t cap);   /* 0x41f560's arcade paths */

@@ -124,8 +124,12 @@ static const RaceHost host = {load_stage, load_cars, NULL, input, pose, draw, ca
 bool Play_Begin(void)
 {
     char stage[16], path[128], tex[128];
-    Stage_Name(stage, sizeof stage);
-    if (!Stage_Find(stage, path, tex, sizeof path) || !Stage_Load(stage, path, tex)) {
+    bool found = Stage_Arcade(stage, sizeof stage, path, tex, sizeof path);
+    if (!found) {
+        Stage_Name(stage, sizeof stage);
+        found = Stage_Find(stage, path, tex, sizeof path);
+    }
+    if (!found || !Stage_Load(stage, path, tex)) {
         plat_log("play: no such stage");
         return false;
     }

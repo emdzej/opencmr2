@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <ctype.h>
+#include "game/gstate.h"
 
 bool Stage_Load(const char *stage, const char *path, const char *tex)
 {
@@ -102,4 +104,26 @@ void Stage_Name(char *dst, size_t cap)
 {
     uint32_t s = gm32(0x52f2ac);
     snprintf(dst, cap, "%s%02u", exe_str(exe_u32(0x51931c + 4 * (s & 0x1f))), (s >> 5 & 0x1f) + 1);
+}
+
+/* Race_Setup 0x41f560's arcade branch (modes 5-7, 11, 12): the location (selection bits 10-11) and
+   its stage (12-13) index 0-7 into the rally table {6, 3, 1, 4, 0, 2, 5, 7} (on the stack); the stage
+   archive Tracks\chall\cha<n><hi|lo>.bfl, its files <prefix>-ch (the eighth "UKi-ch"), the rally's
+   textures. hi or lo by the clouds' detail (0x405d00). */
+bool Stage_Arcade(char *stage, size_t scap, char *path, char *tex, size_t cap)
+{
+    uint32_t m = Gs_Mode();
+    if (m != 5 && m != 6 && m != 7 && m != 11 && m != 12) return false;
+    static const int rally_of[8] = {6, 3, 1, 4, 0, 2, 5, 7};
+    uint32_t sel = gm32(0x52f2ac);
+    int idx = (int)(sel >> 10 & 3) * 3 + (int)(sel >> 12 & 3);
+    if (idx > 7) idx = 7;
+    int r = rally_of[idx];
+    const char *detail = exe_str((gm32(0x52afd0) >> 0x1b & 3) == 0 ? 0x519468 : 0x519464);
+    const char *prefix = exe_str(exe_u32(0x51931c + 4u * (uint32_t)r));
+    snprintf(stage, scap, "%s-ch", idx == 7 ? exe_str(0x5193f0) : prefix);
+    for (char *c = stage; *c; c++) *c = (char)tolower((unsigned char)*c);   /* 0x4aa700 */
+    snprintf(path, cap, "Game\\Tracks\\chall\\cha%02d%s.bfl", idx + 1, detail);
+    snprintf(tex, cap, "Game\\Tracks\\%s\\%s%st.bfl", exe_str(exe_u32(0x5192f8 + 4u * (uint32_t)r)), prefix, detail);
+    return true;
 }
