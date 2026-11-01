@@ -30,6 +30,7 @@ static int hud_place[4];               /* 0x536dfc + 0x48 n */
 static int rows[4][3];                 /* 0x536c94: the standings' three places */
 static int32_t my_split[4][12];        /* 0x536e10 + 0x48 n */
 static uint8_t show_for[4];            /* DAT_00536c20 */
+static int32_t last_time[4], ref_time[4];   /* 0x536e04, 0x536e08 + 0x48 n: the time at the last split, the reference */
 
 void Times_Clear(void)
 {
@@ -40,7 +41,7 @@ void Times_Clear(void)
     memset(split_idx, 0, sizeof split_idx);
     memset(my_split, 0, sizeof my_split);
     memset(show_for, 0, sizeof show_for);
-    for (int i = 0; i < 4; i++) rows[i][0] = rows[i][1] = rows[i][2] = -1, hud_place[i] = 0xf;
+    for (int i = 0; i < 4; i++) rows[i][0] = rows[i][1] = rows[i][2] = -1, hud_place[i] = 0xf, last_time[i] = -1, ref_time[i] = 0;
 }
 
 int32_t Times_Race(void) { return shown; }
@@ -85,7 +86,11 @@ static void rally_split(int p)
 {
     if (!Sectors_Split(p)) return;
     int idx = Sectors_Last(p);
-    if (!Sectors_LapFirst(p) && idx != 0 && idx < 12) my_split[p][idx] = hud_time[p];
+    if (!Sectors_LapFirst(p) && idx != 0 && idx < 12) {
+        my_split[p][idx] = hud_time[p];
+        ref_time[p] = ref_split[idx];
+        last_time[p] = hud_time[p];
+    }
     PENDING_NOTE(0x413330, "Hud_Split (the delta's colour and bar, 0x411ab0)");
     split_idx[p] = idx;
     uint32_t m = Gs_Mode();
@@ -125,17 +130,6 @@ void Hud_Update(int p, bool on_line)
     if (show_for[p]) show_for[p]--;
 }
 
-/* 0x415bd0: a time as MM:SS:cc (or --:--:--) in a font at a fraction of the screen */
-static void draw_time(int32_t t, int font, int32_t fx, int32_t fy, const uint8_t *rgba, uint32_t flags)
-{
-    char s[32];
-    if (t == -1) snprintf(s, sizeof s, "--:--:--");
-    else snprintf(s, sizeof s, "%02d:%02d:%02d", (t / 6000) % 100, (t % 6000) / 100, (t % 6000) % 100);
-    int w, h;
-    D3d_ScreenSize(&w, &h);
-    Font_Print(font, s, (int)(((int64_t)w * fx) >> 16), (int)(((int64_t)h * fy) >> 16), rgba, flags);
-}
-
 static const uint8_t *colour(uint32_t a)
 {
     static uint8_t c[8][4];
@@ -147,6 +141,8 @@ static const uint8_t *colour(uint32_t a)
 
 /* 0x415750: the name at place e of split s (a player's if one is there, else the driver's, short
    when asked), in the font's case */
+static void draw_time(int32_t t, int font, int32_t fx, int32_t fy, const uint8_t *box_rgba, uint32_t flags, const char *prefix, bool box);
+
 static void place_name(char *b, size_t n, int e, int s, bool shrt)
 {
     b[0] = 0;
@@ -186,8 +182,41 @@ static void standings(int p)
         if (!Opp_Loaded()) snprintf(b, sizeof b, "%s", exe_str(0x517de0));
         else t = Opp_TimeAt(e, split_idx[p]);
         Font_Print(0, b, ((w * 0x132a) >> 16) + ox, ty, colour(0x5170d0), 0x21);
-        draw_time(t, 5, (int32_t)(((int64_t)ox << 16) / w) + 0x51e4, (int32_t)(((int64_t)(ty - 1) << 16) / h), colour(0x5170d0), 0x24);
+        draw_time(t, 5, (int32_t)(((int64_t)ox << 16) / w) + 0x51e4, (int32_t)(((int64_t)(ty - 1) << 16) / h), colour(0x5170d0), 0x24, NULL, false);
     }
+}
+
+/* 0x415bd0: a time as <prefix>mm:ss.cc (or --:--.--) in a font at a fraction of the screen, in white,
+   on a box of its own colour when asked */
+static void draw_time(int32_t t, int font, int32_t fx, int32_t fy, const uint8_t *box_rgba, uint32_t flags, const char *prefix, bool box)
+{
+    char s[48];
+    if (!prefix) prefix = (const char *)gm(0x537084);
+    if (t == -1) snprintf(s, sizeof s, exe_str(0x517df4), prefix);
+    else snprintf(s, sizeof s, exe_str(0x517e00), prefix, (t / 6000) % 100, (t % 6000) / 100, (t % 6000) % 100);
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    if (box) {
+        int16_t r[4] = {(int16_t)(((w * fx) >> 16) - w / 160 - 2), (int16_t)(((h * fy) >> 16) - h / 240 - 2),
+                        (int16_t)(4 + w / 80 + Font_TextWidth(font, s)), (int16_t)(4 + h / 320 + Font_TextHeight(font, s))};
+        Rect_Fill(r, box_rgba, 2);
+    }
+    Font_Print(font, s, (int)(((int64_t)w * fx) >> 16), (int)(((int64_t)h * fy) >> 16), colour(0x5170f4), flags);
+}
+
+/* 0x4137e0's rally part: for 75 frames after a split, the difference to the reference time there
+   (the leader's), "-" and green when faster, "+" and red when slower, on its box under the
+   standings */
+static void split_delta(int p)
+{
+    int32_t last = last_time[p], ref = ref_time[p];
+    if (last == -1 || !show_for[p] || (split_idx[p] == 0 && Gs_Mode() != 12)) return;
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int x = (w * 0xc00) >> 16, y = ((h * 0xd668) >> 16) + ((h * 0xccc) >> 16) - 1;
+    int32_t fx = (int32_t)(((int64_t)(x + 4) << 16) / w), fy = (int32_t)(((int64_t)(y + 1) << 16) / h);
+    if (ref < last) draw_time(last - ref, 4, fx, fy, colour(0x5170a0), 9, exe_str(0x517e14), true);
+    else draw_time(ref - last, 4, fx, fy, colour(0x51709c), 9, exe_str(0x517e18), true);
 }
 
 /* 0x413fe0 for one player: a box (0x5170bc) and the time in lcd_640 (slot 4) at its top right */
@@ -201,7 +230,7 @@ static void time_panel(int p)
     if (gm32(0x543098)) PENDING_NOTE(0x459390, "Hud_TimePanel (laps)");
     Rect_Fill(r, colour(0x5170bc), 2);
     /* the viewport's corner (0, 0 for one player) over the screen, plus the offsets */
-    draw_time(hud_time[p], 4, 0xaf30, 0x2e66, colour(0x5170f4), 0x21);
+    draw_time(hud_time[p], 4, 0xaf30, 0x2e66, colour(0x5170f4), 0x21, NULL, false);
 }
 
 void Hud_Draw(int p)
@@ -215,5 +244,8 @@ void Hud_Draw(int p)
         else PENDING_NOTE(0x4147f0, "Hud_Standings (the other modes)");
     }
     if (flags & 8) time_panel(p);
-    if (flags & 0x20) PENDING_NOTE(0x4137e0, "Hud_SplitDelta");
+    if (flags & 0x20) {
+        if (m == 5 || m == 6 || m == 7 || m == 11 || m == 12 || Gs_SelBit25()) PENDING_NOTE(0x415f50, "Hud_SplitDelta (the arcade's)");
+        split_delta(p);   /* 0x4137e0 */
+    }
 }
