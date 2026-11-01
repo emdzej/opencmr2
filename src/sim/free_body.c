@@ -1,5 +1,6 @@
 /* The loose car (see free_body.h). */
 #include "sim/free_body.h"
+#include "sim/damage.h"
 #include "sim/car_internal.h"
 #include "sim/fade.h"
 #include "fixmath.h"
@@ -60,8 +61,8 @@ static void ground_hit(Car *c)
         int32_t h = fx_mul(CI32(c, 0x208), 0x20000);
         for (uint32_t k = 0; k < 3; k++) pt[k] += fx_mul(CI32(c, 0x36c + 4 * k), h);
     }
-    (void)pt;
-    PENDING_NOTE(0x466ef0, "Car_Damage");   /* Car_Damage(c, pt, (0, 1, 0), 0, 0, 0) */
+    static const int32_t up[3] = {0, 0x10000, 0};
+    Car_Damage(c, pt, up, 0, 0, false);
 }
 
 /* 0x42f9d0: the body lifted out of the ground by the deepest of the free corners under it, or, with

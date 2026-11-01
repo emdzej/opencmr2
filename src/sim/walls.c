@@ -9,6 +9,7 @@
 #include "game/mem.h"
 #include "pending.h"
 #include "sim/scenery.h"
+#include "sim/damage.h"
 #include <math.h>
 
 static int32_t box_rec[CAR_MAX][B_INTS];
@@ -467,8 +468,12 @@ void Car_Walls(Car *c, int n)
             break;
         }
         if (W.hit) {
-            /* the damage sees the strongest impulse over (1 - restitution); 0x5c4 is put back after */
-            PENDING_NOTE(0x466ef0, "Car_Damage");
+            /* the damage sees the strongest impulse over (1 - restitution), not within 10 steps of the
+               last; 0x5c4 is put back after */
+            int32_t keep[3], k = (int32_t)(0x100000000LL / (0x10000 - tbl00(type)));
+            for (uint32_t i = 0; i < 3; i++) keep[i] = CI32(c, 0x5c4 + 4 * i), CW32(c, 0x5c4 + 4 * i, fx_mul(W.hit_imp[i], k));
+            if (CI8(c, 0xb42) < 1) Car_Damage(c, W.hit_pt, W.hit_n, 0, W.hit_kind, false);
+            for (uint32_t i = 0; i < 3; i++) CW32(c, 0x5c4 + 4 * i, keep[i]);
             CW8(c, 0xb42, 10);
         }
     }

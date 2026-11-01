@@ -6,6 +6,7 @@
 #include "game/common.h"
 #include "game/hud.h"
 #include "game/sectors.h"
+#include "audio/crash.h"
 #include "audio/engine.h"
 #include "audio/codriver.h"
 #include "game/gstate.h"
@@ -17,6 +18,7 @@
 #include "sim/fade.h"
 #include "sim/progress.h"
 #include "exe.h"
+#include "fixmath.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
 #include "pending.h"
@@ -116,6 +118,7 @@ static void Race_Update(uint8_t state, bool flag)
                     !Fade_Active((int)i) && !gm8(0x52ea52)) {
                     Pause_Begin((int)i);   /* 0x404ea0 */
                     PENDING_NOTE(0x478c40, "the sounds' pause (0x478c40, 0x418ee0)");
+                    Crash_StopSounds();   /* 0x418780 */
                 }
             }
         }
@@ -135,9 +138,10 @@ static void Race_Update(uint8_t state, bool flag)
         for (uint32_t i = 0; i < np; i++)
             if (Car_Get((int)i)->s[0xb43]) Camera_Step((int)i);   /* 0x4219b0 */
         if (car0) PENDING_NOTE(0x4b0110, "Skids_Step");
-        /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60, 0x418b00) */
+        /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60 not ported,
+           0x418b00) */
         if (car0 && state > 6 && !gm8(0x52af40))
-            for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i);
+            for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i), Crash_UpdateSounds();
         Sim_StepDone(&g_all);
     }
     Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its effects not ported) */
@@ -155,10 +159,11 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
     R.loading = true;
     R.start_count = 0;
     if (slot == 0) {
-        /* 0x427c10: the engines at a third of the effects volume (the co-driver's and the others'
-           volumes, 0x41b040, 0x418560, 0x418d20, not ported) */
+        /* 0x427c10: the engines at a third of the effects volume, the collisions at two thirds (the
+           other volume, 0x41b040, not ported) */
         Engine_Volume((int32_t)(gm32(0x52afb8) >> 7 & 0x7f));
         Codriver_Volume((int32_t)(gm32(0x52afb8) >> 0xe & 0x7f));   /* 0x418560 */
+        Crash_Volume(fx_mul((int32_t)(gm32(0x52afb8) >> 7 & 0x7f) * 0x10000 / 100, 0xaaaa));   /* 0x418d20 */
         PENDING_NOTE(0x41f560, "Race_Setup 0x41f560, 0x41f260, 0x40efa0, 0x475f00");
         Bfl_MountCommon();
         Race_LoadText();   /* 0x478a20 */
@@ -198,7 +203,8 @@ static void s3_stage(ProcGroup *g, uint32_t slot)
 {
     if (!load_or_quit(g, slot, H->load_stage)) return;
     if (slot == 0) {
-        PENDING_NOTE(0x418ff0, "Race_LoadSounds 0x418ff0, 0x4188c0 (the surfaces', the collisions')");
+        PENDING_NOTE(0x418ff0, "Race_LoadSounds (the surfaces')");
+        Crash_LoadSounds();      /* 0x4188c0 */
         Codriver_LoadSpeech();   /* 0x416710 */
         Hud_LoadSounds();        /* 0x411120 */
     }

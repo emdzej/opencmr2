@@ -234,7 +234,12 @@ The 17 movable volumes (0x46008300 and 0x6008300) have radius 0.65.
     down (0x46fe70, pending).
 - **The impulse:** the velocity along the normal times 0x519c90 goes into +0x5c4; with option 4 it
   goes twice into the velocity instead. The damage (0x466ef0) is called once per object in a row of
-  steps, listed at +0xad6/+0xae0 (up to five).
+  steps, listed at +0xad6/+0xae0 (up to five). For a cylinder it gets the centre and radius (kind 1);
+  for a box, the first car corner inside it (kind 0), else the first of its corners inside the car's
+  box (kind 2), else no call. The walls call it at the walk's strongest hit, with the impulse over
+  (1 - the wall's restitution) put into +0x5c4 for the call. They skip it within 10 steps of the last
+  (+0xb42), and pass 0 for a face and 2 for an end. A landing or a roll passes the lowest box corner,
+  straight up.
 - **The turn:** the impulse is crossed with the contact (times 3 for a cylinder, 1.5 for a box). For a
   knock it is crossed with the contact lowered by one unit along the car's up axis (four for a hard
   knock) and taken four times, and a hard knock also lifts the car by 0.25. The result goes into
@@ -354,6 +359,42 @@ u16 frequency and a percent volume per step): the slow pair, the medium pair off
 pair on it (looped from a per-class offset, 0x51f2a0, 0x51f2d8), the front louder from the interior
 views, all faded with the camera's distance (0x427d50: full within 2 units, silent beyond 100) and at a
 third of the effects volume option (0x427c10).
+
+The collision sounds (`src/audio/crash.c`, confirmed): the stage load (state 3 at 0x401058) loads the
+surfaces' sounds (0x418ff0, not ported) and then 0x4188c0. That loads 21 WAVs from the common archive,
+each named `<sounds>\collision\<name>` (0x518a34), in three tables of name pointers:
+- 0x5188e4: SWIPE1-4 and COLLIS1-6 (first id at 0x537360);
+- 0x51890c: ROLL1-4 and LAND1-3 (0x5373ac);
+- 0x518928: HLIGHT1, HLIGHT2, SCREEN1, MIRROR (0x5373a8).
+
+They play on four slots (0x5373b0 handles; 0x537364 player, 0x537374 start time, 0x537384 volume,
+0x537398 car). `0x4187d0` takes the first free slot, else the one started longest ago (the first of
+equals), and stops its voice. It plays at 44,100 Hz at fade(car, player's camera) (0x427d50) times the
+base 0x537394 times the call's volume. Each step, beside the engines, 0x418b00 frees the finished slots
+and sets the volumes again. The pause stops them (0x418780). Both 0x418b00 and 0x418780 look at the
+first (players) slots only, so with one player only slot 0 follows the camera. The base is two thirds
+of the effects option (0x427c10's call to 0x418d20).
+
+The three ways in:
+- **0x418ba0 (a hit):** above 0.05, SWIPE1-4 and COLLIS1-6 by tenths of the strength, at full volume.
+- **0x418c30 (a roll):** ROLL1-4 at random, or LAND1-3 with its flag, at the strength as the volume.
+- **0x418cd0 (glass):** HLIGHT1 or 2, or SCREEN1, from the parts' breaking (0x4692f0, not ported).
+
+The first two raise the car's +0xb46 to 1 + 7 times the strength, at most 8.
+
+`Car_Damage` 0x466ef0 makes the sound in its first block, unless its last argument is set (as in
+`Damage_Reset`'s replay of carried damage):
+- the strength is |+0x5c4| clamped to 1;
+- for a player's car on its wheels (+0xb74) it plays 0x418ba0, at most every 10 centiseconds per player
+  (0x588a88; any hit stamps it, even one too weak to sound);
+- off its wheels it plays 0x418c30;
+- for every car it then shakes the view (0x4241d0): it rotates the impulse into the car's frame and
+  raises the player's record at 0x539200 (14 ints): [9] from the third axis's part (the sign in [12])
+  and [10] from the length, each 2.5 times the excess over 0.1, at most 1.
+
+0x539200 is indexed by any car's number, so cars 4-7 write past the four players' records. The port
+keeps the record, and the times at 0x588a88, in the game state at their addresses. The shake's readers
+(the interior views' head movement, 0x423ff0 and 0x4245e0) are not ported yet.
 
 ## Input
 

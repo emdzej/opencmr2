@@ -1,6 +1,7 @@
 /* The race cameras (see camera.h). */
 #include "game/camera.h"
 #include "sim/car.h"
+#include "sim/walls.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "game/mem.h"
@@ -464,3 +465,32 @@ void Camera_Frame(int p, int32_t frac, Obj *camera)
 }
 
 void Camera_Position(int p, int32_t pos[3]) { pos[0] = out[p].m[12], pos[1] = out[p].m[13], pos[2] = out[p].m[14]; }
+
+/* 0x539200: per player 14 ints of the interior views' head movement (kept in the game state at their
+   address: the shake indexes them by any car's number, so cars 4-7 write past the players' four, as
+   in the original); the shake sets [9], [10], [12]. 0x539278 is left at the record; the car at
+   0x53937c, which the head movement's other functions read, is not kept. */
+static uint32_t head(int n, int k) { return 0x539200 + 0x38 * (uint32_t)n + 4 * (uint32_t)k; }
+
+/* above 0.1, 2.5 per unit, at most 1 */
+static int32_t shake_level(int32_t x)
+{
+    int32_t v = fx_mul(x - 0x1999, 0x28000);
+    return v < 0 ? 0 : 0x10000 < v ? 0x10000 : v;
+}
+
+void Camera_Shake(const Car *c, const int32_t imp[3], bool along)
+{
+    int n = CI8(c, 0xb1a);
+    int32_t l[3];
+    gw32(0x539278, head(n, 0));
+    Walls_RotT(c, l, imp);   /* Vec_RotateT 0x4b9da0 by the orientation (+0x750) */
+    if (along) {
+        int32_t v = shake_level(l[2] < 0 ? -l[2] : l[2]);
+        if (gms32(head(n, 9)) < v) gw32(head(n, 9), (uint32_t)v), gw32(head(n, 12), l[2] < 0);
+    }
+    int32_t v = shake_level((int32_t)Fx_Sqrt((uint32_t)fx_mul(l[0], l[0]) + (uint32_t)fx_mul(l[1], l[1]) + (uint32_t)fx_mul(l[2], l[2])));
+    if (gms32(head(n, 10)) < v) gw32(head(n, 10), (uint32_t)v);
+}
+
+int32_t Camera_ShakeLevel(int p, int k) { return gms32(head(p, k)); }

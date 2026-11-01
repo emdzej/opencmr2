@@ -2,6 +2,7 @@
    0x5915f8 (the object's centre, radius and height, the push, the normal, the thresholds) are the
    fields of S here. */
 #include "sim/scenery.h"
+#include "sim/damage.h"
 #include "sim/walls.h"
 #include "world/section.h"
 #include "world/stage.h"
@@ -632,7 +633,16 @@ static bool respond(Car *c, const Entry *e, int id)
     if (!seen) {
         /* a cylinder: at its centre with its radius (kind 1); a box: at the first car corner in it
            (kind 0), else at the first of its corners in the car's box (kind 2), else none */
-        if (!S.box || S.ncar || S.nobj) PENDING_NOTE(0x466ef0, "Car_Damage");
+        int32_t pt[3];
+        if (!S.box) {
+            for (int i = 0; i < 3; i++) pt[i] = S.pos[i];
+            Car_Damage(c, pt, S.n, (uint32_t)S.r, 1, false);
+        } else if (S.ncar) {
+            for (uint32_t i = 0; i < 3; i++) pt[i] = CI32(c, 0x270 + 12 * S.car_at[0] + 4 * i);
+            Car_Damage(c, pt, S.n, 0, 0, false);
+        } else if (S.nobj) {
+            Car_Damage(c, &S.obox[B_CORNER + 3 * S.obj_at[0]], S.n, 0, 2, false);
+        }
     }
     if (!down && knock) {
         CW32(c, 0x96c, 0x10000);

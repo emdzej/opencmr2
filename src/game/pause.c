@@ -1,6 +1,8 @@
 /* The race's pause menu (see pause.h), ported from 0x401000-0x405500. */
 #include "game/pause.h"
 #include "audio/codriver.h"
+#include "audio/crash.h"
+#include "fixmath.h"
 #include "audio/engine.h"
 #include "audio/music.h"
 #include "fe/menu.h"
@@ -291,6 +293,7 @@ static void sound_leave(Menu *m, bool back)
     }
     Engine_Volume((int32_t)vol(7));
     Codriver_Volume((int32_t)vol(14));
+    Crash_Volume(fx_mul((int32_t)vol(7) * 0x10000 / 100, 0xaaaa));   /* 0x418d20 */
 }
 
 static void stub_draw(Menu *m) { draw_confirm(m); }

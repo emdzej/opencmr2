@@ -11,3 +11,4 @@ bool Engine_Load(int players);             /* 0x478f50 */
 void Engine_Reset(void);                   /* 0x478dc0 */
 void Engine_Volume(int32_t sfx_percent);   /* 0x427c10's: a third of the effects volume */
 void Engine_Update(int car, int player);   /* 0x47a710 */
+int32_t Engine_DistanceFade(int car, int player);   /* 0x427d50: 1.0 within 2 units of player's camera, 0 beyond 100 */

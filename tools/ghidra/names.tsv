@@ -544,3 +544,12 @@
 00418580	Notes_Arrow	codriver	high	A call's HUD arrow; whether it has one
 00418560	Codriver_SetVolume	codriver	high	The co-driver's volume (0x537194)
 00418760	Speech_Load	codriver	high	Snd_LoadNamed from the speech archive
+00418780	Crash_StopSounds	audio	high	The collision voices stopped (the first players' slots), at the pause
+004187d0	Crash_Play	audio	high	A collision sound on the first free slot or the oldest, faded by the camera's distance, at 44,100 Hz
+004188c0	Crash_LoadSounds	audio	high	The 21 collision WAVs (Sounds\collision\): swipes and crashes, rolls and landings, glass
+00418b00	Crash_UpdateSounds	audio	high	The collision slots' volumes each step, the finished freed
+00418ba0	Crash_Hit	audio	high	A hit's sound: SWIPE1-4, COLLIS1-6 by tenths of the strength, above 0.05; raises +0xb46
+00418c30	Crash_Roll	audio	high	A roll's sound: ROLL1-4, or LAND1-3; raises +0xb46
+00418cd0	Crash_Glass	audio	high	HLIGHT1-2 or SCREEN1 when a part breaks
+00418d20	Crash_Volume	audio	high	The collision sounds' base volume (two thirds of the effects option)
+004241d0	Camera_Shake	race	high	A hit's impulse into the player's head-movement record (0x539200 [9], [10], [12])

@@ -73,7 +73,7 @@ static int32_t length(const int32_t v[3])
 }
 
 /* 0x427d50: full within 2 units of the camera, silent beyond 100 */
-static int32_t distance_fade(int car, int player)
+int32_t Engine_DistanceFade(int car, int player)
 {
     const Car *c = Car_Get(car);
     int32_t cam[3], v[3];
@@ -158,7 +158,7 @@ static void mix(int car, int player, int rpm2, int rpm, int gear, int throttle)
     gear_now[car] = gear;
     if (1 < gear) high_gear[car] = 1;
     if (5000 < rpm2) high_revs[car] = 1;
-    int32_t fade = distance_fade(car, player);
+    int32_t fade = Engine_DistanceFade(car, player);
     if (!in_band(rpm2, &slow)) {
         Voice_SetFrequency(v_fs[car], 0x2b11), Voice_SetVolume(v_fs[car], 0);
         Voice_SetFrequency(v_rs[car], 0x2b11), Voice_SetVolume(v_rs[car], 0);
