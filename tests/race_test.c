@@ -168,7 +168,8 @@ int main(void)
     for (int q = 0; q < 4; q++) Race_DrawOverlays(0);
     printf("co-driver: %d words queued, the car at point %d\n", Codriver_Said(), Car_CatIndex(Car_Get(0)));
     CHECK(Codriver_Said() > 4);
-    /* the overlays: the time panel's box and the recovery's fade (0x428680), two triangles each */
+    /* the overlays: the time panel's box and the recovery's fade (0x428680), two triangles each, and
+       the split bar (0x4143f0): a box per split (the passed part apart) and marks between them */
     if (Game_Mode() == 3) {
         CW32(Car_Get(0), 0xbf8, 1);
         for (int k = 0; k < 6; k++, frame++) {
@@ -179,7 +180,7 @@ int main(void)
         int before = Tri_Queued();
         Race_DrawOverlays(0);
         printf("fade: level %.3f, %d triangles queued\n", Fade_LevelOf(0) / 65536.0, Tri_Queued() - before);
-        CHECK(Fade_LevelOf(0) > 0 && Tri_Queued() - before == 4);
+        CHECK(Fade_LevelOf(0) > 0 && Tri_Queued() - before >= 4 + 2 * Sectors_Count());
     }
     CHECK(seen[5] && seen[7] && seen[8] && seen[5] < seen[7] && seen[7] < seen[8]);
     /* the countdown: five seconds of 40 ms steps from its first frame, 300 frames at 60 Hz */

@@ -223,6 +223,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
         if (R.place) {
             if (H->place_cars) H->place_cars();
             Sectors_Start();   /* 0x458100, in 0x424c50 */
+            Hud_Init(1);       /* 0x411450 */
             R.place_count = 1;
             R.place = 0;
         }
@@ -351,6 +352,7 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             Opp_Times(false);   /* 0x455470 */
             Engine_Reset();
             Times_Clear();
+            Hud_Init(gm8(0x53810c));   /* 0x411450 */
             PENDING_NOTE(0x41e6b0, "Race_Restart's lights, splits and replay (0x463d00, 0x4584d0, 0x42b800)");
             R.nfinished = 0, R.done = 0;
             memset(R.finished, 0, sizeof R.finished);

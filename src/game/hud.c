@@ -13,6 +13,8 @@
 #include "render/d3d7.h"
 #include "render/twod.h"
 #include "sim/sim.h"
+#include "sim/progress.h"
+#include "fixmath.h"
 #include "pending.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,11 +39,123 @@ void Times_Clear(void)
     shown = clock_ = 0;
     for (int i = 0; i < CAR_MAX; i++) done[i] = 0;
     memset(splits, 0, sizeof splits);
+}
+
+/* The split bar's tables stay at the original's addresses, as its layout reads past their ends (the
+   thirteenth box is the first colour): per player (0xa0 apart) 12 boxes (x, y, w, h), 12 colours,
+   the passed part of the current one and the rest */
+#define BAR_BOX(p, i) (0x536cb8u + 0xa0u * (uint32_t)(p) + 8u * (uint32_t)(i))
+#define BAR_COL(p, i) (0x536d18u + 0xa0u * (uint32_t)(p) + 4u * (uint32_t)(i))
+#define BAR_DONE(p) (0x536d48u + 0xa0u * (uint32_t)(p))
+#define BAR_REST(p) (0x536d50u + 0xa0u * (uint32_t)(p))
+#define SPLIT_PT(i) (0x536ff0u + 8u * (uint32_t)(i))   /* each split's centre-line point, then its distance */
+#define NSPLITS 0x536c90u
+
+static void box_at(uint32_t a, int16_t r[4]) { for (int i = 0; i < 4; i++) r[i] = gms16(a + 2u * (uint32_t)i); }
+
+/* 0x411880: the screen split between two players */
+static bool split_screen(void)
+{
+    if (Gs_SelBits14() > 1 && !Gs_ModeBit17() && Gs_Mode() != 4) return true;
+    if (Gs_Mode() == 4) PENDING_NOTE(0x4070f0, "Split_Screen (the network game's)");
+    return false;
+}
+
+/* 0x411550: the splits shown (no more than 12 unless one lap), each one's point and its distance
+   along the centre line (the sum of the steps' lengths over 100); the ones past the last at the
+   finish. Returns the stage's length the same way. */
+static int32_t split_distances(void)
+{
+    int32_t n;
+    if ((gm32(0x52f2ac) >> 0x10 & 0xf) == 1) n = Gs_SelBit25() ? Sectors_Count() + 1 : Sectors_Count();   /* Gs_Laps 0x406990 */
+    else n = Sectors_Count() > 0xc ? 0xc : Sectors_Count();
+    gw32(NSPLITS, (uint32_t)n);
+    int32_t d = 0, at = 0;
+    for (int i = 0; i < Cat_FinishPoint(); i++) {
+        if (i > 0) {
+            int32_t a[3], b[3];
+            Cat_Point(i - 1, a);
+            Cat_Point(i, b);
+            int64_t x = b[0] - a[0], y = b[1] - a[1], z = b[2] - a[2];
+            at = d + (int32_t)Fx_Sqrt((uint32_t)((x * x) >> 16) + (uint32_t)((y * y) >> 16) + (uint32_t)((z * z) >> 16)) / 100;
+        }
+        for (int k = 0; k < n; k++)
+            if (Sectors_Point(k) >> 16 == i) gw32(SPLIT_PT(k), (uint32_t)i), gw32(SPLIT_PT(k) + 4, (uint32_t)at);
+        d = at;
+    }
+    for (int k = Gs_SelBit25() ? n - 1 : n; k < 0xc; k++) gw32(SPLIT_PT(k) + 4, (uint32_t)d), gw32(SPLIT_PT(k), (uint32_t)(Cat_FinishPoint() - 1));
+    return d;
+}
+
+/* 0x411b20: the split bar's boxes, the stage's length across the top of the screen from the left
+   edge (further left in modes 8, 9, 11, another place on a split screen) to 95%, each split's box
+   from its distance; a box's colour green or red when the player was faster or slower over it than
+   the reference (in mode 4 than the other player) */
+static void bar_layout(void)
+{
+    int32_t total = split_distances();
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    uint32_t m = Gs_Mode();
+    bool wide = m == 8 || m == 9 || m == 11;
+    int left;
+    if (wide) left = (w * 0xc00) >> 16;
+    else if (split_screen() && !(gm32(0x52afb4) >> 0x12 & 1)) left = ((w * 0xc934) >> 16) - 10;   /* 0x405dc0 */
+    else left = (w * 0xab9b) >> 16;
+    if (total == 0) total = 1;
+    int32_t n = gms32(NSPLITS);
+    if (n == 0) return;
+    for (int p = 0; p < 2; p++) {
+        for (int i = 0; i < 0xc; i++) {
+            int16_t ox = 0, oy = 0;
+            if (split_screen()) {
+                if (!(gm32(0x52afb4) >> 0x12 & 1)) { if (p == 0) ox = (int16_t)-(w / 2); }   /* (the first player's moved off to the left) */
+                else if (p == 1) oy = (int16_t)(h / 2);
+            }
+            int32_t f = (int32_t)(((int64_t)gms32(SPLIT_PT(i) + 4) << 16) / total);
+            int16_t x = (int16_t)((int16_t)(((int64_t)f * (int64_t)((((w * 0xf400) >> 16) - left) * 0x10000)) >> 32) + left + ox);
+            int16_t y = (int16_t)((wide ? (int16_t)((uint32_t)(h * 0x554) >> 16) : (int16_t)((uint32_t)(h << 12) >> 16)) + oy);
+            if (i == n) x = (int16_t)((int16_t)((uint32_t)(w * 0xf400) >> 16) + ox);
+            gw16(BAR_BOX(p, i), (uint16_t)x);
+            gw16(BAR_BOX(p, i) + 2, (uint16_t)y);
+            gw16(BAR_BOX(p, i) + 6, (uint16_t)((int16_t)((uint32_t)(h * 0xaac) >> 16) + 1));
+            /* the default colour, its alpha the byte before it */
+            gw8(BAR_COL(p, i), gm8(0x5170a8)), gw8(BAR_COL(p, i) + 1, gm8(0x5170a9));
+            gw8(BAR_COL(p, i) + 2, gm8(0x5170aa)), gw8(BAR_COL(p, i) + 3, gm8(0x5170a7));
+            int32_t mine = my_split[p][i], prev = i ? my_split[p][i - 1] : hud_time[p];
+            if (m == 4) {
+                if (mine) {
+                    int32_t other = my_split[(p + 1) % 2][i];
+                    gw32(BAR_COL(p, i) - 4, gm32(!other || mine < other ? 0x51709c : 0x5170a0));
+                }
+            } else if (mine) {
+                int32_t rp = i ? ref_split[i - 1] : gms32(0x536e90);
+                gw32(BAR_COL(p, i) - 4, gm32(mine - prev < ref_split[i] - rp ? 0x51709c : 0x5170a0));
+            }
+        }
+        for (int i = 0; i < 0xc; i++) gw16(BAR_BOX(p, i) + 4, (uint16_t)(gms16(BAR_BOX(p, i + 1)) - gms16(BAR_BOX(p, i))));
+    }
+}
+
+/* Hud_Init 0x411450 (Stage_Load with 0, the line with 1, the restart with 0x53810c): the clock's
+   cap, the reference splits forgotten (0x4111a0), the bar laid out; the map in the other modes */
+void Hud_Init(int again)
+{
+    gw32(0x537068, Gs_SelBit25() || Gs_SelBit24() ? 24000 : 48000);
+    /* 0x4111a0 */
+    memset(ref_split, 0, sizeof ref_split);
     hud_ready = false;
-    memset(split_idx, 0, sizeof split_idx);
-    memset(my_split, 0, sizeof my_split);
+    gw32(0x536c40, 0);
     memset(show_for, 0, sizeof show_for);
-    for (int i = 0; i < 4; i++) rows[i][0] = rows[i][1] = rows[i][2] = -1, hud_place[i] = 0xf, last_time[i] = -1, ref_time[i] = 0;
+    for (int i = 0; i < 4; i++) {
+        rows[i][0] = rows[i][1] = rows[i][2] = -1;
+        last_time[i] = -1, split_idx[i] = 0, hud_time[i] = 0, hud_place[i] = 0, ref_time[i] = 0;
+        memset(my_split[i], 0, sizeof my_split[i]);
+    }
+    bar_layout();
+    if (!again) gw32(0x53706c, 0);
+    uint32_t m = Gs_Mode();
+    if (m == 5 || m == 6 || m == 7 || m == 4 || m == 11 || m == 12 || Gs_SelBit25()) PENDING_NOTE(0x415e30, "Hud_MapInit");
 }
 
 int32_t Times_Race(void) { return shown; }
@@ -91,10 +205,16 @@ static void rally_split(int p)
         ref_time[p] = ref_split[idx];
         last_time[p] = hud_time[p];
     }
-    PENDING_NOTE(0x413330, "Hud_Split (the delta's colour and bar, 0x411ab0)");
+    /* the box just finished green or red (unless 0x536c40 is the cap) and the faster or slower beep */
+    if (gm32(0x536c40) != gm32(0x537068) && p < 2) {
+        int32_t mine = idx < 12 ? my_split[p][idx] : 0, prev = idx == 0 ? hud_time[p] : my_split[p][idx - 1 < 12 ? idx - 1 : 11];
+        int32_t rp = idx == 0 ? gms32(0x536e90) : ref_split[idx - 1];
+        gw32(BAR_COL(p, idx) - 4, gm32(mine - prev < ref_split[idx < 12 ? idx : 11] - rp ? 0x51709c : 0x5170a0));
+        if (idx != 0) PENDING_NOTE(0x411ab0, "Hud_SplitBeep");
+    }
     split_idx[p] = idx;
     uint32_t m = Gs_Mode();
-    if (m != 5 && m != 6 && idx != 0) show_for[p] = 0x4b;
+    if (m != 5 && m != 6 && idx != 0) show_for[p] = 0x4b, gw8(0x5170e3 + 4u * (uint32_t)p, 0xff);
     if (m != 5 && m != 6 && m != 7 && m != 4) hud_place[p] = Opp_Loaded() ? Opp_PlaceAt(Race_Base() + p, idx) : 0xf;
 }
 
@@ -117,6 +237,15 @@ static void standings_rows(int p)
 
 void Hud_Update(int p, bool on_line)
 {
+    static int lw, lh;
+    static uint8_t lb;   /* DAT_00536edc, DAT_0051711c, DAT_00537080 */
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    uint8_t b = (uint8_t)(gm32(0x52afb4) >> 0x12 & 1);
+    if (w != lw || h != lh || b != lb) {
+        bar_layout();   /* 0x411b20 */
+        lw = w, lh = h, lb = b;
+    }
     /* 0x411f70's first frame: the reference splits, the leader's (0x455d40(0, i)) */
     if (!hud_ready && Opp_Loaded() && Gs_Mode() != 3 && Gs_Mode() != 7) {
         hud_ready = true;
@@ -125,6 +254,16 @@ void Hud_Update(int p, bool on_line)
     PENDING_NOTE(0x411f70, "Hud_Update (the gauges, the splits' bar, the messages)");
     if (on_line) hud_time[p] = 0;
     else hud_time[p] = Race_Finished(p) ? Times_Finish(p) : Times_Race();
+    /* the passed part of the current split's box, by the furthest point reached */
+    if (p < 2) {
+        int idx = split_idx[p];
+        int32_t start = gms32(SPLIT_PT(idx)), len = gms32(SPLIT_PT(idx + 1)) - start;
+        int16_t r[4];
+        box_at(BAR_BOX(p, idx), r);
+        int16_t done_w = len ? (int16_t)(((Sectors_Most(p) & 0xffff) - start) * r[2] / len) : 0;
+        int16_t a[4] = {r[0], r[1], done_w, r[3]}, z[4] = {(int16_t)(r[0] + done_w), r[1], (int16_t)(r[2] - done_w), r[3]};
+        for (int i = 0; i < 4; i++) gw16(BAR_DONE(p) + 2u * (uint32_t)i, (uint16_t)a[i]), gw16(BAR_REST(p) + 2u * (uint32_t)i, (uint16_t)z[i]);
+    }
     rally_split(p);   /* 0x413160 */
     standings_rows(p);   /* 0x414720 */
     if (show_for[p]) show_for[p]--;
@@ -219,12 +358,39 @@ static void split_delta(int p)
     else draw_time(ref - last, 4, fx, fy, colour(0x51709c), 9, exe_str(0x517e18), true);
 }
 
+/* 0x4143f0: the split bar, each split's box in its colour, the current one's passed part opaque,
+   1-pixel marks at the inner splits (not when the selection's bit 28 is set, unless 0x536c40 is
+   neither 0 nor the cap) */
+static void split_bar(int p)
+{
+    uint32_t c40 = gm32(0x536c40);
+    if (Gs_SelBit28() && (c40 == gm32(0x537068) || c40 == 0)) return;
+    int32_t n = gms32(NSPLITS);
+    int16_t r[4];
+    for (int i = 0; i <= n; i++) {
+        if (i == split_idx[p]) {
+            gw32(0x5170cc, 0xff000000u | (gm32(BAR_COL(p, i)) & 0xffffff));
+            box_at(BAR_DONE(p), r);
+            Rect_Fill(r, colour(0x5170cc), 2);
+            box_at(BAR_REST(p), r);
+        } else box_at(BAR_BOX(p, i), r);
+        Rect_Fill(r, colour(BAR_COL(p, i)), 2);
+        if (i > 0 && i < n - 1) {
+            box_at(BAR_BOX(p, i), r);
+            r[2] = 1;
+            Rect_Fill(r, colour(0x5170ac), 2);
+        }
+    }
+}
+
 /* 0x413fe0 for one player: a box (0x5170bc) and the time in lcd_640 (slot 4) at its top right */
 static void time_panel(int p)
 {
     int w, h;
     D3d_ScreenSize(&w, &h);
-    PENDING_NOTE(0x4143f0, "Hud_SplitBar");
+    uint32_t m = Gs_Mode();
+    if (m == 8 || m == 9 || m == 11) PENDING_NOTE(0x414550, "Hud_SplitBar (the arcade's)");
+    else if (p < 2) split_bar(p);   /* 0x4143f0 */
     int16_t r[4] = {(int16_t)((w * 0xab9b) >> 16), (int16_t)((h * 0x1aac) >> 16), (int16_t)(((w * 0x4865) >> 16) + 1),
                     (int16_t)((h * 0x1554) >> 16)};
     if (gm32(0x543098)) PENDING_NOTE(0x459390, "Hud_TimePanel (laps)");
