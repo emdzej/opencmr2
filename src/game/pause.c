@@ -41,6 +41,14 @@ bool Pause_RestartAsked(void) { return ask_restart; }
 bool Pause_QuitAsked(void) { return ask_quit; }
 bool Pause_ServiceAsked(void) { return ask_service; }
 void Pause_ClearAsks(void) { ask_restart = ask_quit = ask_service = false; }
+void Pause_Ask(bool restart, bool service, bool quit)
+{
+    if (restart) ask_restart = true;
+    if (service) ask_service = true;
+    if (quit) ask_quit = true;
+}
+Tex *Pause_ArrowOn(void) { return arrow_on; }    /* 0x4055e0 */
+Tex *Pause_ArrowOff(void) { return arrow_off; }  /* 0x4055f0 */
 
 /* 0x404e10: the pause key, the race input's bit 0x400 (Escape on the keyboard); the port reads the
    key's press and the pad's Start */

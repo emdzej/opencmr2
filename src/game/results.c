@@ -1,0 +1,221 @@
+/* The stage's results (see results.h), ported from 0x448e60-0x44b7b0 and 0x453c50. */
+#include "game/results.h"
+#include "fe/menu.h"
+#include "exe.h"
+#include "font.h"
+#include "render/tex.h"
+#include "game/gstate.h"
+#include "game/input.h"
+#include "game/mem.h"
+#include "game/pause.h"
+#include "game/race.h"
+#include "pending.h"
+#include "render/d3d7.h"
+#include "render/twod.h"
+#include "sim/fade.h"
+#include "text.h"
+#include <stdio.h>
+
+static Menu pg_title, pg_times, pg_splits, pg_board, pg_end;   /* 0x53ea68, 0x541218, 0x53f5b0, 0x53e4b8, 0x541400 */
+static Menu *page, *next;          /* DAT_00541cc8, DAT_00541ccc */
+static Menu *shown;                /* DAT_00541dfc */
+static int settle;                 /* DAT_00541e00 */
+static bool active;
+
+static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }
+static const uint8_t *C(uint32_t va) { return gm(va); }   /* 0x519ecc, 0x519ed0, 0x519ed4 */
+static uint32_t mode(void) { return Gs_Mode(); }
+
+/* 0x44b760: the screen dimmed */
+static void dim(void)
+{
+    int w, h;
+    screen(&w, &h);
+    int16_t r[4] = {0, 0, (int16_t)w, (int16_t)h};
+    Font_SetLayer(2);
+    Rect_Fill(r, C(0x519ed4), 2);
+}
+
+/* 0x408400 */
+static const char *player_name(int n)
+{
+    uint32_t p = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
+    return p == 0xf ? "" : (const char *)gm(0x52fa18 + p * 0x650);
+}
+
+/* a page's title at (30, 67) of 640 x 480 with a separator after it; the x after */
+static int title(int16_t text)
+{
+    int w, h;
+    screen(&w, &h);
+    Font_Print(2, Text_Get(text), w * 0x1e / 0x280, h * 0x43 / 0x1e0, C(0x519ecc), 0x11);
+    int x = w * 0x1e / 0x280 + Font_TextWidth(2, Text_Get(text)) + w * 8 / 0x280;
+    int16_t r[4] = {(int16_t)x, (int16_t)(h * 0x25 / 0x1e0), 2, (int16_t)(h * 0x29 / 0x1e0)};
+    Rect_Fill(r, C(0x519ecc), 2);
+    return x + 2 + w * 8 / 0x280;
+}
+
+/* 0x44b7b0: the replay's title and the driver followed (the one-player rally's path; the
+   championship's and the alternate players' names not ported) */
+static void draw_title(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    int x = title(0x47);
+    if (mode() == 4 || Gs_SelBit26() || Gs_SelBit27()) PENDING_NOTE(0x44b7b0, "the results title's other modes");
+    Font_Print(2, player_name(0), x, h * 0x43 / 0x1e0, C(0x519ecc), 0x11);
+    Font_SetLayer(2);
+}
+
+/* the times, splits and board pages (0x44bcd0, 0x44d790, 0x44d960): their tables not ported yet */
+static void draw_pending(Menu *m)
+{
+    (void)m;
+    PENDING_NOTE(0x44bcd0, "the results' times, splits and standings (0x44bcd0, 0x44d790, 0x44d960)");
+    dim();
+    title(0x47);
+    Font_SetLayer(2);
+}
+
+/* 0x453c50: the choices: each item's name (with the next player's for id 0x3ea) and its description,
+   the pause menu's arrows */
+static void draw_end(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    dim();
+    Font_Print(2, Text_Get(0x56), w * 0x1e / 0x280, h * 0x43 / 0x1e0, C(0x519ecc), 0x11);
+    Tex *on = Pause_ArrowOn(), *off = Pause_ArrowOff();
+    for (int i = 0; i < m->n; i++) {
+        MenuItem *it = &m->items[i];
+        bool lit = m->sel == i;
+        uint32_t c = lit ? 0x519ecc : 0x519ed0;
+        int y = h * 0xde / 0x1e0 + (h * 0x36 / 0x1e0) * i;
+        char b[160];
+        if (it->id == 0x3ea) snprintf(b, sizeof b, exe_str(0x517dd8), Text_Get(it->text), player_name(Race_Base() + 1));
+        else snprintf(b, sizeof b, "%s", Text_Get(it->text));
+        Font_Print(1, b, w * 0x86 / 0x280, y, C(c), 0x11);
+        Font_Print(0, Text_Get(it->text + 1), w * 0x86 / 0x280, h * 0xf / 0x1e0 + y, C(c), 0x11);
+        Tex *t = lit ? on : off;
+        if (t && on) {
+            Rect16 src = {0, 0, t->width, t->height};
+            Rect16 d = {(int16_t)(w * 0x70 / 0x280), (int16_t)(y - h * 0xd / 0x1e0), on->width, on->height};
+            Sprite_Add(&src, &d, t, 2, 0, NULL, NULL, C(c), 8);
+        }
+    }
+    Font_SetLayer(2);
+}
+
+/* the fades' ends (0x449ea0, 0x449ee0, 0x449020): the race to the results state with the flag */
+static void restart_done(int ch) { (void)ch; Race_EventAll(1, 3); Pause_Ask(true, false, false); }
+static void service_done(int ch) { (void)ch; Race_EventAll(1, 3); Pause_Ask(true, true, false); }
+static void quit_done(int ch)
+{
+    (void)ch;
+    Race_EventAll(1, 3);
+    if (mode() == 4) gw32(0x52f2b0, gm32(0x52f2b0) | 0x800000);
+    Pause_Ask(false, false, true);
+}
+
+static int32_t fade_colour(void)
+{
+    uint32_t m = mode();
+    return (int32_t)(m == 8 || m == 1 || m == 0 ? gm32(0x519ec8) : gm32(0x541cd4));
+}
+
+/* 0x449f30, 0x44a0a0, 0x449b00: every car's fade, the first calling back */
+static void restart_fn(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : restart_done, 1, 0, fade_colour(), true);
+}
+static void service_fn(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : service_done, 1, 0, (int32_t)gm32(0x519ec8), true);
+}
+static void quit_fn(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : quit_done, 1, 0, (int32_t)gm32(0x519ec8), true);
+}
+
+static void to_target(Menu *m, MenuItem *it) { (void)it; Menu_Goto(m->items[0].target); }   /* 0x449e90 */
+
+/* 0x44af70 with param 0: restart (the text by the mode), at the service area in single stage and time
+   trial, quit */
+static void build_end(Menu *parent, int16_t restart_text)
+{
+    Menu_Init(&pg_end, NULL, 0, parent, false, NULL, 1, 0, 1);
+    Menu_AddPage(&pg_end, NULL, restart_text, NULL, restart_fn, 1000);
+    if (mode() == 2 || mode() == 3) Menu_AddPage(&pg_end, NULL, 0x8b, NULL, service_fn, 0x3e9);
+    Menu_AddPage(&pg_end, NULL, 0xa8, NULL, quit_fn, -1);
+    Menu_SetCallbacks(&pg_end, NULL, NULL, draw_end, NULL);
+    Menu_Reset(&pg_end);
+}
+
+void Results_Start(bool again)
+{
+    PENDING_NOTE(0x44a1b0, "the results' records and championship tables (0x4cf3b0-0x4cfff0)");
+    if (!again) Input_SetMenuMode(true);
+    Menu_Start();
+    /* 0x449100's pages on the one-player stage's way */
+    Menu_Init(&pg_title, NULL, 0, NULL, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_title, NULL, 0, &pg_times, NULL, 0);
+    Menu_SetCallbacks(&pg_title, NULL, NULL, draw_title, NULL);
+    Menu_Init(&pg_times, NULL, 0, &pg_title, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_times, NULL, 0, &pg_splits, NULL, 0);
+    Menu_SetCallbacks(&pg_times, NULL, NULL, draw_pending, NULL);
+    Menu_Init(&pg_splits, NULL, 0, &pg_times, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_splits, NULL, 0, &pg_board, NULL, 0);
+    Menu_SetCallbacks(&pg_splits, NULL, NULL, draw_pending, NULL);
+    Menu_Init(&pg_board, NULL, 0, NULL, false, NULL, 1, 0, 0);
+    Menu_AddList(&pg_board, NULL, 0, 0xb, 0, false, to_target, 0);
+    Menu_SetCallbacks(&pg_board, NULL, NULL, draw_pending, NULL);
+    if (mode() != 2 && mode() != 3) PENDING_NOTE(0x44a1b0, "the results' pages of the other modes");
+    /* single stage and time trial: the board on to the choices (0x53e4d8) */
+    build_end(&pg_board, 0x23);
+    pg_board.items[0].target = &pg_end;
+    page = NULL;
+    shown = NULL;
+    settle = 0;
+    next = gm8(0x817574) ? &pg_end : &pg_title;
+    active = true;
+}
+
+bool Results_Active(void) { return active; }
+void Results_Stop(void) { active = false; }
+
+/* 0x448e70: not while a fade runs; the select only in the super special; no back on the first page */
+void Results_Step(void)
+{
+    if (!active) return;
+    for (int i = 0; i < (int)Gs_SelBits14(); i++)
+        if (Fade_Active(i)) return;
+    page = next;   /* 0x448e60 */
+    Input_PollAll();
+    uint32_t b = Input_Record(0)->pressed;
+    if (Gs_Mode() == 0 && (gm8(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160) b &= 0x10;   /* 0x407270 */
+    if (page == &pg_title) b &= 0xffdf;
+    /* the list pages' scrolling (0x4bc290's tweens) not ported */
+    Menu *to = Menu_Input(page, b);
+    if (to) next = to;
+}
+
+/* 0x44b330: the page, dimmed alone for two frames after a change */
+void Results_Draw(void)
+{
+    if (!active) return;
+    if (shown == page || page == &pg_title) {
+        if (settle < 1) {
+            Menu_Draw(page);
+            return;
+        }
+    } else {
+        shown = page;
+        settle = 2;
+    }
+    dim();
+    settle--;
+}

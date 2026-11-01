@@ -19,3 +19,7 @@ bool Pause_RestartAsked(void);     /* DAT_0053810c */
 bool Pause_QuitAsked(void);        /* DAT_0053810d */
 bool Pause_ServiceAsked(void);     /* DAT_00537ffa */
 void Pause_ClearAsks(void);
+void Pause_Ask(bool restart, bool service, bool quit);   /* 0x41f280, 0x41f290, 0x41f2a0 */
+typedef struct Tex Tex;
+Tex *Pause_ArrowOn(void);         /* 0x4055e0 */
+Tex *Pause_ArrowOff(void);        /* 0x4055f0 */

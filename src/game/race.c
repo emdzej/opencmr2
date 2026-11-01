@@ -21,6 +21,7 @@
 #include "render/twod.h"
 #include "pending.h"
 #include "game/pause.h"
+#include "game/results.h"
 #include "game/car_load.h"
 #include "audio/codriver.h"
 #include <string.h>
@@ -78,7 +79,7 @@ static void Race_Update(uint8_t state, bool flag)
         bool car0 = Car_Get(0)->s[0xb43] != 0;
         if (car0) {
             R.clock++;
-            if (flag && state == 10) PENDING_NOTE(0x448e70, "Replay_Step");
+            if (flag && state == 10) Results_Step();   /* 0x448e70 */
         }
         for (int i = 0; i < g_all.n; i++) {
             Car *c = Car_Get(i);
@@ -301,15 +302,17 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
         R.first = true;
         return;
     }
+    Results_Start(false);   /* 0x44a1b0 */
     for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
     R.first = true;
 }
 
-/* state 10, 0x41e350: the replay (not ported: the cars run on after the finish) until the key
-   (0x4d0580), then 0x41f2b0: every process on to the results */
+/* state 10, 0x41e350: the replay (not ported: the cars run on after the finish) with the results'
+   pages over it (Results_Step in the steps); the demo's skip (0x4d0580) ends it, 0x41f2b0: every process
+   on to the results state (the results' choices go there through their fades) */
 static void s10_replay(ProcGroup *g, uint32_t slot)
 {
-    if (R.skip) {
+    if (R.skip || gm8(0x817574)) {
         R.skip = false;
         for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
     }
@@ -324,6 +327,7 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
 static void s11_results(ProcGroup *g, uint32_t slot)
 {
     (void)slot;
+    Results_Stop();
     if (Pause_QuitAsked()) {
         /* the pause's exit: every process to state 0, back to the front end (0x41e670, 0x41b300) */
         Pause_ClearAsks();
@@ -394,6 +398,8 @@ static void fade_overlay(int p, bool paused)
 
 static void draw(ProcGroup *g, uint32_t slot)
 {
+    /* state 10's draw 0x411020: the results' page with the view (0x44b330 queues it first) */
+    if (Proc_State(g, slot) == 10 && slot == (uint32_t)g->n - 1) Results_Draw();
     if (H->draw) H->draw((int)slot, Proc_State(g, slot));
 }
 
@@ -465,3 +471,4 @@ void Race_EventAll(uint32_t event, uint32_t prio)
 
 int Race_Cars(void) { return g_all.n; }
 int32_t Race_Frac(void) { return R.frac; }
+int Race_Base(void) { return gm8(0x537ef6); }   /* 0x41b370 */

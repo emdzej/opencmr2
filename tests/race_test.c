@@ -7,6 +7,8 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/results.h"
+#include "platform_host.h"
 #include "audio/dsound.h"
 #include "audio/snd.h"
 #include "audio/codriver.h"
@@ -194,6 +196,29 @@ int main(void)
         printf("sectors: %d split points, %d passed, finished at point %d of %d\n", Sectors_Count(), splits, at,
                Cat_FinishPoint());
         CHECK(at > 0 && splits >= 1);
+        /* past the finish: state 9 for four seconds, then the replay with the results' pages; Enter
+           through the title, times, splits and board, up (round) to "quit", Enter: the fade, the
+           results state, the front end */
+        int f2 = 0;
+        for (; f2 < 900 && Race_State(0) != 10; f2++, frame++) {
+            Timer_Sample((uint32_t)((uint64_t)frame * 1000 / 60));
+            Race_Frame();
+        }
+        printf("results after %d frames: state %d, active %d\n", f2, Race_State(0), Results_Active());
+        CHECK(Race_State(0) == 10 && Results_Active());
+        static const int keys[] = {0x1c, 0x1c, 0x1c, 0x1c, 0xc8, 0x1c, 0};
+        for (int k = 0; k < 7; k++)
+            for (int i = 0; i < 40; i++, frame++) {
+                plat_host_key(keys[k], i < 3);
+                Timer_Sample((uint32_t)((uint64_t)frame * 1000 / 60));
+                Race_Frame();
+            }
+        for (int i = 0; i < 200 && Game_Mode() == 3; i++, frame++) {
+            Timer_Sample((uint32_t)((uint64_t)frame * 1000 / 60));
+            Race_Frame();
+        }
+        printf("after the results' quit: mode %u\n", Game_Mode());
+        CHECK(Game_Mode() == 0);
     }
     printf("race_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;
