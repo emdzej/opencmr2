@@ -22,6 +22,7 @@
 #include "world/particles.h"
 #include "game/effects.h"
 #include "sim/pose.h"
+#include "sim/parts.h"
 #include "sim/drive.h"
 #include "sim/fade.h"
 #include "sim/progress.h"
@@ -137,7 +138,7 @@ static void Race_Update(uint8_t state, bool flag)
         if (car0) {
             /* Stage_Step 0x466520 */
             Lights_Step();   /* 0x463bd0 */
-            PENDING_NOTE(0x466520, "Stage_Step's 0x47dd70 and the loose parts 0x47eab0/0x480220");
+            PENDING_NOTE(0x466520, "Stage_Step's 0x47dd70 and the fireworks 0x47eab0/0x480220");
         }
         for (int i = 0; i < g_all.n; i++)
             if (Car_Get(i)->s[0xb43]) Fade_Tick(i, false);
@@ -160,6 +161,7 @@ static void Race_Update(uint8_t state, bool flag)
         Sim_StepDone(&g_all);
     }
     Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its other effects not ported) */
+    Parts_Interp(R.frac);   /* 0x484d30 */
     Particles_Interp(R.frac);   /* 0x4b06a0 */
     Weather_Interp(R.frac);     /* 0x461bb0 */
     if (H->pose) H->pose(R.frac);

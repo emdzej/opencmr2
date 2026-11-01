@@ -9,6 +9,7 @@
 #include "render/mesh.h"
 #include "sim/sim.h"
 #include "sim/walls.h"
+#include "sim/parts.h"
 #include "c3d.h"
 #include "crt.h"
 #include "fixmath.h"
@@ -50,8 +51,6 @@ static Car *car_;
 static int32_t r1, r2, r3;
 static int32_t hull[12][3];   /* 0x5889b0: the box's bottom corners, the same raised, four wheel points */
 
-static Obj *part_obj[4][CAR_MAX];   /* 0x590b7c: the loose parts' objects (their code is not ported) */
-
 static uint32_t rd32(const uint8_t *p) { return (uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24; }
 static void wr32(uint8_t *p, uint32_t v) { p[0] = (uint8_t)v, p[1] = (uint8_t)(v >> 8), p[2] = (uint8_t)(v >> 16), p[3] = (uint8_t)(v >> 24); }
 static int32_t R(const Dmg *d, uint32_t o) { return (int32_t)rd32(d->s + o); }
@@ -81,7 +80,7 @@ static int32_t vget(const uint8_t *v, uint32_t o) { float f; memcpy(&f, v + o, 4
 static void vset(uint8_t *v, uint32_t o, int32_t x) { float f = (float)x * (float)(1.0 / 65536.0); memcpy(v + o, &f, 4); }
 
 bool Damage_Dents(int n) { return dents(n >= 0 && n < CAR_MAX ? n : 0); }
-Obj *Damage_PartObj(int n, int k) { return k >= 0 && k < 4 && n >= 0 && n < CAR_MAX ? part_obj[k][n] : NULL; }
+Obj *Damage_PartObj(int n, int k) { return Parts_Obj(n, k); }
 int Damage_Slots(int n) { return count(&dmg[n >= 0 && n < CAR_MAX ? n : 0]); }
 int Damage_SlotVerts(int n, int s) { return s >= 0 && s < SLOTS ? nverts(&dmg[n >= 0 && n < CAR_MAX ? n : 0], s) : 0; }
 
@@ -111,41 +110,6 @@ static void upload(const Dmg *d, int s)
     if (!o || !o->mesh) return;
     Mesh_UploadVerts(o->model, o->mesh);
     PENDING_NOTE(0x4b4100, "Relight_MarkMesh");
-}
-
-/* ---- the loose parts' set-up (0x480a50-0x484d10; the parts themselves are not ported) ---- */
-
-/* 0x480a60 */
-static void parts_init(void)
-{
-    crt_srand(400);
-    gw32(0x590c44, 0x8000), gw32(0x590c48, 0x8000), gw32(0x590c4c, 0x8000);
-    gw32(0x590c50, 0x3333);
-    gw8(0x590c60, 0x16), gw8(0x590c61, 0x14), gw8(0x590c62, 0x15), gw8(0x590c63, 0x12);
-    gw8(0x590bfc, 1), gw8(0x590bfd, 2);
-}
-
-static void parts_clear(void) { gw32(0x590d70, 0); }   /* 0x480a50 */
-
-/* 0x480af0: a slot whose object is one of the four part types (0x51f888) is that part's */
-static void parts_register(const Car *c, Obj *o, int slot)
-{
-    for (int k = 3; k >= 0; k--)
-        if ((uint8_t)o->type == gm8(0x51f888 + (uint32_t)k)) {
-            part_obj[k][idx(c)] = o;
-            gw8(0x590c24 + 8 * (uint32_t)k + (uint32_t)idx(c), (uint8_t)slot);
-        }
-}
-
-static int parts_slot(int k, int car) { return gm8(0x590c24 + 8 * (uint32_t)k + (uint32_t)car); }   /* 0x484d10 */
-
-/* 0x480b40: the generator seeded; the car's loose parts (0x590d7c-0x590d88, per car 0x1a0 bytes) get
-   their rest matrices back, none here */
-static void parts_reset(const Car *c)
-{
-    (void)c;
-    crt_srand(400);
-    PENDING_NOTE(0x480b40, "Parts_Reset: the loose parts' matrices");
 }
 
 /* ---- the records and logs ---- */
@@ -287,12 +251,12 @@ static const int32_t sens[34] = {
 
 void Damage_Setup(bool again, bool keep, const int16_t *cars, int n)
 {
-    parts_init();
-    if (!again) parts_clear();
+    Parts_Init();
+    if (!again) Parts_ClearFlag();
     for (int i = n - 1; i >= 0; i--) {
         int k = cars[i];
         Car *c = Car_Get(k);
-        parts_reset(c);
+        Parts_Reset(c);
         Dmg *d = &dmg[k >= 0 && k < CAR_MAX ? k : 0];
         uint8_t *l = logs[k >= 0 && k < CAR_MAX ? k : 0];
         W(d, 0x45c, 0);
@@ -305,7 +269,7 @@ void Damage_Setup(bool again, bool keep, const int16_t *cars, int n)
         /* the empty slots squeezed out, a slot looked at again while something moved */
         for (int s = 0; s < SLOTS; s++)
             if (!d->obj[s] && s < SLOTS - 1 && shift_down(d, s)) s--;
-        for (int s = 0; s < count(d); s++) parts_register(c, d->obj[s], s);
+        for (int s = 0; s < count(d); s++) Parts_Register(c, d->obj[s], s);
         static const uint8_t glass[6] = {4, 5, 1, 2, 8, 9};
         memcpy(d->s + 0x460, glass, 6);
         for (uint32_t o = 0x21c; o < 0x240; o += 4) W(d, o, 0);
@@ -335,12 +299,15 @@ void Damage_Setup(bool again, bool keep, const int16_t *cars, int n)
         rest_shape(CI8(c, 0xb1a), d);
         Damage_Reset(c);
     }
-    if (again) parts_clear();
+    if (again) Parts_ClearFlag();
 }
 
 void Damage_CarsLoaded(void)
 {
     Damage_Alloc(g_all.n);
+    Parts_Alloc(g_all.n);                  /* 0x480900, after Damage_Alloc */
+    Parts_CinLinks(g_all.car, g_all.n);    /* 0x4809e0, after the cars */
+    Parts_Empty();                         /* 0x480980 */
     Damage_Clear(0, g_all.n);
     Damage_ResetLogs();
     Damage_Setup(false, false, g_all.car, g_all.n);
@@ -593,7 +560,7 @@ static void zones(const Car *c, int32_t v)
 static int32_t crumple(const Car *c, const Dmg *d)
 {
     if (!dents(idx(c))) return 0;
-    int p1 = parts_slot(1, idx(c)), p3 = parts_slot(3, idx(c));
+    int p1 = Parts_Slot(1, idx(c)), p3 = Parts_Slot(3, idx(c));
     int32_t sum = 0, n = 0;
     for (int s = 0; s < count(d); s++) {
         if ((s == p1 && Damage_Flag(c, 1)) || (s == p3 && Damage_Flag(c, 3))) { n += nverts(d, s); continue; }
@@ -852,7 +819,7 @@ void Damage_Reset(Car *c)
 {
     Dmg *d = of(c);
     uint8_t *l = logs[idx(c)];
-    parts_reset(c);
+    Parts_Reset(c);
     restore(c);
     W(d, 0x404, 0x10000), W(d, 0x3fc, 0x10000), W(d, 0x400, 0x10000);
     for (uint32_t o = 0x3ec; o <= 0x3f8; o += 4) W(d, o, 0);
@@ -875,10 +842,19 @@ void Damage_Reset(Car *c)
     for (uint32_t j = 0; j < 34; j++) W(d, 0x350 + 4 * j, (int32_t)(((uint64_t)l[0x20c + j] << 32) / 0xff0000));
     for (uint32_t j = 0; j < 3; j++) W(d, 0x4c0 + 4 * j, (int32_t)rd32(l + 0x240 + 4 * j));
     PENDING_NOTE(0x486630, "Damage_Reset's carried part values (0x486630)");
-    for (uint32_t j = 0; j < 4; j++) W(d, 0x4b0 + 4 * j, (int32_t)rd32(l + 0x230 + 4 * j));
-    PENDING_NOTE(0x480ac0, "Damage_Reset's fallen-off parts (0x480ac0)");
+    for (uint32_t j = 0; j < 4; j++) {
+        W(d, 0x4b0 + 4 * j, (int32_t)rd32(l + 0x230 + 4 * j));
+        Parts_Hide(c, (int)j, R(d, 0x4b0 + 4 * j));   /* 0x480ac0: a part carried as fallen off not drawn */
+    }
     panels(c);
     glass(c, true);
+}
+
+/* Damage_PartOff 0x469bf0: the record's part flag k (+0x4b0 + 4k) set, the panels worked out again */
+void Damage_PartOff(Car *c, int k)
+{
+    W(of(c), 0x4b0 + 4 * (uint32_t)(k & 3), 1);
+    panels(c);
 }
 
 /* Damage_Finish 0x469a80: at the car's finish, once (the log's +0x28c then stops the logging), the

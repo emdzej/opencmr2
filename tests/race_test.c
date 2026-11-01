@@ -16,6 +16,7 @@
 #include "audio/codriver.h"
 #include "audio/crash.h"
 #include "sim/damage.h"
+#include "sim/parts.h"
 #include "game/lights.h"
 #include "world/glow.h"
 #include "world/particles.h"
@@ -354,6 +355,53 @@ int main(void)
             printf("damage: cuts out for %.2f steps (%d counted), then runs for %.2f\n", cut / 65536.0, steps, run / 65536.0);
             CHECK(cutting == 1 && cut >= 0 && cut <= 12 * 0x10000 && DI32(dr, 0x4cc) == 0 &&
                   run >= fx_mul(0x3333, 50 << 16) && run <= fx_mul(0x3333, 300 << 16));
+            /* the loose parts (0x480bb0): a part whose panel passes its threshold (0.5; 0.2 for type
+               3) is taken loose at the step; type 1 (0x4816f0) at speed wobbles its drawn matrix
+               (0x484d30) off rest and, past 0.8, swings free of one end (the 205's class 11 only
+               wobbles, so class 0 here); Damage_Reset lets every part go with its rest matrix back */
+            memset(gm(0x52ebc0), 0, 0x148 * 4);
+            Damage_ResetLogs();
+            Damage_Setup(false, false, g_all.car, g_all.n);
+            {
+                static const uint32_t pan[4] = {0x16, 0x14, 0x15, 0x12};
+                int have = 0, loose = 0;
+                for (int k = 0; k < 4; k++) have |= (Parts_Obj(0, k) != NULL) << k;
+                CarList one = {{0}, 1};
+                uint8_t cls = c->s[0xb1b];
+                c->s[0xb1b] = 0;
+                Parts_Step(&one);
+                for (int k = 0; k < 4; k++) loose |= Parts_Active(0, k) << k;
+                CHECK(loose == 0);
+                for (int k = 0; k < 4; k++) memcpy(dw + 0x240 + 4 * pan[k], (uint8_t[4]){0, 0x90, 0, 0}, 4);
+                Parts_Step(&one);
+                for (int k = 0; k < 4; k++) loose |= Parts_Active(0, k) << k;
+                int32_t speed = CI32(c, 0x778);
+                CW32(c, 0x778, 0x30000);
+                Obj *o1 = Parts_Obj(0, 1);
+                int32_t moved = 0;
+                for (int i = 0; i < 25; i++) {
+                    Parts_Step(&one);
+                    Parts_Interp(0x10000);
+                    for (int j = 0; o1 && j < 16; j++) {
+                        int32_t d = o1->local.m[j] - o1->rest.m[j];
+                        if ((d < 0 ? -d : d) > moved) moved = d < 0 ? -d : d;
+                    }
+                }
+                memcpy(dw + 0x240 + 4 * pan[1], (uint8_t[4]){0, 0xf0, 0, 0}, 4);
+                Parts_Step(&one);
+                uint8_t f1 = Parts_Flags(0, 1);
+                CW32(c, 0x778, speed);
+                c->s[0xb1b] = cls;
+                Damage_Reset(c);
+                int still = 0;
+                for (int k = 0; k < 4; k++) still |= Parts_Active(0, k) << k;
+                bool rest = !o1 || memcmp(&o1->local, &o1->rest, sizeof o1->local) == 0;
+                printf("parts: objects %#x, loose %#x, type 1 moved %.4f, flags %#x, after the reset %#x (at rest %d)\n",
+                       have, loose, moved / 65536.0, f1, still, rest);
+                CHECK(have & 2);
+                CHECK(loose == have && moved > 0 && (f1 & 0x13) == 0x13 && still == 0 && rest);
+                for (int k = 0; k < 4; k++) memset(dw + 0x240 + 4 * pan[k], 0, 4);
+            }
             memset(gm(0x52ebc0), 0, 0x148 * 4);
             Damage_ResetLogs();
             Damage_Setup(false, false, g_all.car, g_all.n);

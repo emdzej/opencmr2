@@ -17,6 +17,7 @@
 #include "sim/damage.h"
 #include "sim/drive.h"
 #include "sim/pose.h"
+#include "sim/parts.h"
 #include "sim/progress.h"
 #include "sim/sim.h"
 #include "world/frame.h"
@@ -79,6 +80,8 @@ static void draw(int player, int state)
     Sky_Follow(cp);
     Cars_ShellsToCamera(&camera);
     Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */
+    /* per car the passes (0x46b8f0, not ported), then the fallen-off parts hidden (0x46b670) */
+    for (int i = 0; i < g_all.n; i++) Parts_HideFallen(Car_Get(g_all.car[i]));
     Obj_Frame(&g_world, &camera);
     Weather_Draw(player);   /* 0x460330, at the end of the cars' pass 0x466570 */
     Race_DrawOverlays(player);

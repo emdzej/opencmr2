@@ -735,3 +735,42 @@
 0045c820	Wheels_Splash	fx	high	Water thrown by each wheel in water (types 14, 15; the spray type 12 never)
 0049b0d0	Stones_Kind	fx	high	The kind of stone a surface throws in the rally
 0049b3e0	Wheels_Stones	fx	high	Stones and mud thrown by each spinning wheel
+00480870	Parts_Free	damage	med	The loose parts' records and blocks freed
+00480900	Parts_Alloc	damage	med	The loose parts' records for n cars (and 0xb4-byte blocks)
+00480980	Parts_Empty	damage	med	The records and part objects cleared, every slot 0xff
+004809e0	Parts_CinLinks	damage	med	Section 3 of each car's .cin (0x590b5c)
+00480ac0	Part_Hide	damage	med	A fallen-off part's object mask cleared
+00480bb0	Parts_Step	damage	high	Per listed car the loose check, the wobble, each loose part's step
+00480cb0	Parts_Wobble	damage	med	The speed-driven wobble angle (0x590b10, 0x590c68)
+00480de0	Parts_CheckLoose	damage	high	A part loosened once its panel passes its threshold
+00480e50	Part_Loosen	damage	high	A part's record set up: hinge, pivot, inertia, length, type function
+004813b0	Part_Take	damage	med	A part's record takes its object, matrices and base rows
+004814d0	Part_Swing	damage	med	Type 0: a turn about z by the wobble angle
+00481560	Part_Turn	damage	med	The base rows turned by the drawn wobble, into the local matrix
+004815e0	Part_Place	damage	med	Displacement by velocity; the position about the hinge
+004816f0	Part_Hinged	damage	high	Type 1: the hinged panel's spring, swing, torque and break
+00482ac0	Part_Break	damage	med	Off its hinge: the velocity, displacement and hinge to the pivot
+00482f30	Part_TooFar	damage	med	A part too far from the car falls off
+00483010	Part_Drop	damage	med	Bit 1 cleared, the damage record's part flag set
+00483050	Part_Unhinge	damage	med	A badly damaged hinge moved, the part swinging free
+00483100	Part_Scrape	damage	med	Sparks where a part's corner drags on a sparking surface
+00483570	Part_Type3	damage	low	Type 3's step (not ported)
+00484310	Part_Type2	damage	low	Type 2's step (not ported)
+00484d30	Parts_Interp	damage	high	Every loose part's drawn matrix between its last two steps
+0046b670	Parts_HideFallen	damage	med	Each fallen-off part hidden (Part_Hide with the damage flag)
+00469bf0	Damage_PartOff	damage	med	Part k fallen off: the record's flag, then the panels
+00469de0	Surface_Sparks	sim	med	A surface that sparks (1, 6-11, 16, 24, 25, 27, 28)
+004bab80	Mat_Copy34	math	med	A 3x4 matrix copied
+004bac60	Mat_GetRow0	math	med	A matrix's row 0
+004bac80	Mat_GetRow1	math	med	A matrix's row 1
+004baca0	Mat_GetRow2	math	med	A matrix's row 2
+004bacc0	Mat_SetPos	math	med	A matrix's position set
+004bace0	Mat_SetRow0	math	med	A matrix's row 0 set
+004bad00	Mat_SetRow1	math	med	A matrix's row 1 set
+004bad20	Mat_SetRow2	math	med	A matrix's row 2 set
+0047eab0	Fireworks_Step	fx	low	The fireworks' step
+0047fcb0	Fireworks_Launch	fx	low	A firework launched
+00480220	Fireworks_Flash	fx	low	A firework's flash
+00480380	Fireworks_ReplayLaunch	fx	low	A firework launched in a replay
+004805f0	Fireworks_Set	fx	low	The fireworks' setting
+00480600	Fireworks_Interp	fx	low	The fireworks' drawn positions between steps

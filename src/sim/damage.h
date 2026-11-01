@@ -4,8 +4,8 @@
    which the models keep in their vertex colours), adds to a 3 x 3 grid of cells over the car, and the
    cells set 34 panels whose values are the handling factors (engine, steering, brakes, drag) and the
    glass. Each hit is logged (20 entries, the weakest replaced) and the log is carried between stages,
-   replayed by Damage_Reset. Not ported: the loose parts (0x480000), the glass pieces (0x49a910) and the
-   relighting marks (0x4b4100). */
+   replayed by Damage_Reset. The loose parts are sim/parts.c. Not ported: the glass pieces (0x49a910) and
+   the relighting marks (0x4b4100). */
 #pragma once
 #include "sim/car.h"
 #include <stdbool.h>
@@ -20,6 +20,7 @@
 void Car_Damage(Car *c, const int32_t pt[3], const int32_t n[3], uint32_t size, uint8_t kind, bool replay);
 
 int32_t Damage_Flag(const Car *c, int n);   /* 0x469bc0: the record's +0x4b0 + 4n (the fallen-off parts) */
+void Damage_PartOff(Car *c, int k);         /* 0x469bf0: part k fallen off (the flag), the panels again */
 uint8_t *Damage_Log(int n);                /* the port: car n's 0x290-byte hit log (0x588b98) */
 void Damage_SetDents(int on, int n);        /* 0x46b400: car n's dents on (0x588970, set by Car_Load) */
 void Damage_Alloc(int n);                   /* 0x4667c0 */

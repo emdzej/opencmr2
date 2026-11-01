@@ -2,6 +2,7 @@
 #include "sim/sim.h"
 #include "sim/step.h"
 #include "sim/pose.h"
+#include "sim/parts.h"
 #include "sim/walls.h"
 #include "sim/road_follow.h"
 #include "game/gstate.h"
@@ -126,5 +127,7 @@ void Sim_Step(void)
     Pose_Spin(&g_simple);
     Pose_Capture(&g_listA);
     Pose_Capture(&g_simple);
-    PENDING_NOTE(0x46d510, "Sim_Step 0x46d510, 0x480bb0, 0x469e40, 0x424710, 0x4258e0");
+    PENDING_NOTE(0x46d510, "Sim_Step 0x46d510");
+    Parts_Step(&g_listA);   /* 0x480bb0 */
+    PENDING_NOTE(0x469e40, "Sim_Step 0x469e40, 0x424710, 0x4258e0");
 }

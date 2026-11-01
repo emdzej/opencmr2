@@ -341,8 +341,26 @@ two phases, +0x4cc set while cutting out: running for (1 - b)(250 r + 50) steps,
 15 b r, with r = rand() / 32767 in 16.16 (through the FPU: the float 0x5112f0 and the double 65536
 at 0x5112e0). Only this function touches +0x4cc; the countdown's reader is not found yet.
 
-Not ported: the loose parts (0x480000; their slot bytes at 0x590c24 are kept), the glass pieces
-(0x49a910), the relighting marks (0x4b4100) and the restart's set-up (0x42b800).
+**The loose parts** (0x480870-0x484d30, `src/sim/parts.c`). A car has up to four panels of its
+second model that can work loose: object types 9, 10, 12 and 13 (0x51f888), registered by their
+damage slots (0x590c24).
+
+- **Loosening** (0x480de0). A part comes loose once its damage panel passes its threshold. It takes
+  a 0x1a0-byte record (four arrays at 0x590d7c), with the hinge, pivot, inertia and length set up
+  (0x480e50).
+- **Each step** (0x480bb0, from `Sim_Step`): first the car's wobble (0x480cb0). The wobble follows
+  the speed (+0x778 over 1.5, at most 1) times a value from the position, by 0.06 dt at most. Then
+  each loose part runs its type's update:
+  - type 0 swings about z by the wobble (0x4814d0);
+  - type 1 is the hinged panel (0x4816f0), with its spring, swing, torque and break. Past 0.8 on its
+    panel it hangs from one end (0x483050). It scrapes sparks on a sparking surface under its corner
+    wheel (0x483100; the sparks are not ported). Once its displacement passes the car's size plus its
+    own, it falls off (0x482f30): the damage record's part flag is set (0x469bf0) and the part is
+    hidden when drawn (0x46b670).
+- **Drawing.** Each frame the drawn matrix is blended between the last two steps (0x484d30).
+- **Not ported:** types 2 and 3 (0x484310, 0x483570; their parts stay put), the .cin pieces
+  (0x484e00), the glass pieces (0x49a910, 0x49ab20), the relighting marks (0x4b4100) and the
+  restart's set-up (0x42b800).
 
 ## Cameras
 
