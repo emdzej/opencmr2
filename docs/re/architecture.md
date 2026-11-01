@@ -259,7 +259,23 @@ pitched by RPM. Music: one `.adp` (MS ADPCM) streamed through the ACM into a str
 (`Music_Open` 0x4a28d0, `Music_Update` 0x4a2bd0). Speech: pace-note samples queued by the co-driver code
 (0x416710-0x418550). Movies: Bink with its own DirectSound output.
 
-**Port:** one mixer rendering 44,100 Hz stereo per frame (gasm audio push), as OpenRF.
+**Port:** one mixer rendering 44,100 Hz stereo per frame (gasm audio push), as OpenRF: `src/audio/dsound.c`
+stands in for DirectSound's buffers (create, duplicate, lock and copy, play looped or once, stop,
+status, volume in hundredths of a decibel, pan, frequency). On it the original's sound layer
+(`src/audio/snd.c`): `Snd_Load` 0x4a1f50 reads a WAV member's 44-byte header at fixed offsets into a
+buffer; up to 200 sounds (0x5a23ec) and 32 voices (0x6e0d6c), each named by a handle (slot in the low 6
+bits, the sound above); a voice whose sound another voice plays gets a duplicate buffer; its volume
+(0..0x10000, times the master 0x5210f4) becomes the attenuation `-10000 - round(-10 ln v) * 10000 /
+round(10 ln 65536)`.
+
+The engine sounds (`src/audio/engine.c`): per player car, `Sounds\car\<engine>.bfl` (the engine name
+by class at 0x51f044, the suffix at 0x51f15c) gives thirteen WAVs in order (fs, rs, fm, rm, whine, ft,
+rt, chatter, det1-4, detidle). Each step (0x47a710) the revs become rpm (6,500 a unit through +0x798)
+and 0x479360 mixes three bands (tables at 0x51ea60, 0x51eab8, 0x51ec50: steps over a range of revs, a
+u16 frequency and a percent volume per step): the slow pair, the medium pair off the throttle, the fast
+pair on it (looped from a per-class offset, 0x51f2a0, 0x51f2d8), the front louder from the interior
+views, all faded with the camera's distance (0x427d50: full within 2 units, silent beyond 100) and at a
+third of the effects volume option (0x427c10).
 
 ## Input
 
