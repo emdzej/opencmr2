@@ -88,6 +88,7 @@ void Dsb_Play(Dsb *b, bool loop) { if (b) b->playing = true, b->loop = loop; }
 void Dsb_Stop(Dsb *b) { if (b) b->playing = false; }
 void Dsb_SetPosition(Dsb *b, uint32_t at) { if (b) b->pos = (double)(at / (uint32_t)(b->bits / 8 * b->channels)); }
 bool Dsb_Playing(const Dsb *b) { return b && b->playing; }
+uint32_t Dsb_Position(const Dsb *b) { return b ? (uint32_t)b->pos * (uint32_t)(b->bits / 8 * b->channels) : 0; }
 void Dsb_SetVolume(Dsb *b, int32_t v) { if (b) b->vol = v < -10000 ? -10000 : v > 0 ? 0 : v; }
 void Dsb_SetPan(Dsb *b, int32_t p) { if (b) b->pan = p < -10000 ? -10000 : p > 10000 ? 10000 : p; }
 void Dsb_SetFrequency(Dsb *b, uint32_t hz) { if (b) b->freq = hz < 100 ? 100 : hz > 100000 ? 100000 : hz; }

@@ -120,7 +120,7 @@ State 9 does the following before it sets mode 2 or 3:
 The port differs from the original in these places:
 
 - The Bink movies are skipped.
-- The music does not play.
+- The music streams as the original (8 segments of 0xfe80 bytes), decoded by the port's MS ADPCM decoder in place of the ACM.
 - Nothing is saved: the game info, the profiles, the leaderboards and the controller configuration.
 - Mode 2 (`World_Frame` 0x4ff450, the set-up and service screens) is not ported. The race starts
   straight away through `src/game/play.c`, and returns to the menus after the stage.

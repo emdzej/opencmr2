@@ -1,7 +1,9 @@
 /* The front end from the start-up through the menus to a stage (Single Stage, a guest, the first car,
    Finland's first stage), then back to the menus: the process's states, the pages on the way, the
    selection it leaves, the race's start, the return. */
+#include "audio/dsound.h"
 #include "exe.h"
+#include <math.h>
 #include "fe/fe.h"
 #include "fe/pages.h"
 #include "fixmath.h"
@@ -62,6 +64,13 @@ int main(void)
     run_until(&pg_8221d8, 60 * 30);
     CHECK(Fe_Page() == &pg_8221d8);
     printf("language page at frame %u\n", frame);
+    /* the menus' music plays (select1.adp, from the title's end) */
+    static float mix[2 * 4410];
+    Dsb_Mix(mix, 4410);
+    double e = 0;
+    for (int i = 0; i < 2 * 4410; i++) e += (double)mix[i] * mix[i];
+    printf("music rms %.4f\n", sqrt(e / (2 * 4410)));
+    CHECK(sqrt(e / (2 * 4410)) > 0.01);
     enum { ENTER = 0x1c };
     press(ENTER);
     CHECK(Fe_Page() == &pg_81d6d8);

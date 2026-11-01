@@ -18,6 +18,7 @@ void Dsb_Play(Dsb *b, bool loop);
 void Dsb_Stop(Dsb *b);
 void Dsb_SetPosition(Dsb *b, uint32_t at);  /* SetCurrentPosition (bytes) */
 bool Dsb_Playing(const Dsb *b);             /* GetStatus's DSBSTATUS_PLAYING */
+uint32_t Dsb_Position(const Dsb *b);        /* GetCurrentPosition's play cursor (bytes) */
 void Dsb_SetVolume(Dsb *b, int32_t vol);    /* hundredths of a dB, -10,000..0 */
 void Dsb_SetPan(Dsb *b, int32_t pan);
 void Dsb_SetFrequency(Dsb *b, uint32_t hz);

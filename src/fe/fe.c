@@ -5,6 +5,7 @@
 #include "fe/pages.h"
 #include "fe/fe_page.h"
 #include "audio/snd.h"
+#include "audio/music.h"
 #include "exe.h"
 #include "font.h"
 #include "game/input.h"
@@ -29,6 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 
+static void Fe_MenuMusic(void);
 static ProcGroup group;          /* DAT_00817da0 */
 static ProcSlot slot;            /* DAT_00817d98 */
 static bool started;             /* DAT_00817eb0 */
@@ -273,7 +275,7 @@ static void st_startup(ProcGroup *g, uint32_t s)
     Pages_Build(false, false);
     Fe_LoadDots();
     Fe_MenuSounds();
-    PENDING_NOTE(0x4a28d0, "the music (sounds\\music\\select1.adp)");
+    Fe_MenuMusic();
     /* 0x4eb470 saves the changed profiles */
     if (!(gm32(0x52afb4) >> 19 & 1) && !gm8(0x52ea50))
         for (int i = 0; i < 0x10; i++) Player_DropProfile(i);   /* 0x4ebec0 */
@@ -312,6 +314,16 @@ static void st_movie(ProcGroup *g, uint32_t s)
     Proc_Event(&group, 0, 0, 2);
 }
 
+/* the menus' music: sounds\music\select1.adp at the options' music volume (0x52afb8 bits 0-6) */
+static void Fe_MenuMusic(void)
+{
+    char p[260];
+    Path_Format(p, sizeof p, 0x523d70, Path_Music());
+    Music_Open(p);
+    Music_SetVolume((int)(gm32(0x52afb8) & 0x7f));
+    Music_Update();
+}
+
 /* 0x4d1a90 (state 5): the title for five seconds or until select, then the menu music */
 static void st_title(ProcGroup *g, uint32_t s)
 {
@@ -321,7 +333,7 @@ static void st_title(ProcGroup *g, uint32_t s)
     InputRecord *r = Input_Record(0);
     if (!(r->pressed & 0x10) && now - Fe_Stamped() < 0x1389) return;
     Fe_Stamp();
-    PENDING_NOTE(0x4a28d0, "the music (sounds\\music\\select1.adp)");
+    Fe_MenuMusic();
     Proc_Event(&group, 0, 0, 2);
 }
 
@@ -335,6 +347,7 @@ static void st_menus(ProcGroup *g, uint32_t s)
     InputRecord *r = Input_Record(player);
     page = next_page;   /* 0x4ea470 */
     Input_PollAll();
+    Music_Poll();   /* 0x4a2fe0 */
     uint32_t b = r->pressed;
     if (player == 1) b |= Input_Record(0)->pressed & 0x20;
     Menu *to = Menu_Input(page, b);
@@ -384,7 +397,7 @@ static void st_leave(ProcGroup *g, uint32_t s)
     gw8(0x52ea59, 0);
     gw8(0x817574, (uint8_t)(gm32(0x52e890) >> 0x11 & 1));   /* 0x4d0590 */
     if (m != 4) Fe_ChampTables();   /* 0x4cf060 */
-    PENDING_NOTE(0x4a2b50, "the music's stop");
+    Music_Stop(false);   /* 0x4a2b50 */
     Fe_OptionsMode();   /* 0x4eabc0 */
     if (!to_stage) {
         if (m < 8 || m > 12) Weather_Choose();   /* 0x40dc30 */
