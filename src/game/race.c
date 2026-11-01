@@ -7,6 +7,7 @@
 #include "game/hud.h"
 #include "game/sectors.h"
 #include "audio/engine.h"
+#include "audio/codriver.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/timer.h"
@@ -102,8 +103,8 @@ static void Race_Update(uint8_t state, bool flag)
             if ((uint32_t)i < np) {
                 PENDING_NOTE(0x445ea0, "Replay_Record");
                 Hud_Update(i, kind == 5 || kind == 7);   /* 0x411f70 */
-                if (state == 8 || state == 9) PENDING_NOTE(0x417090, "Codriver_Step");
-                else if (state == 7) PENDING_NOTE(0x416f70, "Codriver_Start");
+                if (state == 8 || state == 9) Codriver_Step(i);   /* 0x417090 */
+                else if (state == 7) Codriver_Start(i);           /* 0x416f70 */
                 PENDING_NOTE(0x404e10, "Pause_Pressed");
             }
         }
@@ -145,6 +146,7 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
         /* 0x427c10: the engines at a third of the effects volume (the co-driver's and the others'
            volumes, 0x41b040, 0x418560, 0x418d20, not ported) */
         Engine_Volume((int32_t)(gm32(0x52afb8) >> 7 & 0x7f));
+        Codriver_Volume((int32_t)(gm32(0x52afb8) >> 0xe & 0x7f));   /* 0x418560 */
         PENDING_NOTE(0x41f560, "Race_Setup 0x41f560, 0x41f260, 0x478a20, 0x40efa0, 0x475f00");
         Bfl_MountCommon();
         Race_LoadFonts();
@@ -181,6 +183,10 @@ static bool load_or_quit(ProcGroup *g, uint32_t slot, bool (*load)(void))
 static void s3_stage(ProcGroup *g, uint32_t slot)
 {
     if (!load_or_quit(g, slot, H->load_stage)) return;
+    if (slot == 0) {
+        PENDING_NOTE(0x418ff0, "Race_LoadSounds 0x418ff0, 0x4188c0, 0x411120");
+        Codriver_LoadSpeech();   /* 0x416710 */
+    }
     Proc_Event(g, slot, 0, 2);
 }
 
@@ -346,7 +352,8 @@ static void draw(ProcGroup *g, uint32_t slot)
 
 void Race_DrawOverlays(int player)
 {
-    Hud_Draw(player);   /* 0x4125f0, in the view 0x40f0c0 */
+    Hud_Draw(player);         /* 0x4125f0, in the view 0x40f0c0 */
+    Codriver_Notes(player);   /* 0x4177d0 */
     fade_overlay(player, gm8(0x52af40) != 0);
 }
 

@@ -9,6 +9,7 @@
 #include "game/race.h"
 #include "audio/dsound.h"
 #include "audio/snd.h"
+#include "audio/codriver.h"
 #include <math.h>
 #include "game/camera.h"
 #include "game/hud.h"
@@ -68,7 +69,12 @@ static void input(int player, uint32_t *held, uint32_t *pressed)
 
 static Obj camera;
 static Obj *host_camera(int player) { (void)player; return &camera; }
-static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, NULL, host_camera};
+static void draw(int player, int state)
+{
+    (void)state;
+    Codriver_Notes(player);   /* the overlays' speech each frame (the 2D drawing is the GPU tests') */
+}
+static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, draw, host_camera};
 
 int main(void)
 {
@@ -144,13 +150,18 @@ int main(void)
             double e = 0;
             for (int q = 0; q < 1470 * 2; q++) e += pcm[q] * pcm[q];
             printf("engine: %d sounds, rms %.4f\n", Snd_Count(), sqrt(e / (1470 * 2)));
-            CHECK(Snd_Count() == 13 && e > 0);
+            CHECK(Snd_Count() == 59 + 13 && e > 0);
+   /* the co-driver's 59 and the engine's 13 */
             CHECK(Times_Race() >= 290 && Times_Race() <= 310);
             CHECK(Race_StageTime(0) >= 290 && Race_StageTime(0) <= 310 && CI32(c, 0x778) > 0x8000);
             fin = frame;
         }
     }
     CHECK(stage_loads == 1 && car_loads == 1);
+    /* the co-driver: three, two, one, go, then the calls the car passed (spoken in the overlays) */
+    for (int q = 0; q < 4; q++) Race_DrawOverlays(0);
+    printf("co-driver: %d words queued, the car at point %d\n", Codriver_Said(), Car_CatIndex(Car_Get(0)));
+    CHECK(Codriver_Said() > 4);
     /* the overlays: the time panel's box and the recovery's fade (0x428680), two triangles each */
     if (Game_Mode() == 3) {
         CW32(Car_Get(0), 0xbf8, 1);

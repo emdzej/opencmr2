@@ -39,7 +39,7 @@
 00455300	Stage_LoadTm	track	med	Loads <stage>.tm0/.tm1/.tm2
 00456c10	Stage_LoadCsp	track	med	Loads <stage>.csp
 00416720	Codriver_LoadCod	codriver	med	Loads <stage>.cod (pace notes)
-00416770	Codriver_SpeechTable	codriver	med	Pace-note speech sample names
+00416770	Codriver_LoadSpeech	codriver	high	The co-driver's sixty speech WAVs, in the order the code pushes their names
 00490c30	Stage_LoadFinDat	track	med	Loads <stage>fin.dat (0x30-byte records)
 0047c2f0	Ai_LoadLines	ai	med	Loads <stage>.ai0/.ai1/.ai2
 0046f060	Stage_LoadSkyGround	track	med	Loads TEMP.SKY and TEMP.GRO
@@ -532,3 +532,15 @@
 004a2690	Voice_ApplyFrequency	audio	high	A voice's frequency, 100 at least
 004a26f0	Voice_Release	audio	high	A voice stopped and its buffers released
 004a1d60	Snd_Open	audio	med	DirectSoundCreate and the primary buffer
+00416670	Codriver_Reset	codriver	high	The co-driver's state, calls and speech queue cleared
+00416f70	Codriver_Start	codriver	high	The countdown: three, two, one
+00417090	Codriver_Step	codriver	high	The calls the car passes queued; the wrong way; the first call's countdown
+004174e0	Codriver_QueueCall	codriver	high	A call queued from the point's code (and the next's); modifiers split off
+00417660	Speech_Say	codriver	high	A sound into the speech queue
+004176b0	Speech_Step	codriver	high	The speech queue's first sound played, the queue on when it ends
+00417760	Car_Rolled	codriver	high	The car rolled over (+0xc10): the co-driver silent
+004177d0	Notes_Draw	codriver	high	The pace-note arrows and the calls spoken as they appear
+00418000	Codriver_Words	codriver	high	A call descriptor's words in order
+00418580	Notes_Arrow	codriver	high	A call's HUD arrow; whether it has one
+00418560	Codriver_SetVolume	codriver	high	The co-driver's volume (0x537194)
+00418760	Speech_Load	codriver	high	Snd_LoadNamed from the speech archive
