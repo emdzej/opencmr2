@@ -465,6 +465,17 @@ void Camera_Frame(int p, int32_t frac, Obj *camera)
 }
 
 void Camera_Position(int p, int32_t pos[3]) { pos[0] = out[p].m[12], pos[1] = out[p].m[13], pos[2] = out[p].m[14]; }
+int32_t Camera_Zoom(int p) { return out[p].f54; }
+/* 0x4baca0 on 0x538d30 + 100 n: the third row of the step camera's matrix (the original indexes the
+   records by any car's number, past the players'; the port gives zero there) */
+void Camera_Forward(int p, int32_t f[3])
+{
+    if (p < 0 || p >= 4) {
+        f[0] = f[1] = f[2] = 0;
+        return;
+    }
+    f[0] = out[p].m[8], f[1] = out[p].m[9], f[2] = out[p].m[10];
+}
 
 /* 0x539200: per player 14 ints of the interior views' head movement (kept in the game state at their
    address: the shake indexes them by any car's number, so cars 4-7 write past the players' four, as

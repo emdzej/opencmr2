@@ -6,6 +6,7 @@
 #include "game/car_load.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/weather.h"
 #include "game/stage_load.h"
 #include "platform.h"
 #include "render/d3d7.h"
@@ -79,6 +80,7 @@ static void draw(int player, int state)
     Cars_ShellsToCamera(&camera);
     Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */
     Obj_Frame(&g_world, &camera);
+    Weather_Draw(player);   /* 0x460330, at the end of the cars' pass 0x466570 */
     Race_DrawOverlays(player);
     int16_t view[4] = {0, 0, (int16_t)w, (int16_t)h};
     World_Render(&camera, view, 0, true);

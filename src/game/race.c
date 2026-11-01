@@ -1,6 +1,7 @@
 /* The race (see race.h). The original keeps the race's variables at 0x537dd0-0x538124; they are the
    fields of R, named by address where the meaning is open. */
 #include "game/race.h"
+#include "game/weather.h"
 #include "game/proc.h"
 #include "game/camera.h"
 #include "game/common.h"
@@ -145,7 +146,7 @@ static void Race_Update(uint8_t state, bool flag)
             Sectors_Step();   /* 0x4581d0 */
             Times_Step();   /* 0x448120 */
             if (gm32(0x52f2ac) >> 0x15 & 1) Opp_Step(R.kind == 4 ? Race_Base() : 0);   /* 0x455590 */
-            PENDING_NOTE(0x45e7f0, "Race_Step 0x45e7f0");
+            Weather_CarsStep();   /* Race_Step 0x45e7f0 */
         }
         for (uint32_t i = 0; i < np; i++)
             if (Car_Get((int)i)->s[0xb43]) Camera_Step((int)i);   /* 0x4219b0 */
@@ -160,6 +161,7 @@ static void Race_Update(uint8_t state, bool flag)
     }
     Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its other effects not ported) */
     Particles_Interp(R.frac);   /* 0x4b06a0 */
+    Weather_Interp(R.frac);     /* 0x461bb0 */
     if (H->pose) H->pose(R.frac);
     for (uint32_t i = 0; i < np; i++)
         if (H->camera) Camera_Frame((int)i, CI32(Car_Get((int)i), 0xa90), H->camera((int)i));   /* 0x422140 */
@@ -193,12 +195,13 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
         Race_LoadFonts();
         /* 0x40efa0, in part: the sprite queue (0x4b1150), the particles (0x4b0060: 32 types, 400),
            the glows (0x4ae170: 4 with option 0, else 160); of 0x40f020 the lamps' and the start
-           lights' textures (0x463360) and the effects' (0x459c80; 0x45eb50 between is not ported) */
+           lights' textures (0x463360), the weather's (0x45eb50) and the effects' (0x459c80) */
         Sprite3d_Init();
         Particles_Alloc(0x20, 400);
         Glow_Alloc(Gs_Option(0) ? 4 : 0xa0);
         Lamps_Load();    /* 0x463d60 */
         Lights_Load();
+        Weather_Load();
         Effects_LoadTextures();
         Pause_Build();   /* 0x403500 */
     }
@@ -247,6 +250,7 @@ static void s4_cars(ProcGroup *g, uint32_t slot)
 {
     if (!load_or_quit(g, slot, H->load_cars)) return;
     if (slot == 0) {
+        Weather_Alloc(g_all.n);        /* 0x45e5b0 in Cars_Load */
         Engine_Load((int)players());   /* 0x478f50 in 0x420150 */
         Engine_Reset();                /* 0x478dc0 */
     }
@@ -263,6 +267,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             if (H->place_cars) H->place_cars();
             Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
             Lamps_Place();     /* 0x466360's cars */
+            Weather_RaceStart();   /* Race_StartLights 0x45eca0, in 0x466360 */
             Lights_Setup();    /* 0x463410, in 0x466360 */
             Effects_Types();   /* 0x45a170, the end of 0x466360 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */
@@ -525,3 +530,4 @@ int Race_Cars(void) { return g_all.n; }
 int32_t Race_Frac(void) { return R.frac; }
 int Race_Base(void) { return gm8(0x537ef6); }   /* 0x41b370 */
 int Race_Kind(void) { return (int)R.kind; }   /* 0x41b380 */
+Obj *Race_Camera(int player) { return H && H->camera ? H->camera(player) : NULL; }

@@ -696,3 +696,39 @@
 004ac260	Obj_SetData	world	high	An object's kind (+0x178) and data (+0xc)
 004b3850	Light_GetHigh	world	high	Returns the high light colour's bytes
 004ac680	Obj_Free	world	high	An object's data freed by kind and its table place cleared
+0045e5b0	Weather_Alloc	weather	high	The weather records for n cars, zeroed
+0045eb50	Weather_Load	weather	high	The rain, splat, snow and sun-glow textures
+0045ea70	Weather_StageLoad	weather	high	The stage's kind of weather, its levels and wet values, and where they change
+0045e6b0	Weather_Change	weather	high	The wet values at the start and end and the points between which they change
+0045e610	Weather_Restart	weather	high	The players' records back at the start level
+0045e7f0	Weather_CarsStep	weather	high	Every car's wet value by its point along the stage
+0045f4a0	Weather_Step	weather	high	The wind, the lightning and each player's level, sky, heading and drops
+00461bb0	Weather_Interp	weather	high	The sky's blend and heading at the frame's fraction
+00460330	Weather_Draw	weather	high	A player's rain or snow queued, then the sun glow
+0045f300	Weather_LevelSetup	weather	high	The level's ramp; the players' records of the stage's kind
+0045e710	Weather_WetSetup	weather	high	The wet value's ramp; every car's grip set by it
+0045f3d0	Weather_SkySetup	weather	high	The sky's blend ramp; every car's record at its start
+00460c30	Weather_SetLevel	weather	high	A record's level and the drops it aims at
+0045f260	Weather_Ramps	weather	high	The sky, level and wet ramps along the stage
+0045eed0	Weather_DropsSetup	weather	high	The 400 drops shared between the players and scattered through each box
+0045eea0	Wind_Reset	weather	high	The wind along (0.707, 0, -0.707), still
+0045f240	Lightning_Reset	weather	high	No bolt
+0045f6d0	Wind_Step	weather	high	The wind's gusts: a hold, then the strength eased to a new aim
+0045f890	Lightning_Step	weather	high	The bolt's wait and the flash in heavy rain
+0045f530	Weather_LevelStep	weather	high	A record's level by the point its car is at
+0045e8b0	Weather_SkyStep	weather	high	The sky's blend by the point and within its segment
+00460a30	Wind_Vector	weather	high	The wind's vector by the players' mean level, doubled in snow
+00421fe0	Camera_Heading	camera	high	The heading of a camera's forward axis
+0045f5d0	Weather_HeadingStep	weather	high	The clouds' heading turned by the wind across the view
+00460270	Weather_Fall	weather	high	The drops' fall per frame: the wind and the drop
+0045e9a0	Weather_Cover	weather	high	The drops faded out under the roofs of two stages
+0045f9d0	Weather_DropsStep	weather	high	The box of drops moved with the camera, the drops with the wind, wrapped
+00460b60	Weather_TypeStep	weather	high	A record's change of type (never in the release)
+00460390	Weather_DrawDrops	weather	high	Rain streaks and splats, or snowflakes
+00460ca0	Weather_CarDrops	weather	med	Drops on the car's body (not ported)
+00461b30	Hor_Fog	world	high	A horizon record's fog range by its weather
+00461a70	Hor_Weather	world	high	The weather's changes to the two horizon records
+00462d80	Weather_SunGlow	weather	med	The sun's glow (not ported)
+00492910	Sky_BoltVertex	world	low	The sky vertex nearest the camera's direction for a bolt (not ported)
+00492b50	Sky_BoltColour	world	low	One of three lightning colours into the sky (not ported)
+004209d0	Progress_SegFrac	sim	med	The car's share of its centre-line segment

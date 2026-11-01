@@ -1,5 +1,6 @@
 /* The cars' lamps (see lamps.h). */
 #include "game/lamps.h"
+#include "game/weather.h"
 #include "game/car_load.h"
 #include "game/common.h"
 #include "game/mem.h"
@@ -309,8 +310,7 @@ void Lamps_Step(Car *c)
         /* the shaft on the ground under the wheel on the lamp's corner */
         int w = (g->pos[0] < 0 ? 2 : 0) + (g->pos[2] < 0 ? 1 : 0);
         int16_t surf = (int16_t)(c->s[0xaae + 2 * w] | c->s[0xaaf + 2 * w] << 8);
-        PENDING_NOTE(0x460c80, "Weather_CarValue");   /* the weather is not ported: dry */
-        Glow_Plane(g, at, up, shine(surf, 0));
+        Glow_Plane(g, at, up, shine(surf, Weather_CarWet(c)));   /* 0x460c80 */
         if (Damage_Dents(n)) {
             /* the lamp moved with its vertex (0x46b440) */
             int s = rd16(r + 0x24), x = rd16(r + 0x26);
@@ -333,7 +333,7 @@ void Lamps_Frame(const int16_t *cars, int n)
         Lens_Step(i);   /* by the place in the list, as the original */
         Lamps_Step(c);
     }
-    PENDING_NOTE(0x45f4a0, "Weather_Step");
+    Weather_Step();   /* 0x45f4a0 */
 }
 
 /* 0x4648f0: the daylight from the high colour, (R + G + B - 70) / 550, 0 to 1 (a 16-bit difference) */

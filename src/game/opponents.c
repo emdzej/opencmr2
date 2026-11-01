@@ -1,5 +1,6 @@
 /* The computer drivers' times (see opponents.h), ported from 0x455300-0x456960 (0x456710 from the
    disassembly) and 0x40d520. */
+#include "game/weather.h"
 #include "game/opponents.h"
 #include "crt.h"
 #include "exe.h"
@@ -247,8 +248,7 @@ void Opp_Times(bool new_seed)
     if (!loaded) return;
     clear();
     int32_t P[44] = {0};
-    /* 0x45e6b0: the weather's change on the stage (from 0x461a70, not ported: dry throughout) */
-    PENDING_NOTE(0x45e6b0, "Opp_Times (the weather's change along the stage)");
+    Weather_Change(&P[WET_A], &P[WET_B], &P[AT_A], &P[AT_B]);   /* 0x45e6b0 */
     if ((gm32(0x52f2ac) & 0x1f) == 3) P[WET_A] = P[WET_B] = 0;   /* Sweden: never wet */
     if (new_seed) seed = Timer_Now();
     crt_srand(seed);

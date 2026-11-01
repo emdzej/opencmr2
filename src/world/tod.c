@@ -128,9 +128,45 @@ const Horizon *Hor_ForTime(uint32_t time, int which, const uint8_t *const files[
     return out;
 }
 
+static void wr(Horizon *h, int o, int32_t v) { wr32(h->b + o, v); }
+static int32_t rd(const Horizon *h, int o) { return rd32(h->b + o); }
+
+/* 0x461b30: a record's fog range (+0x14 near, +0x18 far) by its weather: 15 to 80 on a stage with
+   heavy rain (0x52f1f0), else none near and far at the draw distance's (option 0x405ca0, + 2) x 50
+   over the type's fog factor (0x51b114; none at 0) */
+static void hor_fog(Horizon *h, int32_t type)
+{
+    wr(h, 0x14, 0), wr(h, 0x18, 0);
+    uint32_t v = ((gm32(0x52afd0) >> 0x15 & 0xf) + 2) * 0x320000;
+    if (gm32(0x52f1f0 + 4 * Tod_Stage())) {
+        wr(h, 0x14, 0xf0000), wr(h, 0x18, 0x500000);
+        return;
+    }
+    int32_t f = gms32(0x51b114 + 4 * (uint32_t)type);
+    if (f) wr(h, 0x18, (int32_t)(((int64_t)(int32_t)v << 16) / f));
+}
+
+/* 0x461a70: the weather's changes to the two records: a cloudy end (type 1) gets the sky's +0x2f 200
+   next to clear or cloudy, else 50; their fog ranges; one without fog takes the other's far value for
+   both of its own */
+static void hor_weather(Horizon *a, Horizon *b)
+{
+    if (!a || !b) return;
+    const int32_t *w = Tod_Weather(Tod_Stage());
+    int32_t s = w[0], e = w[1];
+    if (s == 1) a->b[0x2f] = e == 0 || e == 1 ? 200 : 0x32;
+    if (e == 1) b->b[0x2f] = s == 0 || s == 1 ? 200 : 0x32;
+    hor_fog(a, s);
+    hor_fog(b, e);
+    if (!rd(a, 0x14) && !rd(a, 0x18) && (rd(b, 0x14) || rd(b, 0x18))) {
+        wr(a, 0x18, rd(b, 0x18)), wr(a, 0x14, rd(b, 0x18));
+        return;
+    }
+    if (!rd(b, 0x14) && !rd(b, 0x18) && (rd(a, 0x14) || rd(a, 0x18))) wr(b, 0x18, rd(a, 0x18)), wr(b, 0x14, rd(a, 0x18));
+}
+
 /* The file names are the 48 strings at 0x5196dc down in steps of 12 (0500.hor ... 2400BLI.hor). Not
-   ported yet: 0x461a70's weather changes to +0x14, +0x18 and +0x2f (fog), and the six fog-colour bytes
-   (the two records' +0x48-+0x4d averaged, 0x4a5ff0-0x4a60b0). */
+   ported yet: the six fog-colour bytes (the two records' +0x48-+0x4d averaged, 0x4a5ff0-0x4a60b0). */
 void Stage_LoadHorizons(void)
 {
     const uint8_t *files[48];
@@ -142,6 +178,7 @@ void Stage_LoadHorizons(void)
     uint32_t end = Tod_EndTime(), start = Tod_StartTime();
     g_hor_start = Hor_ForTime(start, 0, files);
     g_hor_end = Hor_ForTime(end, 1, files);
+    hor_weather(g_hor_start ? &hor_start : NULL, g_hor_end ? &hor_end : NULL);   /* 0x461a70 */
     if (g_hor_start && g_hor_end) Light_Defaults();
 }
 

@@ -18,6 +18,8 @@ void Camera_Step(int player);                             /* 0x4219b0 */
 int Camera_Next(int player, int state);
 void Camera_Frame(int player, int32_t frac, Obj *camera); /* 0x422140 */
 void Camera_Position(int player, int32_t pos[3]);          /* the step's camera (0x538d28 + 0x38) */
+int32_t Camera_Zoom(int player);                           /* its +0x54 (0x538d7c), read by the weather */
+void Camera_Forward(int player, int32_t f[3]);             /* the step camera's forward axis (0x538d28 + 0x28) */
 /* 0x4241d0: a hit's impulse (world axes) into the car's player's shake levels (0x539200: [9] from its
    third car axis when along, with its sign in [12]; [10] from its length); read by the steering
    wheels' force feedback (0x423ff0-0x424c00, DirectInput effects; gasm has none, not ported) */

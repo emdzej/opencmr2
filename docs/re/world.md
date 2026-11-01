@@ -215,6 +215,73 @@ instead.
 The per-frame blend towards the end record (0x461c30, by the stage's progress) and the rest of the
 record (fog, sky colours) are not ported yet.
 
+## Weather
+
+The race's weather (0x45e5b0-0x462d80, `src/game/weather.c`). A stage's start and end conditions
+(0x52f100) give its kind (0x51b04c: 0 dry, 1 rain, 2 snow), its level (0x51b070) and its wet value
+(0x51b094). Rain and snow are per player. The wet value is per car and feeds the grip and the lamps'
+shine on the ground.
+
+**Load** (`Stage_Load`, 0x45ea70). The kind is the start's. When only the end has one, the start's
+level is 0; when only the start has one, the end's level is 0. A change of level runs from a fifth of
+the way to the finish to the finish less a twenty-fifth of it. (The original divides the fifth by five
+again for the end.) The computer drivers' times read the same change (0x45e6b0).
+
+**Race start** (0x45eca0, in the cars' placing):
+
+- **The ramps** (0x45f260). Each is a value between two centre-line points: from, to, slope, first
+  point, last point. There are three:
+  - the sky's blend (0x543d88), 0 to 1 over the whole stage when the time or the weather changes
+    (not on circuits);
+  - the level (0x543d60);
+  - the wet value (0x543d74), which also sets every car's grip.
+- **The detail's share** (0x543d50): 1.0, 0.25 or 0 by the effects detail.
+- **The vertex and sprite templates** for the streak, the splat, the flake and the drop on the car.
+- **The wind** starts along (0.707, 0, -0.707), still.
+- **The drops.** 400 are shared between the players (0x543fb0, 0x24 bytes each). They are scattered
+  through a box 24 x 12 x 24 one unit ahead of each camera.
+- **The light.** The low and high light come from the start's horizon. The sun's direction for the
+  shadows (0x463070, 0x4b5760) is not ported.
+
+**Each step** (0x45f4a0, at the end of the lamps' frame 0x4664c0):
+
+- **The wind** (0x45f6d0). Gusts hold for 25 to 100 frames. Then the strength eases to a new aim
+  (0 to 1, at 0.005 to 0.03 a frame). With snow the aim and rate are halved.
+- **The lightning** (0x45f890). A wait of 125 to 500 frames, then a bolt on a sky vertex for 20 to 40
+  frames. In rain above 0.8 the flash shows 30 percent of the frames. The sky's bolt vertex and colours
+  (0x492910, 0x492b50) are not ported.
+- **Per player:**
+  - the level by the point its car is at;
+  - the sky's blend;
+  - the clouds' heading, turned by 6 percent of the wind across the view;
+  - the drops (0x45f9d0);
+  - a change of type (0x460b60, never in the release: nothing sets the wanted type after the set-up).
+- **The drops** (0x45f9d0):
+  - The box is centred 14 ahead of the camera, further when zoomed. It is never lower than 6 above the
+    camera or 6.75 above the wheels' ground.
+  - The drops fall with the wind, move against the box's own motion, and wrap round it. Rain falls 1.2
+    to 2.0 a frame, snow 0.1 to 0.3.
+  - In rain a 5 x 5 grid of ground heights (cells of 4.8) brings a drop that went under the ground
+    back at the top, marked for a splat.
+  - Snow sways along the camera's side and drifts with the wind.
+  - Under the roofs of rally 6 stage 1 (points 103-108) and rally 7 stage 3 (470-471) the drops fade
+    out, 0.2 a frame (0x45e9a0).
+- **The cars' wet values** (`Race_Step` 0x45e7f0, after the computer drivers): each car's value by
+  its point.
+
+**Drawing** (0x460330, at the end of the cars' pass):
+
+- **Rain.** A streak per drop: a triangle from its tail to a head across the view, 0.06 to 0.1 wide.
+  The head's alpha is 30 in the open. A splat sprite goes where a drop came through the ground.
+- **Snow.** A flake per drop, coloured by the terrain's light ramp at 0.8.
+- **Not ported:** the drops on the car (0x460ca0) and the sun's glow (0x462d80, which reads the z
+  buffer back).
+
+**The horizon records** (0x461a70). A cloudy end gets +0x2f 200 next to clear or cloudy, else 50.
+The fog range is 15 to 80 on a stage with heavy rain (0x52f1f0). Otherwise it is none near, and far
+at (draw distance + 2) x 50 over the condition's fog factor (0x51b114). A record without fog takes
+the other's far value.
+
 ## Stage lights
 
 There are two colours:
