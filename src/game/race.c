@@ -275,6 +275,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Lamps_Place();     /* 0x466360's cars */
             Shadow_Place();        /* 0x494bb0, in 0x466360 */
             Weather_RaceStart();   /* Race_StartLights 0x45eca0, in 0x466360 */
+            Chips_Setup();     /* 0x498dd0, in 0x466360 */
             Lights_Setup();    /* 0x463410, in 0x466360 */
             Effects_Types();   /* 0x45a170, the end of 0x466360 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */

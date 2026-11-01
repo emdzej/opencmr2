@@ -359,7 +359,6 @@
 0048c900	Cars_PushOne	sim	med	The recursive part of Cars_PushGroup
 004878a0	Car_Scenery	sim	med	The car against the scenery objects of its cells
 0048a1f0	Cars_Collide	sim	low	The car-to-car contacts
-00499750	Sparks_Add	fx	low	Sparks or particles from a scrape (uses rand)
 00466ef0	Car_Damage	sim	med	Damage from a hit: point, normal, kind
 0042f9d0	Car_FreeLift	sim	high	The loose body lifted out of the ground by its deepest free corner, or lowered onto the nearest
 0042fb20	Car_FreeSettle	sim	high	The loose body's rows against the ground: spin pulled and locked as an axis crosses, roll counters, hit
@@ -845,3 +844,9 @@
 0x45d2d0	Flame_Step	game	confirmed	the backfire flame placed at its car's exhausts in turn
 0x45a150	Exhaust_SetRecord	game	confirmed	a car's exhaust lamp record
 0x45b530	Exhaust_SetGlow	game	confirmed	a car's exhaust glow
+0x499750	Sparks_Add	game	confirmed	sparks and paint chips from a scrape
+0x499070	Spark_Draw	game	confirmed	the spark's streak triangle
+0x4994d0	Spark_Post	game	confirmed	the spark keeps its first alpha early on
+0x4994f0	PaintChip_Draw	game	confirmed	the paint chip's triangle in the car's paint
+0x499710	PaintChip_Spawn	game	confirmed	the chip's car, shape and light
+0x498dd0	Chips_Setup	game	confirmed	the spark colour, ten chip shapes, the cars' .cin section 2

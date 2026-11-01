@@ -3,6 +3,7 @@
 #include "sim/damage.h"
 #include "game/car_load.h"
 #include "game/mem.h"
+#include "game/effects.h"
 #include "crt.h"
 #include "fixmath.h"
 #include "pending.h"
@@ -231,8 +232,7 @@ static void part_unhinge(void)
 /* Part_Scrape 0x483100: on a surface that sparks under the part's corner wheel (+0xaae), a point at the
    part's low edge (its hinge, down twice the slot's y extent, along its third row 1.8 z extents
    towards the far end) in the car's orientation; sparks there against the scrape g, stronger with
-   it (5 g, at most 1.0; none below 0.2). The original also makes a unit vector across g and the
-   ground normal that it never uses. */
+   it (5 g, at most 1.0; none below 0.2): up to 4, 0.4 of them chips. */
 static void part_scrape(const int32_t g[3], int corner)
 {
     uint32_t s = slot_of[type_of(cur)][idx(cur_car)];
@@ -252,8 +252,13 @@ static void part_scrape(const int32_t g[3], int corner)
     int32_t str = fx_mul(l, 0x50000);
     if (str > 0x10000) str = 0x10000;
     else if (str <= 0x3333) return;
-    (void)at, (void)dir;
-    PENDING_NOTE(0x499750, "Sparks_Add (a loose part's scrape: strength, point, car, direction, 4.0, 0.4)");
+    /* the rows: against g, the ground normal (+0x48c), and their cross made unit */
+    int32_t rows[9] = {dir[0], dir[1], dir[2], CI32(cur_car, 0x48c), CI32(cur_car, 0x490), CI32(cur_car, 0x494)};
+    rows[6] = fx_mul(rows[1], rows[5]) - fx_mul(rows[2], rows[4]);
+    rows[7] = fx_mul(rows[2], rows[3]) - fx_mul(rows[0], rows[5]);
+    rows[8] = fx_mul(rows[0], rows[4]) - fx_mul(rows[1], rows[3]);
+    Vec_Unit(rows + 6);
+    Sparks_Add(str, at, cur_car, rows, 0x40000, 0x6666);
 }
 
 /* Part_Break 0x482ac0: off its hinge with the push f (the car's frame) as a tenth of its velocity;

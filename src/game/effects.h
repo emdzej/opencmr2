@@ -1,9 +1,9 @@
-/* The race's particle effects (0x459c80-0x45a170, docs/re/world.md#particles): their textures and
-   their types. The emitters (dust and gravel from the wheels 0x45af90 / 0x45b580, exhaust smoke
-   0x45c820, splashes 0x45dc00, 0x47dd70, sparks 0x499750, paint and glass chips 0x499de0 / 0x49b3e0)
-   and the types' callbacks are not ported yet. */
+/* The race's particle effects (0x459c80-0x45a170, docs/re/world.md#particles): their textures, their
+   types and the emitters (the wheels' dust, grass, splashes and stones, the exhausts, the sparks).
+   Not ported yet: 0x47dd70 and the glass chips 0x499de0. */
 #pragma once
 #include "render/tex.h"
+#include "sim/car.h"
 #include <stdint.h>
 
 void Effects_LoadTextures(void);    /* 0x459c80 (in 0x40f020) */
@@ -19,6 +19,16 @@ void Wheels_Track(int car);
 /* 0x45af00, each frame after it, not in some modes: the car's light and its wheels' effects */
 void Car_GroundLight(int car, int view);   /* 0x462aa0 */
 void Effects_Car(int car);
+void Chips_Setup(void);
+/* Sparks_Add 0x499750 (scrapes: the walls 0x48fb80, the loose parts 0x483100, the cars' contacts
+   0x48ae90, the scenery 0x469e40, 0x46a500): 1 to most (16.16) at random of sparks (type 26) at pos
+   (relative to the car's first model's place), each with a velocity from the three rows (along,
+   across, up) scaled by strength times 0.2, 0.1 and 0.05 and a random share, the second and third
+   rows each one way or the other at random; of a random share under chips, paint chips (type 27,
+   the car as their argument) while the damage record's chip count (+0x469) is under 8, sparks after.
+   A chip, or the spark in its place, marks the record (+0x46c) and adds 2 to the count (at most 255).
+   Not in mode bit 26 or for a car out of the race (+0xc0c). */
+void Sparks_Add(int32_t strength, const int32_t pos[3], Car *c, const int32_t rows[9], int32_t most, int32_t chips);   /* 0x498dd0 (0x466360, after Race_StartLights) */
 /* 0x45b550 (from the engine's backfire in Engine_Mix 0x479360, not ported): the car's exhausts flame
    for the given frames */
 void Effects_Backfire(int car, int frames);

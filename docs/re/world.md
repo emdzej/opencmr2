@@ -782,8 +782,31 @@ each listed car (its list index used as the car number) the sounds run (0x464c60
     at the origin: its step 0x45d2d0 puts it at one of the car's exhausts in turn) and its glow lit at a
     random level.
 
-The other emitters are not ported yet: `Stage_Step`'s 0x47dd70, the sparks (0x499750) and the chips
-(0x499de0). Neither are the detail dust's lamp follower 0x45d2d0 or the sparks' and chips' callbacks.
+**Sparks** (`Sparks_Add` 0x499750). The callers give a strength, a point (relative to the car's first
+model, which the particles take as their base), three rows and the most to throw:
+- the walls (0x48fb80), on the metal-like faces (types 2, 14, 15, 18) when the car slides along the
+  face faster than 0.5: the rows are the slide reversed, its cross with the face's normal and the
+  normal; the point the deepest corner less the car's place, times 0.8, at height 0; up to 9;
+- a loose part scraping the ground (0x483100): the scrape reversed, the ground normal and their cross;
+  up to 4;
+- the cars' contacts (0x48ae90) and the scenery (0x469e40, 0x46a500), not ported yet.
+Each throws 1 to that many (at random), each moving along the rows scaled by the strength times 0.2,
+0.1 and 0.05 and a random share, the second and third rows one way or the other at random. For a
+random share under 0.4 a paint chip (type 27) comes in place of the spark while the damage record's
+chip count (+0x469) is under 8; then the record is marked (+0x46c) and the count goes up by 2 (also
+for the sparks that stand in after 8). Not in mode bit 26 or for a car out of the race.
+
+The spark's draw (0x499070) is a streak triangle: from the particle forward twice its velocity (at
+most 0.35 long), as wide as a quarter of that length across the line to the camera, colour 0xfefefe
+at the particle's alpha. Its step (0x4994d0) keeps the type's first alpha while more than 7.5 steps
+are left. A paint chip (spawn 0x499710: its car and a random shape 0-9, the car's light +0xa70 as its
+scale) is drawn (0x4994f0) as that shape in the car's paint (its .cin section 2's colour 0, 1 or 2 by
+the shape), times the light ramp's colour at the scale. The ten shapes are made at the race start
+(0x498dd0, after `Race_StartLights`): three random corners of 0 to 1, less a "centre" (the middle of
+the first two, then halfway to the third, not the true centre), times 0.2.
+
+Not ported yet: `Stage_Step`'s 0x47dd70 and the glass chips (0x499de0, callbacks 0x499ac0, 0x499a80).
+On screen the sparks are not yet checked: the runs so far hit no metal faces.
 
 ## Skid marks
 

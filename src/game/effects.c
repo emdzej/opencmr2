@@ -23,6 +23,9 @@
 #include "pending.h"
 #include "sim/car.h"
 #include "world/particles.h"
+#include "sim/sim.h"
+#include "render/polyq.h"
+#include "game/car_load.h"
 #include "world/glow.h"
 #include <stdio.h>
 
@@ -70,6 +73,32 @@ static Tex *load_num(uint32_t name, int n)
 
 /* 0x499020: two records of the sparks and the chips (0x592888 and 0x593728), three pairs of 16.16
    values each */
+/* 0x498dd0 (in 0x466360, the cars placed): the spark triangle's colour 0xfffefefe; ten chip triangles
+   (0x592d80, three corners of 0 to 1 at random), each moved by its "centre" (the middle of the
+   first two corners, then halfway from that to the third: not the true centre) and scaled by 0.2; per
+   car its .cin section 2 (0x592cf8) and that plus 12 (0x592d18) */
+static int32_t rand_pos(void);
+static const uint8_t *chip_cin[CAR_MAX];   /* 0x592cf8 (+12 at 0x592d18): each car's .cin section 2 */
+void Chips_Setup(void)
+{
+    for (uint32_t a = 0x592884; a < 0x5928cc; a += 0x18) gw32(a, 0xfffefefe);
+    for (uint32_t b = 0x592d80; b + 4 < 0x592eec; b += 0x24) {
+        for (uint32_t k = 0; k < 9; k++) gw32(b + 4 * k, (uint32_t)rand_pos());
+        int32_t c[3];
+        for (uint32_t k = 0; k < 3; k++) c[k] = fx_mul(gms32(b + 0xc + 4 * k) - gms32(b + 4 * k), 0x8000) + gms32(b + 4 * k);
+        for (uint32_t k = 0; k < 3; k++) c[k] = fx_mul(gms32(b + 0x18 + 4 * k) - c[k], 0x8000) + c[k];
+        for (uint32_t i = 0; i < 3; i++)
+            for (uint32_t k = 0; k < 3; k++) {
+                uint32_t at = b + 0xc * i + 4 * k;
+                gw32(at, (uint32_t)fx_mul(gms32(at) - c[k], 0x3333));
+            }
+    }
+    for (int i = g_all.n - 1; i >= 0; i--) {
+        int n = g_all.car[i];
+        if (n >= 0 && n < CAR_MAX) chip_cin[n] = Car_CinSection(n, 2);
+    }
+}
+
 static void chips_setup(void)
 {
     for (uint32_t b = 0; b < 2; b++) {
@@ -203,10 +232,104 @@ static void cb_45d2d0(Particle *p, PType *t, void *a)
 }
 
 /* the sparks' and chips' callbacks (0x499070-0x499ac0), not ported yet */
-static void cb_499070(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x499070, "the sparks' draw"); }
-static void cb_4994d0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x4994d0, "the sparks' step"); }
-static void cb_4994f0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x4994f0, "the paint chips' draw"); }
-static void cb_499710(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x499710, "the paint chips' spawn"); }
+/* the spark's triangle (0x592878, three PolyVerts: colour 0xfefefe from 0x498dd0, uv from 0x499020) */
+enum { SPARK_TRI = 0x592878 };
+static uint32_t vlen(const int32_t v[3]) { return Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2])); }
+static void tri_corner(PolyVert *pv, uint32_t at)
+{
+    pv->x = gms32(at), pv->y = gms32(at + 4), pv->z = gms32(at + 8);
+    for (int k = 0; k < 4; k++) pv->rgba[k] = gm8(at + 0xc + (uint32_t)(k == 3 ? 3 : 2 - k));
+    pv->u = gms32(at + 0x10), pv->v = gms32(at + 0x14);
+}
+/* 0x499070, the sparks' draw (while under 19 steps old... left): a streak from the particle along its
+   velocity (at most 0.35 long, then twice that), as wide as a quarter of that length across the line
+   to the camera, at the particle's alpha, in the 0x10 queue (no culling) */
+static void cb_499070(Particle *p, PType *t, void *a)
+{
+    const Obj *cam = a;
+    if (p->life >= 0x130000 || !cam) return;
+    int32_t P[3] = {p->drawn[0], p->drawn[1], p->drawn[2]};
+    if (p->base)
+        for (int k = 0; k < 3; k++) P[k] += p->base[12 + k];
+    int32_t d[3] = {cam->local.m[12] - P[0], cam->local.m[13] - P[1], cam->local.m[14] - P[2]};
+    int32_t s[3] = {fx_mul(d[1], p->vel[2]) - fx_mul(d[2], p->vel[1]), fx_mul(d[2], p->vel[0]) - fx_mul(d[0], p->vel[2]),
+                    fx_mul(d[0], p->vel[1]) - fx_mul(d[1], p->vel[0])};
+    Vec_Unit(s);
+    int32_t len = (int32_t)vlen(p->vel), L[3];
+    if (len < 0x599a) {
+        for (int k = 0; k < 3; k++) L[k] = p->vel[k];
+    } else {
+        int32_t r = (int32_t)(0x100000000LL / len);
+        for (int k = 0; k < 3; k++) L[k] = fx_mul(fx_mul(p->vel[k], r), 0x5999);
+        len = 0x5999;
+    }
+    int32_t w = fx_mul(len, 0x4000);
+    for (int k = 0; k < 3; k++) s[k] = fx_mul(s[k], w);
+    for (int k = 0; k < 3; k++) {
+        gw32(SPARK_TRI + 4 * (uint32_t)k, (uint32_t)(fx_mul(L[k], 0x20000) + P[k]));
+        gw32(SPARK_TRI + 0x30 + 4 * (uint32_t)k, (uint32_t)(s[k] + P[k]));
+        gw32(SPARK_TRI + 0x18 + 4 * (uint32_t)k, (uint32_t)(P[k] - s[k]));
+    }
+    for (int i = 0; i < 3; i++) gw8(SPARK_TRI + 0x18 * (uint32_t)i + 0xf, p->alpha_drawn);
+    PolyVert v0, v1, v2;
+    tri_corner(&v0, SPARK_TRI), tri_corner(&v1, SPARK_TRI + 0x18), tri_corner(&v2, SPARK_TRI + 0x30);
+    Poly_Add(&v0, &v1, &v2, t->tex, 0x14);
+}
+/* 0x4994d0, after each step: while more than 7.5 steps are left, the type's starting alpha */
+static void cb_4994d0(Particle *p, PType *t, void *a)
+{
+    (void)a;
+    if (p->life > 0x77fff) p->alpha = t->alpha0;
+}
+enum { CHIP_TRI = 0x593718, CHIP_SHAPES = 0x592d80 };
+/* 0x4994f0, the paint chips' draw (under 19 steps left): chip shape (car & 0xff; 0-9) of the ten
+   0x498dd0 made, at the particle (plus its base's place), in its car's paint (the .cin section 2's
+   colour 0 for shapes 0-2, 1 for 3-5, 2 after) times the light ramp's colour at its scale (the car's
+   light, 0xa70, the spawn put there) over 255 */
+static void cb_4994f0(Particle *p, PType *t, void *a)
+{
+    (void)a;
+    if (p->life >= 0x130000 || !p->base) return;
+    int car = p->car >> 8, shape = p->car - (car << 8);
+    const uint8_t *cin = car >= 0 && car < CAR_MAX ? chip_cin[car] : NULL;
+    if (!cin || shape < 0 || shape > 9) return;
+    int idx = shape > 2 ? (shape > 5) + 1 : 0;
+    const uint8_t *paint = cin + 4 * idx;
+    uint32_t sh = CHIP_SHAPES + 0x24 * (uint32_t)shape;
+    for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t k = 0; k < 3; k++)
+            gw32(CHIP_TRI + 0x18 * i + 4 * k, (uint32_t)(gms32(sh + 0xc * i + 4 * k) + p->drawn[k] + p->base[12 + k]));
+        for (uint32_t k = 0; k < 3; k++) gw8(CHIP_TRI + 0x18 * i + 0xc + k, paint[k]);
+        gw8(CHIP_TRI + 0x18 * i + 0xf, 0xff);
+    }
+    uint32_t lc = Light_ByteRamp(p->scale);
+    uint8_t c[4];
+    for (int k = 0; k < 3; k++) {
+        int32_t f = fx_mul((int32_t)((lc >> (8 * k)) & 0xff) << 16, 0x106);
+        if (f > 0x10000) f = 0x10000;
+        c[k] = (uint8_t)(((int64_t)f * ((int32_t)paint[k] << 16)) >> 32);
+    }
+    c[3] = 0xff;
+    PolyVert v[3];
+    for (uint32_t i = 0; i < 3; i++) {
+        uint32_t at = CHIP_TRI + 0x18 * i;
+        v[i].x = gms32(at), v[i].y = gms32(at + 4), v[i].z = gms32(at + 8);
+        memcpy(v[i].rgba, c, 4);
+        for (int k = 0; k < 4; k++) gw8(at + 0xc + (uint32_t)k, k == 3 ? 0xff : c[k]);
+        v[i].u = gms32(at + 0x10), v[i].v = gms32(at + 0x14);
+    }
+    Poly_Add(&v[0], &v[1], &v[2], t->tex, 0x14);
+}
+/* 0x499710, after the emitter: the car (the argument) in the high byte, a random shape 0-9 in the
+   low, and the car's light (+0xa70) as the scale */
+static void cb_499710(Particle *p, PType *t, void *a)
+{
+    (void)t;
+    const Car *c = a;
+    p->car = (int16_t)(CI8(c, 0xb1a) << 8);
+    p->car = (int16_t)(p->car + crt_rand() % 10);
+    p->scale = CI32(c, 0xa70);
+}
 static void cb_499ac0(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x499ac0, "the glass chips' draw"); }
 static void cb_499a80(Particle *p, PType *t, void *a) { (void)p, (void)t, (void)a; PENDING_NOTE(0x499a80, "the glass chips' spawn"); }
 
@@ -1132,6 +1255,39 @@ void Car_GroundLight(int car, int view)
     Shadow_Light(car, v > 0x10000 ? 0x10000 : v);
 }
 
+void Sparks_Add(int32_t strength, const int32_t pos[3], Car *c, const int32_t rows[9], int32_t most, int32_t chips)
+{
+    uint8_t *d = Damage_Get(CI8(c, 0xb1a));
+    if (Gs_SelBit26() || CI32(c, 0xc0c)) return;
+    int n = (fx_mul(most, rand_pos()) >> 16) + 1;
+    int32_t k[3] = {fx_mul(strength, 0x3333), fx_mul(strength, 0x1999), fx_mul(strength, 0xccc)};
+    const int32_t *base = c->main ? c->main->local.m : NULL;   /* the first model's matrix (+0x71c + 0x98) */
+    uint8_t passes = c->second ? c->second->mask : 0;           /* the second model's +0x17c */
+    bool chipped = false;
+    for (; n > 0; n--) {
+        int32_t r[9];
+        for (int i = 0; i < 3; i++) {
+            int32_t f = fx_mul(rand_pos(), k[i]);
+            for (int j = 0; j < 3; j++) r[3 * i + j] = fx_mul(rows[3 * i + j], f);
+        }
+        int32_t v[3], vel[3];
+        bool neg = rand_pos() > 0x7fff;
+        for (int j = 0; j < 3; j++) v[j] = r[j] + (neg ? -r[3 + j] : r[3 + j]);
+        neg = rand_pos() > 0x7fff;
+        for (int j = 0; j < 3; j++) vel[j] = v[j] + (neg ? -r[6 + j] : r[6 + j]);
+        if (rand_pos() < chips) {
+            if (d[0x469] < 8) Particle_Emit(0x1b, pos, vel, pos[1] - 0x1999, base, NULL, 0, c, passes);
+            else Particle_Emit(0x1a, pos, vel, pos[1] - 0x1999, base, NULL, 0, NULL, passes);
+            chipped = true;
+        } else
+            Particle_Emit(0x1a, pos, vel, pos[1] - 0x1999, base, NULL, 0, NULL, passes);
+    }
+    if (chipped) {
+        d[0x46c] = 1, d[0x46d] = d[0x46e] = d[0x46f] = 0;
+        if (d[0x469] < 0xfe) d[0x469] = (uint8_t)(d[0x469] + 2);
+    }
+}
+
 void Effects_Backfire(int car, int frames)
 {
     if (car >= 8) return;
@@ -1173,7 +1329,7 @@ static void Exhaust_Smoke(int car)
     int32_t still = iabs(CI32(c, 0x408)) + iabs(CI32(c, 0x410));
     int32_t smoke = 0x17c - (fx_mul(DI32(Damage_Get(CI8(c, 0xb1a)), 0x404), 0x15e0000) >> 16);
     smoke = smoke > 0xff ? 0xff : smoke < 0 ? 0 : smoke;
-    uint8_t passes = c->main ? c->main->mask : 0;   /* the model's +0x17c */
+    uint8_t passes = c->second ? c->second->mask : 0;   /* the second model's +0x17c (+0x720) */
     uint32_t pt = 0x543380 + 0xc * (uint32_t)car;
     for (int i = 0; i < 2; i++) {
         const uint8_t *r = Lamps_Exhaust(car, i);

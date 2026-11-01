@@ -7,6 +7,7 @@
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "game/mem.h"
+#include "game/effects.h"
 #include "pending.h"
 #include "sim/scenery.h"
 #include "sim/damage.h"
@@ -380,7 +381,30 @@ static int face(int type)
         int32_t mag = (int32_t)len3(imp);
         if (!W.hit || W.hit_mag < mag) keep_hit(imp, W.a, W.n, 0, mag);
     }
-    if (type == 2 || type == 14 || type == 15 || type == 18) PENDING_NOTE(0x499750, "Sparks_Add");
+    /* metal-like faces: sparks along the car's slide over the face (its velocity after the impulse less
+       the part into the face), when faster than 0.5: the rows the slide's direction reversed, its
+       cross with the normal (made unit), and the normal; at the deepest corner (less the car's place,
+       times 0.8, at height 0); at most 1.0 strong, up to 9, 0.4 of them chips; not for a car in the
+       recovery (+0xb70) */
+    if (type == 2 || type == 14 || type == 15 || type == 18) {
+        int32_t u[3] = {CI32(c, 0x408), CI32(c, 0x40c), CI32(c, 0x410)};
+        int32_t un = dot3(W.n, u), t[3];
+        for (int i = 0; i < 3; i++) t[i] = u[i] - fx_mul(W.n[i], un);
+        int32_t s = (int32_t)len3(t);
+        if (s > 0x8000) {
+            int32_t r = (int32_t)(0x100000000LL / -s), rows[9];
+            for (int i = 0; i < 3; i++) rows[i] = fx_mul(t[i], r);
+            rows[3] = fx_mul(rows[1], W.n[2]) - fx_mul(rows[2], W.n[1]);
+            rows[4] = fx_mul(rows[2], W.n[0]) - fx_mul(rows[0], W.n[2]);
+            rows[5] = fx_mul(rows[0], W.n[1]) - fx_mul(rows[1], W.n[0]);
+            Vec_Unit(rows + 3);
+            for (int i = 0; i < 3; i++) rows[6 + i] = W.n[i];
+            const int32_t *p = &W.box[B_CORNER + 3 * W.deep];
+            int32_t at[3] = {fx_mul(p[0] - CI32(c, 0x2d0), 0xcccc), 0, fx_mul(p[2] - CI32(c, 0x2d8), 0xcccc)};
+            if (s > 0x10000) s = 0x10000;
+            if (!CI32(c, 0xb70)) Sparks_Add(s, at, c, rows, 0x90000, 0x6666);
+        }
+    }
     return 1;
 }
 
