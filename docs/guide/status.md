@@ -44,7 +44,7 @@
   time from the go, the splits and the finish (the sectors); the original's stage and car loading, the
   common archives and race fonts, the chase camera, the drawn poses (body on its suspension, wheels),
   the recovery's fade and the HUD's stage clock, the interior views and the camera key, and the engine
-  sounds through a DirectSound emulation and mixer. The front end's choices are stand-ins.
+  sounds and the co-driver's pace notes through a DirectSound emulation and mixer. The front end's choices are stand-ins.
 
 Next: the rest of the simulation (car-to-car and scenery collisions, damage, the other entities of the
 step), the race's cameras, HUD and results,
@@ -60,6 +60,6 @@ the car's pose interpolation and wheels, then the race around it.
 | Race flow | Process framework, race states, Race_Update, Stage_Load, Car_Load, sectors and the race clock ported for one player in a rally; the chase camera, the HUD's clock; the other cameras and HUD panels, the replay and results open |
 | Front end | Mapped (0x4d0000-0x500000); not started |
 | Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls, rolls and is recovered; car-to-car and scenery collisions, damage and the step's other entities open |
-| Sound | A DirectSound emulation and mixer, the sound layer and the engine loops ported; backfires, surfaces, the co-driver, music open |
+| Sound | A DirectSound emulation and mixer, the sound layer, the engine loops and the co-driver's calls ported; backfires, surfaces, menus, music open |
 | Movies (Bink 1) | Not started |
 | Network (DirectPlay 4) | Located; last step |
