@@ -33,3 +33,4 @@ void Fe_OptionsMode(void);                /* 0x4eabc0 */
 void Fe_CarSetups(void);                  /* 0x406820 */
 void Fe_AgeProfiles(void);                /* 0x4ec1a0 */
 void Fe_Teardown(void);                   /* 0x49c0f0 to the mark, 0x4a5be0, 0x4a5d10 */
+void Fe_ClearGuests(void);                /* DAT_00819744 = 0 */

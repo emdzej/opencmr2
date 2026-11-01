@@ -529,3 +529,4 @@ void fe_4d6f10(Menu *m)
 int Fe_ToSet(void) { return to_set; }
 int Fe_SetupPlayer(void) { return (int)players() - to_set - 1; }
 void Fe_PlayerTitle(char *dst, size_t cap) { snprintf(dst, cap, Text_Get(0xdc), (int)players() - to_set); }
+void Fe_ClearGuests(void) { guests = 0; }

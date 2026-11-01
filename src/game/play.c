@@ -19,6 +19,11 @@
 #include "world/hpc.h"
 #include "world/obj.h"
 #include "world/stage.h"
+#include "world/section.h"
+#include "world/fin.h"
+#include "audio/snd.h"
+#include "render/mesh.h"
+#include "render/tex.h"
 #include "world/tod.h"
 #include <stdio.h>
 #include <string.h>
@@ -109,4 +114,23 @@ bool Play_Begin(void)
     Proj_Set((int32_t)(2.598f * 65536), (int32_t)(3.464f * 65536), 250 << 16, 6554);
     Race_Begin(&host);
     return true;
+}
+
+/* the race's resources freed on the way back to the front end (the original's 0x41e670, 0x40eef0 and
+   0x41b300, and World_Frame's 0x49c0f0, 0x4a5be0 and 0x4a5d10) */
+void Play_End(void)
+{
+    World_SetCars(NULL, 0);
+    Scenery_FreeAll();
+    Fin_Free();
+    Stage_Unload();
+    g_nsec = 0;
+    g_sec_ready = false;
+    g_world.child = NULL;
+    Obj_FreeAll();
+    Voices_StopAll();
+    Snd_Truncate(0);
+    Tex_FreeAll();
+    VB_FreePool();
+    VB_CreatePool();
 }

@@ -6,3 +6,4 @@
 #include <stdbool.h>
 
 bool Play_Begin(void);
+void Play_End(void);

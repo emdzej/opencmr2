@@ -32,6 +32,7 @@
 static ProcGroup group;          /* DAT_00817da0 */
 static ProcSlot slot;            /* DAT_00817d98 */
 static bool started;             /* DAT_00817eb0 */
+static bool raced;               /* the port: a race ran since the front end left */
 static uint32_t now;             /* DAT_00817fe4 */
 static uint32_t since_menu;      /* DAT_00817ff4: the time on the menus (state 6) */
 static Menu *page, *next_page;   /* DAT_00818abc, DAT_00818ac0 */
@@ -243,7 +244,48 @@ static void st_startup(ProcGroup *g, uint32_t s)
         Fe_LoadDmd();      /* 0x4d5ca0 */
         return;
     }
-    PENDING_NOTE(0x4d15e0, "the front end's start-up after a race");
+    /* back from the game */
+    uint32_t mw = gm32(0x52afb4);
+    if ((mw >> 3 & 0x7f) == 4) Fe_ClearGuests();
+    gw8(0x52ea59, 0);
+    if (!gm8(0x52ea58)) {
+        if (mw >> 19 & 1) PENDING_NOTE(0x4a15a0, "the network game's return");
+        gw32(0x818ce4, 0);
+        /* 0x4ec2b0: the network's player record */
+    } else {
+        gw8(0x52ea58, 0);
+        gw32(0x52afb4, gm32(0x52afb4) & ~0x80000u);
+    }
+    if (gm8(0x52ea52)) {
+        PENDING_NOTE(0x4ead10, "the demo's selection restored");
+        gw8(0x52ea52, 0);
+    }
+    PENDING_NOTE(0x406580, "the unlocks' new marks");
+    /* the saves (0x4ea840, 0x40e470, 0x40bff0) are not written by the port yet */
+    Input_SetMenuMode(true);
+    if (!fe_init(false)) return;
+    if (gm8(0x52ea50)) Render_SetClearColour(0, 0, 0);
+    else Render_SetClearColour(0x9c, 0xb4, 0xac);
+    Fe_LoadSounds();
+    if (!Fe_LoadFonts() || !Fe_LoadText()) return;
+    Fe_LoadCredits();
+    Fe_ResetPanels();
+    Pages_Build(false, false);
+    Fe_LoadDots();
+    Fe_MenuSounds();
+    PENDING_NOTE(0x4a28d0, "the music (sounds\\music\\select1.adp)");
+    /* 0x4eb470 saves the changed profiles */
+    if (!(gm32(0x52afb4) >> 19 & 1) && !gm8(0x52ea50))
+        for (int i = 0; i < 0x10; i++) Player_DropProfile(i);   /* 0x4ebec0 */
+    memset(gm(0x52ebc0), 0, 0x148 * 4);
+    for (int i = 0; i < 4; i++) memset(gm(0x52f0e0 + 7 * (uint32_t)i), 0, 7);
+    Fe_Stamp();
+    if (gm8(0x52ea50) == 1) {
+        gw8(0x52ea50, 0);
+        Proc_Event(&group, 0, 6, 2);
+    } else
+        Proc_Event(&group, 0, 0, 2);
+    Fe_LoadDmd();
 }
 
 /* 0x4d1b40 (states 1 and 2): five seconds */
@@ -457,6 +499,10 @@ static const ProcState states[10] = {
 int Game_Frame(void)
 {
     uint32_t m = gm32(0x52ea4c);
+    if (m == 0 && raced) {
+        Play_End();
+        raced = false;
+    }
     if (m == 0) {
         if (started) {
             Proc_UpdateAll(&group);
@@ -472,7 +518,13 @@ int Game_Frame(void)
     if (m == 2) {
         /* World_Frame 0x4ff450, the set-up and service screens, is not ported: straight to the race */
         PENDING_NOTE(0x4ff450, "World_Frame (the stage set-up screens)");
-        if (!Play_Begin()) Game_SetMode(0);
+        if (raced) {
+            /* after the stage: back to the menus (the original's results and service screens) */
+            Game_SetMode(0);
+            return 0;
+        }
+        raced = Play_Begin();
+        if (!raced) Game_SetMode(0);
         return 0;
     }
     if (m == 3) return Race_Frame();
