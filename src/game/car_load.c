@@ -7,6 +7,7 @@
 #include "exe.h"
 #include "pending.h"
 #include "sim/car.h"
+#include "sim/damage.h"
 #include "world/obj.h"
 #include "world/stage.h"
 #include "render/tex.h"
@@ -111,7 +112,8 @@ bool Car_Load(int n)
     Car *c = Car_Get(n);
     c->main = s->main;
     c->second = s->second;
-    Damage_Reset(c);
+    /* dents on for the rally modes (0x46b400), never turned off here */
+    if (!(mode == 5 || mode == 6 || mode == 7 || mode == 11 || mode == 12) && !(Gs_SelBit28() && Gs_Bit30())) Damage_SetDents(1, n);
     PENDING_NOTE(0x42cb50, "Car_Load (the wheels' other models)");
     return true;
 }

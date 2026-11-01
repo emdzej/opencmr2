@@ -11,6 +11,7 @@
 #include "render/rstate.h"
 #include "render/view.h"
 #include "sim/car.h"
+#include "sim/damage.h"
 #include "sim/drive.h"
 #include "sim/pose.h"
 #include "sim/progress.h"
@@ -42,6 +43,7 @@ static bool load_cars(void)
         return false;
     }
     Sim_InitLists(1);
+    Damage_CarsLoaded();
     Car_ProgressStart(Car_Get(0));
     cars[0] = Car_Slot(0)->main;
     cars[1] = Car_Slot(0)->second;

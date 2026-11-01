@@ -27,6 +27,7 @@
 #include "world/tod.h"
 #include "world/hpc.h"
 #include "sim/car.h"
+#include "sim/damage.h"
 #include "sim/drive.h"
 #include "sim/sim.h"
 #include "sim/pose.h"
@@ -156,6 +157,7 @@ static bool host_load_cars(void)
         return false;
     }
     Sim_InitLists(1);   /* after the cars, as Cars_Load does (0x42b660, the poses from the models) */
+    Damage_CarsLoaded();
     Car_ProgressStart(Car_Get(0));
     char d[16];
     V.autodrive = plat_param("drive", d, sizeof d) && !strcmp(d, "auto");

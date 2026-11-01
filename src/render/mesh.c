@@ -68,6 +68,44 @@ void Mesh_SetColour(const C3d *m, uint8_t *part, uint32_t argb)
     Mesh_UploadVerts(m, part);
 }
 
+void Mesh_RestoreColours(const C3d *m, uint8_t *part)
+{
+    uint8_t *v = (uint8_t *)C3d_Ref(m, part + 0x0c, m->verts);
+    const uint8_t *p = C3d_Ref(m, part + 0x24, m->polys);
+    uint32_t np = rd32(part + 0x28);
+    for (uint32_t i = 0; v && p && i < np; i++) {
+        const uint8_t *q = p + (size_t)i * C3D_POLY;
+        for (uint32_t k = 0; k < 3; k++) {
+            uint32_t c = rd32(q + 0x34 + 4 * k);
+            c = (c & 0xff00ff00u) | (c & 0xff) << 16 | (c >> 16 & 0xff);
+            wr32(v + (size_t)rd16(q + 0x40 + 2 * k) * C3D_VERTEX + 0x18, c);
+        }
+    }
+    Mesh_UploadVerts(m, part);
+}
+
+static void set_frames(const C3d *m, uint8_t *part, uint32_t mask, uint32_t frame, uint32_t at)
+{
+    uint8_t *p = (uint8_t *)C3d_Ref(m, part + 0x24, m->polys);
+    uint32_t np = rd32(part + 0x28);
+    for (uint32_t i = 0; p && i < np; i++) {
+        uint8_t *q = p + (size_t)i * C3D_POLY;
+        uint32_t f = rd16(q);
+        if ((f & mask & 0x7f) || (mask >> 7 & 0x7f & f >> 9)) wr32(q + at, frame);
+    }
+}
+
+void Mesh_SetFrame(const C3d *m, uint8_t *part, uint32_t mask, uint32_t frame)
+{
+    if (part) set_frames(m, part, mask, frame, 0x2c);
+}
+
+/* (the original reads the part without the NULL check) */
+void Mesh_SetFrame1(const C3d *m, uint8_t *part, uint32_t mask, uint32_t frame)
+{
+    if (part) set_frames(m, part, mask, frame, 0x30);
+}
+
 void Mesh_AddToVB(const C3d *m, uint8_t *part)
 {
     uint32_t n = rd32(part + 0x10);

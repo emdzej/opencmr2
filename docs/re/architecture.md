@@ -155,8 +155,8 @@ Sim_Step's collision pass 0x4877a0 runs after the car step and before 0x42cd00. 
 flat box (0x98 bytes per car at 0x590ed0), runs the car-to-car contacts 0x48a1f0 in the modes that
 have them (0x46bd50), then per car (the list from its end) the scenery objects 0x4878a0 (with +0xb64
 clear) and the walls 0x48e0a0, and keeps the box's four corners for the next step. Ported in
-`src/sim/walls.c`, and the scenery in `src/sim/scenery.c`; the car-to-car contacts, knocking scenery
-down, the damage and the sparks are pending.
+`src/sim/walls.c`, the scenery in `src/sim/scenery.c` and the damage in `src/sim/damage.c`
+([below](#damage)); the car-to-car contacts, knocking scenery down and the sparks are pending.
 
 - **The box** (0x486c30, once a step): the forward row flattened (the up row when the car points
   nearly straight up or down) and made unit, the side axis across it, the half lengths as the furthest
@@ -263,6 +263,73 @@ goes through. `0x487f60` then builds the contact point and normal:
 - the normal is the sum of the axes of the corners' faces, made unit;
 - for a fixed object with corners listed on one side only, the push is kept only along the normal;
 - the response thresholds are 0.5 and 1.34.
+
+## Damage
+
+`Car_Damage` 0x466ef0 and its helpers (0x4667c0-0x46b400, `src/sim/damage.c`). Confirmed from the
+code unless marked.
+
+**Records.** Each car has a 0x4d0-byte record (base pointer 0x588b94, `Damage_Get` 0x469680) and a
+0x290-byte hit log (0x588b98). The record:
+
+| Offset | Contents |
+|---|---|
+| +0x000, +0x03c, +0x078 | 15 slots: the mesh, its object, its rest vertices (pointers) |
+| +0x0b4, +0x168 | per slot the rest box's centre and half size (3 ints each) |
+| +0x21c | 9 cells, a 3 x 3 grid over the car (rows by z, columns by x), at most 100 |
+| +0x240 | 34 panels, at most 1.0; +0x2c8 their sensitivities; +0x350 the part carried from earlier stages |
+| +0x3d8-+0x408 | the handling factors the simulation reads: steering pulls (+0x3d8-+0x3e8), the wheels' drag (+0x3ec-+0x3f8), brakes (+0x3fc, +0x400), engine (+0x404), crumple (+0x408) |
+| +0x410-+0x41c | the meshes' extremes: largest x, smallest x, largest z, smallest z |
+| +0x420, +0x45c | per slot the vertex count; the slot count |
+| +0x460, +0x470, +0x490 | 8 glass panels: an id byte each, cracked and broken flags |
+| +0x4b0, +0x4c0 | the fallen-off part flags (`Damage_Flag` 0x469bc0), three part values |
+
+The log holds two lists of 20 entries of 13 bytes, each followed by its count and first entry: +0x000
+the hits carried in, +0x106 this stage's. +0x20c and +0x24c are the panels (34 bytes, in 255ths), the
+part flags and values, carried and current; +0x28c stops the logging. An entry is the strength (255ths),
+the kind, a cylinder's radius (25.5ths), the normal and the up axis (127ths) and the point (12.7ths of a
+unit), the last byte the next entry (0xff none).
+
+**Set-up.** `Cars_Load` 0x456d90 clears the records (0x4669b0) and the logs (0x4668d0, 0x466920) and
+calls `Damage_Setup` 0x4669f0. Dents are on per car (0x588970, set by `Car_Load` outside modes 5-7, 11
+and 12, 0x46b400). The slots are the mesh objects of the second model and its branches, down to a
+type-0x14 object, each in slot type - 5 (0x466e90); empty slots are squeezed out. A player's car takes
+its carried log from 0x52ebc0 (0x148 bytes per player). The first set-up of a race keeps every slot's
+vertices as rest vertices (0x46afe0, 0x20 bytes each): the position and normal in 16.16, and from the
+vertex colour the limits: red, green and blue less 0x80 are the most a vertex may move in x, y and z,
+in 64ths of a unit, with the sign giving the side; the dent direction is their negation. So the car
+models carry their crumple zones in their vertex colours (inferred from the code). Each set-up puts
+the meshes back to rest (0x46acb0) and runs
+`Damage_Reset` 0x469690, which zeroes the factors, replays the carried hits (each entry decoded,
+0x4688b0, then `Car_Damage` as a replay) and takes the carried panels.
+
+**A hit.** After the sound and the shake, with dents on: the strength is |+0x5c4|; at most 0.1 (the
+table at 0x51bf94, per kind) nothing more happens; it is then scaled (0x51bfa0, 1.0) and clamped to 1.
+The hit is turned into the car's frame and logged (0x468520: a new entry, else the weakest if weaker,
+moved to the end); it is then read back from the entry, so the dent is made from the quantised values
+and a replay gives the same dent. Then the dent:
+- **Flat** (kind 0, a car corner or a wall face; 0x467700): the point is the car-relative hit point
+  projected on the normal, then moved along the normal to the farthest of twelve hull points behind it
+  (0x4675c0: the box floor's corners at the meshes' extremes, the same raised by the wheel radius, four
+  wheel points). Radii r1, r2, r3 are 0.35, 0.6 and 0.7 of the strength. A vertex within r1 of the
+  plane moves along the normal, towards the middle, by r1 - d^2/r1; one out to r1 + r2 along its dent
+  direction by (d - r1)/r2 x r3/5 times a factor from bits 7-9 of its x + z (-1 to 0.875).
+- **Round** (kind 1 a cylinder, else an object corner or a wall end; 0x467e90): the distance is from
+  the upright line through the point (the orientation's second column), the radius the cylinder's
+  (at least 0.25; 0.25 for kind 2), r1 = r2 = r3 half the strength, at most the radius; the normal is
+  turned to face the middle and the point moved r1 along it.
+
+Each move is kept within the vertex's limits from rest (0x508740), and the vertex's normal is moved by
+the same amount (as the original does). A changed mesh is uploaded again. Then, unless replaying:
+the cells the hit's contact (+0x5dc, +0x5e4) reaches gain 0.2 of the strength (0x468a80); the panels
+are the cells times their sensitivity plus the carried part, and give the factors (0x468c10; only with
++0xb50, damage on in the mode); the crumple is the mean over every vertex of five times its distance
+from rest (0x469100); glass past its limits (0x51bfac to break, 0x51bfcc to crack) changes the polygons'
+texture frames (0x4694a0) and plays 0x418cd0 (0x4692f0).
+
+Not ported: the loose parts (0x480000; their slot bytes at 0x590c24 are kept), the glass pieces
+(0x49a910), the relighting marks (0x4b4100), the restart's set-up (0x42b800) and the end of stage
+(`Damage_Finish` 0x469a80, which carries the log).
 
 ## Cameras
 
@@ -378,7 +445,7 @@ of the effects option (0x427c10's call to 0x418d20).
 The three ways in:
 - **0x418ba0 (a hit):** above 0.05, SWIPE1-4 and COLLIS1-6 by tenths of the strength, at full volume.
 - **0x418c30 (a roll):** ROLL1-4 at random, or LAND1-3 with its flag, at the strength as the volume.
-- **0x418cd0 (glass):** HLIGHT1 or 2, or SCREEN1, from the parts' breaking (0x4692f0, not ported).
+- **0x418cd0 (glass):** HLIGHT1 or 2, or SCREEN1, when a glass panel cracks or breaks (0x4692f0, [damage](#damage)).
 
 The first two raise the car's +0xb46 to 1 + 7 times the strength, at most 8.
 

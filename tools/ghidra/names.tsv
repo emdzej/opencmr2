@@ -553,3 +553,32 @@
 00418cd0	Crash_Glass	audio	high	HLIGHT1-2 or SCREEN1 when a part breaks
 00418d20	Crash_Volume	audio	high	The collision sounds' base volume (two thirds of the effects option)
 004241d0	Camera_Shake	race	high	A hit's impulse into the player's head-movement record (0x539200 [9], [10], [12])
+004668d0	Damage_ResetLogs	damage	high	Every hit log reset, the hit sounds' times cleared
+00466920	Damage_ClearLog	damage	high	A hit log: next fields to none, the carried log taken as this stage's
+004669b0	Damage_Clear	damage	high	Damage records first..first+n zeroed
+00466e90	Damage_AddSlot	damage	high	A mesh object into the record's slot of its type (5-19)
+004675c0	Damage_HullPoints	damage	high	Twelve hull points (box floor corners, raised, wheel points) for a flat hit
+00467700	Damage_DentFlat	damage	high	A flat hit's dent: vertices near the plane through the hit point
+00467e90	Damage_DentRound	damage	high	A round hit's dent: vertices near the upright line through the hit point
+00468520	Damage_LogHit	damage	high	The hit into this stage's log (20 entries), read back quantised
+004688b0	Damage_DecodeHit	damage	high	A log entry back into the hit globals (0x588a40-0x588a6c)
+00468a80	Damage_Cells	damage	high	The hit's contact on the 3 x 3 grid of cells (+0x21c)
+00468c10	Damage_Panels	damage	high	The 34 panels from the cells, then the handling factors
+00469100	Damage_Crumple	damage	high	Mean distance of the meshes' vertices from rest
+004692b0	Damage_SlotOfType	damage	high	First slot whose object has the type
+004692f0	Damage_Glass	damage	high	Glass panels crack or break past their limits, with the sound
+004694a0	Damage_GlassFrames	damage	high	A glass panel's polygons to the frames of its state
+004698a0	Damage_Restore	damage	high	Meshes back to rest, cells, carried panels and glass cleared
+0046acb0	Damage_RestShape	damage	high	Meshes back to their rest vertices, the slots' boxes and the extremes
+0046afe0	Damage_SaveRest	damage	high	Rest vertices and limits (from the vertex colours) per slot
+0046b400	Damage_SetDents	damage	high	Car n's dents on (0x588970)
+00508740	Damage_ClampVertex	damage	high	A dented vertex kept within its limits, written back
+00480a50	Parts_Clear	damage	med	Clears 0x590d70
+00480a60	Parts_Init	damage	med	The loose parts' settings, srand(400)
+00480af0	Parts_Register	damage	med	A slot whose object is one of the four part types (0x51f888)
+00480b40	Parts_Reset	damage	med	srand(400); the car's loose parts back to their rest matrices
+00484d10	Parts_Slot	damage	med	Part k's slot of car n (0x590c24)
+0049c440	Mesh_SetFrame	render	high	Frame index (+0x2c) of the polygons matching a flag mask
+0049c4b0	Mesh_SetFrame1	render	high	Stage 1 frame index (+0x30) of the polygons matching a flag mask
+004b1ea0	Mesh_RestoreColours	render	high	Vertex colours back from the polygons' corner colours, then the upload
+004b4100	Relight_MarkMesh	render	med	Marks a model's mesh in the relighting table (0x6e0124) as changed

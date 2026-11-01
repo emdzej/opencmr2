@@ -63,6 +63,8 @@ static bool load_cars(void)
     car_loads++;
     if (!Car_Load(0)) return false;
     Sim_InitLists(1);   /* after the cars, as Cars_Load 0x456d90 does */
+    Damage_SetDents(0, 0);   /* the scripted drive's wall hit would bend the car; the damage has its own check */
+    Damage_CarsLoaded();
     Car_ProgressStart(Car_Get(0));
     return true;
 }
@@ -259,6 +261,42 @@ int main(void)
             int32_t gap = fx_mul(ux, bp[0] - CI32(c, 0x2d0)) + fx_mul(uz, bp[2] - CI32(c, 0x2d8)) - ext - 0x10000;
             printf("scenery: a box %s, the faces %.3f apart after the push\n", hitbox ? "hit" : "missed", gap / 65536.0);
             CHECK(hitbox && iabs32(gap) < 0x800);
+            /* the damage (0x4669f0, 0x466ef0): with dents on the set-up fills the second model's slots;
+               a flat hit of 0.5 on the nose logs an entry, dents the meshes (the crumple, +0x284) and
+               raises the cells; Damage_Reset with that entry carried replays it to the same crumple,
+               with none carried puts the meshes back; a round hit (a trunk) dents too */
+            Damage_SetDents(1, 0);
+            Damage_Clear(0, g_all.n);
+            Damage_ResetLogs();
+            Damage_Setup(false, false, g_all.car, g_all.n);
+            const uint8_t *dr = Damage_Get(0);
+            uint8_t *lg = Damage_Log(0);
+            int32_t nose[3] = {CI32(c, 0x2d0) + fx_mul(ux, ext), CI32(c, 0x2d4), CI32(c, 0x2d8) + fx_mul(uz, ext)};
+            int32_t back[3] = {-ux, 0, -uz}, rel[3] = {nose[0] - CI32(c, 0x2d0), 0, nose[2] - CI32(c, 0x2d8)}, loc[3];
+            Walls_RotT(c, loc, rel);
+            for (uint32_t i = 0; i < 3; i++) CW32(c, 0x5dc + 4 * i, loc[i]), keep[i] = CI32(c, 0x5c4 + 4 * i);
+            int32_t crumple0 = DI32(dr, 0x284);
+            CW32(c, 0x5c4, fx_mul(back[0], 0x8000)), CW32(c, 0x5c8, 0), CW32(c, 0x5cc, fx_mul(back[2], 0x8000));
+            Car_Damage(c, nose, back, 0, 0, false);
+            int32_t cells = 0, crumple1 = DI32(dr, 0x284);
+            for (uint32_t i = 0; i < 9; i++) cells += DI32(dr, 0x21c + 4 * i);
+            printf("damage: %d slots, %d hit logged (strength %d/255), cells %.3f, crumple %.4f (was %.4f), engine %.3f\n",
+                   DI32(dr, 0x45c), lg[0x20a], lg[0x106], cells / 65536.0, crumple1 / 65536.0, crumple0 / 65536.0, DI32(dr, 0x404) / 65536.0);
+            CHECK(DI32(dr, 0x45c) > 0 && lg[0x20a] == 1 && cells > 0 && crumple0 == 0 && crumple1 > 0);
+            memcpy(lg, lg + 0x106, 0x106);
+            Damage_Reset(c);
+            int32_t crumple2 = DI32(dr, 0x284);
+            lg[0x104] = 0;
+            Damage_Reset(c);
+            int32_t crumple3 = DI32(dr, 0x284);
+            CW32(c, 0x5c4, 0x6000), CW32(c, 0x5c8, 0), CW32(c, 0x5cc, 0);
+            Car_Damage(c, nose, back, 0x8000, 1, false);
+            int32_t crumple4 = DI32(dr, 0x284);
+            printf("damage: replayed crumple %.4f, none carried %.4f, a round hit %.4f\n", crumple2 / 65536.0, crumple3 / 65536.0, crumple4 / 65536.0);
+            CHECK(crumple2 == crumple1 && crumple3 == 0 && crumple4 > 0);
+            Damage_Reset(c);
+            Damage_SetDents(0, 0);
+            for (uint32_t i = 0; i < 3; i++) CW32(c, 0x5c4 + 4 * i, keep[i]);
         }
     }
     /* the sectors (0x4581d0): the car walked along the centre line passes each split and finishes */

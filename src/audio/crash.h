@@ -2,7 +2,7 @@
    name tables at 0x5188e4: SWIPE1-4 and COLLIS1-6, ROLL1-4 and LAND1-3, HLIGHT1-2, SCREEN1 and
    MIRROR), played on four voice slots that follow the camera's distance each step. A hit on the wheels
    plays a swipe or a crash by its strength, one off them a roll or a landing (from Car_Damage
-   0x466ef0); the glass is for the lights, the windscreen and the mirror breaking (0x4692f0, not ported). */
+   0x466ef0); the glass is for the lights and windows cracking or breaking (Damage_Glass 0x4692f0). */
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>

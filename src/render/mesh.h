@@ -30,6 +30,14 @@ void Mesh_AddToVB(const C3d *m, uint8_t *part);             /* 0x4b1d00 */
 void Mesh_Batches(const C3d *m, uint8_t *part);             /* 0x4b1ac0 */
 void Mesh_UploadVerts(const C3d *m, uint8_t *part);         /* 0x4b2020 */
 void Mesh_SetColour(const C3d *m, uint8_t *part, uint32_t argb);   /* 0x4b2090 */
+/* 0x4b1ea0: every vertex's colour (+0x18) back from its polygons' corner colours (+0x34-+0x3c, red and
+   blue swapped), then the upload */
+void Mesh_RestoreColours(const C3d *m, uint8_t *part);
+/* 0x49c440 / 0x49c4b0: the frame index (+0x2c, stage 1's +0x30) of the polygons whose flags match
+   mask (its low 7 bits against flag bits 0-6, its bits 7-13 against flag bits 9-15); the first does
+   nothing for a NULL part */
+void Mesh_SetFrame(const C3d *m, uint8_t *part, uint32_t mask, uint32_t frame);
+void Mesh_SetFrame1(const C3d *m, uint8_t *part, uint32_t mask, uint32_t frame);
 /* Mesh_Draw 0x49c940: the part selected by +0x112, with the flags' cull, lighting and blending, by
    batches (batched; batched_tex10 also sets each texture's blend type to 10) or polygon by polygon,
    each polygon's texture from its frame index at +0x2c (clamp_flags: stage 0 addressing from the

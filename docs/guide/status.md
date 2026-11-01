@@ -55,7 +55,7 @@
   service screens between them (mode 2), the movies, the options and the saves are not done yet; the menu music plays.
 
 Next: mode 2's set-up and service screens and the race's results, the rest of the front end's pages,
-then the rest of the simulation (car-to-car and scenery collisions, damage, the other entities of the
+then the rest of the simulation (car-to-car contacts, knocking scenery down, the other entities of the
 step) and the race's cameras and HUD.
 
 | Area | State |
@@ -67,7 +67,7 @@ step) and the race's cameras and HUD.
 | World (objects, stage sections) | Object trees, terrain, scenery, sky, shadows, lights and the frame function ported; the cars' draw pass open |
 | Race flow | Process framework, race states, Race_Update, Stage_Load, Car_Load, sectors and the race clock ported for one player in a rally; the chase camera, the HUD's clock, split bar, split difference and standings, the pause menu and the results; the other cameras, the HUD's messages and the other modes' panels, and the replay open |
 | Front end | The process, menu engine, every page's construction and the single-stage path's pages ported; the options, profiles, championship, arcade and network pages, the saves, mode 2's set-up and service screens open |
-| Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls and stopped by the scenery (trees, posts, walls), rolls and is recovered; car-to-car contacts, knocking scenery down, damage and the step's other entities open |
-| Sound | A DirectSound emulation and mixer, the sound layer, the engine loops, the co-driver's calls and the collision sounds (hits, rolls) ported; the menus' sounds and music ported; backfires, surfaces and breaking glass open |
+| Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls and stopped by the scenery (trees, posts, walls), rolls and is recovered; hits dent the car, wear its handling and break its glass; car-to-car contacts, knocking scenery down, the loose parts, the damage carried between stages and the step's other entities open |
+| Sound | A DirectSound emulation and mixer, the sound layer, the engine loops, the co-driver's calls and the collision sounds (hits, rolls, glass) ported; the menus' sounds and music ported; backfires and surfaces open |
 | Movies (Bink 1) | Not started |
 | Network (DirectPlay 4) | Located; last step |

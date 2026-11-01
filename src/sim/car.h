@@ -23,7 +23,7 @@ static inline void CW8(Car *c, uint32_t o, uint8_t v) { c->s[o] = v; }
 static inline void CW16(Car *c, uint32_t o, uint16_t v) { c->s[o] = (uint8_t)v, c->s[o + 1] = (uint8_t)(v >> 8); }
 
 Car *Car_Get(int n);   /* 0x42b5f0 */
-uint8_t *Damage_Get(int n);   /* 0x469680: the car's 0x4d0-byte damage record */
+uint8_t *Damage_Get(int n);   /* 0x469680: the car's 0x4d0-byte damage record (sim/damage.c) */
 static inline int32_t DI32(const uint8_t *d, uint32_t o) { return (int32_t)((uint32_t)d[o] | d[o + 1] << 8 | d[o + 2] << 16 | (uint32_t)d[o + 3] << 24); }
 extern Car *g_car;     /* DAT_0053cc18: the car being worked on */
 
@@ -39,6 +39,6 @@ void Obj_Reparent(Obj *o, Obj *parent);     /* 0x4ac7a0 */
 void Car_Init(Car *c, Obj *obj, int cls, const int32_t pos[3], int n, bool keep);
 void Car_BoxCorners(Car *c);   /* 0x43eef0 */
 void Car_Settle(Car *c);       /* 0x43e680 */
-void Damage_Reset(Car *c);     /* 0x469690 */
+void Damage_Reset(Car *c);     /* 0x469690 (sim/damage.c) */
 /* Car_Place 0x457e50: the start pose on both models, then Car_Init and Car_Settle. */
 void Car_Place(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3]);
