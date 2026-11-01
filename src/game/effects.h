@@ -1,6 +1,6 @@
 /* The race's particle effects (0x459c80-0x45a170, docs/re/world.md#particles): their textures, their
    types and the emitters (the wheels' dust, grass, splashes and stones, the exhausts, the sparks).
-   Not ported yet: 0x47dd70 and the glass chips 0x499de0. */
+   The option 0 balls are game/balls.c. */
 #pragma once
 #include "render/tex.h"
 #include "sim/car.h"

@@ -48,6 +48,7 @@
 #include "sim/scenery.h"
 #include "sim/walls.h"
 #include "sim/contact.h"
+#include "game/balls.h"
 #include "render/twod.h"
 #include "vfs.h"
 #include "vfs_host.h"
@@ -351,6 +352,44 @@ int main(void)
                 printf("cars: the boxes %.3f apart after the push, impulses %.3f and %.3f along the axis, knocked %d %d\n",
                        sep / 65536.0, ja / 65536.0, jb / 65536.0, CI32(c, 0xc00), CI32(d, 0xc00));
                 CHECK(iabs32(sep) < 0x800 && ja < 0 && jb > 0 && iabs32(ja + jb) < 0x100);
+                *c = keep0, *d = keep1;
+                Walls_BoxRec(0)[B_VALID] = 0, Walls_BoxRec(1)[B_VALID] = 0;
+            }
+            /* option 0's balls (0x47d510-0x47e1e0): one fired from car 1 (a copy of car 0, still) at
+               5 a step rolls ahead on the ground; one fired from car 1 a unit behind car 0 is inside car
+               0's box: the car knocked, the ball gone */
+            {
+                Car keep0 = *c, *d = Car_Get(1), keep1 = *d;
+                *d = *c;
+                CW8(d, 0xb1a, 1);
+                for (uint32_t k = 0; k < 3; k++) CW32(d, 0x408 + 4 * k, 0), CW32(c, 0x5c4 + 4 * k, 0), CW32(c, 0x5d0 + 4 * k, 0);
+                CW32(d, 0x408, fx_mul(ux, 0x50000)), CW32(d, 0x410, fx_mul(uz, 0x50000));
+                CW32(c, 0xc00, 0);
+                Balls_Setup();
+                Balls_Fire(1);
+                int32_t p0[3], p1[3], pz[3];
+                bool fired = Balls_At(0, p0);
+                for (int i = 0; i < 10; i++) Balls_Step();
+                bool rolled = Balls_At(0, p1);
+                int32_t ahead = fx_mul(ux, p1[0] - p0[0]) + fx_mul(uz, p1[2] - p0[2]);
+                printf("balls: fired %d, %.3f ahead after 10 steps\n", fired, ahead / 65536.0);
+                CHECK(fired && rolled && ahead > 0);
+                Balls_Setup();
+                CW32(d, 0x408, 0), CW32(d, 0x410, 0);
+                CW32(d, 0x408, fx_mul(ux, 0x8000)), CW32(d, 0x410, fx_mul(uz, 0x8000));
+                int32_t back1[3] = {-ux, 0, -uz};   /* the ball starts just past the nose: car 1 a unit behind */
+                for (uint32_t k = 0; k < 3; k++) {
+                    CW32(d, 0x2d0 + 4 * k, CI32(d, 0x2d0 + 4 * k) + back1[k]);
+                    for (uint32_t q = 0; q < 8; q++) CW32(d, 0x270 + 12 * q + 4 * k, CI32(d, 0x270 + 12 * q + 4 * k) + back1[k]);
+                }
+                Balls_Fire(1);
+                Walls_BoxRec(0)[B_VALID] = 0;
+                Balls_Hit(c, Walls_CarBox(c));
+                bool gone = !Balls_At(0, pz);
+                printf("balls: the hit %s, impulse (%.3f, %.3f, %.3f), knocked %d\n", gone ? "taken" : "missed",
+                       CI32(c, 0x5c4) / 65536.0, CI32(c, 0x5c8) / 65536.0, CI32(c, 0x5cc) / 65536.0, CI32(c, 0xc00));
+                CHECK(gone && CI32(c, 0xc00) == 1 && CI32(c, 0x5c8) > 0);
+                Balls_Setup();
                 *c = keep0, *d = keep1;
                 Walls_BoxRec(0)[B_VALID] = 0, Walls_BoxRec(1)[B_VALID] = 0;
             }

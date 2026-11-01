@@ -1,5 +1,6 @@
 /* The race (see race.h). The original keeps the race's variables at 0x537dd0-0x538124; they are the
    fields of R, named by address where the meaning is open. */
+#include "game/balls.h"
 #include "game/shadow.h"
 #include "game/race.h"
 #include "game/weather.h"
@@ -140,7 +141,8 @@ static void Race_Update(uint8_t state, bool flag)
         if (car0) {
             /* Stage_Step 0x466520 */
             Lights_Step();   /* 0x463bd0 */
-            PENDING_NOTE(0x466520, "Stage_Step's 0x47dd70 and the fireworks 0x47eab0/0x480220");
+            if (Balls_On()) Balls_Step();   /* 0x47dd70 */
+            PENDING_NOTE(0x466520, "Stage_Step's fireworks 0x47eab0/0x480220");
         }
         for (int i = 0; i < g_all.n; i++)
             if (Car_Get(i)->s[0xb43]) Fade_Tick(i, false);
@@ -163,6 +165,7 @@ static void Race_Update(uint8_t state, bool flag)
         Sim_StepDone(&g_all);
     }
     Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its other effects not ported) */
+    if (Gs_Option(0)) Balls_Frame(R.frac);   /* 0x47e1e0, in 0x41d060 */
     Parts_Interp(R.frac);   /* 0x484d30 */
     Particles_Interp(R.frac);   /* 0x4b06a0 */
     Weather_Interp(R.frac);     /* 0x461bb0 */
@@ -272,6 +275,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             if (H->place_cars) H->place_cars();
             Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
             Skids_Load();      /* 0x465600 */
+            if (Balls_On()) Balls_Setup();   /* 0x47d510, in 0x466360 before the cars */
             Lamps_Place();     /* 0x466360's cars */
             Glass_Setup();     /* 0x49ab90, in 0x466360 */
             Shadow_Place();        /* 0x494bb0, in 0x466360 */

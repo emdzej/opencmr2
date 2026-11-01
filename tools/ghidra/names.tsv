@@ -864,3 +864,8 @@
 0048ae90	Cars_Respond	sim	high	Car-to-car response: inelastic impulse by the masses, knocks, damage, sparks
 0048c6e0	Vec_ClampHalf	sim	high	A contact within the half sizes (x and z; y with the flag)
 0048c750	Car_ClampTurn	sim	high	The turn impulse within 8, 4, 8 times 0x519c90
+0047d510	Balls_Setup	game	high	Option 0's balls: the 100 records (0x58e4c8) and their glows, the cars' timers
+0047d5a0	Balls_Fire	game	high	A ball from the car's nose along its forward row (16 s between)
+0047d850	Balls_Hit	game	high	The balls of other cars inside a car's flat box knock it
+0047dd70	Balls_Step	game	high	The balls roll on the ground, trail type 0x1f particles, fade
+0047e1e0	Balls_Frame	game	high	The balls' glows between the steps

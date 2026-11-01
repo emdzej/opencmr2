@@ -34,6 +34,7 @@ int Lamps_Count(int car);           /* the port: the car's lamps */
 const uint8_t *Lamps_Exhaust(int car, int i);
 Glow *Lamps_ExhaustGlow(int car, int i);
 Tex *Lamps_SpriteTex(int k);        /* 0x547fac + 4 k: group k's sprite texture */
+Tex *Lamps_ShaftTex(int k);         /* 0x547ff8 + 4 k: its shaft texture */
 Tex *Lens_Tex(int i);               /* the port: car i's lens texture (NULL: none) */
 bool Lamps_On(int car, int k);      /* the port: lamp k's glow shown */
 int32_t Lamps_Glow(int car, int k); /* the port: lamp k's glow level */

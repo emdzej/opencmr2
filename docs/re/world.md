@@ -823,8 +823,46 @@ the race start (0x49ab90, before 0x494bb0).
 
 Checked headless: a crash into a sign on fin01 breaks a side window and throws its 70 chips.
 
-Not ported yet: `Stage_Step`'s 0x47dd70. On screen the sparks are not yet checked: the runs so far hit
-no metal faces.
+On screen the sparks are not yet checked: the runs so far hit no metal faces.
+
+## Option 0's balls
+
+With option 0 on the super special, or with selection bits 24 or 27, the handbrake fires a glowing ball
+(`src/game/balls.c`). The test is the same in the set-up (0x466360), Stage_Step (0x466520) and the
+car-to-car pass; the glows are placed whenever option 0 is on (Race_PoseInterp 0x41d060).
+
+- **The pool:** 100 records of 0x5c bytes at 0x58e4c8. Each holds the velocity, position, ground
+  normal and brightness (+0x00-+0x27), the last step's copies (+0x28), the ground's height (+0x44),
+  the life (+0x48), the ground triangle (+0x4c), a glow (+0x50), the in-use flag (+0x54) and the car
+  (+0x58). The set-up (0x47d510) gives each ball a kind 1 glow, hidden, of size 0.2 with the hazard
+  lamps' sprite and shaft, a pool of 0xb4 at twice the size. It also clears the cars' timers
+  (0x58e4a8).
+- **The glow pool is too small:** with option 0, 0x40efa0 allocates only 4 glows (160 without it).
+  So only the first four balls get one, and the cars' lamps that come after get none. This is kept.
+- **Firing** (0x47d5a0, from Car_Boost 0x4932f0 with +0xb9c and the handbrake +0x1d8): only when the
+  car's timer has run out, into the first free record.
+  - The ball starts between the first two box corners, raised along the up row (+0x36c) by +0x774:
+    just past the nose.
+  - Its velocity is 0.8 along the forward row (+0x360) plus the car's, kept along the forward row.
+  - It lives 50 seconds and sits on the ground (Car_PointGround 0x4932b0) half a unit up. The car
+    waits 16 seconds for the next one.
+- **The step** (0x47dd70): the timers run down. Each ball keeps its last step, ages and moves by its
+  velocity once a step (with no time factor), back onto the ground.
+  - It leaves a type 0x1f particle (the sparks' glow). The particle starts behind the ball and drifts
+    at 0.3 of a random push, taken across the path less half the path, plus the path.
+  - The ball fades over its last five seconds (0.2 a second).
+- **A hit** (0x47d850, per car in Cars_Collide after the pairs): a ball of another car within 100
+  units, inside the car's box y range and flat extents, hits the car.
+  - The impulse is the ball's direction raised by 0.4, times 6. It is applied at the ball's offset
+    lowered by 3.5, so the car turns.
+  - The car is lifted by 0.25 and made loose (+0xc00, +0x96c 1.0). It is damaged (kind 2) along the
+    impulse, and the ball is gone.
+  - The direction is made unit without a test for zero; a ball always moves, so the port's guard
+    never acts.
+- **The glows** (0x47e1e0) are placed between the steps: the brightness, and a plane half a unit under
+  the ball with the ground's normal. The glow's direction is set to its position, as in the original.
+
+Checked in race_test: a ball rolls ahead of its car, and one inside another car's box knocks it.
 
 ## Skid marks
 

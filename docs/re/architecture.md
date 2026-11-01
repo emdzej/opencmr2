@@ -309,7 +309,7 @@ in `src/sim/contact.c`.
 - **After the pairs:** a car's +0xc08 (passing through the others) lasts while +0x970 runs down by the
   step, then until it is near no car; +0x974 counts its time at a quarter. With the option 0 weapon
   (the super special, or selection bits 24 or 27) each car's box is tested against the balls
-  (0x47d850, pending).
+  (0x47d850, [world.md](world.md#option-0-s-balls)).
 
 ## Damage
 

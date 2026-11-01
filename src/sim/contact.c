@@ -5,6 +5,7 @@
 #include "sim/scenery.h"
 #include "sim/damage.h"
 #include "game/effects.h"
+#include "game/balls.h"
 #include "game/gstate.h"
 #include "fixmath.h"
 #include "pending.h"
@@ -297,6 +298,9 @@ void Cars_Collide(const int16_t *list, int n)
         }
         CW32(c, 0x974, CI32(c, 0x974) + fx_mul(dt, 0x4000));
     }
-    if ((Gs_SuperSpecial() || Gs_SelBit24() || Gs_SelBit27()) && Gs_Option(0) && n > 0)
-        PENDING_NOTE(0x47d850, "the option-0 balls against each car (0x47d850)");
+    if (Balls_On())
+        for (int i = n - 1; i >= 0; i--) {
+            Car *c = Car_Get(list[i]);
+            Balls_Hit(c, Walls_CarBox(c));   /* 0x47d850 */
+        }
 }

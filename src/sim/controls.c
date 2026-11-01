@@ -3,6 +3,7 @@
    into throttle (+0x79c), brake (+0x838), handbrake (+0x848), the gearbox and the steering angle
    (+0xb10, in 4,096 units, and +0xb14). Two conversions in it are floating point, as in the original:
    16.16 degrees times 1/5760 (0x511300) or -1/5760 (0x511308), rounded to nearest (x87 FISTP). */
+#include "game/balls.h"
 #include "sim/controls.h"
 #include "fixmath.h"
 #include "game/gstate.h"
@@ -36,7 +37,7 @@ static void boost(void)
         if (Gs_Option(0)) {
             bool night = Gs_Mode() == 0 && (gm32(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160;
             if ((night || Gs_SelBit24() || Gs_SelBit27()) && CI32(c, 0xb9c) && CI32(c, 0x1d8))
-                PENDING_NOTE(0x47d5a0, "Effect_Backfire");
+                Balls_Fire(CI8(c, 0xb1a));   /* 0x47d5a0 */
             CW32(c, 0x1d8, 0);
         }
         return;
