@@ -370,6 +370,110 @@ frame rate each frame, 1000 over the milliseconds since the last frame (0x4b21e0
 call; infinite on the first frame, which fistp turns into the smallest integer, so 0.6). The weather
 code (0x45e9a0-0x462d80) uses the same scale.
 
+## Particles
+
+The effects (exhaust smoke, dust, snow, splashes, leaves, gravel, sparks, paint and glass chips) are
+particles drawn as camera-facing sprites (0x4b11c0). The old Ghidra name of 0x4aff80, `Skids_Reset`, was
+wrong: it kills every particle. The skid marks are elsewhere.
+
+**Tables** (0x4b0060, from the race set-up 0x40efa0 with 32 types and 400 particles): types of 0x70
+bytes at 0x6a2cd8 and particles of 0x68 bytes at 0x6a2cdc. Their counts are 0x6a2cd0 and 0x6a2cd4.
+0x4b1140 sets the particles in use. `Cars_Load` and `Car_Recover` kill them all (0x4aff80).
+
+A type is defined in three steps: 0x4af940 begins slot n, the setters 0x4afb20-0x4aff10 fill it, and
+0x4aff60 marks it defined (+0x35 bit 0). The begin resets most fields: alpha 0x80 to 0, white, no
+texture or callbacks, flags cleared. It keeps the scales (+0x20-+0x28), the spin (+0x2c) and the
+extents (+0x3c-+0x48), so a slot defined twice keeps them. 0x4afb20 copies a defined type whole.
+
+| Type | Field |
+|---|---|
+| +0x00 | life in steps (16.16) |
+| +0x04 | the velocity's random spread (3 x 16.16) |
+| +0x10, +0x14 | gravity a step; drag (towards the wind, times 0x290) |
+| +0x18, +0x1c | a bounce's kept y velocity; its lost x and z |
+| +0x20, +0x24, +0x28 | scale start, end, step (a random start: base and range) |
+| +0x2c | spin a step (s16, 4,096 a turn) |
+| +0x2e, +0x2f, +0x30 | alpha start, end, step |
+| +0x31 | colour (RGB) |
+| +0x35 | 1 defined, 2 dies below its ground, 4 dies at the fade's end, 8 grows, 0x10 random scale, 0x20 spins, 0x40 fades, 0x80 bounces |
+| +0x36 | 1 spread along the velocity, 2 lit, 4 the animation loops, 8 random first frame |
+| +0x38 | texture; +0x3c-+0x48 the sprite's four extents |
+| +0x4c, +0x50, +0x54, +0x58 | animation frames, count, start age, age a frame |
+| +0x5c, +0x60, +0x64, +0x68 | callbacks: draw, step (in place of the motion), after the step, after the emit |
+
+| Particle | Field |
+|---|---|
+| +0x00 | type |
+| +0x04 | velocity |
+| +0x10, +0x1c, +0x28, +0x34 | previous, drawn, current and stepping positions |
+| +0x40 | a record whose +0x30 vector is added when drawn (0: none) |
+| +0x44, +0x48, +0x4c, +0x50 | life left, ground height, scale, turn |
+| +0x52, +0x53, +0x56 | previous, drawn and current alpha |
+| +0x54, +0x55, +0x57, +0x58 | shade, pass mask, alive, at rest |
+| +0x59, +0x60 | colour, texture |
+
+**Emitting** (0x4b07a0: type, position, velocity, ground, record, colour or NULL, shade, callback
+argument, pass mask):
+- **The slot.** The first free slot from the cursor 0x6a2ce4 on, where the cursor stays. If none is
+  free, the oldest particle is reused (its type's life less its own, the first of equals from the
+  cursor). With no particles in use the slot at the cursor is still written.
+- **The spread.** Three `rand()` draws scaled to -0.5..0.5 (`-0x8000 - round(r / 32767 * -65536)`) are
+  multiplied by the spread on each axis. With bit 0 of +0x36 they apply along a frame: d (the
+  velocity), u (up, or the horizontal part of d when d's y is above 0.5, made square to d) and
+  w = d x u. The frame is only built when both x and z of the velocity exceed 0xa0. Otherwise the
+  original adds x's spread to x, z's to y and y's to z, both of the last with the third draw.
+- **The fields.** A random scale adds the range times a fourth draw (0 to 1). Then the type's
+  spawn callback runs.
+
+**Each step** (0x4b0110, `Race_Update` after the cameras, not while a replay plays):
+- The previous position is saved and the life drops by one; at 0 or below the particle dies.
+- A step callback replaces the motion. Without one:
+  - **Drag** pulls the velocity towards the wind (0x6a2ce8 times 0.1, never written, so zero).
+  - **Gravity** comes off y; the position moves by the velocity plus half the gravity.
+  - **Fade and growth** move towards their end by the step, clamped. A type dying at the fade's end
+    dies on reaching it.
+  - **Spin** wraps at 4,096.
+  - **The ground.** Below it, a type dying there dies. A bouncing type has its y velocity reversed
+    and scaled by +0x18, and x and z scaled by one less +0x1c. Under 0.1 it comes to rest and stays
+    at the ground height.
+- Then the after-step callback runs.
+
+**The pose** (0x4b06a0 in `Race_PoseInterp`): the drawn position and alpha, between the previous and
+the current at the step fraction.
+
+**Drawing** (0x4b0480, World_Render after the sections' relighting, per pass): each live particle in
+the pass mask becomes a sprite (or calls the draw callback).
+- **The frame.** The animation frame is (age - start) / frame age. With bit 3 it is offset by the low
+  16 bits of the particle's heap address modulo the count. The port uses its offset in the table, as
+  the heap address can't be reproduced. Past the end it holds the last frame unless it loops.
+- **The sprite.** The extents times the scale; the turn only for spinning types. Lit types carry
+  the shade.
+
+**The types** (0x45a170, the last call of 0x466360 when the cars are placed): the count follows the
+effects detail, bits 25-26 of 0x52afd0: 400, 100 or 0. With 3 the count is an uninitialised local;
+the port leaves it. Thirty types are defined, 9 and 25 are not:
+
+| Types | Effect | Textures (0x459c80, `\Textures\NEWIMAGE\...`) |
+|---|---|---|
+| 0-2 | exhaust smoke | `Exhaust\exhst03`, `exhst02` |
+| 3 | detail dust (callbacks 0x45d2d0, 0x45de80) | `Det\13_12\DE_001-004` |
+| 4-7 | snow and spray | `SnowCld\snow_004` |
+| 8, 10-13 | dust clouds | `DustCld\23_5\D_000-007` |
+| 14, 15 | splashes | `Wsplash\spray2f`, `spray2` |
+| 16-23 | leaves and grass (dying below the ground) | `Leaf\leaf_000-004`, `GRASS\GR_001-004` |
+| 24 | drops | `WSplash\drop` |
+| 26-28 | sparks, paint chips, glass chips (draw callbacks 0x499070, 0x4994f0, 0x499ac0) | `spark4`, `paint`, `glass` |
+| 29, 30 | gravel (bouncing; gravity from 0x49af20) | `Rocks\Grav_000-004` |
+| 31 | the sparks' glow | the hazard lamps' sprite (0x547fb4) |
+
+0x49af20 (height 1, time 25) fills the thrown stones' record at 0x593860 and returns 8 h / t^2.
+Type 29 has a fifth of that as its gravity and type 30 all of it. 0x499020 writes two records of the
+sparks and chips (0x592888, 0x593728).
+
+The emitters are not ported yet: the wheels' dust and gravel (0x45af90, 0x45b580), the exhaust
+(0x45c820), the splashes (0x45dc00), `Stage_Step`'s 0x47dd70, the sparks (0x499750), and the chips
+(0x499de0, 0x49b3e0). The types' callbacks are not ported either.
+
 ## Loading a stage
 
 `Stage_Load` 0x41f930 (the start-up of the game fills the math tables first, 0x4d08d0), in order:

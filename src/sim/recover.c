@@ -1,5 +1,6 @@
 /* The recovery (see recover.h). */
 #include "sim/recover.h"
+#include "world/particles.h"
 #include "sim/car_internal.h"
 #include "sim/drive.h"
 #include "sim/fade.h"
@@ -162,7 +163,7 @@ static void recover(int ch)
     }
     reset_at(c, pos, dir);
     PENDING_NOTE(0x417780, "Codriver_Rewind");
-    PENDING_NOTE(0x4aff80, "Skids_Reset");
+    Particles_KillAll();   /* 0x4aff80 */
     if ((uint32_t)(ch & 0xff) < Gs_SelBits14()) PENDING_NOTE(0x421d80, "Split_Reset");
     CW32(c, 0xbf8, 0);
     CW32(c, 0xa7c, 0);

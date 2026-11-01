@@ -24,6 +24,7 @@ void Lens_Set(int i, bool left, bool right, uint8_t bit);
 /* 0x477c80: group k's left and right levels (0-255 as 16.16 fractions, 255 = 0xff00) */
 void Lens_Get(int i, int32_t *left, int32_t *right, int k);
 int Lamps_Count(int car);           /* the port: the car's lamps */
+Tex *Lamps_SpriteTex(int k);        /* 0x547fac + 4 k: group k's sprite texture */
 Tex *Lens_Tex(int i);               /* the port: car i's lens texture (NULL: none) */
 bool Lamps_On(int car, int k);      /* the port: lamp k's glow shown */
 int32_t Lamps_Glow(int car, int k); /* the port: lamp k's glow level */

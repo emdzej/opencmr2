@@ -1,5 +1,6 @@
 /* The car damage (see damage.h). */
 #include "sim/damage.h"
+#include "world/particles.h"
 #include "audio/crash.h"
 #include "game/camera.h"
 #include "game/gstate.h"
@@ -343,6 +344,7 @@ void Damage_CarsLoaded(void)
     Damage_Clear(0, g_all.n);
     Damage_ResetLogs();
     Damage_Setup(false, false, g_all.car, g_all.n);
+    Particles_KillAll();   /* 0x4aff80, next in Cars_Load */
 }
 
 /* ---- the dents ---- */

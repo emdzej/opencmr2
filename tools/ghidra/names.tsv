@@ -381,7 +381,7 @@
 0042c870	Pose_Snap	sim	high	Flags the car's pose to snap (no blend) on the next interpolation
 0046bd50	Gs_CarsCollide	game	high	The cars collide with each other in this game mode
 00417780	Codriver_Rewind	audio	med	The co-driver's pace-note position set back to the car's point
-004aff80	Skids_Reset	render	low	Resets the skid-mark strips (0x6a2cdc)
+004aff80	Particles_KillAll	world	high	Every live particle killed (not skid marks)
 00421d80	Split_Reset	race	low	Split timing state for a car reset
 0049c1c0	Proc_Event	proc	high	An event for a process slot: the first matching transition, by priority
 0041bf80	Race_S0_Setup	race	high	Race state 0: variables cleared, the selection and common archives (first player)
@@ -636,3 +636,30 @@
 004a4d30	Tex_KeyAlpha	render	high	Three alpha values replaced in a texture (copy made first)
 004a5080	Tex_RestoreCopy	render	high	A car's texture copy blitted back
 004a5ba0	Tex_FreeCopies	render	high	The car texture copies released
+004b0060	Particles_Alloc	world	high	The particle types (0x70 bytes) and particles (0x68 bytes)
+004b0010	Particles_Free	world	high	The particle tables released (at exit)
+004affe0	PTypes_Clear	world	high	Every particle type undefined
+004affb0	Particles_Clear	world	high	Every particle slot free
+004b0100	Particle_Kill	world	high	A particle's alive byte cleared
+004b1140	Particles_SetCount	world	high	The particles in use
+004af940	PType_Begin	world	high	A particle type's definition begun, its fields reset
+004afb20	PType_Copy	world	high	A defined particle type copied into the current
+004aff60	PType_End	world	high	The current particle type marked defined
+004afb70	PType_Tex	world	high	A particle type's texture and extents
+004afbc0	PType_Anim	world	high	A particle type's animation frames, timing and extents
+004afc70	PType_Motion	world	high	A particle type's life, gravity, drag, bounce
+004afcf0	PType_Fade	world	high	A particle type's alpha fade
+004afd60	PType_Colour	world	high	A particle type's colour and lit flag
+004afdb0	PType_Grow	world	high	A particle type's scale change
+004afe10	PType_RandomScale	world	high	A particle type's random start scale
+004afe80	PType_Spin	world	high	A particle type's spin
+004afec0	PType_Spread	world	high	A particle type's random velocity spread
+004aff10	PType_Funcs	world	high	A particle type's callbacks
+004b07a0	Particle_Emit	world	high	A particle emitted: free or oldest slot, spread, fields
+004b0110	Particles_Step	world	high	Every particle moved, faded, grown, bounced
+004b06a0	Particles_Interp	world	high	The particles' drawn positions and alpha at the pose fraction
+004b0480	Particles_Draw	world	high	Every particle of the pass as a sprite
+00459c80	Effects_LoadTextures	world	high	The particle effects' textures
+0045a170	Effects_Types	world	high	The 30 particle types and the count by detail
+0049af20	Stones_Setup	world	high	The thrown stones' record (0x593860); returns their gravity
+00499020	Chips_Setup	world	high	Two records of the sparks and chips (0x592888, 0x593728)

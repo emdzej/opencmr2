@@ -63,6 +63,7 @@ int Lamps_Count(int car)
     return k;
 }
 
+Tex *Lamps_SpriteTex(int k) { return k >= 0 && k < GROUPS ? sprite_tex[k] : NULL; }
 Tex *Lens_Tex(int i) { return i >= 0 && i < CAR_MAX ? lens[i].tex[0] : NULL; }
 bool Lamps_On(int car, int k) { return car >= 0 && car < CAR_MAX && k >= 0 && k < LAMPS && glow[car][k] && glow[car][k]->on; }
 int32_t Lamps_Glow(int car, int k) { return Lamps_On(car, k) ? glow[car][k]->level : 0; }

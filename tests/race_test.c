@@ -18,6 +18,8 @@
 #include "sim/damage.h"
 #include "game/lights.h"
 #include "world/glow.h"
+#include "world/particles.h"
+#include "render/sprite3d.h"
 #include <math.h>
 #include "game/camera.h"
 #include "game/hud.h"
@@ -421,6 +423,30 @@ int main(void)
         }
         printf("after the results' quit: mode %u\n", Game_Mode());
         CHECK(Game_Mode() == 0);
+        /* the particle types the race defined (30 of 32), driven by hand: exhaust smoke fades out
+           (0x1e by 3 a step, dying at 0) and is drawn; gravel thrown down bounces to a stop on its ground (kept 0xb333, under 0x1999 it rests) */
+        int defined = 0;
+        for (int i = 0; i < 32; i++) defined += PType_Get(i) && (PType_Get(i)->flags & 1);
+        Particles_KillAll();
+        int32_t from[3] = {0, 0x1000, 0}, down[3] = {0x1000, -0x2000, 0x1000}, still[3] = {0};
+        Particle_Emit(0, from, still, 0, NULL, NULL, 0, NULL, 1);
+        Particle_Emit(0x1d, from, down, 0, NULL, NULL, 0, NULL, 1);
+        Particle *smoke = Particle_Get(0), *stone = Particle_Get(1);
+        int smoke_steps = 0, drawn = 0;
+        for (int i = 0; i < 12; i++) {
+            Particles_Step(NULL);
+            smoke_steps += smoke->alive;
+        }
+        Particles_Interp(0x8000);
+        int before = Sprite3d_Count();
+        Particles_Draw(NULL, 0);
+        drawn = Sprite3d_Count() - before;
+        Sprite3d_Init();   /* the queue emptied */
+        printf("particles: %d types, %d alive; the smoke lived %d steps, the stone at rest %d at %.3f, %d drawn\n",
+               defined, Particles_Alive(), smoke_steps, stone->rest, stone->pos[1] / 65536.0, drawn);
+        CHECK(defined == 30 && PType_Get(0)->tex && smoke_steps == 9 && stone->alive && stone->rest &&
+              stone->pos[1] == 0 && drawn == 1);
+        Particles_KillAll();
     }
     printf("race_test: %s\n", fails ? "FAILED" : "ok");
     return fails != 0;

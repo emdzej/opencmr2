@@ -18,6 +18,8 @@
 #include "game/lights.h"
 #include "render/sprite3d.h"
 #include "world/glow.h"
+#include "world/particles.h"
+#include "game/effects.h"
 #include "sim/pose.h"
 #include "sim/drive.h"
 #include "sim/fade.h"
@@ -147,14 +149,17 @@ static void Race_Update(uint8_t state, bool flag)
         }
         for (uint32_t i = 0; i < np; i++)
             if (Car_Get((int)i)->s[0xb43]) Camera_Step((int)i);   /* 0x4219b0 */
-        if (car0) PENDING_NOTE(0x4b0110, "Skids_Step");
+        /* the particles (not while a replay plays); the original passes the camera after the last
+           player's (0x538e2c[players]), read only by the types' callbacks */
+        if (car0) Particles_Step(NULL);   /* 0x4b0110 */
         /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60 not ported,
            0x418b00) */
         if (car0 && state > 6 && !gm8(0x52af40))
             for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i), Crash_UpdateSounds();
         Sim_StepDone(&g_all);
     }
-    Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its effects not ported) */
+    Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its other effects not ported) */
+    Particles_Interp(R.frac);   /* 0x4b06a0 */
     if (H->pose) H->pose(R.frac);
     for (uint32_t i = 0; i < np; i++)
         if (H->camera) Camera_Frame((int)i, CI32(Car_Get((int)i), 0xa90), H->camera((int)i));   /* 0x422140 */
@@ -179,12 +184,15 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
         Bfl_MountCommon();
         Race_LoadText();   /* 0x478a20 */
         Race_LoadFonts();
-        /* 0x40efa0, in part: the sprite queue (0x4b1150), the glows (0x4ae170: 4 with option 0, else
-           160), the start lights' textures (0x463360, in 0x40f020) */
+        /* 0x40efa0, in part: the sprite queue (0x4b1150), the particles (0x4b0060: 32 types, 400),
+           the glows (0x4ae170: 4 with option 0, else 160); of 0x40f020 the lamps' and the start
+           lights' textures (0x463360) and the effects' (0x459c80; 0x45eb50 between is not ported) */
         Sprite3d_Init();
+        Particles_Alloc(0x20, 400);
         Glow_Alloc(Gs_Option(0) ? 4 : 0xa0);
         Lamps_Load();    /* 0x463d60 */
         Lights_Load();
+        Effects_LoadTextures();
         Pause_Build();   /* 0x403500 */
     }
     Proc_Event(g, slot, 0, 2);
@@ -249,6 +257,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
             Lamps_Place();     /* 0x466360's cars */
             Lights_Setup();    /* 0x463410, in 0x466360 */
+            Effects_Types();   /* 0x45a170, the end of 0x466360 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */
             Hud_Init(1);       /* 0x411450 */
             R.place_count = 1;
