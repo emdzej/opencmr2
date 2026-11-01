@@ -822,6 +822,242 @@ static void Wheels_Dust(int car)
     (void)count;
 }
 
+/* Vec_Mul3 0x4b9c20 with the car's orientation (+0x750, the car record's first 16 ints): v as a row
+   vector times its 3 x 3 */
+static void vec_mul3(int32_t out[3], const int32_t v[3], const Car *c)
+{
+    for (int k = 0; k < 3; k++)
+        out[k] = fx_mul(CI32(c, 4 * (uint32_t)(8 + k)), v[2]) + fx_mul(CI32(c, 4 * (uint32_t)(4 + k)), v[1]) +
+                 fx_mul(CI32(c, 4 * (uint32_t)k), v[0]);
+}
+
+/* Wheels_Splash 0x45c820: water thrown by each wheel in water (materials 0xe, 0xf): a splash sprite
+   (type 14 or 15, mirror images, by the wheel's side and the car's side axis against the camera's
+   forward axis; half the time the other way at random on the first axle, half the time none on the
+   second). A wet surface (materials 0x18, 0x19, 0x2a) in the rain above 30 of 255 picks the spray
+   (type 12, alpha the rain's level) but also clears the flag that lets a wheel emit, so the spray
+   never comes; a wheel that sets the flag keeps it for the wheels after it, which then throw type 0
+   (the exhaust's smoke) unless they are in water themselves. Fewer below 30 of wheel 0's speed (at
+   that fraction), half from any car but 0. The particle sits between the wheel's ground point and
+   its axle partner's (w ^ 1), much nearer its own (the fraction 0..1 divided by 1.33..10.33 and by
+   3..17), on the second axle (and for type 0) moved back along the last mark's run by up to all of
+   it; thrown at a tenth of the wheel's rise and a fifth of its x and z backwards (type 0: two thirds
+   on the front wheels, a third on the rear), scaled down above 30 of wheel 2's speed. */
+static void Wheels_Splash(int car)
+{
+    uint8_t rgba[4] = {0xff, 0xff, 0xff, 0xff};   /* (kept from wheel to wheel) */
+    if (car >= 8) return;
+    Car *c = Car_Get(car);
+    bool emits = false;   /* (kept from wheel to wheel) */
+    for (int w = 0; w < 4; w++) {
+        bool on = false;
+        int type = 0;
+        bool left = w == 0 || w == 2;
+        int n = 4 * car + w;
+        int32_t run[3];
+        for (int k = 0; k < 3; k++)
+            run[k] = gms32(v3(0x543200, n) + 4 * (uint32_t)k) - gms32(v3(0x543400, n) + 4 * (uint32_t)k);
+        /* the second axle: the rear on a car whose +0xb1e is 7, else the front (as Wheels_Dust) */
+        bool second = (CI8(c, 0xb1e) == 7) == (w == 2 || w == 3);
+        int32_t mat = CI16(c, 0xaae + 2 * (uint32_t)w);
+        bool water = mat == 0xe || mat == 0xf;
+        bool wet = mat == 0x19 || mat == 0x18 || mat == 0x2a;
+        if (Weather_Kind(car) == 1) {
+            int32_t level = fx_mul(Weather_Level(car), 0xff0000) >> 16;
+            if (level > 0x1e && wet) {
+                rgba[3] = (uint8_t)level;
+                type = 0xc;
+                emits = false;   /* (so type 12 is never thrown) */
+            }
+        }
+        int count = 1;
+        if (water) {
+            emits = true;
+            rgba[3] = 0xff;
+            int32_t f[3];
+            Camera_Forward(car, f);   /* 0x4baca0 on the camera record 0x538d30 + 100 car */
+            int32_t dot = fx_mul(CI32(c, 0x360), f[0]) + fx_mul(CI32(c, 0x364), f[1]) + fx_mul(CI32(c, 0x368), f[2]);
+            type = (dot < 0 ? !left : left) ? 0xe : 0xf;
+            if (rand_pos() < 0x8000) {
+                if (second) count = 0;
+                else type = rand_pos() >= 0x8000 ? 0xf : 0xe;
+            }
+            on = true;
+        } else if (emits) {
+            on = true;   /* (type 0, or 12 when the rain set it: then emits is clear) */
+        }
+        if (!CI32(c, 0xbac + 4 * (uint32_t)w)) on = false;
+        int32_t sp = iabs(Car_WheelSpeed(c, 0, 0));
+        if (sp < 0x1e0000) {
+            int32_t f = fdiv(sp, 0x1e0000);
+            if (rand_pos() > f) on = false;
+        }
+        if (car > 0 && rand_pos() > 0x8000) continue;
+        if (!on) continue;
+        for (; count > 0; count--) {
+            int32_t back[3];
+            vscale(back, run, rand_neg());
+            bool splash = !second && water;
+            /* (one division only for a first-axle wheel in water with a type other than 14 and 15:
+               never) */
+            int32_t t = rand_pos();
+            t = fdiv(t, 0x1547a - 9 * rand_neg());
+            if (!splash || type == 0xe || type == 0xf) t = fdiv(t, 0x30000 - 14 * rand_neg());
+            int32_t pt[3];
+            for (int k = 0; k < 3; k++) {
+                int32_t p0 = fx_mul(gms32(v3(0x543200, 4 * car + (w ^ 1)) + 4 * (uint32_t)k), t);
+                int32_t p1 = fx_mul(gms32(v3(0x543200, n) + 4 * (uint32_t)k), 0x10000 - t);
+                pt[k] = p0 + p1;
+                if (!splash) pt[k] += back[k];
+            }
+            int32_t pos[3], v[3];
+            for (int k = 0; k < 3; k++) pos[k] = pt[k] - CI32(c, 0x2d0 + 4 * (uint32_t)k);
+            uint32_t wo = 0x42c + 0xc * (uint32_t)w;   /* the wheel's velocity */
+            int32_t wx = CI32(c, wo), wy = CI32(c, wo + 4), wz = CI32(c, wo + 8);
+            v[1] = wy / 10;
+            if (type == 0xe || type == 0xf) {
+                v[0] = wx / -5, v[2] = wz / -5;
+            } else if (w == 2 || w == 3) {
+                v[0] = wx / -3, v[2] = wz / -3;
+            } else {
+                v[0] = (int32_t)(0u - 2u * (uint32_t)wx) / 3, v[2] = (int32_t)(0u - 2u * (uint32_t)wz) / 3;
+            }
+            int32_t ws = Car_WheelSpeed(c, 2, 0);
+            if (ws > 0x1e0000) vscale(v, v, fdiv(0x1e0000, ws));
+            int arg = car;
+            uint8_t shade = gm8(0x543120 + (uint32_t)n);
+            uint8_t passes = c->second->mask;
+            if (type == 0xd) {
+                /* (never) a third of the wheel's velocity, at the point itself, its ground 6.2 below */
+                v[0] = wx / 3, v[1] = wy / 3, v[2] = wz / 3;
+                Particle_Emit(0xd, pt, v, pt[1] - 0x630000, NULL, rgba, shade, &arg, passes);
+            } else {
+                /* (type 0 has no callback to add the car's place: its puff sits about the world's
+                   origin, as in the original) */
+                Particle_Emit(type, pos, v, pos[1] - 0x10000, NULL, rgba, shade, &arg, passes);
+            }
+        }
+    }
+}
+
+/* Stones_Kind 0x49b0d0: the kind of stone (0-12, -1 none) a surface throws in the rally, kept for the
+   last surface asked (0x593860, the kind at 0x59386c, both reset by Stones_Setup) */
+static int Stones_Kind(int16_t s)
+{
+    if (s == gms16(0x593860)) return gms16(0x59386c);
+    int k = -1;
+    switch (Tod_Rally() & 0xff) {
+    case 0: k = s == 0xd ? 2 : s == 0x13 ? 1 : s == 0x1a ? 0 : -1; break;
+    case 1:
+        switch (s) {
+        case 3: k = 6; break;
+        case 4: case 6: k = 7; break;
+        case 5: case 7: k = 8; break;
+        case 8: k = 2; break;
+        case 9: case 0xb: k = 9; break;
+        case 0xa: case 0xc: k = 10; break;
+        case 0x1b: k = 1; break;
+        default: break;
+        }
+        break;
+    case 2: k = s == 0x1a || s == 0x22 ? 0 : s == 0x1c || s == 0x1d ? 1 : -1; break;
+    case 4: k = s == 2 ? 3 : s == 0x47 ? 5 : s == 0x53 ? 4 : -1; break;
+    case 5:
+        if (s == 3 || s == 8 || s == 0xd || (s >= 0x10 && s <= 0x13) || s == 0x1b || s == 0x1c) k = 3;
+        break;
+    case 7: k = s == 0xf ? 9 : s == 0x13 || s == 0x14 ? 0xb : s == 0x1a || s == 0x1f ? 0xc : -1; break;
+    default: break;
+    }
+    gw16(0x59386c, (uint16_t)k);
+    gw16(0x593860, (uint16_t)s);
+    return k;
+}
+
+/* Wheels_Stones 0x49b3e0: stones and mud thrown by each spinning wheel (+0xbe8) of an upright car on
+   the ground, by the kind its surface gives in the rally (Stones_Kind): per kind (13) its colour
+   (0x5206f8), stone or mud (0x52072c: type 29 or 30), thrown on a dry stage too (0x520760, the
+   stones) and the steps between two (0x520794: bytes at dry and at the wettest, counted down per
+   player and wheel at 0x593874). A wheel throws when its slips (+0x870 and +0x880, along x and z;
+   the front wheels' turned by the steering angle +0xb10) sum above 0.35: from its contact point
+   (+0x3c0) 0.35 down turned with the car (its ground 0.1 below that), along the slip's direction by
+   0.5..1 of the stones' speed (0x593894), up by 0.5..1 of it, to a side by up to a third of it
+   (0x593898), all times the slip's length over the stones' (0x593870) at most 1; stones twice as far
+   along, half as high, 0.7 to the side. Not thrown when its x points one way (negative on the front
+   wheels, positive on the rear) and its z the other (negative on wheels 0 and 2, positive on 1 and
+   3). Its place follows the car's model (+0x71c, the local matrix's translation), its shade the
+   car's +0xa70. */
+static void Wheels_Stones(int car)
+{
+    Car *c = Car_Get(car);
+    if (!CI32(c, 0xb74)) return;
+    int player = CI8(c, 0xb1a);
+    for (int w = 0; w < 4; w++) {
+        uint32_t u = (uint32_t)w;
+        if (!CI32(c, 0xbac + 4 * u)) continue;
+        int k = Stones_Kind(CI16(c, 0xac6 + 2 * u));
+        int32_t wet = Weather_CarWet(c);   /* Weather_CarValue 0x460c80 */
+        if (k < 0) continue;
+        uint32_t kk = (uint32_t)k;
+        if (!wet && !gm32(0x520760 + 4 * kk)) continue;
+        uint32_t cnt = (uint32_t)(0x593874 + 4 * player + w);
+        gw8(cnt, (uint8_t)(gm8(cnt) - 1));
+        if (gms8(cnt) > 0) continue;
+        bool stone = gm32(0x52072c + 4 * kk) != 0;
+        if (!stone && iabs(Car_WheelSpeed(c, w, 0)) > 0x1e0000)
+            PENDING_NOTE(0x45c750, "the player's wheel spin tally (0x45c750 player, w, 0, 1)");
+        int32_t lo = gms8(0x520794 + 2 * kk), hi = gms8(0x520795 + 2 * kk);
+        gw8(cnt, (uint8_t)((fx_mul((hi - lo) * 0x10000, wet) >> 16) + lo));
+        bool spin = CI32(c, 0xbe8 + 4 * u) != 0;
+        int32_t a = spin ? CI32(c, 0x870 + 4 * u) : fx_mul(CI32(c, 0x870 + 4 * u), 0x4ccc);
+        int32_t b = CI32(c, 0x880 + 4 * u);
+        if (!spin || (int32_t)((uint32_t)iabs(a) + (uint32_t)iabs(b)) <= 0x5999) continue;
+        int32_t x, z;
+        if (w < 2) {
+            uint32_t ang = CI16(c, 0xb10) & 0xffffu;
+            int32_t co = g_sin[(ang + 0x400) & 0xfff], si = g_sin[ang & 0xfff];
+            int32_t ax = fx_mul(a, co), az = fx_mul(a, -si), bx = fx_mul(b, si), bz = fx_mul(b, co);
+            if (stone) {
+                ax = fx_mul(ax, 0x20000), az = fx_mul(az, 0x20000);
+                bx = fx_mul(bx, 0x8000), bz = fx_mul(bz, 0x8000);
+            }
+            x = bx + ax, z = bz + az;
+        } else {
+            x = a, z = b;
+            if (stone) x = fx_mul(x, 0x20000), z = fx_mul(z, 0x8000);
+        }
+        /* the direction (d) and its perpendicular on the ground (-dz, 0, dx) */
+        int32_t len = (int32_t)Fx_Sqrt((uint32_t)(fx_mul(x, x) + fx_mul(z, z)));
+        int32_t inv = fdiv(0x10000, len);
+        int32_t dx = fx_mul(inv, x), dz = fx_mul(inv, z);
+        int32_t o[3] = {CI32(c, 0x3c0 + 0xc * u), CI32(c, 0x3c4 + 0xc * u) - 0x5999, CI32(c, 0x3c8 + 0xc * u)}, pos[3];
+        vec_mul3(pos, o, c);
+        int32_t ground = pos[1] - 0x1999;
+        int32_t r1 = rand_pos(), r2 = rand_pos(), r3 = rand_pos();
+        int32_t along = gms32(0x593894) - fx_mul(r1, gms32(0x593864));
+        int32_t up = gms32(0x593894) - fx_mul(r2, gms32(0x593864));
+        int32_t side = gms32(0x593898) - fx_mul(r3, gms32(0x593898));
+        if (rand_pos() > 0x8000) side = -side;
+        int32_t f = (int32_t)Fx_Sqrt((uint32_t)(fx_mul(a, a) + fx_mul(b, b)));
+        f = fx_mul(f, 0x8000);
+        f = fx_mul(f, gms32(0x593870));
+        if (f > 0x10000) f = 0x10000;
+        along = fx_mul(along, f), up = fx_mul(up, f), side = fx_mul(side, f);
+        if (stone) along = fx_mul(along, 0x20000), up = fx_mul(up, 0x8000), side = fx_mul(side, 0xb333);
+        int32_t vel[3] = {fx_mul(dx, along) + fx_mul(-dz, side), up, fx_mul(dz, along) + fx_mul(dx, side)};
+        int towards = 0;
+        if (w < 2 ? vel[0] < 0 : vel[0] > 0) towards++;
+        if ((w & 1) == 0 ? vel[2] < 0 : vel[2] > 0) towards++;
+        if (towards >= 2) continue;
+        uint8_t shade = (uint8_t)(0xff - (uint8_t)((CI32(c, 0xa70) * 0xff) >> 16));
+        int32_t wv[3];
+        vec_mul3(wv, vel, c);
+        uint8_t rgba[4];
+        for (int i = 0; i < 4; i++) rgba[i] = gm8(0x5206f8 + 4 * kk + (uint32_t)i);
+        Particle_Emit(stone ? 0x1d : 0x1e, pos, wv, ground, &c->main->local.m[12], rgba, shade, NULL,
+                      c->second->mask);
+    }
+}
+
 void Effects_Car(int car)
 {
     if (car >= 8) return;
@@ -833,7 +1069,8 @@ void Effects_Car(int car)
     if (Camera_Kind(car) != 3) {
         wheels_grass(car);   /* 0x45d540 */
         Wheels_Dust(car);    /* 0x45b580 */
-        PENDING_NOTE(0x45c820, "the splashes 0x45c820, 0x49b3e0");
+        Wheels_Splash(car);  /* 0x45c820 */
+        Wheels_Stones(car);  /* 0x49b3e0 */
     }
     PENDING_NOTE(0x45af90, "the exhaust's flames 0x45af90");
 }

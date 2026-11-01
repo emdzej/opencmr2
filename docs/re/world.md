@@ -635,7 +635,29 @@ each listed car (its list index used as the car number) the sounds run (0x464c60
     raised on a slipping wheel is never read. Branches for type 5 and a forward shift on the rear
     axle cannot run.
   - The player's wheel spin tallies (0x45c750) are not ported.
-- Not ported yet: the splashes (0x45c820), 0x49b3e0, and the exhaust's flames (0x45af90).
+- **The splashes** (0x45c820). A wheel in water (materials 0xe, 0xf) throws a splash sprite, type 14
+  or 15. The two are mirror images, picked by the wheel's side and the car's side axis against the
+  camera. On the first axle, half the time the other one is picked at random; on the second axle, half
+  the time none is thrown.
+  - **Quirk kept: the spray.** A wet surface (0x18, 0x19, 0x2a) in rain above 30 of 255 picks the
+    spray (type 12), but the same branch clears the flag that lets a wheel emit, so the spray never
+    comes.
+  - **Quirk kept: the flag.** It carries over from wheel to wheel. A wheel after one in water throws
+    type 0 (the exhaust's smoke) unless it is in water itself. Type 0 has no callback, so the puff
+    sits about the world's origin.
+  - **Where and how fast.** The particle sits between the wheel's ground point and its axle
+    partner's, much nearer its own. It is thrown at a tenth of the wheel's rise and a fifth of its x
+    and z backwards.
+- **The stones** (0x49b3e0). Each spinning wheel of an upright car on the ground can throw stones
+  (type 29) or mud (30). The kind comes from the surface in the rally (0x49b0d0), cached for the last
+  surface asked.
+  - **Per kind (13):** the colour (0x5206f8), stone or mud (0x52072c), whether it throws on a dry
+    stage (0x520760), and the steps between two throws, at dry and at the wettest (0x520794).
+  - **When.** The wheel's slips (the front ones turned by the steering) must sum above 0.35.
+  - **The throw.** The stone leaves from the contact point, 0.35 down, along the slip's direction, by
+    0.5 to 1 of the stones' speed, up by the same, and to a side by up to a third of it. Stones go
+    twice as far along, half as high and 0.7 to the side. One thrown back towards the car is dropped.
+- Not ported yet: the exhaust's flames (0x45af90).
 
 The other emitters are not ported yet: `Stage_Step`'s 0x47dd70, the sparks (0x499750) and the chips
 (0x499de0). Neither are the detail dust's lamp follower 0x45d2d0 or the sparks' and chips' callbacks.

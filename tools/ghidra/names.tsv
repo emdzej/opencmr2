@@ -732,3 +732,6 @@
 00492910	Sky_BoltVertex	world	low	The sky vertex nearest the camera's direction for a bolt (not ported)
 00492b50	Sky_BoltColour	world	low	One of three lightning colours into the sky (not ported)
 004209d0	Progress_SegFrac	sim	med	The car's share of its centre-line segment
+0045c820	Wheels_Splash	fx	high	Water thrown by each wheel in water (types 14, 15; the spray type 12 never)
+0049b0d0	Stones_Kind	fx	high	The kind of stone a surface throws in the rally
+0049b3e0	Wheels_Stones	fx	high	Stones and mud thrown by each spinning wheel
