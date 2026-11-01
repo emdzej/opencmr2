@@ -451,3 +451,8 @@
 0042af50	Pose_Capture	sim	high	The step's pose: body, drawn body, wheels, normal, ground heights
 0042bf70	Car_PoseInterp	sim	high	The models from the last two poses blended by the step fraction; wheels mirrored and cambered
 0042bcd0	Pose_Init	sim	high	The pose records from the models' matrices
+00457c50	Car_LodTable	car	high	The cars' detail letters (0x51a3d0) from the detail setting and the texture memory
+004200d0	Car_Dir	car	high	A car's path: the cars' directory and its name
+0040ee60	Car_Name	car	high	A car's three-letter name from the table at 0x516bb0
+0040ee90	Car_Class	car	high	A car's handling class (0x516b40)
+004086b0	Player_Car	game	high	A player's car: the player record's low six bits (mode 4: the championship's)

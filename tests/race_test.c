@@ -7,6 +7,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/car_load.h"
 #include "world/tod.h"
 #include "game/stage_load.h"
 #include "game/profile.h"
@@ -41,24 +42,9 @@ static bool load_stage(void)
 static bool load_cars(void)
 {
     car_loads++;
-    uint8_t *d = File_Load("Game\\Cars\\205a1N.c3d", 1);
-    static C3d m;
-    if (!d || !C3d_Load(&m, d, File_LastSize(), 0)) return false;
-    Obj *root = C3d_Objects(&m, &g_world);
-    CarSlot *s = Car_Slot(0);
-    s->main = root;
-    s->second = Obj_FindType(root, 5);
-    s->kind = 'A';
-    int32_t sp[3];
-    uint16_t ang[3];
-    Csp_StartPos(0, sp);
-    Csp_Angles(ang);
-    Car_Place(root, s->second, 0, 0, ang, sp);
-    Car *c = Car_Get(0);
-    Damage_Reset(c);
-    c->main = root;
-    c->second = s->second;
-    Sim_InitLists(1);
+    if (!Car_Load(0)) return false;
+    Sim_InitLists(1);   /* after the cars, as Cars_Load 0x456d90 does */
+    Car_ProgressStart(Car_Get(0));
     return true;
 }
 
@@ -69,7 +55,9 @@ static void input(int player, uint32_t *held, uint32_t *pressed)
     *pressed = 0;
 }
 
-static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, NULL, NULL};
+static Obj camera;
+static Obj *host_camera(int player) { (void)player; return &camera; }
+static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, NULL, host_camera};
 
 int main(void)
 {
@@ -85,7 +73,8 @@ int main(void)
     memset(&g_world, 0, sizeof g_world);
     g_world.kind = 3;
     Profiles_Init();
-    Player_SetProfile(0, 0);   /* the front end's player set-up */
+    Player_SetProfile(0, 0);   /* the front end's player set-up: profile 0, the 205 */
+    gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)Car_IdByName("205"));
     Tod_Select("fra02");   /* the front end's selection */
     Race_Begin(&host);
     CHECK(Game_Mode() == 3);
@@ -107,6 +96,9 @@ int main(void)
         }
         if (st == 8 && fin < 0 && frame - go == 180) {
             Car *c = Car_Get(0);
+            printf("camera at (%.1f, %.1f, %.1f), car at (%.1f, %.1f, %.1f)\n", camera.local.m[12] / 65536.0,
+                   camera.local.m[13] / 65536.0, camera.local.m[14] / 65536.0, CI32(c, 0x2d0) / 65536.0, CI32(c, 0x2d4) / 65536.0,
+                   CI32(c, 0x2d8) / 65536.0);
             printf("3 s after the go: stage time %d, %.1f km/h, %.1f%% of the stage\n", Race_StageTime(0),
                    CI32(c, 0x778) / 65536.0 * 90, Car_StageShare(c) * 100.0 / 65536);
             /* the poses (Car_PoseInterp): the front left wheel's matrix turns from frame to frame */

@@ -30,6 +30,7 @@
 #include "sim/drive.h"
 #include "sim/sim.h"
 #include "game/race.h"
+#include "game/car_load.h"
 #include "game/stage_load.h"
 #include "game/profile.h"
 #include "game/timer.h"
@@ -174,44 +175,6 @@ static void car_paths(const char *car, char *path, char *tex, size_t cap)
     if (!vfs_exists(tex) && l > 5 && strchr("NLS", tex[l - 5])) memmove(tex + l - 5, tex + l - 4, 5);
 }
 
-/* The car under the world root at the stage's start line, as Car_Load 0x457000 does it: the model's
-   type-5 object as its second model, the .csp position and angles, Car_Place (Car_Init, Car_Settle on
-   the .hpc ground). Handling class 0 until the car table is ported. */
-static bool park_car(const char *car, const char *stage)
-{
-    char path[128], tex[128];
-    car_paths(car, path, tex, sizeof path);
-    V.pfile = File_Load(path, 1);
-    if (!V.pfile || !C3d_Load(&V.pm, V.pfile, File_LastSize(), g_tex_count)) return false;
-    Bfl_Mount(&V.ptex, tex);
-    C3d_Textures(V.pm.data + V.pm.slots, V.pm.data + V.pm.paths, V.pm.ntex, V.pm.kind, &V.ptex, "");
-    C3d_Build(&V.pm);
-    V.parked = C3d_Objects(&V.pm, &g_world);
-    if (!V.parked || !Stage_LoadHpc(stage) || !Stage_LoadCsp(stage)) return false;
-    Stage_LoadCat(stage);
-    gw32(0x52f2ac, gm32(0x52f2ac) | 1u << 14);   /* one human player (the race set-up's job) */
-    CarSlot *s = Car_Slot(0);
-    s->main = V.parked;
-    s->second = Obj_FindType(V.parked, 5);
-    s->kind = 'A';
-    int32_t pos[3];
-    uint16_t ang[3];
-    Csp_StartPos(0, pos);
-    Csp_Angles(ang);
-    Car_Place(s->main, s->second, 0, 0, ang, pos);
-    Damage_Reset(Car_Get(0));
-    Car *c = Car_Get(0);
-    c->main = s->main;
-    c->second = s->second;
-    CW8(c, 0xb1e, 1);   /* in first gear on the line (the start sequence is not ported) */
-    Car_PoseSimple(c);
-    char d[16];
-    V.autodrive = plat_param("drive", d, sizeof d) && !strcmp(d, "auto");
-    V.cars[0] = s->main;
-    V.cars[1] = s->second;
-    World_SetCars(V.cars, s->second ? 2 : 1);
-    return true;
-}
 
 /* The race's host (game/race.h): the stage is loaded by viewer_init in Stage_Load's order, the car by
    park_car (Car_Load's stand-in); the chase camera and the title stand in for the race cameras and
@@ -219,11 +182,18 @@ static bool park_car(const char *car, const char *stage)
 static bool host_load_stage(void) { return true; }
 static bool host_load_cars(void)
 {
-    if (!park_car(V.carname, V.stagename)) {
-        plat_log("viewer: the car could not be parked");
+    /* Cars_Load 0x456d90's part for one car: the lists, Car_Load, the progress start */
+    if (!Car_Load(0)) {
+        plat_log("viewer: the car could not be loaded");
         return false;
     }
-    Sim_InitLists(1);
+    Sim_InitLists(1);   /* after the cars, as Cars_Load does (0x42b660, the poses from the models) */
+    Car_ProgressStart(Car_Get(0));
+    char d[16];
+    V.autodrive = plat_param("drive", d, sizeof d) && !strcmp(d, "auto");
+    V.cars[0] = Car_Slot(0)->main;
+    V.cars[1] = Car_Slot(0)->second;
+    World_SetCars(V.cars, V.cars[1] ? 2 : 1);
     return true;
 }
 static void host_input(int player, uint32_t *held, uint32_t *pressed)
@@ -313,6 +283,8 @@ bool viewer_init(const char *car, const char *stage)
             /* the first player with the first profile (the front end's player set-up), with a manual
                box for --param gears=manual */
             Player_SetProfile(0, 0);
+            int id = Car_IdByName(car);   /* and the car (the player record's low six bits) */
+            if (id >= 0) gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)id);
             char g[16];
             if (plat_param("gears", g, sizeof g) && !strcmp(g, "manual")) gw32(0x52fa5c, gm32(0x52fa5c) & ~0x20u);
             Race_Begin(&race_host);
