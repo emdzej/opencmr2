@@ -29,6 +29,7 @@
 #include "sim/car.h"
 #include "sim/drive.h"
 #include "sim/sim.h"
+#include "sim/pose.h"
 #include "game/race.h"
 #include "game/car_load.h"
 #include "game/stage_load.h"
@@ -229,6 +230,7 @@ static void host_draw(int player, int state)
     V.camera.dirty = 1;
     int32_t cp[3] = {V.camera.world.m[12], V.camera.world.m[13], V.camera.world.m[14]};
     Sky_Follow(cp);
+    Cars_ShellsToCamera(&V.camera);   /* 0x429810, in 0x40f0c0 */
     Obj_Frame(&g_world, &V.camera);
     title();
     static const int16_t full[4] = {0, 0, 640, 480};

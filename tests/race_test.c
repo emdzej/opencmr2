@@ -18,6 +18,7 @@
 #include "sim/drive.h"
 #include "sim/progress.h"
 #include "sim/sim.h"
+#include "sim/pose.h"
 #include "vfs.h"
 #include "vfs_host.h"
 #include "world/fin.h"

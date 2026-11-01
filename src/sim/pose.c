@@ -232,3 +232,51 @@ void Car_BodyPose(Car *c)
         CW32(c, 0x70 + 4 * q, fx_mul(CI32(c, 0x36c + 4 * q), lift) + CI32(c, 0x2d0 + 4 * q));
     }
 }
+
+/* 0x429810 (in the view's draw, per player): each car's two shells under the drawn body, +0x748 (type
+   0xf) 0.1 towards the camera and grown by 0.1 over the distance, +0x74c (type 0xe) 0.5 away and
+   shrunk by 0.5 over it: their rows the rest rows scaled, their position the camera's direction in
+   the body's frame (the rest position not kept). Beyond 128 units on an axis the direction is taken
+   from the vector over 128. */
+void Cars_ShellsToCamera(const Obj *camera)
+{
+    int32_t cam[3] = {camera->local.m[12], camera->local.m[13], camera->local.m[14]};
+    for (int k = g_all.n - 1; k >= 0; k--) {
+        Car *c = Car_Get(g_all.car[k]);
+        if ((!c->part748 && !c->part74c) || !c->second) continue;
+        const int32_t *bm = c->second->local.m;
+        int32_t v[3] = {bm[12] - cam[0], bm[13] - cam[1], bm[14] - cam[2]};
+        int32_t d;
+        bool far = false;
+        for (int q = 0; q < 3; q++) far |= (v[q] < 0 ? -v[q] : v[q]) > 0x800000;
+        if (!far) {
+            d = (int32_t)Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2]));
+            if (!d) continue;
+            int32_t r = (int32_t)(0x100000000LL / d);
+            for (int q = 0; q < 3; q++) v[q] = fx_mul(v[q], r);
+        } else {
+            int32_t s[3];
+            for (int q = 0; q < 3; q++) s[q] = v[q] / 128;   /* (rounded towards zero, as the original) */
+            d = (int32_t)Fx_Sqrt((uint32_t)fx_mul(s[0], s[0]) + (uint32_t)fx_mul(s[1], s[1]) + (uint32_t)fx_mul(s[2], s[2]));
+            if (!d) continue;
+            int32_t r = (int32_t)(0x100000000LL / d);
+            for (int q = 0; q < 3; q++) v[q] = fx_mul(s[q], r);
+            d <<= 7;
+        }
+        int32_t dir[3];
+        for (int r = 0; r < 3; r++) dir[r] = fx_mul(bm[4 * r + 2], v[2]) + fx_mul(bm[4 * r + 1], v[1]) + fx_mul(bm[4 * r], v[0]);
+        struct { Obj *o; int32_t off, scale; } p[2] = {
+            {c->part748, 0x1999, (int32_t)(((int64_t)0x1999 << 16) / d) + 0x10000},
+            {c->part74c, -0x8000, 0x10000 - (int32_t)(((int64_t)0x8000 << 16) / d)},
+        };
+        for (int i = 0; i < 2; i++) {
+            Obj *o = p[i].o;
+            if (!o) continue;
+            for (int q = 0; q < 3; q++) o->local.m[12 + q] = fx_mul(dir[q], p[i].off);
+            for (int r = 0; r < 3; r++)
+                for (int q = 0; q < 3; q++) o->local.m[4 * r + q] = fx_mul(o->rest.m[4 * r + q], p[i].scale);
+            o->inherit = 0;
+            for (Obj *u = o; u; u = u->parent) u->dirty = 1;
+        }
+    }
+}

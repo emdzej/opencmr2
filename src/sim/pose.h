@@ -10,3 +10,4 @@ void Pose_Capture(const CarList *l);  /* 0x42af50 */
 void Car_PoseInterp(void);            /* 0x42bf70 */
 void Pose_Init(int n);                /* 0x42bcd0 */
 void Pose_Snap(int car);              /* 0x42c870 */
+void Cars_ShellsToCamera(const Obj *camera);   /* 0x429810 */
