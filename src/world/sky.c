@@ -269,6 +269,14 @@ void Sky_Fog(const uint8_t rgb[3], int32_t near, int32_t far)
     fog_ground = fog_sky = (uint8_t)(0xff - f);
 }
 
+uint32_t Sky_DiscColour(void)
+{
+    Obj *o = mesh[DISC].o;
+    if (!o || !o->mesh || !o->model) return 0;
+    const uint8_t *poly = C3d_Ref(o->model, o->mesh + 0x24, o->model->polys);
+    return poly ? rd32(poly + 0x34) : 0;
+}
+
 void Sky_Upload(void)
 {
     static const int order[] = {CLOUD, FLASH, GROUND, DOME, DISC, HALO};

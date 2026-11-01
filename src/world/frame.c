@@ -1,5 +1,6 @@
 /* The world frame (see frame.h). */
 #include "world/frame.h"
+#include "render/readback.h"
 #include "world/glow.h"
 #include "world/particles.h"
 #include "game/timer.h"
@@ -103,8 +104,7 @@ static void flush_layer(int layer)
     Sprite_Flush(layer);
 }
 
-/* Not ported yet, in the order they are called: FUN_004b6240 (pass), FUN_004bc490 (0, 0, 0)
-   over the 3D; of the frame statistics FUN_004b21e0 after the 2D only the frame rate. The 3D line queue (FUN_004bb4c0) is a
+/* Not ported yet: FUN_004b6240 (pass) at the end of the 3D; of the frame statistics FUN_004b21e0 after the 2D only the frame rate. The 3D line queue (FUN_004bb4c0) is a
    debugging aid nothing fills in the release. */
 bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
 {
@@ -183,6 +183,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
         Light_SetMode(5);
         Sprite3d_Draw(cam);   /* 0x4b1530 */
     }
+    Screen_ColourMeasure();   /* 0x4bc490 (0, 0, 0): the sun glow's test, over the 3D */
     Render_ZWrite(0);
     Render_ZEnable(0);
     Render_SetBlend(5, 6);

@@ -191,7 +191,7 @@ the start (0x547950) and the end (0x547a04), each from its record (byte channels
 | +0xa4 | cloud alpha | +0x2f |
 | +0xa8 | disc alpha | +0x37 |
 | +0xac | the glow's distance | i32 +0x10 |
-| +0xb0 | cloudiness | 0x51b0b8 by that end's weather condition |
+| +0xb0 | clearness | 0x51b0b8 by that end's weather condition (1.0 for 0 and 1, 0.1 for 2 and 3) |
 
 Without both records the two blocks take one built-in set (a pale blue sky, grey ground, offsets
 (-5, -38, -13), no fog). Then the cut at the start's offsets, the scale 1.0, the blend 0x547ab8 = -1.0
@@ -202,7 +202,7 @@ flag 0x547ac4) if either end has a fog range.
 when the view's blend along the stage (the weather's per-car record +0x1c, capped at 1.0) differs from
 the last one and the stage's sky changes at all (0x543d88 != 0x543d8c), when the flash changed, or
 when the record is marked (+0x28). Every field is blended `start + (end - start) t`; with w the
-cloudiness:
+clearness:
 - the low light L is the record's times 0.8 + 0.2 w;
 - the ground is L + (ground - L) w and the high light L + (high - L) w;
 - under the sun: L + (G + (sun - G) m - L) w, with G the ground and m the share under it times the sun's
@@ -223,6 +223,24 @@ it and the high light white, the clouds' bolt vertex white with its alpha up 50 
 alpha 255 (else 0) and the sun's mix 0.3. Every frame then: the clouds turned to the record's heading
 (`Sky_Turn` 0x4926f0; the dome not turned), A and C turned to face the camera (`Sky_FaceCamera`
 0x492bd0, its rows by 0.046) and the changed meshes uploaded (0x492f10).
+
+**The sun glow** (`Weather_SunGlow` 0x462d80, in the weather pass, one player or a shared replay):
+the sun's point (plus the dome's position) through the camera (0x4bad40: camera space, nothing nearer
+than 1, then the projection 0x4ba870 and the screen's middle). A 16 x 16 rectangle around it is
+tested against the disc's colour (0x462d10 and 0x4bc490, below); 0x543ea0 keeps the share hidden (100
+less the matching share). The fade f is 2 - 2w (clamped to 0-1) plus the hidden share eased toward
+by at most 0.3 a frame (the weather record +0x68), capped at 1; the glow's colour is the sky's glow
+colour times min(1, 3 (1 - f)); its size is the screen's width and height times the two factors from
+the glow distance (0x543d58, 0x543d5c). It goes to the sprite layer 2 with the `sunglow` texture.
+
+**The colour test** (0x4bc490): a call with a rectangle keeps it, the colour's bytes 0-2 and the
+tolerance (40 here) and returns the last share; `World_Render` calls it without one after the 3D
+world, and that measures: the rectangle clipped to the screen, the back buffer blitted to an
+offscreen surface (made by 0x4bca70) and locked, and the pixels counted whose red, green and blue are
+within the tolerance of bytes 0, 1 and 2. The colour is the disc's first polygon's first corner colour
+as loaded (0x492bb0), ARGB, so byte 0 is its blue: red is tested against blue (white on the disc
+here). The share is of the unclipped area, so the part off the screen counts as hidden. The port reads
+the frame with `glReadPixels`.
 
 **The sun's direction** (`Sun_Direction` 0x463070, also at the race start): the sun's point
 (`Sky_SunPoint` 0x492890, raised by the sky's offset) divided by its largest axis and made unit, kept at

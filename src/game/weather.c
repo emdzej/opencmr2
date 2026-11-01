@@ -13,6 +13,11 @@
 #include "game/pause.h"
 #include "game/race.h"
 #include "render/polyq.h"
+#include "world/stage.h"
+#include "render/d3d7.h"
+#include "render/twod.h"
+#include "render/view.h"
+#include "render/readback.h"
 #include "render/sprite3d.h"
 #include "render/tex.h"
 #include "sim/car.h"
@@ -936,7 +941,7 @@ void Weather_Sky(int p)
         gw32(HOR_T, (uint32_t)t);
         sk->dirty = 0;
         bool flash = (int16_t)gm16(FLASH) != -1 && r->level >= 0xcccd && r->type == 1;
-        int32_t w = hb(0xb0);   /* the sky's cloudiness by the weather (0x51b0b8) */
+        int32_t w = hb(0xb0);   /* the sky's clearness by the weather (0x51b0b8: 1.0 clear and cloudy, 0.1 else) */
         gw32(HOR_SKYV, (uint32_t)w);
         int32_t h[3], z[3], sun[3], v[3];
         uint8_t hor[3], zen[3], sunc[4] = {0, 0, 0, 0xff};
@@ -955,7 +960,7 @@ void Weather_Sky(int p)
         hb3(cl, 0x3c);
         to_bytes(cloud, cl);
         cloud[3] = (uint8_t)(hb(0xa4) >> 16);
-        /* the low light, 0.8 to 1.0 of the record's by the cloudiness */
+        /* the low light, 0.8 to 1.0 of the record's by the clearness */
         int32_t f = fx_mul(w, 0x3333) + 0xcccc, lo[3], gr[3], un[3], hi[3];
         uint8_t low[4] = {0, 0, 0, 0xff}, ground[4] = {0, 0, 0, 0xff}, under[4] = {0, 0, 0, 0xff};
         hb3(v, 0x48);
@@ -1099,6 +1104,77 @@ static void draw_drops(int n, int p)
     r->box[0] = keep[0], r->box[1] = keep[1], r->box[2] = keep[2];
 }
 
+/* Obj_ToScreen 0x4bad40: a world point on the screen through the camera (its world matrix inverted, then the
+   projection 0x4ba870 and the screen's middle), 16.16 pixels; (-100, -100) when it is nearer than 1
+   in front */
+static void to_screen(int32_t out[2], const int32_t pt[3], const Obj *cam)
+{
+    FxMat inv;
+    FxVec v = {pt[0], pt[1], pt[2]}, c;
+    Mat_Inverse(&inv, &cam->world);
+    Vec_Transform(&c, &v, &inv);
+    if (c.z < 0x10000) {
+        out[0] = out[1] = -0x640000;
+        return;
+    }
+    const int32_t *m = Proj_Fixed();
+    int sw, sh;
+    D3d_ScreenSize(&sw, &sh);
+    int32_t p[3] = {c.x, c.y, c.z};
+    int32_t col[3];
+    for (int k = 0; k < 3; k++) col[k] = m[12 + (k == 2 ? 3 : k)] + fx_mul(m[8 + (k == 2 ? 3 : k)], p[2]) + fx_mul(m[4 + (k == 2 ? 3 : k)], p[1]) + fx_mul(m[(k == 2 ? 3 : k)], p[0]);
+    double w = (double)col[2] * (1.0 / 65536.0);
+    float k16 = (float)(1.0 / 65536.0);
+    out[0] = (int32_t)llround((double)((float)col[0] * k16) / (w / (double)((float)sw * 0.5f)) * 65536.0);
+    out[1] = (int32_t)llround(-(double)((float)col[1] * k16) / (w / (double)((float)sh * 0.5f)) * 65536.0);
+    out[0] += (int32_t)llround((double)(sw / 2) * 65536.0);
+    out[1] += (int32_t)llround((double)(sh / 2) * 65536.0);
+}
+
+/* Weather_SunGlow 0x462d80 (in the views' weather pass): the glow sprite over the sun's point on the
+   screen. The 16 x 16 pixels around it are tested against the disc's colour (SunGlow_Test 0x462d10: the share near
+   it, the last frame's, kept as 100 less it in 0x543ea0, the share hidden). The glow fades as the
+   sky's clearness w falls (by 2 - 2w: none at 0.5 or less) and the hidden share, eased by 0.3 a frame at most
+   (record +0x68), three times as fast as either; coloured by the sky's glow colour, sized by the glow
+   distance's two factors times the screen. */
+static void sun_glow(int p)
+{
+    if (!t_sunglow) return;
+    Obj *cam = Race_Camera(p);
+    if (!cam) return;
+    int32_t pt[3], so[3] = {0, 0, 0}, s[2];
+    Sky_SunPoint(pt);
+    if (g_sky) so[0] = g_sky->local.m[12], so[1] = g_sky->local.m[13], so[2] = g_sky->local.m[14];   /* 0x46f4a0 */
+    for (int k = 0; k < 3; k++) pt[k] += so[k];
+    to_screen(s, pt, cam);
+    Rect16 q = {(int16_t)((int16_t)(s[0] >> 16) - 8), (int16_t)((int16_t)(s[1] >> 16) - 8), 16, 16};
+    int32_t sx = s[0] >> 16, sy = s[1] >> 16;
+    uint32_t dc = Sky_DiscColour();
+    uint8_t c[3] = {(uint8_t)dc, (uint8_t)(dc >> 8), (uint8_t)(dc >> 16)};
+    int16_t hidden = (int16_t)(100 - Screen_ColourQuery(&q, c, 0x28));   /* 0x462d10 */
+    gw16(0x543ea0, (uint16_t)(hidden < 0 ? 0 : hidden > 100 ? 100 : hidden));
+    int32_t f = fx_mul(gms32(HOR_SKYV), -0x20000) + 0x20000;
+    f = f < 0 ? 0 : f > 0x10000 ? 0x10000 : f;
+    int32_t want = fx_mul((int32_t)gms16(0x543ea0) << 16, 0x28f);
+    WxRec *r = &rec[p];
+    int32_t d = want - r->glow, step = fx_mul(scale(), 0x4ccc);
+    if (abs(d) > step) r->glow += d < 1 ? -step : step;
+    else r->glow = want;
+    f += r->glow;
+    if (f > 0x10000) f = 0x10000;
+    int32_t k = fx_mul(0x10000 - f, 0x30000);
+    if (k > 0x10000) k = 0x10000;
+    uint8_t rgba[4];
+    for (int i = 0; i < 3; i++) rgba[i] = (uint8_t)(((int64_t)(gm8(0x543eb4 + (uint32_t)i) << 16) * k) >> 32);
+    rgba[3] = 0xff;
+    int sw, sh;
+    D3d_ScreenSize(&sw, &sh);
+    int16_t gw = (int16_t)(((int64_t)gms32(0x543d58) * (sw << 16)) >> 32), gh = (int16_t)(((int64_t)gms32(0x543d5c) * (sh << 16)) >> 32);
+    Rect16 src = {0, 0, t_sunglow->width, t_sunglow->height};
+    Rect16 dst = {(int16_t)(sx - gw / 2), (int16_t)(sy - gh / 2), gw, gh};
+    Sprite_Add(&src, &dst, t_sunglow, 2, 0, NULL, NULL, rgba, 8);
+}
+
 void Weather_Draw(int p)
 {
     if (p < 0 || p >= CAR_MAX) return;
@@ -1107,6 +1183,6 @@ void Weather_Draw(int p)
        record 0x537dd0's +4; inferred) */
     bool replay = Gs_SelBits14() > 1 && Race_State(0) == 10;
     if (Gs_SelBits14() != 1 && !replay && !Gs_ModeBit17()) return;
-    PENDING_NOTE(0x462d80, "Weather_SunGlow (the sky's sun, the z buffer's read-back 0x4bc490)");
+    sun_glow(p);   /* 0x462d80 */
 }
 

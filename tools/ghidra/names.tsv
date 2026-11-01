@@ -728,7 +728,7 @@
 00460ca0	Weather_CarDrops	weather	med	Drops on the car's body (not ported)
 00461b30	Hor_Fog	world	high	A horizon record's fog range by its weather
 00461a70	Hor_Weather	world	high	The weather's changes to the two horizon records
-00462d80	Weather_SunGlow	weather	med	The sun's glow (not ported)
+00462d80	Weather_SunGlow	weather	confirmed	the sun glow sprite, faded by the clearness and the colour test
 004209d0	Progress_SegFrac	sim	med	The car's share of its centre-line segment
 0045c820	Wheels_Splash	fx	high	Water thrown by each wheel in water (types 14, 15; the spray type 12 never)
 0049b0d0	Stones_Kind	fx	high	The kind of stone a surface throws in the rally
@@ -829,3 +829,10 @@
 0x47e490	Fireworks_SetLight	game	confirmed	the super special's fireworks lit by the low light colour
 0x407800	Tod_SetLate	game	confirmed	selection word bit 20: the start is at 21:00 or later
 0x4a5ff0	TexAdjust_SetLevelA	render	confirmed	Tga_Pixel flag 0x80 level (unread)
+0x462d10	SunGlow_Test	weather	confirmed	the colour test around the sun; 0x543ea0 the share hidden
+0x4bc490	Screen_ColourTest	render	confirmed	deferred: keep a rectangle and colour, or measure the share of the back buffer near it
+0x4bca70	Screen_TestSurface	render	confirmed	the offscreen surface the colour test blits into
+0x4bad40	Obj_ToScreen	render	confirmed	a world point on the screen through a camera, 16.16 pixels
+0x4ba870	Proj_Point	render	confirmed	a camera-space point through the 16.16 projection
+0x492bb0	Sky_DiscColour	world	confirmed	the disc's first polygon corner colour
+0x46f4a0	Sky_Position	track	confirmed	the dome's local position

@@ -204,6 +204,7 @@ static void host_draw(int player, int state)
     Weather_Sky(player);              /* 0x461c30 */
     Sky_Follow(cp);
     Obj_Frame(&g_world, &V.camera);
+    Weather_Draw(player);   /* 0x460330, as play.c */
     title();
     Race_DrawOverlays(player);
     static const int16_t full[4] = {0, 0, 640, 480};

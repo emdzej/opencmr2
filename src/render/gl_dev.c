@@ -743,7 +743,26 @@ static void gl_vb_free(D3dVB *vb)
     vb->gl = 0;
 }
 
+/* each mode pixel the back buffer's pixel at its corner (the buffer is the mode times scale) */
+static void gl_read(int x, int y, int w, int h, uint8_t *rgba)
+{
+    static uint8_t *buf;
+    static size_t cap;
+    size_t n = (size_t)w * scale * (size_t)h * scale * 4;
+    if (n > cap) {
+        uint8_t *b = realloc(buf, n);
+        if (!b) return;
+        buf = b, cap = n;
+    }
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo[1]);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(x * scale, y * scale, w * scale, h * scale, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++)
+            memcpy(rgba + ((size_t)j * w + i) * 4, buf + ((size_t)j * scale * w * scale + (size_t)i * scale) * 4, 4);
+}
+
 static const D3dBackend gl_backend = {gl_open, gl_draw, gl_clear, gl_present, gl_texture_upload,
-                                      gl_texture_free, gl_vb_free};
+                                      gl_texture_free, gl_vb_free, gl_read};
 
 void gl_dev_register(void) { D3d_SetBackend(&gl_backend); }

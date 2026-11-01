@@ -123,6 +123,8 @@ typedef struct {
     void (*texture_upload)(D3dTexture *t);
     void (*texture_free)(D3dTexture *t);
     void (*vb_free)(D3dVB *vb);
+    /* the back buffer's pixels in x, y, w, h of the mode (rows from the top), RGBA */
+    void (*read)(int x, int y, int w, int h, uint8_t *rgba);
 } D3dBackend;
 
 struct D3dTexture {
@@ -140,6 +142,9 @@ uint32_t D3d_FvfStride(uint32_t fvf);
 bool D3d_Open(int width, int height, int bpp);
 /* The display mode's size (PTR_DAT_00520b74 +0x00, +0x04). */
 void D3d_ScreenSize(int *width, int *height);
+/* The back buffer read back (the original blits it to an offscreen surface and locks that): RGBA rows
+   from the top; zeros without a back end. */
+void D3d_ReadBack(int x, int y, int w, int h, uint8_t *rgba);
 void D3d_Close(void);
 
 /* IDirect3DDevice7 */

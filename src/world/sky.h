@@ -36,6 +36,8 @@ void Sky_FaceCamera(const struct Obj *camera);
 /* 0x492fe0: the fog (Fog_Set) and the sky's fog factor, the fog at the draw distance */
 void Sky_Fog(const uint8_t rgb[3], int32_t near, int32_t far);
 void Sky_FogOn(uint32_t on);    /* 0x492fd0 */
+/* 0x492bb0: the disc's first polygon's first corner colour as loaded (ARGB, its bytes B, G, R, A) */
+uint32_t Sky_DiscColour(void);
 /* 0x492f10: the changed meshes uploaded */
 void Sky_Upload(void);
 /* 0x492910: the clouds' vertex nearest the sun within 100 (in the clouds' frame), -1 none; kept as

@@ -278,6 +278,12 @@ void D3dTex_Free(D3dTexture *t)
     free(t);
 }
 
+void D3d_ReadBack(int x, int y, int w, int h, uint8_t *rgba)
+{
+    if (be && be->read) be->read(x, y, w, h, rgba);
+    else memset(rgba, 0, (size_t)w * (size_t)h * 4);
+}
+
 void D3d_Present(void)
 {
     if (be) be->present();
