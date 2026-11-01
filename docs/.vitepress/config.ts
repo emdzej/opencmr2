@@ -112,6 +112,7 @@ export default defineConfig({
             { text: "Architecture", link: "/re/architecture" },
             { text: "Renderer", link: "/re/render" },
             { text: "World", link: "/re/world" },
+            { text: "Front end", link: "/re/frontend" },
             { text: "Inventory", link: "/re/inventory" },
             { text: "Port plan", link: "/re/port-plan" },
           ],

@@ -1,6 +1,6 @@
 # Status
 
-**Steps 3, 5 and 6 of the port.** Not a game yet: a car can be driven on a stage, with no race around it. Done so far:
+**Steps 3 to 7 of the port.** The game starts from the CD image, runs through its own menus to a single stage and back, and the stage can be driven. Much is still missing (see the table). Done so far:
 
 - The disc analysed: every data file read by a reference decoder (`tools/bfl.py`), the formats of the
   containers, models, textures, sound and music documented ([file formats](../formats/index.md)).
@@ -44,11 +44,17 @@
   time from the go, the splits and the finish (the sectors); the original's stage and car loading, the
   common archives and race fonts, the chase camera, the drawn poses (body on its suspension, wheels),
   the recovery's fade and the HUD's stage clock, the interior views and the camera key, and the engine
-  sounds and the co-driver's pace notes through a DirectSound emulation and mixer. The front end's choices are stand-ins.
+  sounds and the co-driver's pace notes through a DirectSound emulation and mixer. 
 
-Next: the rest of the simulation (car-to-car and scenery collisions, damage, the other entities of the
-step), the race's cameras, HUD and results,
-the car's pose interpolation and wheels, then the race around it.
+- The front end, started: the boot screens, the menu engine, all 94 pages built, and the pages from the
+  language through the main menu, mode, difficulty, players, driver, tag, car, transmission, country,
+  stage and weather to the start ([front end](../re/frontend.md)). Leaving it chooses the rally's
+  weather and set-ups and starts the race; after the stage it comes back to the menus. The set-up and
+  service screens between them (mode 2), the movies, the music, the options and the saves are not done yet.
+
+Next: mode 2's set-up and service screens and the race's results, the rest of the front end's pages,
+then the rest of the simulation (car-to-car and scenery collisions, damage, the other entities of the
+step) and the race's cameras and HUD.
 
 | Area | State |
 |---|---|
@@ -58,7 +64,7 @@ the car's pose interpolation and wheels, then the race around it.
 | Renderer (Direct3D 7 to GLES 3) | Device, state layer, textures, meshes, 2D and text ported; reflections and 16-bit formats open |
 | World (objects, stage sections) | Object trees, terrain, scenery, sky, shadows, lights and the frame function ported; the cars' draw pass open |
 | Race flow | Process framework, race states, Race_Update, Stage_Load, Car_Load, sectors and the race clock ported for one player in a rally; the chase camera, the HUD's clock; the other cameras and HUD panels, the replay and results open |
-| Front end | Mapped (0x4d0000-0x500000); not started |
+| Front end | The process, menu engine, every page's construction and the single-stage path's pages ported; the options, profiles, championship, arcade and network pages, the music, the saves, mode 2's set-up and service screens open |
 | Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls, rolls and is recovered; car-to-car and scenery collisions, damage and the step's other entities open |
 | Sound | A DirectSound emulation and mixer, the sound layer, the engine loops and the co-driver's calls ported; backfires, surfaces, menus, music open |
 | Movies (Bink 1) | Not started |

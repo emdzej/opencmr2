@@ -19,7 +19,9 @@ fix deviations *of the port* from the original.
 
 **State:** steps 1-2 done; step 3 mostly (`src/render/`: D3D7 device + GLES 3 back end, state layer,
 textures, meshes, 2D queues, text; docs/re/render.md); step 5 started (`src/world/`: object trees,
-stage sections and terrain; docs/re/world.md). Viewers: `--param car=` / `--param stage=`. Read `docs/re/port-plan.md` (the order of work,
+stage sections and terrain; docs/re/world.md); the simulation and race (`src/sim/`, `src/game/`) and the
+front end (`src/fe/`, docs/re/frontend.md): with no parameter the game runs from its menus to a stage.
+Viewers: `--param car=` / `--param stage=`. Read `docs/re/port-plan.md` (the order of work,
 each step with its check), `docs/re/architecture.md` and `docs/formats/`.
 
 Build and check: `cmake -S . -B build && cmake --build build && ctest --test-dir build` (native tests);
