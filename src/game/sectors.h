@@ -17,3 +17,5 @@ bool Sectors_Moved(int car);          /* 0x458230 */
 int Sectors_SplitIndex(int car);      /* 0x458370 */
 int Sectors_Shown(void);              /* 0x4583c0 */
 int32_t Sectors_Point(int i);         /* 0x4583b0: split i's cat point (16.16) */
+int Sectors_Last(int car);            /* 0x458350 */
+bool Sectors_LapFirst(int car);       /* 0x458290 */

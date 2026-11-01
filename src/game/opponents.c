@@ -322,3 +322,13 @@ void Opp_Insert(int who, int32_t cs, int s)
 done:
     entries[s]++;
 }
+
+bool Opp_Loaded(void) { return loaded; }                                                   /* 0x455ae0 */
+int Opp_PlaceAt(int player, int s) { return s >= 0 && s < 16 ? place[s][player_slot[player & 15]] : 15; }   /* 0x455c80 */
+int Opp_Entries(int s) { return s >= 0 && s < 16 ? entries[s] : 0; }                       /* 0x455c70 */
+int Opp_DriverAt(int e, int s) { return s < 0 || s >= 16 || e < 0 || e >= entries[s] ? -1 : order[s][e]; }   /* 0x455cc0 */
+int32_t Opp_TimeAt(int e, int s)                                                          /* 0x455d40 */
+{
+    if (s < 0 || s >= 16 || e < 0 || e >= N) return 0;
+    return (int32_t)(((int64_t)(times[s][by_time[s][e]] + 0x147) << 16) / 0x28f5c28);
+}
