@@ -1,6 +1,7 @@
 /* The race's common archives (Bfl_MountCommon 0x455080) and fonts (0x478b50). */
 #pragma once
 #include "bfl.h"
+#include <stdbool.h>
 
 /* 0x455080: Game\Bigfiles\Com640.bfl (Com1024 for a 1,024-wide mode with the texture memory, a C
    variant with compressed textures), the language's speech and text archives under CountrySpecific,
@@ -14,3 +15,4 @@ BflSlot *Bfl_Surface(void);    /* 0x4552e0 */
 /* 0x478b50: seven font slots from the Com archive, the names at 0x51e994 (20 bytes apart):
    general\hel_13pt, hel_20pt, hel_36pt, lcd_14pt, lcd_640, ocr_12pt, ocr_60pt */
 void Race_LoadFonts(void);
+bool Race_LoadText(void);       /* 0x478a20 */

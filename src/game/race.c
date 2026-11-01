@@ -20,6 +20,9 @@
 #include "render/d3d7.h"
 #include "render/twod.h"
 #include "pending.h"
+#include "game/pause.h"
+#include "game/car_load.h"
+#include "audio/codriver.h"
 #include <string.h>
 
 static const RaceHost *H;
@@ -105,7 +108,13 @@ static void Race_Update(uint8_t state, bool flag)
                 Hud_Update(i, kind == 5 || kind == 7);   /* 0x411f70 */
                 if (state == 8 || state == 9) Codriver_Step(i);   /* 0x417090 */
                 else if (state == 7) Codriver_Start(i);           /* 0x416f70 */
-                PENDING_NOTE(0x404e10, "Pause_Pressed");
+                /* 0x404e10: the pause, on the line, in the countdown (not in a network game) and on the
+                   stage, not while a fade runs or in the demo (0x41f3d0's check not ported) */
+                if ((state == 8 || state == 5 || (state == 7 && !Gs_ModeBit19())) && Pause_Pressed((int)i) &&
+                    !Fade_Active((int)i) && !gm8(0x52ea52)) {
+                    Pause_Begin((int)i);   /* 0x404ea0 */
+                    PENDING_NOTE(0x478c40, "the sounds' pause (0x478c40, 0x418ee0)");
+                }
             }
         }
         for (uint32_t i = 0; i < np; i++)
@@ -147,9 +156,11 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
            volumes, 0x41b040, 0x418560, 0x418d20, not ported) */
         Engine_Volume((int32_t)(gm32(0x52afb8) >> 7 & 0x7f));
         Codriver_Volume((int32_t)(gm32(0x52afb8) >> 0xe & 0x7f));   /* 0x418560 */
-        PENDING_NOTE(0x41f560, "Race_Setup 0x41f560, 0x41f260, 0x478a20, 0x40efa0, 0x475f00");
+        PENDING_NOTE(0x41f560, "Race_Setup 0x41f560, 0x41f260, 0x40efa0, 0x475f00");
         Bfl_MountCommon();
+        Race_LoadText();   /* 0x478a20 */
         Race_LoadFonts();
+        Pause_Build();   /* 0x403500 */
     }
     Proc_Event(g, slot, 0, 2);
 }
@@ -312,12 +323,48 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
    mode (2: the service area and the loading screens) */
 static void s11_results(ProcGroup *g, uint32_t slot)
 {
+    (void)slot;
+    if (Pause_QuitAsked()) {
+        /* the pause's exit: every process to state 0, back to the front end (0x41e670, 0x41b300) */
+        Pause_ClearAsks();
+        for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+        set_mode(0);
+        R.built = false;
+        return;
+    }
+    if (Pause_RestartAsked()) {
+        uint32_t m = Gs_Mode();
+        bool service = Pause_ServiceAsked();
+        Pause_ClearAsks();
+        if ((m == 2 || m == 3 || m == 9 || m == 10) && !service && R.kind != 4) {
+            /* 0x41e6b0: the cars back on the line, the co-driver, sectors and timers again, then
+               every process to the line (event 4) */
+            for (int i = 0; i < g_all.n; i++) Car_Replace(g_all.car[i]);
+            for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
+            Codriver_Reset();   /* 0x416670 */
+            Engine_Reset();
+            Times_Clear();
+            PENDING_NOTE(0x41e6b0, "Race_Restart's lights, splits and replay (0x463d00, 0x4584d0, 0x42b800)");
+            R.nfinished = 0, R.done = 0;
+            memset(R.finished, 0, sizeof R.finished);
+            memset(R.shown, 0, sizeof R.shown);
+            R.place = 1;
+            R.first = true;
+            for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 4, 2);
+            return;
+        }
+        /* a rally's restart and the service area's go through mode 2 */
+        set_mode(2);
+        for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 3);
+        R.built = false;
+        return;
+    }
     PENDING_NOTE(0x41e8d0, "Race_Results");
     if (!R.skip) return;
     R.skip = false;
     set_mode(2);
     for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 3);
-    (void)slot;
+    R.built = false;
 }
 
 /* state 12, 0x41f4e0: back to the front end */
@@ -374,8 +421,12 @@ void Race_Begin(const RaceHost *h)
 int Race_Frame(void)
 {
     if (R.built && !R.rebuild && !R.restart) {
-        if (gm8(0x52af40)) {   /* 0x404f20: paused */
-            PENDING_NOTE(0x404f40, "Pause_Menu");
+        if (Pause_Active()) {   /* 0x404f20 */
+            Pause_Frame();   /* 0x404f40 */
+            /* 0x405470: each player's view and overlays, the page over them */
+            Pause_Draw();
+            for (uint32_t i = 0; i < R.group.n; i++)
+                if (H->draw) H->draw((int)i, Proc_State(&R.group, i));
             Proc_Advance(&R.group);
             return 0;
         }
@@ -406,3 +457,11 @@ int Race_Frame(void)
     R.restart = false;
     return 0;
 }
+
+void Race_EventAll(uint32_t event, uint32_t prio)
+{
+    for (uint32_t i = 0; i < R.group.n; i++) Proc_Event(&R.group, i, event, prio);
+}
+
+int Race_Cars(void) { return g_all.n; }
+int32_t Race_Frac(void) { return R.frac; }

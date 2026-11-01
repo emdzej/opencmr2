@@ -9,6 +9,7 @@
 #include "fixmath.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/pause.h"
 #include "game/timer.h"
 #include "platform_host.h"
 #include "render/d3d7.h"
@@ -105,11 +106,17 @@ int main(void)
     for (int i = 0; i < 300 && Game_Mode() != 3; i++) step();
     CHECK(Game_Mode() == 3);
     printf("race at frame %u\n", frame);
-    for (int i = 0; i < 120; i++) step();
-    CHECK(Race_State(0) >= 1);
-    /* the results' way out (state 11 to mode 2) comes back to the menus */
-    Game_SetMode(2);
-    for (int i = 0; i < 200 && Fe_Page() != &pg_81d6d8; i++) step();
+    for (int i = 0; i < 400 && Race_State(0) != 7 && Race_State(0) != 8; i++) step();
+    CHECK(Race_State(0) == 7 || Race_State(0) == 8);
+    /* Escape pauses; up to "exit", Enter; up to "quit game", Enter: the fade, the results' exit, the
+       menus */
+    press(0x01);
+    CHECK(Pause_Active());
+    press(0xc8);
+    press(ENTER);
+    press(0xc8);
+    press(ENTER);
+    for (int i = 0; i < 400 && Fe_Page() != &pg_81d6d8; i++) step();
     CHECK(Game_Mode() == 0);
     CHECK(Fe_Page() == &pg_81d6d8);
     printf("menus again at frame %u\n", frame);

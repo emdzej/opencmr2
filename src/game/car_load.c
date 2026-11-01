@@ -125,3 +125,17 @@ const uint8_t *Car_CinSection(int n, int k)
     uint32_t off = (uint32_t)(c[2 * (k > 0 ? k : 0)] | c[2 * (k > 0 ? k : 0) + 1] << 8);
     return off < cin_size[n] ? c + off : NULL;
 }
+
+/* the port: car n back on the start (the placement at the end of Car_Load), for a restart (0x41e6b0
+   puts the cars back through 0x424ed0 and the line's set-up) */
+void Car_Replace(int n)
+{
+    CarSlot *s = Car_Slot(n);
+    if (!s->main) return;
+    int32_t sp[3];
+    uint16_t ang[3];
+    Csp_StartPos(n, sp);
+    Csp_Angles(ang);
+    Car_Place(s->main, s->second, n, s->model, ang, sp);
+    Damage_Reset(Car_Get(n));
+}

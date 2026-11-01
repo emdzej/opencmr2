@@ -31,3 +31,6 @@ void Race_Skip(void);              /* 0x4d0590: the key that ends the replay and
 uint32_t Game_Mode(void);
 /* The overlays' part of 0x40f8d0 ported so far: the fade (0x428680). The host calls it in its draw. */
 void Race_DrawOverlays(int player);          /* 0x4057d0 */
+void Race_EventAll(uint32_t event, uint32_t prio);   /* 0x49c1c0 on every race process */
+int Race_Cars(void);           /* 0x42b700: the cars in the race */
+int32_t Race_Frac(void);       /* 0x41f270: car 0's step fraction (DAT_00537f60) */

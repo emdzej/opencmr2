@@ -4,6 +4,7 @@
 #include "game/mem.h"
 #include "exe.h"
 #include "font.h"
+#include "text.h"
 #include "render/d3d7.h"
 #include "pending.h"
 #include <stdio.h>
@@ -61,4 +62,26 @@ void Race_LoadFonts(void)
         dir[l] = 0;
         Font_LoadSlot(dir, b ? b + 1 : n, &com, i);
     }
+}
+
+/* 0x478a20: g<language>.txt from the race's text archive, one table of 260 strings */
+bool Race_LoadText(void)
+{
+    static const uint32_t europe[5] = {0x51e988, 0x51e980, 0x51e974, 0x51e968, 0x51e960};
+    static const uint32_t america[3] = {0x51e958, 0x51e980, 0x51e974};
+    static const uint32_t japan[1] = {0x51e988}, poland[1] = {0x51e950};
+    const uint32_t *names = europe;
+    switch (gm32(0x52ea54)) {
+    case 1: names = america; break;
+    case 2: names = japan; break;
+    case 3: names = poland; break;
+    }
+    char p[64];
+    snprintf(p, sizeof p, exe_str(0x51e948), exe_str(names[gm32(0x52afb4) & 7]));
+    uint32_t sz = 0;
+    const uint8_t *f = Bfl_FindFile(&text, p, NULL, &sz, false);
+    if (!f) return false;
+    size_t n = sz;
+    Text_Build(1, 0x104, &f, &n);
+    return true;
 }
