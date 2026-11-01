@@ -15,6 +15,7 @@
 #include "world/stage.h"
 #include "world/tre.h"
 #include "world/tod.h"
+#include "world/sky.h"
 #include "world/relight.h"
 #include "world/hpc.h"
 #include <stdio.h>
@@ -112,11 +113,15 @@ int main(void)
     CHECK(World_Render(&cam, full, 0, true));
     printf("World_Render: %u draws\n", D3d_Stats().draws - b.draws);
     CHECK(D3d_Stats().draws - b.draws > 100 && D3d_Stats().scenes - b.scenes == 1);
-    /* the sky follows a position; the update moves it into that position's cell */
-    int32_t at[3] = {512 << 16, 30 << 16, 1190 << 16};
+    /* the sky follows a position, 15 lower and raised by the horizon's offset (the start record's, cut
+       at Hor_Apply); the update moves it into that position's cell */
+    int32_t at[3] = {512 << 16, 30 << 16, 1190 << 16}, so, go, co;
+    Sky_Offsets(&so, &go, &co);
+    printf("sky offsets: %.2f %.2f %.2f, scale %.2f\n", so / 65536.0, go / 65536.0, co / 65536.0, Sky_Scale() / 65536.0);
     Sky_Follow(at);
     Obj_Frame(&g_world, NULL);
-    CHECK(g_sky->section == 8 && g_sky->world.m[13] == (30 << 16) - 0xf0000);
+    CHECK(g_sky->section == 8 && g_sky->world.m[13] == (30 << 16) - 0xf0000 + so);
+    CHECK(Sky_Scale() == 0x10000 && g_sky->local.m[5] == 0x10000);
     int found = 0;
     for (Obj *o = g_sec[8].objs; o; o = o->section_next) found |= o == g_sky;
     CHECK(found);

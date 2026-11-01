@@ -5,6 +5,7 @@
 #include "game/mem.h"
 #include "world/relight.h"
 #include "world/stage.h"
+#include "world/sky.h"
 #include <string.h>
 #include <strings.h>
 
@@ -182,20 +183,113 @@ void Stage_LoadHorizons(void)
     if (g_hor_start && g_hor_end) Light_Defaults();
 }
 
+/* The horizon state's fields (HOR_S + o, the end HOR_E + o): the colours 16.16 a channel. */
+enum {
+    H_HORIZON = 0x00, H_ZENITH = 0x0c, H_SUN = 0x18, H_GLOW = 0x24, H_GROUND = 0x30, H_CLOUD = 0x3c,
+    H_LOW = 0x48, H_HIGH = 0x54, H_DISC = 0x60, H_OFFS = 0x6c, H_FOG = 0x78, H_HALO = 0x84,
+    H_NEAR = 0x94, H_FAR = 0x98, H_SUNMIX = 0x9c, H_UNDER = 0xa0, H_CLOUD_A = 0xa4, H_DISC_A = 0xa8,
+    H_DIST = 0xac, H_SKY = 0xb0,
+};
+
+static void put3(uint32_t a, int32_t x, int32_t y, int32_t z) { gw32(a, (uint32_t)x), gw32(a + 4, (uint32_t)y), gw32(a + 8, (uint32_t)z); }
+static void bytes(uint32_t a, const Horizon *h, int o, int n)
+{
+    for (int i = 0; i < n; i++) gw32(a + 4 * (uint32_t)i, (uint32_t)h->b[o + i] << 16);
+}
+
+/* one end's state from its record: the zenith kept as its difference from the horizon, the sun's mix
+   and the light under the sun as shares of 255 */
+static void hor_state(uint32_t a, const Horizon *h)
+{
+    bytes(a + H_HORIZON, h, 0x20, 3);
+    for (int i = 0; i < 3; i++) gw32(a + H_ZENITH + 4 * (uint32_t)i, (uint32_t)((h->b[0x1c + i] - h->b[0x20 + i]) * 0x10000));
+    bytes(a + H_SUN, h, 0x24, 3);
+    gw32(a + H_SUNMIX, (uint32_t)(((uint64_t)h->b[0x27] << 32) / 0xff0000));
+    bytes(a + H_GLOW, h, 0x3c, 3);
+    gw32(a + H_DIST, (uint32_t)rd(h, 0x10));
+    bytes(a + H_DISC, h, 0x34, 3);
+    gw32(a + H_DISC_A, (uint32_t)h->b[0x37] << 16);
+    bytes(a + H_HIGH, h, 0x38, 3);
+    bytes(a + H_GROUND, h, 0x28, 3);
+    gw32(a + H_UNDER, (uint32_t)(((uint64_t)h->b[0x2b] << 32) / 0xff0000));
+    bytes(a + H_CLOUD, h, 0x2c, 3);
+    gw32(a + H_CLOUD_A, (uint32_t)h->b[0x2f] << 16);
+    bytes(a + H_LOW, h, 0x30, 3);
+    bytes(a + H_FOG, h, 0x44, 3);
+    gw32(a + H_NEAR, (uint32_t)rd(h, 0x14)), gw32(a + H_FAR, (uint32_t)rd(h, 0x18));
+    bytes(a + H_HALO, h, 0x40, 4);
+}
+
+/* without records: both ends the same, a pale blue sky over grey ground, no fog */
+static void hor_default(uint32_t a)
+{
+    put3(a + H_HORIZON, 0xbc0000, 0xca0000, 0xff0000);
+    put3(a + H_ZENITH, -0x5d0000, -0x620000, 0);
+    put3(a + H_SUN, 0xff0000, 0xff0000, 0xff0000);
+    put3(a + H_GLOW, 0xff0000, 0xff0000, 0xff0000);
+    put3(a + H_GROUND, 0x9b0000, 0x9b0000, 0x9b0000);
+    put3(a + H_CLOUD, 0xff0000, 0xff0000, 0xff0000);
+    put3(a + H_LOW, 0xc80000, 0xc80000, 0xc80000);
+    put3(a + H_HIGH, 0xff0000, 0xff0000, 0xff0000);
+    put3(a + H_DISC, 0xff0000, 0xff0000, 0xff0000);
+    put3(a + H_OFFS, -0x50000, -0x260000, -0xd0000);
+    put3(a + H_FOG, 0, 0, 0);
+    put3(a + H_HALO, 0, 0, 0), gw32(a + H_HALO + 12, 0);
+    gw32(a + H_NEAR, 0), gw32(a + H_FAR, 0);
+    gw32(a + H_SUNMIX, 0x8000), gw32(a + H_UNDER, 0x8000);
+    gw32(a + H_CLOUD_A, 0x640000), gw32(a + H_DISC_A, 0xff0000), gw32(a + H_DIST, 0xfa0000);
+}
+
+/* Hor_Apply 0x460da0 */
 void Hor_Apply(void)
 {
-    for (int i = 0; i < 3; i++) {
-        g_hor_low[i] = g_hor_start && g_hor_end ? g_hor_start->b[0x30 + i] << 16 : 0xc80000;
-        g_hor_high[i] = g_hor_start && g_hor_end ? g_hor_start->b[0x38 + i] << 16 : 0xff0000;
+    Sky_Setup();
+    gw16(0x547ac0, 0xffff);   /* no flash */
+    const int32_t *w = Tod_Weather(Tod_Stage());
+    gw32(HOR_S + H_SKY, exe_u32(0x51b0b8 + 4 * (uint32_t)w[0]));
+    gw32(HOR_E + H_SKY, exe_u32(0x51b0b8 + 4 * (uint32_t)w[1]));
+    if (!g_hor_start || !g_hor_end) {
+        hor_default(HOR_S), hor_default(HOR_E);
+    } else {
+        for (int i = 0; i < 3; i++) gw32(HOR_S + H_OFFS + 4 * (uint32_t)i, (uint32_t)rd(g_hor_start, 4 * i));
+        for (int i = 0; i < 3; i++) gw32(HOR_E + H_OFFS + 4 * (uint32_t)i, (uint32_t)rd(g_hor_end, 4 * i));
     }
+    Sky_Cut(gms32(HOR_S + H_OFFS), gms32(HOR_S + H_OFFS + 4), gms32(HOR_S + H_OFFS + 8));
+    Sky_SetScale(0x10000);
+    if (g_hor_start && g_hor_end) hor_state(HOR_S, g_hor_start), hor_state(HOR_E, g_hor_end);
+    for (int i = 0; i < 3; i++) {
+        g_hor_low[i] = gms32(HOR_S + H_LOW + 4 * (uint32_t)i);
+        g_hor_high[i] = gms32(HOR_S + H_HIGH + 4 * (uint32_t)i);
+    }
+    gw32(HOR_T, 0xffff0000);   /* -1.0: the sky set on the first frame */
+    bool fog = gm32(HOR_S + H_NEAR) || gm32(HOR_S + H_FAR) || gm32(HOR_E + H_NEAR) || gm32(HOR_E + H_FAR);
+    Sky_FogOn(fog);
+    gw32(HOR_FOG, fog);
 }
+
+/* Fireworks_SetLight 0x47e490: the super special's fireworks lit by the low light colour (0x5909c0), white beside it */
+static void fireworks_light(const uint8_t c[4])
+{
+    for (int i = 0; i < 3; i++) gw8(0x5909c0 + (uint32_t)i, c[i]), gw8(0x5909c4 + (uint32_t)i, 0xff);
+    gw32(0x5909b8, 0);
+}
+
+/* Light_SetLowIfChanged 0x462cb0 */
+void Tod_SetLow(const uint8_t c[4])
+{
+    uint8_t cur[4];
+    Light_GetLow(cur);
+    if (cur[0] != c[0] || cur[1] != c[1] || cur[2] != c[2]) Light_SetLow(c, Tod_Rally() != 3);
+    if (night_stage()) fireworks_light(c);
+}
+
+/* Light_SetHighFor 0x492e30 */
+void Tod_SetHigh(const int32_t c[3]) { Light_SetHigh(c, Tod_Rally() != 3); }
 
 void Tod_StartLights(void)
 {
     uint8_t low[4] = {(uint8_t)(g_hor_low[0] >> 16), (uint8_t)(g_hor_low[1] >> 16), (uint8_t)(g_hor_low[2] >> 16), 0xff};
-    uint8_t cur[4];
-    Light_GetLow(cur);
-    if (cur[0] != low[0] || cur[1] != low[1] || cur[2] != low[2]) Light_SetLow(low, Tod_Rally() != 3);
-    Light_SetHigh(g_hor_high, Tod_Rally() != 3);
+    Tod_SetLow(low);
+    Tod_SetHigh(g_hor_high);
     Light_RelightAll();
 }

@@ -1,5 +1,7 @@
 /* Loading a stage (see stage.h). */
 #include "world/stage.h"
+#include "world/tod.h"
+#include "world/sky.h"
 #include "render/mesh.h"
 #include "render/tex.h"
 #include "world/section.h"
@@ -134,12 +136,16 @@ void Stage_LoadSkyGround(int cond0, int cond1, bool low)
     sky_part(g_ground);
 }
 
-/* Sky_Follow 0x46f330: the sky, ground and clouds over the view's position, 15 lower, plus the stage's
-   height offsets (FUN_004928c0, not ported yet: 0); the cloud top 20 below the clouds. */
+/* Sky_Follow 0x46f330: the sky, ground and clouds over the view's position (the port passes it: the
+   original takes the view's camera, or the car's +0x720 object for camera kind 3), 15 lower, each
+   raised by its stage offset (Stage_SkyOffsets 0x4928c0); in Sweden's stage 8 the clouds 4 lower, the
+   cloud top 20 below the clouds. The dome's row 1 is (0, Sky_Scale, 0). */
 void Sky_Follow(const int32_t pos[3])
 {
-    int32_t y = pos[1] - 0xf0000;
-    int32_t sky[3] = {pos[0], y, pos[2]}, ground[3] = {pos[0], y, pos[2]}, cloud[3] = {pos[0], y, pos[2]};
+    int32_t y = pos[1] - 0xf0000, so, go, co;
+    Sky_Offsets(&so, &go, &co);
+    int32_t sky[3] = {pos[0], y + so, pos[2]}, ground[3] = {pos[0], y + go, pos[2]}, cloud[3] = {pos[0], y + co, pos[2]};
+    if (Tod_Rally() == 3 && Tod_Stage() == 7) cloud[1] -= 0x40000;
     if (g_sky) Obj_SetPosition(g_sky, sky);
     if (g_ground) Obj_SetPosition(g_ground, ground);
     if (g_cloud) Obj_SetPosition(g_cloud, cloud);
@@ -147,6 +153,7 @@ void Sky_Follow(const int32_t pos[3])
         cloud[1] -= 0x140000;
         Obj_SetPosition(g_cloud_top, cloud);
     }
+    if (g_sky) g_sky->local.m[4] = 0, g_sky->local.m[5] = Sky_Scale(), g_sky->local.m[6] = 0;   /* 0x4bad00 */
 }
 
 /* The part of Stage_Load 0x41f930 after Section_Init: "<stage>.tre" and "<stage>.xhi" from the stage

@@ -33,10 +33,20 @@ const Horizon *Hor_ForTime(uint32_t time, int which, const uint8_t *const files[
    0x538234), then the default lights (0x4918d0). */
 void Stage_LoadHorizons(void);
 extern const Horizon *g_hor_start, *g_hor_end;
-/* The light part of 0x460da0: the low and high light colours (0x547998, 0x5479a4, 16.16 per channel)
-   from the start record, or 200 and 255 without records. */
+/* Hor_Apply 0x460da0 (the end of Stage_Load): the sky set up (0x4919a0), then the horizon state at
+   the start and the end of the stage (HOR_S, HOR_E in the game state, 0xb4 bytes each: tod.c lists the
+   fields), from the records or the defaults; the sky cut at the start's offsets, its scale 1.0, the
+   blend HOR_T -1.0 (so the first frame sets the sky) and the fog on if either end has a range
+   (HOR_FOG). g_hor_low and g_hor_high are the start's low and high light colours (0x547998,
+   0x5479a4, 16.16 per channel). */
+enum { HOR_S = 0x547950, HOR_E = 0x547a04, HOR_T = 0x547ab8, HOR_SKYV = 0x547abc, HOR_FOG = 0x547ac4 };
 extern int32_t g_hor_low[3], g_hor_high[3];
 void Hor_Apply(void);
 /* The light part of the race start 0x45eca0: the low colour (alpha 255) if it differs from the current
    one (0x462cb0), the high colour (0x492e30), then every cell relit (0x4b3f20). */
 void Tod_StartLights(void);
+/* Light_SetLowIfChanged 0x462cb0: the low light colour if its R, G, B differ (the shadows from it but
+   in Sweden), and on the super special the fireworks' light (0x47e490); Light_SetHighFor 0x492e30:
+   the high colour, the same choice for the shadows */
+void Tod_SetLow(const uint8_t c[4]);
+void Tod_SetHigh(const int32_t c[3]);

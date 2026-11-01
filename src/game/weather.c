@@ -21,6 +21,9 @@
 #include "sim/sim.h"
 #include "world/hpc.h"
 #include "world/relight.h"
+#include "world/sky.h"
+#include "game/shadow.h"
+#include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -479,6 +482,9 @@ static void templates(void)
     gw32(0x547924, 0xaaaaaaaa);
 }
 
+static void sun_direction(void);
+static void sorted_shadow_direction(void);
+
 /* Race_StartLights 0x45eca0 */
 void Weather_RaceStart(void)
 {
@@ -492,10 +498,10 @@ void Weather_RaceStart(void)
     gw32(WIND, 0), gw32(WIND_AIM, 0), gw32(WIND_RATE, 0), gw32(WIND_HOLD, 0);
     drops_setup();
     gw32(BOLT, 0xffff), gw32(BOLT_IN, 0), gw32(BOLT_LEFT, 0);   /* 0x45f240 */
-    PENDING_NOTE(0x463070, "Sun_Direction (the sky's sun into the shadows' direction 0x5477f8)");
+    sun_direction();   /* Sun_Direction 0x463070 */
     /* the low and high light from the start's horizon (0x547998, 0x5479a4), every cell relit */
     Tod_StartLights();
-    PENDING_NOTE(0x4b5760, "the light direction from the sun (0x5477f8)");
+    sorted_shadow_direction();   /* Shadow_SortedDirFromSun 0x4b5760 */
 }
 
 /* 0x45e610 (the replays' restarts 0x46c2a0, 0x46c390, 0x46c410, not ported): the players' records at
@@ -579,19 +585,6 @@ static void wind_step(void)
     }
 }
 
-/* 0x492910 (the sky's vertex nearest the camera's direction for the bolt, -1 none) and 0x492b50 (one of
-   three lightning colours into the sky's vertices): the sky's colours are not ported */
-static int16_t sky_bolt(void)
-{
-    PENDING_NOTE(0x492910, "Sky_BoltVertex");
-    return -1;
-}
-static void sky_bolt_colour(void)
-{
-    PENDING_NOTE(0x492b50, "Sky_BoltColour");
-    crt_rand();   /* its one draw (rand() % 3) */
-}
-
 /* 0x45f890: the lightning: a wait of 125 to 500 frames, then a bolt (a sky vertex) for 20 to 40; each
    frame the flash is on 30 percent of the time when the first player's rain is above 0.8 */
 static void lightning_step(void)
@@ -609,8 +602,8 @@ static void lightning_step(void)
         in -= scale();
         gw32(BOLT_IN, (uint32_t)in);
         if (in < 0) {
-            gw16(BOLT, (uint16_t)sky_bolt());
-            sky_bolt_colour();
+            gw16(BOLT, (uint16_t)Sky_BoltVertex());   /* the clouds' vertex nearest the sun */
+            Sky_BoltTexture();
             gw32(BOLT_IN, 0);
         }
     }
@@ -890,6 +883,132 @@ void Weather_Interp(int32_t frac)
         s->blend_f = fx_mul(frac, s->blend - s->prev) + s->prev;
         s->heading_f = s->heading_prev + fx_mul(frac, s->heading - s->heading_prev);
     }
+}
+
+/* ---- the sky (0x461c30, 0x463070) ---- */
+
+/* Sun_Direction 0x463070: the sun's point (the dome's vertex 104 turned, raised by the sky's offset)
+   over its largest axis, then unit: the light's direction (0x5477f8) for the shadows' outlines and the
+   sorted objects' shadows (0x4b5760 at the race start) */
+static void sun_direction(void)
+{
+    int32_t p[3], so, go, co;
+    Sky_SunPoint(p);
+    Sky_Offsets(&so, &go, &co);
+    p[1] += so;
+    int32_t ax = abs(p[0]), ay = abs(p[1]), az = abs(p[2]), m;
+    if (ay < ax && az < ax) m = ax;
+    else if (ax < ay && az < ay) m = ay;
+    else m = az;
+    if (m) {   /* the original divides by it unchecked; the sun is never at the dome's centre */
+        int32_t r = (int32_t)(0x100000000LL / m);
+        for (int k = 0; k < 3; k++) p[k] = fx_mul(p[k], r);
+    }
+    Vec_Unit(p);
+    for (int k = 0; k < 3; k++) gw32(0x5477f8 + 4 * (uint32_t)k, (uint32_t)p[k]);
+    Shadow_SunDirection(p);
+}
+
+/* Shadow_SetSortedDir 0x4b5340 (through Shadow_SortedDirFromSun 0x4b5760): the sorted objects' shadows cast along the sun's direction, negated
+   (0x6dfdd8; their reader 0x4b50b0 is not ported) */
+static void sorted_shadow_direction(void)
+{
+    for (int k = 0; k < 3; k++) gw32(0x6dfdd8 + 4 * (uint32_t)k, (uint32_t)fx_mul(gms32(0x5477f8 + 4 * (uint32_t)k), -0x10000));
+}
+
+/* the horizon state's field o blended to t (HOR_S + (HOR_E - HOR_S) t) */
+static int32_t hb(uint32_t o) { return gms32(HOR_S + o) + fx_mul(gms32(HOR_E + o) - gms32(HOR_S + o), gms32(HOR_T)); }
+static void hb3(int32_t v[3], uint32_t o) { for (int k = 0; k < 3; k++) v[k] = hb(o + 4 * (uint32_t)k); }
+static void to_bytes(uint8_t c[3], const int32_t v[3]) { for (int k = 0; k < 3; k++) c[k] = (uint8_t)(v[k] >> 16); }
+
+/* Weather_Sky 0x461c30 (in World_Frame, before Sky_Follow): when view p's blend along the stage moved
+   (and the stage's sky changes at all), the flash changed or the sky is marked, the horizon state
+   blended to it into the sky's colours, the lights and the cut; then every frame the clouds turned to
+   the heading, the sun's disc and halo faced to the camera and the meshes uploaded. While a flash is
+   on (rain over 0.8) the ground brightens by 20, the clouds' bolt vertex and the sky's sheet go white
+   and the sun mixes in less. */
+void Weather_Sky(int p)
+{
+    WxSky *sk = &sky[p];
+    const WxRec *r = &rec[p];
+    if ((sk->blend_f != gms32(HOR_T) && gm32(SV) != gm32(SV + 4)) || gm16(FLASH_PREV) != gm16(FLASH) || sk->dirty) {
+        int32_t t = sk->blend_f > 0x10000 ? 0x10000 : sk->blend_f;
+        gw32(HOR_T, (uint32_t)t);
+        sk->dirty = 0;
+        bool flash = (int16_t)gm16(FLASH) != -1 && r->level >= 0xcccd && r->type == 1;
+        int32_t w = hb(0xb0);   /* the sky's cloudiness by the weather (0x51b0b8) */
+        gw32(HOR_SKYV, (uint32_t)w);
+        int32_t h[3], z[3], sun[3], v[3];
+        uint8_t hor[3], zen[3], sunc[4] = {0, 0, 0, 0xff};
+        hb3(h, 0x00), hb3(z, 0x0c), hb3(sun, 0x18);
+        to_bytes(hor, h);
+        for (int k = 0; k < 3; k++) zen[k] = (uint8_t)((z[k] + h[k]) >> 16);
+        to_bytes(sunc, sun);
+        hb3(v, 0x24);   /* the sun glow's colour (0x543eb4) */
+        for (int k = 0; k < 3; k++) gw8(0x543eb4 + (uint32_t)k, (uint8_t)(v[k] >> 16));
+        gw8(0x543eb7, 0xff);
+        int32_t dist = hb(0xac);   /* the glow's sizes (0x543d58, 0x543d5c) */
+        gw32(0x543d58, (uint32_t)fx_mul(dist, 0x66)), gw32(0x543d5c, (uint32_t)fx_mul(dist, 0x88));
+        int32_t mix = hb(0x9c);
+        int32_t cl[3];
+        uint8_t cloud[4], bolt[4] = {0xff, 0xff, 0xff, 0xff};
+        hb3(cl, 0x3c);
+        to_bytes(cloud, cl);
+        cloud[3] = (uint8_t)(hb(0xa4) >> 16);
+        /* the low light, 0.8 to 1.0 of the record's by the cloudiness */
+        int32_t f = fx_mul(w, 0x3333) + 0xcccc, lo[3], gr[3], un[3], hi[3];
+        uint8_t low[4] = {0, 0, 0, 0xff}, ground[4] = {0, 0, 0, 0xff}, under[4] = {0, 0, 0, 0xff};
+        hb3(v, 0x48);
+        for (int k = 0; k < 3; k++) lo[k] = fx_mul(v[k], f);
+        to_bytes(low, lo);
+        /* the ground from the low light toward its colour; under the sun toward the sun's */
+        hb3(v, 0x30);
+        for (int k = 0; k < 3; k++) gr[k] = fx_mul(v[k] - lo[k], w) + lo[k];
+        to_bytes(ground, gr);
+        int32_t m = fx_mul(hb(0xa0), mix);
+        for (int k = 0; k < 3; k++) un[k] = fx_mul(fx_mul(sun[k] - gr[k], m) + gr[k] - lo[k], w) + lo[k];
+        to_bytes(under, un);
+        uint8_t halo[4], disc[4];
+        hb3(v, 0x84);
+        to_bytes(halo, v);
+        halo[3] = (uint8_t)(hb(0x90) >> 16);
+        if (gm32(HOR_FOG)) {
+            uint8_t fog[4];
+            hb3(v, 0x78);
+            to_bytes(fog, v);
+            fog[3] = 0xff;
+            Sky_Fog(fog, hb(0x94), hb(0x98));
+        }
+        if (flash)
+            for (int k = 0; k < 3; k++) ground[k] = ground[k] < 0xec ? (uint8_t)(ground[k] + 0x14) : 0xff;
+        hb3(v, 0x60);
+        to_bytes(disc, v);
+        disc[3] = (uint8_t)(hb(0xa8) >> 16);
+        hb3(v, 0x54);
+        for (int k = 0; k < 3; k++) hi[k] = fx_mul(v[k] - lo[k], w) + lo[k];
+        if (flash) {
+            bolt[3] = cloud[3] < 0xc9 ? (uint8_t)(cloud[3] + 0x32) : 0xfa;
+            memset(sunc, 0xff, 4), memset(under, 0xff, 4);
+            hi[0] = hi[1] = hi[2] = 0xff0000;
+            mix = 0x4ccc;
+        } else memcpy(bolt, cloud, 4);
+        Sky_ColourClouds(cloud, bolt);
+        Sky_ColourDome(hor, zen, sunc, mix);
+        Sky_ColourGround(ground, under);
+        Sky_ColourDisc(disc);
+        Sky_ColourHalo(halo);
+        uint8_t sheet[4] = {0xff, 0xff, 0xff, flash ? 0xff : 0};
+        Sky_ColourFlash(sheet);
+        Tod_SetLow(low);
+        Tod_SetHigh(hi);
+        Sky_Cut(hb(0x6c), gms32(HOR_S + 0x70), gms32(HOR_S + 0x74));   /* only the sky's offset blends */
+        sun_direction();
+    }
+    Sky_Turn(0, sk->heading_f);
+    gw32(0x543ef8, 0);
+    Obj *cam = Race_Camera(p);
+    if (cam) Sky_FaceCamera(cam);
+    Sky_Upload();
 }
 
 bool Weather_Wet(int car) { return Weather_Kind(car) == 1; }

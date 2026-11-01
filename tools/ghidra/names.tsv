@@ -233,7 +233,7 @@
 00461830	Hor_ForTime	world	high	The horizon record for a time and weather, blended from the 48 .hor files
 00461710	Hor_Blend	world	high	Blends two horizon records by a 16.16 factor
 004616c0	Hor_LerpByte	world	high	b + (a - b) t for a colour byte, capped at 255
-00460da0	Hor_Apply	world	med	Copies the start and end horizon records into the sky and light state
+00460da0	Hor_Apply	world	confirmed	Sky set up; the start and end horizon state from the records (or defaults); fog flag
 0045eca0	Race_StartLights	world	med	Race-start sky and light set-up from the horizon state
 00407650	Tod_StartTime	world	high	The stage's start time (hhmm)
 00407710	Tod_EndTime	world	high	The stage's end time (hhmm)
@@ -729,8 +729,6 @@
 00461b30	Hor_Fog	world	high	A horizon record's fog range by its weather
 00461a70	Hor_Weather	world	high	The weather's changes to the two horizon records
 00462d80	Weather_SunGlow	weather	med	The sun's glow (not ported)
-00492910	Sky_BoltVertex	world	low	The sky vertex nearest the camera's direction for a bolt (not ported)
-00492b50	Sky_BoltColour	world	low	One of three lightning colours into the sky (not ported)
 004209d0	Progress_SegFrac	sim	med	The car's share of its centre-line segment
 0045c820	Wheels_Splash	fx	high	Water thrown by each wheel in water (types 14, 15; the spray type 12 never)
 0049b0d0	Stones_Kind	fx	high	The kind of stone a surface throws in the rally
@@ -826,3 +824,6 @@
 0x4b35b0	Dlight_SetPosition	render	confirmed	light position and unit direction toward the origin
 0x463070	Sun_Direction	game	confirmed	unit sun direction for the shadows
 0x461c30	Weather_Sky	game	confirmed	per view: the horizon state blended into the sky, lights, fog
+0x4b5340	Shadow_SetSortedDir	render	confirmed	the sorted objects' shadow direction, the sun's negated (0x6dfdd8)
+0x4b5760	Shadow_SortedDirFromSun	render	confirmed	calls 0x4b5340
+0x47e490	Fireworks_SetLight	game	confirmed	the super special's fireworks lit by the low light colour

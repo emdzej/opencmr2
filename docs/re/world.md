@@ -148,6 +148,90 @@ within 200 units, and draws it with its matrix.
 
 They sit in cells like other world objects, so the update moves them into the camera's cell
 (`Obj_UpdateSection`), and `Section_DrawObjects` draws them with the z-buffer off, before the terrain.
+Last, `Sky_Follow` sets the dome's matrix row 1 to (0, `Sky_Scale`, 0); the scale is 1.0 from
+`Hor_Apply`.
+
+## The sky
+
+The sky's colours are not in the models: they come from the horizon records ([Time of
+day](#time-of-day)) and are written into the meshes' vertices (colour at +0x18, specular at +0x1c,
+whose top byte is the fog factor) and re-sent to the device. `TEMP.SKY` is the dome with a child A (the
+sun's disc); A's next sibling B is a sheet lit by lightning and B's next C the sun's halo.
+
+**Set-up** (`Sky_Setup` 0x4919a0, first in `Hor_Apply`): the objects and meshes, every dome vertex's
+height as loaded, the lowest and 1 / (highest - lowest); the sun is the dome's vertex 104 (kept at
+0x592114) and the ground's vertex 50 the point under it (0x592108); B's colours cleared.
+
+**The cut** (`Sky_Cut` 0x4925c0): three 16.16 offsets for the sky, ground and clouds (the record's
+first three i32; kept for `Sky_Offsets` 0x4928c0). Every dome vertex but the sun that lies below the
+horizon height (the ground's offset less the sky's) is raised to it. The sun light (device light slot
+0) is placed at the sun's point (`Dlight_SetPosition` 0x4b35b0: position, and the unit direction toward
+the origin).
+
+**The horizon state** (`Hor_Apply` 0x460da0, at the end of `Stage_Load`): two blocks of 0xb4 bytes,
+the start (0x547950) and the end (0x547a04), each from its record (byte channels as 16.16):
+
+| Offset | Field | Record |
+|---|---|---|
+| +0x00 | horizon colour | +0x20-0x22 |
+| +0x0c | zenith less horizon | +0x1c-0x1e minus +0x20-0x22 |
+| +0x18 | sun colour | +0x24-0x26 |
+| +0x24 | sun glow colour | +0x3c-0x3e |
+| +0x30 | ground colour | +0x28-0x2a |
+| +0x3c | cloud colour | +0x2c-0x2e |
+| +0x48 | low light | +0x30-0x32 |
+| +0x54 | high light | +0x38-0x3a |
+| +0x60 | sun disc colour | +0x34-0x36 |
+| +0x6c | sky, ground, cloud offsets | i32 +0x00, +0x04, +0x08 |
+| +0x78 | fog colour | +0x44-0x46 |
+| +0x84 | halo colour and alpha | +0x40-0x43 |
+| +0x94, +0x98 | fog near, far | i32 +0x14, +0x18 |
+| +0x9c | the sun's mix into the dome | +0x27 / 255 |
+| +0xa0 | the sun's share under it | +0x2b / 255 |
+| +0xa4 | cloud alpha | +0x2f |
+| +0xa8 | disc alpha | +0x37 |
+| +0xac | the glow's distance | i32 +0x10 |
+| +0xb0 | cloudiness | 0x51b0b8 by that end's weather condition |
+
+Without both records the two blocks take one built-in set (a pale blue sky, grey ground, offsets
+(-5, -38, -13), no fog). Then the cut at the start's offsets, the scale 1.0, the blend 0x547ab8 = -1.0
+(so the first frame sets the sky), the flash 0x547ac0 = -1 and the fog on (`Sky_FogOn` 0x492fd0,
+flag 0x547ac4) if either end has a fog range.
+
+**Per view** (`Weather_Sky` 0x461c30, in the world frame before `Sky_Follow`): the sky is set again
+when the view's blend along the stage (the weather's per-car record +0x1c, capped at 1.0) differs from
+the last one and the stage's sky changes at all (0x543d88 != 0x543d8c), when the flash changed, or
+when the record is marked (+0x28). Every field is blended `start + (end - start) t`; with w the
+cloudiness:
+- the low light L is the record's times 0.8 + 0.2 w;
+- the ground is L + (ground - L) w and the high light L + (high - L) w;
+- under the sun: L + (G + (sun - G) m - L) w, with G the ground and m the share under it times the sun's
+  mix;
+- the dome by height from horizon to zenith, the sun's vertex toward the sun colour by the mix
+  (`Sky_ColourDome` 0x491d40); the ground (0x4920d0), clouds and cloud top (0x492220), disc (0x492470)
+  and halo (0x492520) one colour each but the special vertex;
+- the sun glow's colour (0x543eb4) and two sizes from the distance (x 0.0016 and x 0.0021, at
+  0x543d58, 0x543d5c);
+- the fog (`Sky_Fog` 0x492fe0) when on: `Fog_Set`, and the sky's fog factor from where the draw
+  distance ((option + 2) x 50) falls between near and far: 255 before near, 0 past far;
+- the light colours (`Light_SetLowIfChanged` 0x462cb0, which on the super special also lights the
+  fireworks, and `Light_SetHighFor` 0x492e30), the cut with the sky's offset blended (the ground's and
+  clouds' stay the start's), and `Sun_Direction` 0x463070.
+
+A flash (lightning on, the view's rain over 0.8) adds 20 to the ground, makes the sun, the point under
+it and the high light white, the clouds' bolt vertex white with its alpha up 50 (at most 250), B's
+alpha 255 (else 0) and the sun's mix 0.3. Every frame then: the clouds turned to the record's heading
+(`Sky_Turn` 0x4926f0; the dome not turned), A and C turned to face the camera (`Sky_FaceCamera`
+0x492bd0, its rows by 0.046) and the changed meshes uploaded (0x492f10).
+
+**The sun's direction** (`Sun_Direction` 0x463070, also at the race start): the sun's point
+(`Sky_SunPoint` 0x492890, raised by the sky's offset) divided by its largest axis and made unit, kept at
+0x5477f8 for the shadows' outlines (0x498370). At the race start `Shadow_SetSortedDir` 0x4b5340 also
+keeps it negated at 0x6dfdd8 for the sorted objects' shadows (0x4b50b0, not ported).
+
+**Lightning** (0x45f890): the bolt is the clouds' vertex nearest the sun within 100 (`Sky_BoltVertex`
+0x492910). `Sky_BoltTexture` 0x492b50 would put one of three bolt textures on B, but none is ever
+loaded: only its `rand()` matters.
 
 ## The world frame
 
@@ -208,12 +292,10 @@ instead.
     results by the minutes elapsed.
 - **The blend:** the seven i32 at +0x00 go linearly in 16.16. The bytes +0x1c-+0x47 and +0x48-+0x4d
   use `b + (a - b) t`, keep the whole part and cap it at 255.
-- **What the race uses:** 0x460da0 keeps the start record's +0x30-+0x32 as the low light colour and
-  +0x38-+0x3a as the high one (without records: 200 and 255). The race start (0x45eca0) sets both.
-  fra02 at 12:00: low (106, 131, 164), high (255, 255, 245).
-
-The per-frame blend towards the end record (0x461c30, by the stage's progress) and the rest of the
-record (fog, sky colours) are not ported yet.
+- **What the race uses:** `Hor_Apply` 0x460da0 builds the sky's start and end state from the two
+  records ([The sky](#the-sky)). The race start (0x45eca0) sets the start's low (+0x30-+0x32) and high
+  (+0x38-+0x3a) light colours (without records: 200 and 255); fra02 at 12:00: low (106, 131, 164),
+  high (255, 255, 245). Each view then blends toward the end by its progress (0x461c30).
 
 ## Weather
 

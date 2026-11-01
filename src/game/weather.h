@@ -25,6 +25,8 @@ void Weather_Restart(void);       /* 0x45e610 */
 void Weather_CarsStep(void);      /* Race_Step 0x45e7f0: the cars' wet values along the stage */
 void Weather_Step(void);          /* 0x45f4a0 (the end of 0x4664c0, once a frame) */
 void Weather_Interp(int32_t frac);   /* 0x461bb0 (Race_PoseInterp) */
+/* 0x461c30 (World_Frame, before Sky_Follow): view p's sky by its blend along the stage */
+void Weather_Sky(int p);
 /* 0x460330 (the end of the cars' pass 0x466570): player p's rain or snow queued, and the sun glow */
 void Weather_Draw(int p);
 /* Weather_CarValue 0x460c80: the car's wet value (0 dry to 1.0, +8 of its record at 0x543ecc), for the

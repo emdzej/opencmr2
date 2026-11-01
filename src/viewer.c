@@ -34,6 +34,7 @@
 #include "game/race.h"
 #include "game/car_load.h"
 #include "game/stage_load.h"
+#include "game/weather.h"
 #include "game/profile.h"
 #include "game/timer.h"
 #include "sim/progress.h"
@@ -199,8 +200,9 @@ static void host_draw(int player, int state)
     V.camera.world.m[15] = 0x10000;
     V.camera.dirty = 1;
     int32_t cp[3] = {V.camera.world.m[12], V.camera.world.m[13], V.camera.world.m[14]};
-    Sky_Follow(cp);
     Cars_ShellsToCamera(&V.camera);   /* 0x429810, in 0x40f0c0 */
+    Weather_Sky(player);              /* 0x461c30 */
+    Sky_Follow(cp);
     Obj_Frame(&g_world, &V.camera);
     title();
     Race_DrawOverlays(player);
