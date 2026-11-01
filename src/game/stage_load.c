@@ -5,6 +5,7 @@
 #include "game/opponents.h"
 #include "audio/codriver.h"
 #include "sim/progress.h"
+#include "sim/scenery.h"
 #include "world/fin.h"
 #include "world/obj.h"
 #include "world/section.h"
@@ -46,6 +47,7 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     /* 5: the tree shadows and the .xhi; later the horizon colours (0x460da0) */
     Stage_LoadTre(stage, true);
     Hor_Apply();
+    Scenery_CollInit();   /* 0x471dd0 */
     return true;
 }
 

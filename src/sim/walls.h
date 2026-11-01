@@ -6,5 +6,19 @@
 #pragma once
 #include "sim/car.h"
 
+/* The 0x98-byte flat box record per car at 0x590ed0 (FUN_0048ca40), as ints: */
+enum {
+    B_EXT_F = 0, B_EXT_S = 1,   /* the half lengths along the flat forward and side axes */
+    B_YMAX = 2, B_YMIN = 3,     /* the corners' highest and lowest y (world) */
+    B_FWD = 4, B_SIDE = 7,      /* the flat forward axis (y 0, unit), the side axis (z, 0, -x) */
+    B_VALID = 10, B_PREV = 11,  /* made this step; made in the last */
+    B_CORNER = 12,              /* four corners (x, the highest y, z) */
+    B_OLD = 24,                 /* the last step's four */
+    B_INTS = 38
+};
+int32_t *Walls_CarBox(Car *c);                                 /* CollBox_Make 0x486c30 on the car's record */
+void Walls_Bumps(Car *c);                                      /* Car_WallBumps 0x48df50 */
+void Walls_RotT(const Car *c, int32_t out[3], const int32_t v[3]);   /* 0x4b9da0 with the orientation */
+
 void Car_Walls(Car *c, int n);                  /* 0x48e0a0 */
 void Sim_Collide(const int16_t *list, int n);   /* 0x4877a0 */

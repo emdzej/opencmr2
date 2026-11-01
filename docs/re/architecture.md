@@ -155,7 +155,8 @@ Sim_Step's collision pass 0x4877a0 runs after the car step and before 0x42cd00. 
 flat box (0x98 bytes per car at 0x590ed0), runs the car-to-car contacts 0x48a1f0 in the modes that
 have them (0x46bd50), then per car (the list from its end) the scenery objects 0x4878a0 (with +0xb64
 clear) and the walls 0x48e0a0, and keeps the box's four corners for the next step. Ported in
-`src/sim/walls.c`; the car-to-car, scenery, damage and sparks parts are pending.
+`src/sim/walls.c`, and the scenery in `src/sim/scenery.c`; the car-to-car contacts, the scenery's
+boxes and knocked-down objects, the damage and the sparks are pending.
 
 - **The box** (0x486c30, once a step): the forward row flattened (the up row when the car points
   nearly straight up or down) and made unit, the side axis across it, the half lengths as the furthest
@@ -180,6 +181,66 @@ clear) and the walls 0x48e0a0, and keeps the box's four corners for the next ste
   is lifted (0.25 upward).
 - **The strongest hit** of a wall (impulse, point, normal) goes to the damage 0x466ef0 at most every
   ten steps (+0xb42).
+
+## Scenery collisions
+
+A scenery mesh carries its collision volumes as a list of the C3D's 0x5c records (first at the mesh's
++0x10c, linked through +0x58, the count in the byte at +0x110). A record's type byte +0x00 is 0 for a
+box (a 16.16 matrix at +0x04, the width +0x44, depth +0x48 and height +0x4c), anything else for an
+upright cylinder of radius +0x44.
+
+At the end of Stage_Load, 0x471dd0 sorts every cell's volumes into two kinds of lists by the record's
+flags (+0x10):
+- fixed (no flag 0x2001000);
+- movable (0x2001000), with a byte of per-car "still up" bits (0x58c938) and a flag (0x58c958).
+
+Each volume (0x58ca70, 8 bytes) has a reach: a cylinder's radius, or half a box's diagonal. A box
+volume also gets a 12-byte box (0x4873f0), in 7.9 fixed point:
+- the flat forward axis (x, z), from the placed matrix's row 0, or row 1 when row 0 is nearly vertical;
+- the eight corners' highest and lowest y;
+- their furthest reach along the axis and across it.
+
+In a two-player game, records without flag 0x8000 are hidden (their byte +0x14 cleared) and skipped.
+On France stage 2 the fixed volumes are all cylinders:
+- 420 with flags 0: tree trunks, of radius 0.14 to 0.25;
+- 236 with 0x8000, of radius 0.25;
+- 171 with 0x4000, of radius 0.75 to 1.12.
+
+The 17 movable volumes (0x46008300 and 0x6008300) have radius 0.65.
+
+`Car_Scenery` 0x4878a0 (from the collision pass, with +0xb64 clear):
+- **What it tests:** the fixed lists, then the movable ones, of the car's cell and its three
+  neighbours (+0xb00-+0xb06). With +0xc18 set, only the movable ones.
+- **Which volumes:** a volume is tested when the car's sphere (+0x758) and the volume's reach
+  overlap in 3D (0x487b80). A movable one must also still be up for this car (0x471d40). One that is
+  down is placed 1,000 units higher, so that it never overlaps (0x471cc0).
+- **Low objects** (flag 0x4000): with +0xc20 clear, the wheels are bumped when the centre is within
+  the flat box widened by the radius (0x487e50, then Car_WallBumps 0x48df50).
+- **A cylinder** (0x489b20) is tested against the car's flat box, which takes no account of height.
+  The normal depends on where the cylinder lies:
+  - beyond both faces: the nearest corner's ray along the centre line meets the circle (kind 3). The
+    normal runs from the centre to the contact point.
+  - otherwise: the face with the shorter time along that line (kind 1 forward, kind 2 side). The
+    normal is the face's axis.
+- **The push:** the car (its position, eight corners and flat box corners) is pushed back along the
+  line by that time (x and z). For a movable object the scale is zero, so it is not pushed.
+  0x489750 then keeps only the push's part along the normal. It stores the contact in the car's
+  frame (+0x5dc) and the response's thresholds 0.5 and 1.342.
+- **The response** (0x48be20) takes the contact (its y zeroed, clamped to the half size +0x204), the
+  velocity there (with the spin +0x420), and that velocity's part along the normal:
+  - above 1.342, a hard knock; above 0.5, a knock. Either makes the car loose (+0xc00, +0xc04,
+    +0x96c), unless it already is or +0xb64 is set.
+  - against a movable object, the impulse is a hundredth, there is no knock, and the object goes
+    down (0x46fe70, pending).
+- **The impulse:** the velocity along the normal times 0x519c90 goes into +0x5c4; with option 4 it
+  goes twice into the velocity instead. The damage (0x466ef0) is called once per object in a row of
+  steps, listed at +0xad6/+0xae0 (up to five).
+- **The turn:** the impulse is crossed with the contact (times 3 for a cylinder, 1.5 for a box). For a
+  knock it is crossed with the contact lowered by one unit along the car's up axis (four for a hard
+  knock) and taken four times, and a hard knock also lifts the car by 0.25. The result goes into
+  +0x5d0, clamped by 0x48c750.
+
+The boxes (0x487c40, 0x487f60 and its helpers 0x488640-0x4894b0) are pending.
 
 ## Cameras
 

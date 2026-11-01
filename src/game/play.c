@@ -25,6 +25,7 @@
 #include "render/mesh.h"
 #include "render/tex.h"
 #include "world/tod.h"
+#include "sim/scenery.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -121,6 +122,7 @@ bool Play_Begin(void)
 void Play_End(void)
 {
     World_SetCars(NULL, 0);
+    Scenery_CollFree();   /* 0x472720 */
     Scenery_FreeAll();
     Fin_Free();
     Stage_Unload();

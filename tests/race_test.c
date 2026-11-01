@@ -31,6 +31,8 @@
 #include "sim/sim.h"
 #include "sim/pose.h"
 #include "sim/fade.h"
+#include "sim/scenery.h"
+#include "sim/walls.h"
 #include "render/twod.h"
 #include "vfs.h"
 #include "vfs_host.h"
@@ -185,6 +187,41 @@ int main(void)
     CHECK(seen[5] && seen[7] && seen[8] && seen[5] < seen[7] && seen[7] < seen[8]);
     /* the countdown: five seconds of 40 ms steps from its first frame, 300 frames at 60 Hz */
     CHECK(seen[8] - seen[7] >= 299 && seen[8] - seen[7] <= 302 && fin > 0);
+    /* the scenery (0x4878a0): the car put with a tree's trunk 0.3 units ahead of its centre is pushed
+       out of it, the trunk then outside its flat box */
+    {
+        Car *c = Car_Get(0);
+        int boxes, n = Scenery_CollCount(&boxes), tree = -1;
+        int32_t tp[3], tr = 0;
+        bool tb = true;
+        uint32_t tf = 0;
+        for (int i = 0; i < n && tree < 0; i++)
+            if (Scenery_CollAt(i, tp, &tr, &tb, &tf) && !tb && !(tf & 0x4000) && tr >= 0x4000) tree = i;
+        printf("scenery: %d fixed volumes, %d boxes; a trunk of radius %.2f\n", n, boxes, tr / 65536.0);
+        CHECK(n > 100 && tree >= 0);
+        if (tree >= 0) {
+            int32_t fx = CI32(c, 0x360), fz = CI32(c, 0x368), at[3] = {tp[0] - fx_mul(fx, 0x4ccc), tp[1] + 0x8000, tp[2] - fx_mul(fz, 0x4ccc)};
+            int32_t d[3] = {at[0] - CI32(c, 0x2d0), at[1] - CI32(c, 0x2d4), at[2] - CI32(c, 0x2d8)};
+            for (uint32_t k = 0; k < 3; k++) {
+                CW32(c, 0x2d0 + 4 * k, CI32(c, 0x2d0 + 4 * k) + d[k]);
+                CW32(c, 0x2e8 + 4 * k, CI32(c, 0x2e8 + 4 * k) + d[k]);
+                for (uint32_t i = 0; i < 8; i++) CW32(c, 0x270 + 12 * i + 4 * k, CI32(c, 0x270 + 12 * i + 4 * k) + d[k]);
+            }
+            CW16(c, 0xb00, (uint16_t)Section_Find(at));
+            for (uint32_t i = 0; i < 3; i++) CW16(c, 0xb02 + 2 * i, 0xffff);
+            CW32(c, 0xc18, 0);
+            int32_t v0 = CI32(c, 0x408), v2 = CI32(c, 0x410);
+            int16_t list[1] = {0};
+            Sim_Collide(list, 1);
+            int32_t ex = tp[0] - CI32(c, 0x2d0), ez = tp[2] - CI32(c, 0x2d8);
+            int32_t *b = Walls_CarBox(c);
+            int32_t ef = fx_mul(b[B_FWD], ex) + fx_mul(b[B_FWD + 2], ez);
+            printf("scenery: the car moved %.2f back, the trunk %.2f ahead (half length %.2f), velocity (%.2f, %.2f) to (%.2f, %.2f)\n",
+                   (fx_mul(fx, at[0] - CI32(c, 0x2d0)) + fx_mul(fz, at[2] - CI32(c, 0x2d8))) / 65536.0, ef / 65536.0, b[B_EXT_F] / 65536.0,
+                   v0 / 65536.0, v2 / 65536.0, CI32(c, 0x5c4) / 65536.0, CI32(c, 0x5cc) / 65536.0);
+            CHECK(ef >= b[B_EXT_F] + tr - 0x100);
+        }
+    }
     /* the sectors (0x4581d0): the car walked along the centre line passes each split and finishes */
     {
         Car *c = Car_Get(0);

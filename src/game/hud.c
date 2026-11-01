@@ -275,7 +275,7 @@ void Hud_Update(int p, bool on_line)
         hud_ready = true;
         for (int i = 0; i < 12; i++) ref_split[i] = Opp_TimeAt(0, i);
     }
-    PENDING_NOTE(0x411f70, "Hud_Update (the gauges, the splits' bar, the messages)");
+    PENDING_NOTE(0x411f70, "Hud_Update (the gauges, the messages)");
     if (on_line) hud_time[p] = 0;
     else hud_time[p] = Race_Finished(p) ? Times_Finish(p) : Times_Race();
     /* the passed part of the current split's box, by the furthest point reached */

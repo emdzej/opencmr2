@@ -8,18 +8,9 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "pending.h"
+#include "sim/scenery.h"
 #include <math.h>
 
-/* The 0x98-byte box record per car at 0x590ed0 (FUN_0048ca40), as ints: */
-enum {
-    B_EXT_F = 0, B_EXT_S = 1,   /* the half lengths along the flat forward and side axes */
-    B_YMAX = 2, B_YMIN = 3,     /* the corners' highest and lowest y (world) */
-    B_FWD = 4, B_SIDE = 7,      /* the flat forward axis (y 0, unit), the side axis (z, 0, -x) */
-    B_VALID = 10, B_PREV = 11,  /* made this step; made in the last */
-    B_CORNER = 12,              /* four corners (x, the highest y, z) */
-    B_OLD = 24,                 /* the last step's four */
-    B_INTS = 38
-};
 static int32_t box_rec[CAR_MAX][B_INTS];
 
 static struct {
@@ -414,6 +405,21 @@ static void bumps(Car *c)
     for (uint32_t k = 0; k < 3; k++) CW32(c, 0x408 + 4 * k, fx_mul(CI32(c, 0x408 + 4 * k), 0xf851));
 }
 
+int32_t *Walls_CarBox(Car *c)
+{
+    int32_t *b = box_rec[CI8(c, 0xb1a)];
+    box_make(b, c);
+    return b;
+}
+
+void Walls_Bumps(Car *c) { bumps(c); }
+
+void Walls_RotT(const Car *c, int32_t out[3], const int32_t v[3])
+{
+    for (uint32_t r = 0; r < 3; r++)
+        out[r] = fx_mul(CI32(c, 16 * r + 8), v[2]) + fx_mul(CI32(c, 16 * r + 4), v[1]) + fx_mul(CI32(c, 16 * r), v[0]);
+}
+
 /* 0x48e0a0 */
 void Car_Walls(Car *c, int n)
 {
@@ -483,12 +489,7 @@ void Sim_Collide(const int16_t *list, int n)
         int k = list[i];
         Car *c = Car_Get(k);
         if (!CI32(c, 0xb64)) {
-            /* 0x4878a0: the car against the scenery objects; its first part clears +0xb3f and the
-               wheel bumps' flags +0xbbc-+0xbdb */
-            CW8(c, 0xb3f, 0);
-            for (uint32_t o = 0xbbc; o < 0xbdc; o += 4) CW32(c, o, 0);
-            PENDING_NOTE(0x4878a0, "Car_Scenery");
-            CW8(c, 0xb3e, 0);
+            Car_Scenery(c);   /* 0x4878a0 */
         }
         if (!CI32(c, 0xc18)) {
             if (CI32(c, 0xb64)) PENDING_NOTE(0x47c5b0, "0x47c5b0");   /* with +0xb64, above 2.0 the walls are skipped */
