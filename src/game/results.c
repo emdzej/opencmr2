@@ -208,17 +208,32 @@ static void draw_times(Menu *m)
 
 /* 0x44d790: "high score" and "congratulations", "<holder> you have set the fastest time for this
    stage" */
+static int finisher(int i);
 static void draw_record(Menu *m)
 {
     (void)m;
     int w, h;
     screen(&w, &h);
     dim();
-    if (mode() == 5 || mode() == 6) PENDING_NOTE(0x44d790, "the arcade's record page");
-    const char *t[2] = {Text_Get(0x49), Text_Get(0x46)};
-    titles(w * 0x1e / 0x280, h * 0xf2 / 0x1e0, t, 2);
     char b[200];
-    snprintf(b, sizeof b, exe_str(0x519f68), record_name, Text_Get(0x4a));
+    if (mode() == 5 || mode() == 6) {
+        /* the arcade's: "high score" alone, the name the player placed best (0x451850's place in the
+           finish, -1 for none, which wins) */
+        const char *t[1] = {Text_Get(0x49)};
+        titles(w * 0x1e / 0x280, h * 0xf2 / 0x1e0, t, 1);
+        int best = 0x10, who = -1;
+        for (int p = 0; p < (int)Gs_SelBits14(); p++) {
+            int pl = -1;
+            for (int i = 0; i < Cars_Racing(); i++)
+                if (finisher(i) == p) { pl = i; break; }
+            if (pl < best) best = pl, who = p;
+        }
+        snprintf(b, sizeof b, exe_str(0x519f68), Player_Name(who), Text_Get(0x4a));
+    } else {
+        const char *t[2] = {Text_Get(0x49), Text_Get(0x46)};
+        titles(w * 0x1e / 0x280, h * 0xf2 / 0x1e0, t, 2);
+        snprintf(b, sizeof b, exe_str(0x519f68), record_name, Text_Get(0x4a));
+    }
     Text_ToFontCase(b);
     Font_Print(0, b, w * 0x1e / 0x280, h * 10 / 0x1e0 + h * 0xf2 / 0x1e0 + Font_Height(0), C(0x519ecc), 0x11);
     Font_SetLayer(2);
@@ -278,9 +293,16 @@ static void draw_board(Menu *m)
     uint32_t st = Tod_Stage();
     if (st == 10) snprintf(stage, sizeof stage, "%s", Text_Get(0xba));
     else snprintf(stage, sizeof stage, exe_str(0x516098), Text_Get(0x40), (int)st + 1);
-    if (mode() == 0 || mode() == 1) PENDING_NOTE(0x44d960, "the board's title in a rally (with the day)");
-    const char *t[2] = {Text_Get((int)Tod_Rally()), stage};
-    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 2);
+    if (mode() == 0 || mode() == 1) {
+        /* a rally's: the rally, "day n" (four stages a day), the stage */
+        char day[64];
+        snprintf(day, sizeof day, exe_str(0x516098), Text_Get(0x44), (int)(st >> 2) + 1);
+        const char *t[3] = {Text_Get((int)Tod_Rally()), day, stage};
+        titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 3);
+    } else {
+        const char *t[2] = {Text_Get((int)Tod_Rally()), stage};
+        titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 2);
+    }
     for (int k = 0; k < 6; k++) {
         int idx = m->items[0].value + k, driver = Opp_Order(idx);
         int32_t tm = Opp_Time(idx);
