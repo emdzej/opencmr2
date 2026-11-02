@@ -900,6 +900,37 @@ flash colour over the low light colour 0x5909c0) and either a burst of sparks (t
 eleven of FireWork.bfl; the whistle's voice is kept in a byte, so it is never found to stop it early
 (the port keeps that).
 
+## Knocking scenery down (mapped, porting)
+
+Movable scenery (record flags 0x2001000, the movable cell lists 0x58c94c, `n_m` 0x58ca6c) is knocked
+by `Car_Scenery` 0x4878a0 after a hit and `0x48be20`: `Scenery_Knock` 0x46fe70(entry, cell, car).
+
+- Standing bits 0x58c938 (a bit per car per movable entry; 0x471d40 test, 0x471d80 set/clear). A knock
+  clears the car's bit and, with one player and the car not +0xc0c, lowers the static instance by
+  1000 (scenery +4) and clears its drawn byte +0x14; `0x470240` undoes it. `0x471cc0` gives an
+  entry's position, +1000 in y when not standing (one player: bit 0; more: 0x58c958).
+- The pool 0x5894e0: 40 records of 0x128 bytes (count 0x58c924). Ints: [0] the entry, [1] its object
+  (Obj_New under the world root, kind 3 hidden / 0 shown, +0x17c the car's pass bit, +0xc the mesh),
+  [2..0x11] the matrix, [0x12..0x21] the last step's, [0x22..0x31] the drawn (0x471950 blends, flags
+  [0x49] when it changed; 0x471a60 copies to the object +0x98/+0xd8 and relights via 0x4b5320 with
+  the handle [0x45]), [0x32] a pointer to [2], [0x33] the state (0 still, 1 tipping, 2 flung),
+  [0x34] the shape (0x58c930: 1 when x is under 0.3 of y, else 0), [0x35..0x37] the ground normal,
+  [0x38..0x3a] the spin, [0x3b..0x3d] the velocity, [0x3e..0x40] the pivot, [0x41..0x43] the half
+  extents (mesh +0x10c record +0x44/+0x4c/+0x48 times 0.5), [0x44] the ground height, [0x46] the
+  cell, [0x47] (short) the ground section, [0x48] on the ground.
+- 0x46f550 (Scenery_CollInit's end): the pool objects; per movable entry a mesh clone (0x4abaf0, the
+  placement's scale baked in) and its shape.
+- 0x46f810 starts a record: shape 1, or shape 0 at a car speed (+0x778) up to 0xc000: tipping, with
+  the spin from the car's velocity (+0x408) turned into the object (scaled to 0.5 / speed above
+  0x8000); else flung: the velocity 0.8 of the car's, the spin from it at 0.4.
+- 0x470580 per step: state 1 spins up by 1.1 a step about the object's axes (Rows_Turn3, the spin
+  times 0x519c8c (1.0) as radians), and once its up row is level with the ground (dot with the normal
+  at or below 0) squares it onto the ground and stops; state 2 falls (gravity 0xfffff5c3 a step until
+  on the ground, halved with option 1), bounces at 0.8 and settles below 0x28f; both keep the lowest
+  box corner (0x589458, chosen by the down direction, 0x4702f0) on the ground (Hpc_Ground).
+- When the pool is full, the record with the most cars nearest (0x58c424 distances, 0x5894b8 counts)
+  is reused, its object put back up for all eight cars. 0x4702a0 (restarts, replays) puts everything back.
+
 ## Skid marks
 
 The skid marks (0x464c60-0x465ea0, `src/game/skids.c`) are kept per car (8) and wheel in a ring of 200
