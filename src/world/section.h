@@ -70,6 +70,7 @@ void Scenery_Register(const C3d *m);
 void Scenery_FreeAll(void);   /* the port */
 /* The billboard turn (0x597cc0, made in World_Render 0x49d3f0 from the camera's forward x and z). */
 void Billboard_SetCamera(const Obj *camera);
+void Billboard_Matrix(float out[16]);   /* the turn as made (0x597cc0) */
 /* Section_DrawBillboards 0x49d040: the listed cells' scenery; billboards get their matrix and distance
    and are queued (FUN_0049cb50), the rest drawn as they are (world space, the current world matrix). */
 void Section_DrawBillboards(const Obj *camera);

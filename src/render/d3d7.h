@@ -110,6 +110,8 @@ typedef struct {
     D3DVIEWPORT7 viewport;
     int width, height, bpp;  /* the mode */
     bool in_scene;
+    D3dTexture *target;      /* the render target: NULL the back buffer, else a cube's face */
+    int target_face;         /* 0-5: +x, -x, +y, -y, +z, -z */
 } D3dState;
 
 /* The back end (gl_dev.c registers itself with D3d_SetBackend). */
@@ -129,9 +131,11 @@ typedef struct {
 
 struct D3dTexture {
     int width, height;
-    uint8_t *rgba;          /* width * height * 4 */
+    uint8_t *rgba;          /* width * height * 4 (NULL for a cube) */
     unsigned gl;
     bool dirty;
+    bool cube;              /* a cube of six width x width faces that can be drawn into */
+    unsigned fbo[6], depth; /* the back end's targets for the faces */
 };
 
 void D3d_SetBackend(const D3dBackend *b);
@@ -177,6 +181,9 @@ void D3dVB_Free(D3dVB *vb);
 
 /* Textures: the decoders' RGBA8 (image.h) taken over. */
 D3dTexture *D3dTex_Create(int width, int height, uint8_t *rgba);
+/* a cube map whose faces are render targets with their own depth buffer (DDSCAPS2_CUBEMAP, all faces) */
+D3dTexture *D3dTex_CreateCube(int size);
+void D3d_SetRenderTarget(D3dTexture *cube, int face);   /* 0x20 (NULL: the back buffer) */
 void D3dTex_Free(D3dTexture *t);
 
 void D3d_Present(void);   /* the flip */

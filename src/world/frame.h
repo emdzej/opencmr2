@@ -21,3 +21,6 @@ void World_DrawAll(void);                    /* 0x49cd90: every object, z on (no
    just after the ground's decals (bucket 8: the glows' pools 0x4af120, the cars' shadows). */
 void World_SetCars(Obj **cars, int n);
 bool World_Render(Obj *camera, const int16_t view[4], uint32_t pass, bool world);
+/* EnvMap_RenderCube 0x49e1f0: the six faces of o's car's cube from o's place (camera: the view's;
+   others: the port's car models, drawn into it) */
+void World_RenderCube(const Obj *o, const Obj *camera, uint32_t pass, Obj *const *others, int nothers);

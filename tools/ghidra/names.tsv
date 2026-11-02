@@ -109,12 +109,12 @@
 0049ddf0	Render_TexCoordIndex	render	high	Sets a stage's TEXCOORDINDEX with the texture transform off
 0049df90	Render_InitStates	render	high	The start-up render and texture-stage states
 004a3e90	Tex_SetStageBlend	render	med	Sets a stage's colour/alpha ops from a texture's blend type (+0x118), 0xff and 0-0x22 modes
-004b2980	Render_EnvMapped	render	med	Draws with camera-space reflection coordinates through texture matrix 0 (car reflections)
+004b2980	Render_EnvMapped	render	high	Draws with camera-space reflection coordinates through texture matrix 0 (car reflections)
 004b6f00	Light_SetMode	render	med	Lighting modes: LIGHTING, AMBIENT, COLORVERTEX, DIFFUSEMATERIALSOURCE, lights on/off
 004b7210	Render_ReadCaps	render	med	Reads the device caps (GetCaps) into flags at 0x6e0c0c-0x6e0c3c
 004bcbb0	Fog_SetLinear	render	med	Linear vertex fog: FOGTABLEMODE 0, FOGVERTEXMODE 3, start and end
 004bcc20	Fog_Off	render	med	Vertex fog off
-0049e1f0	EnvMap_RenderCube	render	med	Renders six views around an object (cube environment map for reflections), restoring view, projection and viewport
+0049e1f0	EnvMap_RenderCube	render	high	Renders six views around an object (cube environment map for reflections), restoring view, projection and viewport
 004b1530	Render_DrawIndexed	render	high	The sprite queue drawn: four 0x2d2 vertices per sprite turned to the camera, a run per texture
 004a3e20	Tex_SetBlend	render	high	Sets a texture record's blend type (+0x118)
 004a3e40	Render_SetBlend	render	high	SRCBLEND and DESTBLEND, cached as a pair (0x520b1c, 0x520b20)
@@ -1728,3 +1728,7 @@
 00412390	Hud_PairNames	hud	high	The head to head pair "a vs b" at the countdown
 0044a150	Results_SuperSpecialTick	results	high	The super special results reveal: its tween started once and followed (0x541cf0)
 0044b3a0	Results_SuperSpecial	results	high	The super special lines over the results page: title, text 0x93, each player and place
+004a4b10	Cube_Create	render	high	A cube record in the 20 slots at +0x2384 (six face records), its surfaces made
+004a76d0	Cube_Surfaces	render	high	A cube's surfaces: the cube map with all faces, each face fetched and given a z-buffer
+004b2d70	Render_SetTarget	render	high	The device's render target: a texture record's surface (+0x114)
+004ba160	Mat_FromFloat	math	high	A float matrix in 16.16, each element rounded times 65536

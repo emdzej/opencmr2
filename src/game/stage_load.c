@@ -20,6 +20,7 @@
 #include "game/replay.h"
 #include "game/records.h"
 #include "render/mesh.h"
+#include "game/select.h"
 #include "pending.h"
 #include "exe.h"
 #include "game/mem.h"
@@ -50,7 +51,10 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
             if (l >= 4) n[l - 4] = n[l - 2], n[l - 3] = n[l - 1], n[l - 2] = 0;
             strncat(n, exe_str(0x519484), sizeof n - strlen(n) - 1);
         }
-        Env_Load(g_track_tex.loaded ? &g_track_tex : NULL, n);
+        /* with option 16 a cube for each car of the race (its players and CPU cars, 0x4074f0 +
+           0x4069a0) at 128, else one (the first car's) at 64 */
+        bool all = gm32(0x52e890) >> 0x10 & 1;   /* 0x406410 */
+        Env_Load(g_track_tex.loaded ? &g_track_tex : NULL, n, all ? (int)Gs_SelBits14() + Sel_CpuCount() : 1, all ? 0x80 : 0x40);
     }
     /* (the original draws the load bar here and between the later steps, at 15, 25, 40, 60, 70, 85
        and 100, each time presenting a frame of the empty loading tree, 0x40fec0 with its second

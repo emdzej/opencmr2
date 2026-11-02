@@ -11,6 +11,9 @@
 #include "render/d3d7.h"
 #include "render/light.h"
 #include "render/mesh.h"
+#include "render/tex.h"
+#include "fixmath.h"
+#include <string.h>
 #include "render/polyq.h"
 #include "render/rstate.h"
 #include "render/twod.h"
@@ -104,6 +107,93 @@ static void flush_layer(int layer)
 {
     Tri_Flush(layer);
     Sprite_Flush(layer);
+}
+
+/* EnvMap_RenderCube 0x49e1f0 (Race_DrawView, per car that has one): the cube of o's car (o's mesh flag
+   bits 15-17) drawn from o's place, each face's camera o's frame turned to look along +x, -x, +y, -y,
+   +z, -z (right -z, +z, x, x, x, -x; up y, y, -z, z, y, y): the billboards turned to it, the face's
+   depth cleared (the colour not), the listed cells' unsorted objects (z off, far 120), then far 80 the
+   cells' meshes and the scenery within 20 units of the camera by its last distance (+0x114), the
+   port's cars (where the original's lists have them, inferred), the sorted objects from `cam`; the
+   view, projection (far as given, near 1) and target back after. */
+void World_RenderCube(const Obj *o, const Obj *cam, uint32_t pass, Obj *const *others, int nothers)
+{
+    if (!o || !o->mesh) return;
+    Tex *cube = Env_Cube((uint32_t)(o->mesh[0x30] | o->mesh[0x31] << 8 | o->mesh[0x32] << 16 | (uint32_t)o->mesh[0x33] << 24));
+    if (!cube || !cube->surface) return;
+    int size = Env_CubeSize();
+    int32_t far = Proj_Far();
+    Env_SetBoth(true);   /* 0x4b2970(1) */
+    Render_AlphaBlend(0);
+    set_viewport(0, 0, (uint32_t)size, (uint32_t)size);
+    D3DMATRIX view, proj;
+    D3d_GetTransform(D3DTS_VIEW, &view);
+    D3d_GetTransform(D3DTS_PROJECTION, &proj);
+    for (int face = 0; face < 6; face++) {
+        Obj eye;
+        memset(&eye, 0, sizeof eye);
+        eye.world = o->world;
+        int32_t *m = eye.world.m;
+        for (int j = 0; j < 3; j++) {
+            int32_t r0 = o->world.m[j], r1 = o->world.m[4 + j], r2 = o->world.m[8 + j];
+            switch (face) {
+            case 0: m[j] = -r2, m[8 + j] = r0; break;
+            case 1: m[j] = r2, m[8 + j] = -r0; break;
+            case 2: m[4 + j] = -r2, m[8 + j] = r1; break;
+            case 3: m[4 + j] = r2, m[8 + j] = -r1; break;
+            case 5: m[j] = -r0, m[8 + j] = -r2; break;
+            default: break;
+            }
+        }
+        FxMat inv;
+        Mat_Inverse(&inv, &eye.world);
+        float f[16];
+        Mat_ToFloat(f, &inv);
+        D3DMATRIX v;
+        memcpy(v.m, f, sizeof f);
+        D3d_SetTransform(D3DTS_VIEW, &v);
+        Billboard_SetCamera(&eye);   /* (0x597cc0 from the face's forward x and z) */
+        D3d_SetRenderTarget(cube->surface, face);   /* 0x4b2d70 */
+        int32_t r[4] = {0, 0, size, size};
+        D3d_Clear(1, r, D3DCLEAR_ZBUFFER, 0xff000000u, 1.0f, 0);
+        D3d_BeginScene();
+        Proj_Set(0x20000, 0x20000, 0x780000, 0x1999);
+        Section_DrawObjects(pass);
+        Proj_Set(0x20000, 0x20000, 0x500000, 0x1999);
+        for (int k = 0; k < g_nvisible; k++) {
+            Section *sec = &g_sec[g_visible[k]];
+            if (!sec->mesh) continue;
+            identity_world();
+            Mesh_Draw(&g_stage_mesh, sec->mesh, 1, 0, 0);
+            for (Scenery *sc = sec->scenery; sc; sc = sc->next) {
+                if (!sc->mesh || (int32_t)(sc->mesh[0x114] | sc->mesh[0x115] << 8 | sc->mesh[0x116] << 16 | (uint32_t)sc->mesh[0x117] << 24) >= 0x140000)
+                    continue;
+                if (!(sc->mesh[0x30] & 2)) identity_world();
+                else {
+                    float bf[16];
+                    Billboard_Matrix(bf);
+                    if (sc->m.m[0] != 0x10000 || sc->m.m[5] != 0x10000 || sc->m.m[10] != 0x10000) {
+                        float a = (float)sc->m.m[0] * (1.0f / 65536.0f), b = (float)sc->m.m[5] * (1.0f / 65536.0f),
+                              c = (float)sc->m.m[10] * (1.0f / 65536.0f);
+                        for (int j = 0; j < 3; j++) bf[j] *= a, bf[4 + j] *= b, bf[8 + j] *= c;
+                    }
+                    for (int j = 0; j < 3; j++) bf[12 + j] = (float)sc->m.m[12 + j] * (1.0f / 65536.0f);
+                    memcpy(sc->f.m, bf, sizeof bf);
+                    D3d_SetTransform(D3DTS_WORLD, &sc->f);
+                }
+                Mesh_Draw(sc->model, sc->mesh, 1, 0, 0);
+            }
+        }
+        for (int i = 0; i < nothers; i++) Obj_Draw(others[i], pass);
+        Section_QueueSorted(cam);
+        Obj_DrawQueued(pass);
+        D3d_EndScene();
+    }
+    Proj_Set(0x20000, 0x20000, far, 0x10000);
+    D3d_SetRenderTarget(NULL, 0);   /* 0x4b2d70 (the back buffer, PTR_DAT_00520b74 + 0x150) */
+    D3d_SetTransform(D3DTS_VIEW, &view);
+    D3d_SetTransform(D3DTS_PROJECTION, &proj);
+    Render_AlphaBlend(1);
 }
 
 /* Not ported yet: FUN_004b6240 (pass) at the end of the 3D; of the frame statistics FUN_004b21e0 after the 2D only the frame rate. */

@@ -30,6 +30,8 @@ static void mask_list(Obj *o, uint8_t m)
     for (; o; o = o->next) mask_tree(o, m);
 }
 
+void Obj_MaskTree(Obj *o, uint8_t m) { mask_tree(o, m); }   /* 0x4addd0 */
+
 /* 0x46b6b0 / 0x46b6e0: a mesh whose first polygon's alpha (+0x37) is at most a hidden from every pass */
 static void hide_clear(Obj *o, uint8_t a)
 {

@@ -17,16 +17,16 @@
 
 enum { STAGES = 2 };   /* the stages the combiner evaluates (CMR2 sets up two) */
 
-static int mw, mh, scale;
+static int mw, mh, mbpp, scale;
 static GLuint fbo[2], colour[2], depth;   /* [0] front, [1] back (the render target) */
-static GLuint prog, present_prog, vao, vbo, ibo, white_tex, samplers[STAGES];
+static GLuint prog, present_prog, vao, vbo, ibo, white_tex, white_cube, samplers[STAGES], cube_sampler;
 static float gamma_scale = 1.0f;
 
 static struct {
     GLint mode, tl, stage_op, stage_arg, tfactor, alphatest, alpharef, alphafunc, fog, fogmode, fogcolour,
         fogparams, specular, lodbias, tci, texflags, texm0, texm1, tex0, tex1, pointsize, wv, nrm, proj, vp, vpz,
         lighting, colorvertex, has_colour, src, ambient, mat, power, localviewer, normalize, vfog, rangefog,
-        nlights, ltype, ldiff, lspec, lamb, lpos, ldir, lp1, lp2;
+        nlights, ltype, ldiff, lspec, lamb, lpos, ldir, lp1, lp2, texc, cube0;
 } u;
 static struct { GLint tex, gamma, rect; } up;
 
@@ -57,13 +57,13 @@ static const char *VS =
     "uniform vec4 u_ldiff[8], u_lspec[8], u_lamb[8];\n"
     "uniform vec3 u_lpos[8], u_ldir[8];\n"       /* camera space */
     "uniform vec4 u_lp1[8], u_lp2[8];\n"         /* range, falloff, att0, att1; att2, cos(theta/2), cos(phi/2) */
-    "out vec4 v_diffuse; out vec4 v_specular; out vec2 v_uv[2];\n"
+    "out vec4 v_diffuse; out vec4 v_specular; out vec3 v_uv[2];\n"
     "vec4 source(int s, int which) {\n"          /* D3DMCS: 0 material, 1 colour 1, 2 colour 2 */
     "  if (u_colorvertex != 0 && s == 1 && u_has_colour.x != 0) return a_diffuse.bgra;\n"
     "  if (u_colorvertex != 0 && s == 2 && u_has_colour.y != 0) return a_specular.bgra;\n"
     "  return u_mat[which];\n"
     "}\n"
-    "vec2 texcoord(int s, vec3 pc, vec3 n) {\n"
+    "vec3 texcoord(int s, vec3 pc, vec3 n) {\n"
     "  int tci = u_tci[s];\n"
     "  int gen = tci >> 16; vec4 c;\n"
     "  if (gen == 1) c = vec4(n, 1.0);\n"
@@ -73,7 +73,7 @@ static const char *VS =
     "    c = vec4(reflect(e, n), 1.0);\n"
     "  } else c = vec4((tci & 0xffff) == 1 ? a_uv1 : a_uv0, 1.0, 0.0);\n"
     "  if ((u_texflags[s] & 255) != 0) c = (s == 0 ? u_texm0 : u_texm1) * c;\n"
-    "  return c.xy;\n"
+    "  return c.xyz;\n"
     "}\n"
     "void main() {\n"
     "  if (u_tl == 0) {\n"
@@ -81,8 +81,8 @@ static const char *VS =
     "    vec2 ndc = (a_pos.xy + 0.5) / u_mode * 2.0 - 1.0;\n"
     "    gl_Position = vec4(ndc * w, (a_pos.z * 2.0 - 1.0) * w, w);\n"
     "    v_diffuse = a_diffuse.bgra; v_specular = a_specular.bgra;\n"
-    "    v_uv[0] = u_tci[0] == 1 ? a_uv1 : a_uv0;\n"
-    "    v_uv[1] = u_tci[1] == 1 ? a_uv1 : a_uv0;\n"
+    "    v_uv[0] = vec3(u_tci[0] == 1 ? a_uv1 : a_uv0, 0.0);\n"
+    "    v_uv[1] = vec3(u_tci[1] == 1 ? a_uv1 : a_uv0, 0.0);\n"
     "  } else {\n"
     "    vec3 pc = (u_wv * vec4(a_pos.xyz, 1.0)).xyz;\n"
     "    vec4 cl = u_proj * vec4(pc, 1.0);\n"
@@ -148,8 +148,9 @@ static const char *VS =
 static const char *FS =
     "#version 300 es\n"
     "precision highp float; precision highp int;\n"
-    "in vec4 v_diffuse; in vec4 v_specular; in vec2 v_uv[2];\n"
+    "in vec4 v_diffuse; in vec4 v_specular; in vec3 v_uv[2];\n"
     "uniform sampler2D u_tex0, u_tex1;\n"
+    "uniform samplerCube u_texc; uniform int u_cube0;\n"   /* stage 0's texture a cube: its direction */
     "uniform ivec2 u_stage_op[2];\n"             /* colour op, alpha op (D3DTOP) */
     "uniform ivec4 u_stage_arg[2];\n"            /* colour arg 1, 2, alpha arg 1, 2 (D3DTA) */
     "uniform vec4 u_tfactor;\n"
@@ -190,7 +191,8 @@ static const char *FS =
     "  for (int s = 0; s < 2; s++) {\n"
     "    int cop = u_stage_op[s].x, aop = u_stage_op[s].y;\n"
     "    if (cop <= 1) break;\n"                  /* a disabled stage ends the cascade */
-    "    vec4 tex = s == 0 ? texture(u_tex0, v_uv[0], u_lodbias[0]) : texture(u_tex1, v_uv[1], u_lodbias[1]);\n"
+    "    vec4 tex = s == 1 ? texture(u_tex1, v_uv[1].xy, u_lodbias[1])\n"
+    "             : u_cube0 != 0 ? texture(u_texc, v_uv[0]) : texture(u_tex0, v_uv[0].xy, u_lodbias[0]);\n"
     "    vec4 c = op(cop, arg(u_stage_arg[s].x, tex, cur), arg(u_stage_arg[s].y, tex, cur), tex, cur);\n"
     "    vec4 a = aop <= 1 ? cur : op(aop, arg(u_stage_arg[s].z, tex, cur), arg(u_stage_arg[s].w, tex, cur), tex, cur);\n"
     "    cur = clamp(vec4(c.rgb, a.a), 0.0, 1.0);\n"
@@ -269,6 +271,7 @@ static bool gl_open(int width, int height, int bpp)
     plat_display_size(&dw, &dh);
     mw = width;
     mh = height;
+    mbpp = bpp;
     scale = dw > 0 && dh > 0 ? (dw / width < dh / height ? dw / width : dh / height) : 1;
     if (scale < 1) scale = 1;
     if (!prog) {
@@ -280,6 +283,7 @@ static bool gl_open(int width, int height, int bpp)
         LOC(nrm); LOC(proj); LOC(vp); LOC(vpz); LOC(lighting); LOC(colorvertex); LOC(has_colour); LOC(src);
         LOC(ambient); LOC(mat); LOC(power); LOC(localviewer); LOC(normalize); LOC(vfog); LOC(rangefog);
         LOC(nlights); LOC(ltype); LOC(ldiff); LOC(lspec); LOC(lamb); LOC(lpos); LOC(ldir); LOC(lp1); LOC(lp2);
+        LOC(texc); LOC(cube0);
         up.tex = glGetUniformLocation(present_prog, "u_tex");
         up.gamma = glGetUniformLocation(present_prog, "u_gamma");
         up.rect = glGetUniformLocation(present_prog, "u_rect");
@@ -287,11 +291,22 @@ static bool gl_open(int width, int height, int bpp)
         glGenBuffers(1, &vbo);
         glGenBuffers(1, &ibo);
         glGenSamplers(STAGES, samplers);
+        glGenSamplers(1, &cube_sampler);
+        glSamplerParameteri(cube_sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glSamplerParameteri(cube_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glSamplerParameteri(cube_sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glSamplerParameteri(cube_sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         static const uint8_t white[4] = {255, 255, 255, 255};
         glGenTextures(1, &white_tex);
         glBindTexture(GL_TEXTURE_2D, white_tex);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        /* unit 2's cube when stage 0 samples none (a sampler may not see the target being drawn) */
+        glGenTextures(1, &white_cube);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, white_cube);
+        for (int f = 0; f < 6; f++)
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + (GLenum)f, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     }
     if (fbo[0]) {
         glDeleteFramebuffers(2, fbo);
@@ -378,16 +393,34 @@ static void colour4(uint32_t c, float *f)
     f[3] = (float)(c >> 24) / 255.0f;
 }
 
+/* the target being drawn: the back buffer (the mode at its scale) or a cube's face (its size, 1:1) */
+static int tw, th, tscale;
+
+static void cube_alloc(D3dTexture *t);
+
+static void bind_target(const D3dState *s)
+{
+    D3dTexture *c = s->target;
+    if (c && (c->gl || (cube_alloc(c), c->gl))) {
+        glBindFramebuffer(GL_FRAMEBUFFER, c->fbo[s->target_face]);
+        tw = th = c->width, tscale = 1;
+    } else {
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo[1]);
+        tw = mw, th = mh, tscale = scale;
+    }
+    glViewport(0, 0, tw * tscale, th * tscale);
+}
+
 static void scissor(int x0, int y0, int x1, int y1)
 {
     if (x0 < 0) x0 = 0;
     if (y0 < 0) y0 = 0;
-    if (x1 > mw) x1 = mw;
-    if (y1 > mh) y1 = mh;
+    if (x1 > tw) x1 = tw;
+    if (y1 > th) y1 = th;
     if (x1 < x0) x1 = x0;
     if (y1 < y0) y1 = y0;
     glEnable(GL_SCISSOR_TEST);
-    glScissor(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+    glScissor(x0 * tscale, y0 * tscale, (x1 - x0) * tscale, (y1 - y0) * tscale);
 }
 
 static void mul(const D3DMATRIX *a, const D3DMATRIX *b, D3DMATRIX *o)
@@ -462,8 +495,9 @@ static void lights(const D3dState *s)
 static void apply_state(const D3dState *s, int prim, uint32_t fvf)
 {
     const uint32_t *rs = s->rs;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo[1]);
-    glViewport(0, 0, mw * scale, mh * scale);
+    for (int t = 0; t < STAGES; t++)
+        if (s->tex[t] && s->tex[t]->cube && !s->tex[t]->gl) cube_alloc(s->tex[t]);   /* (it binds its faces) */
+    bind_target(s);
     const D3DVIEWPORT7 *v = &s->viewport;
     scissor((int)v->x, (int)v->y, (int)(v->x + v->width), (int)(v->y + v->height));
     glUseProgram(prog);
@@ -501,6 +535,10 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
     else glDisable(GL_DITHER);
 
     GLint ops[4], args[8], tci[2], tflags[2];
+    D3dTexture *c0 = s->tex[0] && s->tex[0]->cube && s->tex[0] != s->target ? s->tex[0] : NULL;
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, c0 ? c0->gl : white_cube);
+    glBindSampler(2, cube_sampler);
     GLfloat bias[2];
     for (int t = 0; t < STAGES; t++) {
         const uint32_t *ts = s->tss[t];
@@ -517,7 +555,8 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
         if (!isfinite(bias[t])) bias[t] = 0;
         glActiveTexture(GL_TEXTURE0 + (GLenum)t);
         D3dTexture *tx = s->tex[t];
-        if (tx && (tx->dirty || !tx->gl)) gl_texture_upload(tx);
+        if (tx && tx->cube) tx = NULL;   /* a cube on stage 0 is sampled from unit 2 by the direction */
+        else if (tx && (tx->dirty || !tx->gl)) gl_texture_upload(tx);
         glBindTexture(GL_TEXTURE_2D, tx && tx->gl ? tx->gl : white_tex);
         GLuint sm = samplers[t];
         /* every texture has one level (the files carry no mip chain), so the mip filter has no effect */
@@ -529,11 +568,13 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
     }
     glUniform1i(u.tex0, 0);
     glUniform1i(u.tex1, 1);
+    glUniform1i(u.texc, 2);
+    glUniform1i(u.cube0, c0 != NULL);
     glUniform2iv(u.stage_op, 2, ops);
     glUniform4iv(u.stage_arg, 2, args);
     glUniform1fv(u.lodbias, 2, bias);
-    glUniform2f(u.mode, (float)mw, (float)mh);
-    glUniform1f(u.pointsize, (float)scale);
+    glUniform2f(u.mode, (float)tw, (float)th);
+    glUniform1f(u.pointsize, (float)tscale);
     float tf[4], fc[4];
     colour4(rs[D3DRS_TEXTUREFACTOR], tf);
     glUniform4fv(u.tfactor, 1, tf);
@@ -666,7 +707,7 @@ static void gl_clear(const D3dState *s, int x0, int y0, int x1, int y1, uint32_t
                      uint32_t stencil)
 {
     if (!fbo[1]) return;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo[1]);
+    bind_target(s);
     const D3DVIEWPORT7 *v = &s->viewport;
     int vx1 = (int)(v->x + v->width), vy1 = (int)(v->y + v->height);
     scissor(x0 > (int)v->x ? x0 : (int)v->x, y0 > (int)v->y ? y0 : (int)v->y, x1 < vx1 ? x1 : vx1, y1 < vy1 ? y1 : vy1);
@@ -693,9 +734,9 @@ static void gl_clear(const D3dState *s, int x0, int y0, int x1, int y1, uint32_t
 static void gl_present(void)
 {
     if (!fbo[1]) return;
+    glDisable(GL_SCISSOR_TEST);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo[1]);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo[0]);
-    glDisable(GL_SCISSOR_TEST);
     glBlitFramebuffer(0, 0, mw * scale, mh * scale, 0, 0, mw * scale, mh * scale, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     int dw, dh;
     plat_display_size(&dw, &dh);
@@ -731,8 +772,41 @@ static void gl_texture_upload(D3dTexture *t)
     t->dirty = false;
 }
 
+/* a cube's six faces (the mode's colour format, as the original's surfaces take the primary's) each
+   a target with the cube's depth buffer, cleared to black */
+static void cube_alloc(D3dTexture *t)
+{
+    int n = t->width;
+    if (n <= 0) return;
+    glGenTextures(1, &t->gl);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, t->gl);
+    glTexStorage2D(GL_TEXTURE_CUBE_MAP, 1, mbpp <= 16 ? GL_RGB565 : GL_RGB8, n, n);
+    glGenRenderbuffers(1, &t->depth);
+    glBindRenderbuffer(GL_RENDERBUFFER, t->depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, n, n);
+    glGenFramebuffers(6, t->fbo);
+    glDisable(GL_SCISSOR_TEST);
+    for (int f = 0; f < 6; f++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, t->fbo[f]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (GLenum)f, t->gl, 0);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, t->depth);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDepthMask(GL_TRUE);
+        glClearColor(0, 0, 0, 1);
+        glClearDepthf(1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+    t->dirty = false;
+}
+
 static void gl_texture_free(D3dTexture *t)
 {
+    if (t->cube && t->fbo[0]) {
+        glDeleteFramebuffers(6, t->fbo);
+        glDeleteRenderbuffers(1, &t->depth);
+        memset(t->fbo, 0, sizeof t->fbo);
+        t->depth = 0;
+    }
     if (t->gl) glDeleteTextures(1, &t->gl);
     t->gl = 0;
 }

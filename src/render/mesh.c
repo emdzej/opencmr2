@@ -292,11 +292,42 @@ static bool env_both = true;   /* DAT_005210bc: the second stage bound as well (
 
 void Env_SetBoth(bool on) { env_both = on; }   /* 0x4b2970 */
 
-/* 0x4b23c0: the stage's (or the service area's) reflection texture from the archive, blend type 4.
-   The cars' own cube targets (0x6de95c, with option 0x80) are not made: the port has no render
-   targets. */
-bool Env_Load(const BflSlot *archive, char *name)
+/* The cubes (0x4a4b10: up to 20 records at PTR_DAT_00520b78 + 0x2384, six faces of 0x130 bytes each,
+   the face surfaces' +0x114) and which a car's parts use (0x6de95c, by flag bits 15-17; -1 none). */
+enum { CUBES = 20 };
+static Tex cubes[CUBES];
+static int ncubes;               /* DAT_0065fa28 */
+static int32_t env_cube[CUBES];  /* 0x6de95c */
+static int env_size;             /* DAT_005210b4: the cubes' size */
+
+Tex *Env_Cube(uint32_t part_flags)
 {
+    int32_t c = env_cube[part_flags >> 0xf & 7];
+    return c >= 0 && c < ncubes ? &cubes[c] : NULL;
+}
+
+int Env_CubeSize(void) { return env_size; }
+
+/* 0x4b23c0: the cubes, with option 0x80, for the first `count` car indices (each a new record,
+   0x4a4b10: the port frees the last stage's here, as the original's texture reset 0x4a5d10 does with
+   the rest); the stage's (or the service area's) reflection texture from the archive, blend type 4 */
+bool Env_Load(const BflSlot *archive, char *name, int count, int size)
+{
+    env_size = size;
+    for (int i = 0; i < ncubes; i++) {
+        D3dTex_Free(cubes[i].surface);
+        memset(&cubes[i], 0, sizeof cubes[i]);
+    }
+    ncubes = 0;
+    for (int i = 0; i < CUBES; i++) env_cube[i] = -1;
+    if ((g_render_opts & 0x80) && count > 0)
+        for (int i = 0; i < count && i < CUBES && ncubes < CUBES; i++) {
+            Tex *c = &cubes[ncubes];
+            c->index = (uint16_t)ncubes;
+            c->surface = D3dTex_CreateCube(size);   /* 0x4a76d0 */
+            c->width = c->height = (int16_t)size;
+            env_cube[i] = ncubes++;
+        }
     env_tex = -1;
     Tex *t = Bfl_FindTexture(archive, name, NULL, false, 0x8000);
     if (!t) return false;
@@ -401,9 +432,86 @@ static void env_pass(const C3d *m, uint8_t *part)
     Tex_Bind(2, NULL);
 }
 
+/* 0x4ba160: a float matrix in 16.16 (each rounded times 65536.0) */
+static void mat_fixed(FxMat *o, const D3DMATRIX *f)
+{
+    for (int i = 0; i < 16; i++) o->m[i] = (int32_t)llrint((double)f->m[i / 4][i % 4] * 65536.0);
+}
+
+/* Render_EnvMapped 0x4b2980: the part with its car's cube on stage 0, looked up by the camera-space
+   reflection (blend type 0xb) turned back into the car's frame by texture matrix 0, the inverse of the
+   world and view rotations (their translations and +0x3c zeroed) in 16.16; each run of polygons' own
+   texture on stage 1 (blend type 5, with 0x4b2970's flag), with NORMALIZENORMALS and LOCALVIEWER on.
+   Without a cube for the car the flat pass 0x4b2610. */
+static void env_mapped(const C3d *m, uint8_t *part)
+{
+    Tex *cube = Env_Cube(rd32(part + 0x30));
+    if (!cube) {
+        env_pass(m, part);
+        return;
+    }
+    D3DMATRIX view, world;
+    D3d_GetTransform(D3DTS_VIEW, &view);
+    D3d_GetTransform(D3DTS_WORLD, &world);
+    for (int j = 0; j < 4; j++) view.m[3][j] = 0, world.m[3][j] = 0;
+    FxMat w, v, wv, inv;
+    mat_fixed(&w, &world);
+    mat_fixed(&v, &view);
+    Mat_Mul(&wv, &w, &v);   /* 0x4b9f20 */
+    Mat_Inverse(&inv, &wv);   /* 0x4ba440 */
+    float tf[16];
+    Mat_ToFloat(tf, &inv);   /* 0x4ba090 */
+    D3DMATRIX tm;
+    memcpy(tm.m, tf, sizeof tf);
+    D3d_SetTransform(D3DTS_TEXTURE0, &tm);
+    D3d_SetRenderState(D3DRS_NORMALIZENORMALS, 1);
+    D3d_SetRenderState(D3DRS_LOCALVIEWER, 1);
+    Render_AlphaBlend(1);
+    Render_ClampStage0(0);
+    Tex_SetBlend(cube, 0xb);
+    Tex_Bind(0, cube);
+    int32_t np = (int32_t)rd32(part + 0x28);
+    const uint8_t *p = C3d_Ref(m, part + 0x24, m->polys);
+    if (p && np > 0) {
+        if ((uint32_t)np * 3 > tris_cap) {
+            tris_cap = (uint32_t)np * 3;
+            tris = realloc(tris, tris_cap * sizeof *tris);
+        }
+        D3dVB *vb = part_vb(part);
+        int32_t last = -1;
+        uint32_t n = 0;
+        for (int32_t k = 0; k < np; k++) {
+            const uint8_t *q = p + (size_t)k * C3D_POLY;
+            int32_t t = poly_tex2(q);
+            if (t != last) {
+                if (n) D3d_DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, vb, rd32(part + 0x18), rd32(part + 0x10), tris, n, 0);
+                n = 0;
+                last = t;
+                if (t < 0) continue;
+                Tex_SetBlend(tex_at(t), 5);
+                if (env_both) Tex_Bind(1, tex_at(t));
+            } else if (t < 0) continue;
+            for (int j = 0; j < 3; j++) tris[n++] = rd16(q + 0x40 + 2 * j);
+            g_polys_drawn++;
+        }
+        int32_t t = poly_tex2(p + (size_t)(np - 1) * C3D_POLY);
+        if (n && t >= 0) {
+            Tex_SetBlend(tex_at(t), 5);
+            if (env_both) Tex_Bind(1, tex_at(t));
+            D3d_DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, vb, rd32(part + 0x18), rd32(part + 0x10), tris, n, 0);
+        }
+    }
+    Render_ClampStage0(1);
+    Tex_Bind(1, NULL);
+    Tex_Bind(2, NULL);
+    D3d_SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, 0);
+    D3d_SetRenderState(D3DRS_NORMALIZENORMALS, 0);
+    D3d_SetRenderState(D3DRS_LOCALVIEWER, 0);
+}
+
 /* Part flags (+0x30): 1 two-sided, 8 blended (when 0x5207b4 is set), 0x20 keeps the lighting mode
    (else mode 2, or 3 with 0x40000), 0x200 reflective (a second pass with option 8, off by default:
-   0x4b2610, or with option 0x80 Render_EnvMapped 0x4b2980, the cars' cube maps, not ported), 0x2000
+   0x4b2610, or with option 0x80 Render_EnvMapped 0x4b2980, the cars' cube maps), 0x2000
    drawn polygon by polygon unless asked otherwise. */
 void Mesh_Draw(const C3d *m, uint8_t *mesh, uint32_t batched, uint32_t clamp_flags, uint32_t batched_tex10)
 {
@@ -422,7 +530,7 @@ void Mesh_Draw(const C3d *m, uint8_t *mesh, uint32_t batched, uint32_t clamp_fla
     else draw_batches(part, batched_tex10 != 0);
     if ((f & 0x200) && !(f & 0x40000) && (g_render_opts & 8)) {
         if (!(g_render_opts & 0x80)) env_pass(m, part);
-        else PENDING_NOTE(0x4b2980, "Render_EnvMapped (the cars' cube maps)");
+        else env_mapped(m, part);
     }
     if (!(f & 0x20)) Light_SetMode(saved);
 }

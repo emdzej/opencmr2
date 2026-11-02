@@ -132,12 +132,31 @@ static void draw(int player, int state)
     for (int i = 0; i < g_all.n; i++) Car_GroundLight(i, player);   /* 0x462aa0 */
     Cars_Lod(player, view);   /* 0x428bf0 */
     Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */
-    /* the cars' kinds per view (0x46bb40), per car its masks (0x46b8f0) and the fallen-off parts
-       hidden (0x46b670) */
+    /* the cars' kinds per view (0x46bb40), then from the last car of the list to the first its masks
+       (0x46b8f0); for the first (every car with option 16) first, with option 0x80, its cube from its
+       far model when shown, else its second one, both hidden with its main model (0x49e1f0); then
+       those two shown in the pass, or hidden and the model's type 0x14 object shown in World_Mode's
+       (0x49c430), and after the masks the fallen-off parts hidden (0x46b670) */
     Cars_ViewKinds();
     for (int i = g_all.n - 1; i >= 0; i--) {
-        Car_Masks(Car_Get(g_all.car[i]));
-        Parts_HideFallen(Car_Get(g_all.car[i]));
+        Car *c = Car_Get(g_all.car[i]);
+        if (!(gm32(0x52e890) >> 0x10 & 1) && i != 0) {   /* 0x406410 */
+            Car_Masks(c);
+            continue;
+        }
+        Obj *model = c->far[0] && c->far[0]->mask ? c->far[0] : c->second;
+        if (g_render_opts & 0x80) {
+            Obj_MaskTree(c->main, 0);   /* 0x4addd0 */
+            Obj_MaskTree(model, 0);
+            World_RenderCube(model, camera, (uint32_t)player, cars, ncars);   /* 0x49e1f0 */
+        }
+        Obj *glass = model ? Obj_FindType(model, 0x14) : NULL;   /* 0x4ad890 */
+        bool mode = World_Mode() != 0;
+        Obj_MaskTree(c->main, !mode);
+        Obj_MaskTree(model, !mode);
+        if (glass) Obj_MaskTree(glass, mode);
+        Car_Masks(c);
+        Parts_HideFallen(c);
     }
     /* the cockpits drawn with the cars (the original puts them in their stage section, 0x476410) */
     int k = ncars;

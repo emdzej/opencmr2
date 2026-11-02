@@ -332,7 +332,35 @@ There is no reference capture from the original yet.
 ## Open
 
 - Which textures get which blend types at run time; the bump environment map (op 22/23 need a signed
-  texture format, which RGBA8 lacks) and the reflection passes (0x4b2610, 0x4b2980).
+  texture format, which RGBA8 lacks).
+
+## The cars' cube maps (option 0x80)
+
+Confirmed from the code; seen in the port with the option forced (the faces drawn and the car's
+windows reflecting the sky):
+
+- Tex_LoadEnvMap 0x4b23c0 takes a count and a size: Stage_Load gives one cube of 64 (with 0x52e890
+  option 16 one per car of the race, players plus CPU cars, of 128), the service area none. Each cube
+  (0x4a4b10) is a record in the 20 slots at `PTR_DAT_00520b78 + 0x2384`, six 0x130-byte face records
+  (+0x114 the surface: DDSCAPS2 cubemap with all faces, the primary's pixel format, faces fetched in
+  the order +x, -x, +y, -y, +z, -z by 0x4a76d0, each with its own z-buffer). 0x6de95c maps a car index
+  (mesh flag bits 15-17, set by Car_Load) to its cube; the texture reset 0x4a5d10 frees them.
+- Race_DrawView 0x40f0c0, in its loop over the cars from the last: for the first car only (every car
+  with option 16) its main model and its far model (when shown, else its second model) are hidden and
+  EnvMap_RenderCube 0x49e1f0 draws from that model's frame: per face the frame turned (right/forward
+  -z/+x, +z/-x, x/+y with up -z, x/-y with up +z, as is, -x/-z), the billboard turn from it, the
+  target set (0x4b2d70, the device's vtable +0x20), only the depth cleared, the cells' unsorted objects
+  with z off (far 120), then far 80 the cells' meshes and their scenery within 20 units (by the
+  billboards' last distance, +0x114), the sorted objects; after it the projection (far as given, near
+  1), the back buffer, the view and projection. Then those models are shown in pass 1 (or hidden with
+  their type 0x14 object shown when World_Mode is set) before 0x46b8f0 and 0x46b670.
+- Render_EnvMapped 0x4b2980 (Mesh_Draw's reflective pass): stage 0 the cube with blend type 0xb
+  (camera-space reflection, three-component transform), texture matrix 0 the inverse of the world and
+  view rotations in 16.16 (translations and +0x3c zeroed, 0x4ba160 rounding each times 65536), each
+  run's own texture on stage 1 with type 5 (added by its alpha); NORMALIZENORMALS and LOCALVIEWER on
+  for it and left off after. A car without a cube gets 0x4b2610.
+- The port draws the other cars into the cube from its own list (the original's object lists hold
+  them, not yet traced).
 - The 16-bit surface formats (565, 4444, 1555) and their quantisation of the textures.
 - The remaining caps.
 - Stage brightness: the prelit colours modulated by the texture look dark, and the original's stage draw

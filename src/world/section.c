@@ -301,6 +301,8 @@ void Scenery_FreeAll(void)
 }
 
 /* A turn about y facing along the camera's forward direction (x and z, normalised). */
+void Billboard_Matrix(float out[16]) { memcpy(out, bb_turn, sizeof bb_turn); }
+
 void Billboard_SetCamera(const Obj *cam)
 {
     int32_t fx = cam->world.m[8], fz = cam->world.m[10];

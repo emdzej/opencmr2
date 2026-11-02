@@ -32,7 +32,10 @@ void C3d_Build(const C3d *m);
 void Mesh_AddToVB(const C3d *m, uint8_t *part);             /* 0x4b1d00 */
 void Mesh_Batches(const C3d *m, uint8_t *part);             /* 0x4b1ac0 */
 void Mesh_UploadVerts(const C3d *m, uint8_t *part);         /* 0x4b2020 */
-bool Env_Load(const BflSlot *archive, char *name);          /* Tex_LoadEnvMap 0x4b23c0 */
+/* Tex_LoadEnvMap 0x4b23c0: the reflection texture; with option 0x80 `count` cubes of size x size */
+bool Env_Load(const BflSlot *archive, char *name, int count, int size);
+struct Tex *Env_Cube(uint32_t part_flags);                  /* a part's car's cube (0x6de95c), NULL none */
+int Env_CubeSize(void);                                     /* DAT_005210b4 */
 void Env_SetBoth(bool on);                                  /* 0x4b2970 */
 void Mesh_SetColour(const C3d *m, uint8_t *part, uint32_t argb);   /* 0x4b2090 */
 /* 0x4b1ea0: every vertex's colour (+0x18) back from its polygons' corner colours (+0x34-+0x3c, red and

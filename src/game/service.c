@@ -409,13 +409,13 @@ static void s0_init(ProcGroup *g, uint32_t s)
     Sv_StageInit();
     Sv_ForecastInit();
     /* the environment map: <setup>\\textures\\environment\\environment.tga from the common archive,
-       the second stage bound too unless with option 15 of 0x52e890 (0x4b2970; option 16 only picks
-       the cube targets' flags) */
+       the second stage bound too unless with option 15 of 0x52e890 (0x4b2970), no cubes (their size
+       by option 16) */
     {
         char n[0x110];
         snprintf(n, sizeof n, exe_str(0x527070), Path_SetupRep());
         Env_SetBoth(!(gm32(0x52e890) >> 15 & 1));
-        Env_Load(Sv_Common(), n);
+        Env_Load(Sv_Common(), n, 0, gm32(0x52e890) >> 0x10 & 1 ? 0x80 : 0x40);
     }
     Champs_Scan();   /* 0x4f4ef0 */
     load_sounds();

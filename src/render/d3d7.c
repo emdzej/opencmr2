@@ -268,9 +268,23 @@ D3dTexture *D3dTex_Create(int width, int height, uint8_t *rgba)
     return t;
 }
 
+D3dTexture *D3dTex_CreateCube(int size)
+{
+    D3dTexture *t = D3dTex_Create(size, size, NULL);
+    if (t) t->cube = true;
+    return t;
+}
+
+void D3d_SetRenderTarget(D3dTexture *cube, int face)
+{
+    st.target = cube && cube->cube ? cube : NULL;
+    st.target_face = st.target ? face % 6 : 0;
+}
+
 void D3dTex_Free(D3dTexture *t)
 {
     if (!t) return;
+    if (st.target == t) st.target = NULL;
     for (int s = 0; s < D3D_STAGES; s++)
         if (st.tex[s] == t) st.tex[s] = NULL;
     if (be && be->texture_free) be->texture_free(t);
