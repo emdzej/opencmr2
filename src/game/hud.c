@@ -1004,6 +1004,55 @@ static void time_panel(int p)
     draw_time(hud_time[p], 4, 0xaf30, 0x2e66, colour(0x5170f4), 0x21, NULL, false);
 }
 
+/* 0x409cd0: the name of game slot k's player, from the network's players (0x5a1884, 0xd0 apart, the
+   one whose id +0x64 matches the slot's 0x531778; NULL unless its +0x68 is set) */
+static const char *net_name(int k)
+{
+    uint32_t id = gm32(0x531778 + 0x80u * (uint32_t)k);
+    for (uint32_t i = 0; i < 7; i++)   /* 0x4a19c0: to 0x5a1e98 */
+        if (gm32(0x5a18e8 + 0xd0 * i) == id) return gm32(0x5a18ec + 0xd0 * i) ? (const char *)gm(0x5a1884 + 0xd0 * i) : NULL;   /* 0x4a1b60 */
+    return NULL;
+}
+
+/* 0x415480 for one view: the standings of modes 8, 9 and 11, a box for each of 0x531bb8's eight
+   entries in use (-2 the own one, lit, with the player's name), each with its place, the name and a
+   square at the right in the car's colour (0x40b0a0) */
+static void ghost_standings(int p)
+{
+    (void)p;
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int ox = 0, oy = 0;   /* 0x464b10: the view's corner */
+    int16_t r[4] = {(int16_t)(((w * 0xc00) >> 16) + ox), (int16_t)(((h << 0xc) >> 16) + oy), (int16_t)((w * 0x47ae) >> 16),
+                    (int16_t)(((h * 0xccc) >> 16) - 2)};
+    int ty = ((h * 0x1b32) >> 16) - 2 + oy;
+    for (int i = 0; i < 8; i++) {
+        int32_t k = gms32(0x531bb8 + 0x1cu * (uint32_t)i);   /* 0x40a700 */
+        if (k == -1) continue;
+        char b[256];
+        uint32_t car;
+        if (k == -2) {
+            snprintf(b, sizeof b, "%s", driver_name(0));
+            Rect_Fill(r, colour(0x5170d8), 2);
+            car = gm32(0x5a1ea0);   /* 0x4a1a00 */
+        } else {
+            const char *n = net_name(k);
+            snprintf(b, sizeof b, "%s", n ? n : (const char *)gm(0x52ea5c));
+            Rect_Fill(r, colour(0x5170d4), 2);
+            car = gm32(0x531778 + 0x80u * (uint32_t)k);   /* 0x409d20 */
+        }
+        const uint8_t *c = ghost_colour(car);
+        int16_t sw = (int16_t)(w * 10 / 640), sh = (int16_t)(h * 10 / 480);
+        int16_t sq[4] = {(int16_t)(r[2] - w * 10 / 640 + r[0] - sw / 2), (int16_t)(r[3] / 2 + r[1] - sh / 2), sw, sh};
+        Rect_Fill(sq, c, 2);
+        char pl[8];
+        snprintf(pl, sizeof pl, exe_str(0x517df0), i + 1);
+        Font_Print(0, pl, ((w * 0xf95) >> 16) + ox, ty, colour(0x5170d0), 0x22);
+        Font_Print(0, b, ((w * 0x132a) >> 16) + ox, ty, colour(0x5170d0), 0x21);
+        r[1] = (int16_t)(r[1] + r[3]), ty += r[3];
+    }
+}
+
 /* the player's display flags (Profile_HudFlags 0x408a00: mode 4's at 0x52f3ed, else the profile's
    +0x574; the original reads through NULL without a profile, the port reads zero) */
 static uint8_t hud_flags(int n)
@@ -1142,7 +1191,7 @@ void Hud_Draw(int p)
             if (!split_screen() || Gs_ModeBit18()) records(p);   /* 0x4147f0 */
         } else if (!Gs_SelBit27() || Gs_ModeBit19()) {
             if (m == 2 || m == 0 || m == 1) standings(p);   /* 0x414ed0 */
-            else if (m == 8 || m == 9 || m == 11) PENDING_NOTE(0x415480, "Hud_Standings (the network's and mode 11's)");
+            else if (m == 8 || m == 9 || m == 11) ghost_standings(p);   /* 0x415480 */
         }   /* (else 0x415bc0, empty) */
     }
     if (flags & 8) {
