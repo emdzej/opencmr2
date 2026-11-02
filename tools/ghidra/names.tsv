@@ -1167,3 +1167,9 @@
 004f27d0	FeDrivers_View	fe	confirmed	A saved driver to the View page
 004d4c40	FeView_Draw	fe	confirmed	A driver's View page
 004f3ac0	FeView_Enter	fe	confirmed	The first row unless back
+004d4cf0	FeIdentity_Draw	fe	confirmed	The tag, full name and birth date
+004d50a0	FeTrophies_Draw	fe	confirmed	The championship, rally and arcade trophies
+004d4f90	Fe_TrophySlot	fe	confirmed	A trophy box and its bronze/silver/gold
+004eba60	Profile_ChampTrophy	game	confirmed	Two bits of +0x62c per difficulty
+004ebad0	Profile_RallyTrophy	game	confirmed	A rally trophy by difficulty
+004ebcd0	Profile_ArcadeTrophy	game	confirmed	An arcade trophy by class and difficulty

@@ -1404,3 +1404,115 @@ void fe_4d4c40(Menu *m)
     List_Draw(m, Player_Name(0), -1, -1, 0, true);
     Strip_DrawMain(&pg_81d6d8, false, NULL);
 }
+
+/* 0x4d4cf0: Identity, the trail Drivers, View, the driver, the page; the tag, the full name and the
+   birth date (from 1850), each label over its value */
+void fe_4d4cf0(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    const char *names[4] = {Text_Get(0xb), Text_Get(0x59), Player_Name(0), Text_Get(m->text)};
+    Fe_TitleRow(title_x(), title_y(), names, 4);
+    Fe_Header();
+    uint32_t k = Player_Word(0) >> 0x12 & 0xf, p = 0x52fa08 + k * 0x650;   /* 0x408860 */
+    uint32_t d = gm32(p + 0x14);
+    char date[32];
+    snprintf(date, sizeof date, exe_str(0x524c78), (int)(d >> 0x10 & 0x1f), (int)(d >> 8 & 0xf),
+             (int)(d & 0xff) + 0x73a);
+    const char *val[3] = {(const char *)gm(p + 0x10), (const char *)gm(p + 0x1c), date};
+    int y = h * 0x78 / 0x1e0;
+    for (int i = 0; i < 3; i++) {
+        Font_Print(1, Text_Get(0x7e + i), w * 0x32 / 0x280, y, gm(0x52496c), 9);
+        Font_Print(1, val[i], w * 0x3c / 0x280, y + 0x14, gm(0x524968), 9);
+        y += 0x1e + h * 0x24 / 0x1e0;
+    }
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+/* 0x4eba60, 0x4ebad0, 0x4ebcd0: the driver's trophies, two bits each in the profile's words at +0x62c
+   (0x530034) and +0x630: the championships (bits 0, 2, 4); the rallies, by difficulty (+0x62c bits 16
+   up, +0x630 bits 0 and 16 up); the arcade (bits 6; 8 and 10 for the first class, 12 and 14 the other) */
+static uint32_t trophy_word(int player, int n)
+{
+    return gm32(0x530034 + (Player_Word(player) >> 0x12 & 0xf) * 0x650 + 4u * (uint32_t)n);
+}
+static int trophy_champ(int player, int i) { return i < 3 ? (int)(trophy_word(player, 0) >> (2 * i) & 3) : 0; }
+static int trophy_rally(int player, int r, int j)
+{
+    if (r < 0 || r > 7 || j < 0 || j > 2) return 0;
+    return (int)(trophy_word(player, j > 0) >> ((j == 1 ? 0 : 0x10) + 2 * r) & 3);
+}
+static int trophy_arcade(int player, int cls, int i)
+{
+    if (i == 0) return (int)(trophy_word(player, 0) >> 6 & 3);
+    if (i > 2) return 0;
+    return (int)(trophy_word(player, 0) >> ((cls == 0 ? 8 : 0xc) + 2 * (i - 1)) & 3);
+}
+
+/* 0x4d4f90: a trophy's box, centred on x, and the trophy in it (1 bronze, 2 silver, 3 gold) */
+static void trophy_slot(int x, int y, int t)
+{
+    int w, h;
+    screen(&w, &h);
+    int16_t r[4] = {(int16_t)(x - w * 0x30 / 0x500), (int16_t)y, (int16_t)(w * 0x30 / 0x280),
+                    (int16_t)(h * 0x1c / 0x1e0)};
+    outline(r, gm(0x52496c));
+    if (t > 0 && t < 4) {
+        Tex *tx = t == 1 ? g_fe.bronze : t == 2 ? g_fe.silver : g_fe.gold;
+        if (!tx) return;
+        Rect16 src = {0, 0, tx->width, tx->height};
+        Rect16 d = {(int16_t)(x - tx->width / 2), (int16_t)y, tx->width, tx->height};
+        Sprite_Add(&src, &d, tx, 1, 0, NULL, NULL, gm(0x524968), 8);
+    }
+}
+
+/* 0x4d50a0: Trophies: the championships, the rallies (a row per difficulty under the flags) and the
+   arcade (the two classes; the first row has one) */
+void fe_4d50a0(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    int16_t fw = 0x12, fh = 0xc;
+    if (gm32(0x52afc4) > 0x3ff) fw = 0x1c, fh = 0x12;   /* 0x405c10; the port's textures allow 1,024 */
+    const char *names[4] = {Text_Get(0xb), Text_Get(0x59), Player_Name(0), Text_Get(m->text)};
+    Fe_TitleRow(title_x(), title_y(), names, 4);
+    Fe_Header();
+    Font_Print(1, Text_Get(0xc), w / 2, h * 0x46 / 0x1e0, gm(0x524968), 0x12);
+    for (int i = 0; i < 3; i++) {
+        int y = h * 0x19 / 0x1e0 + h * 0x46 / 0x1e0;
+        trophy_slot((i + 1) * (w / 4), y, trophy_champ(0, i));
+        Font_Print(1, Text_Get(0xd0 + i), (w / 4) * (i + 1), y - h * 4 / 0x1e0, gm(0x52496c), 0x22);
+    }
+    Font_Print(1, Text_Get(0xd), w / 2, h * 0xa0 / 0x1e0, gm(0x524968), 0x12);
+    int top = h * 10 / 0x1e0 + h * 0x18 / 0x1e0 + h * 0xa0 / 0x1e0;
+    for (int i = 0; i < 3; i++)
+        Font_Print(1, Text_Get(0xd0 + i), w * 0xb4 / 0x280 - w * 32 / 0x280, top + h * 0x1e / 0x1e0 * i,
+                   gm(0x52496c), 0xc);
+    for (int r = 0; r < 8; r++) {
+        int x = w * 0xb4 / 0x280 + w * 0x32 / 0x280 * r;
+        Rect16 src = {0, 0, fw, fh};
+        Rect16 d = {(int16_t)(x - fw / 2), (int16_t)(h * 10 / 0x1e0 + h * 0xa0 / 0x1e0), fw, fh};
+        if (g_fe.flag[r]) Sprite_Add(&src, &d, g_fe.flag[r], 1, 0, NULL, NULL, gm(0x524968), 8);
+        for (int j = 0; j < 3; j++) trophy_slot(x, top + h * 0x1e / 0x1e0 * j, trophy_rally(0, r, j));
+    }
+    Font_Print(1, Text_Get(0xd6), w / 2, h * 0x145 / 0x1e0, gm(0x524968), 0x12);
+    top = h * 5 / 0x1e0 + h * 0x18 / 0x1e0 + h * 0x145 / 0x1e0;
+    for (int i = 0; i < 3; i++) {
+        int y = top + h * 0x1e / 0x1e0 * i;
+        if (i == 0) {
+            Font_Print(1, Text_Get(0xe9), w * 300 / 0x280, top - h * 4 / 0x1e0, gm(0x52496c), 0x22);
+            Font_Print(1, Text_Get(0xe8), w * 0x17c / 0x280, top - h * 4 / 0x1e0, gm(0x52496c), 0x22);
+        }
+        Font_Print(1, Text_Get(0xd0 + i), w * 300 / 0x280 - w * 32 / 0x280, y, gm(0x52496c), 0xc);
+        trophy_slot(w * 300 / 0x280, y, trophy_arcade(0, 0, i));
+        if (i == 0) {
+            /* the second class has no first row: an empty box */
+            int16_t r[4] = {(int16_t)(w * 0x17c / 0x280 - w * 0x30 / 0x500), (int16_t)y,
+                            (int16_t)(w * 0x30 / 0x280), (int16_t)(h * 0x1c / 0x1e0)};
+            Rect_Fill(r, gm(0x524970), 4);
+            outline(r, gm(0x52496c));
+        } else {
+            trophy_slot(w * 0x17c / 0x280, y, trophy_arcade(0, 1, i));
+        }
+    }
+}

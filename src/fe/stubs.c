@@ -3,8 +3,6 @@
 #include "pending.h"
 
 void fe_4d43e0(Menu *m) { (void)m; PENDING_NOTE(0x4d43e0, "front-end callback"); }
-void fe_4d4cf0(Menu *m) { (void)m; PENDING_NOTE(0x4d4cf0, "front-end callback"); }
-void fe_4d50a0(Menu *m) { (void)m; PENDING_NOTE(0x4d50a0, "front-end callback"); }
 void fe_4d63e0(Menu *m) { (void)m; PENDING_NOTE(0x4d63e0, "front-end callback"); }
 void fe_4d6460(Menu *m) { (void)m; PENDING_NOTE(0x4d6460, "front-end callback"); }
 void fe_4d9450(Menu *m) { (void)m; PENDING_NOTE(0x4d9450, "front-end callback"); }
