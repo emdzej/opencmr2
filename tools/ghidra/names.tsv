@@ -1080,3 +1080,15 @@
 004d6a60	FeLoad_Draw	fe	confirmed	The Load Driver page
 004f26f0	FeLoad_ChooseFirst	fe	confirmed	The network's load for the first player
 004f0820	FeLoad_Choose	fe	confirmed	The chosen saved profile into the player
+004e2ab0	FeQuit_Draw	fe	confirmed	The Quit page
+004f3b00	FeQuit_Enter	fe	confirmed	No first
+004f3b20	FeQuit_No	fe	confirmed	No chosen
+004f3b30	FeQuit_Leave	fe	confirmed	Left other than by no: to the quit
+004ef5e0	FeExit_Frame	fe	confirmed	The front end left for the quit
+004a9a40	App_Quit	app	confirmed	The main loop's quit flag (0x663db8)
+004e2590	FeOptions_Draw	fe	confirmed	The Options page
+004f29b0	FeOptions_Enter	fe	confirmed	The Cheats row on when any cheat is found or on
+004e2610	FeSound_Draw	fe	confirmed	The Sound page
+004f2840	FeSound_Enter	fe	confirmed	The volumes kept and shown
+004f2b00	FeSound_Frame	fe	confirmed	The rows into the volumes
+004f2b70	FeSound_Leave	fe	confirmed	Back restores the kept volumes

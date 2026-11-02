@@ -22,6 +22,15 @@ void Fe_SetPlayer(int n);                 /* 0x4ea480: the player whose input ru
    centred on cy (-1: the screen's middle above the strip) at x (-1: 122 of 640); with hdr a header
    row on a band first */
 void List_Draw(Menu *m, const char *hdr, int cy, int x, int first, bool lit);
+/* The rows of the option pages (0x4d8ed0's layout, drawn inline by 0x4da710, 0x4daf90, 0x4d7750,
+   0x4e2610 and others): the lines between (lit about the chosen), the arrows Ar_640A lit, Ar_640D
+   (or, when the item is off and `third`, the third colour), each label by `row_fn` at x 122 of 640
+   and 24 of 480 under its line. Rows_Top is the usual top (the rows centred between 56 and 374 of
+   480), Rows_ArrowDy the usual arrow offset (20 of 480). */
+typedef void RowFn(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w);
+void Rows_Draw(Menu *m, RowFn *row_fn, bool two, bool third, int top, int arrow_dy);
+int Rows_Top(const Menu *m);
+int Rows_ArrowDy(void);
 /* 0x4d3fa0: n titles in a row, the last lit */
 void Fe_TitleRow(int x, int y, const char *const *names, int n);
 int Fe_ToSet(void);                       /* DAT_00819048: the players still to set up */

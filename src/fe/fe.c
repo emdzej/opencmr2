@@ -422,7 +422,7 @@ static void st_leave(ProcGroup *g, uint32_t s)
     if (!to_game) {
         if (to_stage) Game_SetMode(2);
         else if (to_race) Game_SetMode(3);
-        else PENDING_NOTE(0x4a9a40, "the quit");
+        else gw8(0x663db8, 1);   /* 0x4a9a40: the quit */
         return;
     }
     if (m == 0 || m == 1) {

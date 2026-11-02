@@ -70,6 +70,7 @@ bool app_frame(void)
         Timer_Sample(ms);
         Game_Frame();
         D3d_Present();
+        if (gm8(0x663db8)) return false;   /* the quit (0x4a9a40): the message loop ends */
     }
     return true;
 }

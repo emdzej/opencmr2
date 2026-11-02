@@ -359,3 +359,47 @@ void List_Draw(Menu *m, const char *hdr, int cy, int xo, int first, bool lit)
         }
     }
 }
+
+int Rows_Top(const Menu *m)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    return (h * 0x38 / 0x1e0 + h * 0x176 / 0x1e0) / 2 - h * 0x24 / 0x1e0 * m->n / 2;
+}
+
+int Rows_ArrowDy(void)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    return h * 0x14 / 0x1e0;
+}
+
+void Rows_Draw(Menu *m, RowFn *row_fn, bool two, bool third, int top, int arrow_dy)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int row = h * 0x24 / 0x1e0;
+    int16_t r[4] = {(int16_t)(w * 99 / 0x280), (int16_t)top, (int16_t)(w * 0x11a / 0x280), 1};
+    Rect_Fill(r, gm(m->sel == 0 ? 0x524974 : 0x524978), 1);
+    r[1]++;
+    Rect_Fill(r, gm(m->sel == 0 ? 0x524968 : 0x52496c), 1);
+    Tex *a = g_fe.arrow_a;
+    int16_t aw = a ? (int16_t)a->width : 0, ah = a ? (int16_t)a->height : 0;
+    for (int i = 0; i < m->n; i++) {
+        MenuItem *it = &m->items[i];
+        bool on = m->sel == i;
+        Tex *t = on ? g_fe.arrow_a : g_fe.arrow_d;
+        uint32_t c = on ? 0x524968 : (!third || (it->flags & 1)) ? 0x52496c : 0x524970;
+        if (t) {
+            Rect16 src = {0, 0, t->width, t->height};
+            Rect16 dst = {(int16_t)(w * 100 / 0x280), (int16_t)(arrow_dy + top + row * i - ah / 2), aw, ah};
+            Sprite_Add(&src, &dst, t, 1, 0, NULL, NULL, gm(c), 8);
+        }
+        row_fn(m, it, two, w * 0x7a / 0x280, h * 0x18 / 0x1e0 + r[1], c, w);
+        bool lit = m->sel == i || m->sel == i + 1;
+        r[1] = (int16_t)(row * (i + 1) + top);
+        Rect_Fill(r, gm(lit ? 0x524974 : 0x524978), 1);
+        r[1]++;
+        Rect_Fill(r, gm(lit ? 0x524968 : 0x52496c), 1);
+    }
+}

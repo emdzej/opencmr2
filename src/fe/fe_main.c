@@ -1,5 +1,7 @@
 /* The language page and the main menu's callbacks (0x4ef270-0x4ef420, 0x4f25d0, 0x4f3400, 0x4e2da0,
    0x4d4ba0). */
+#include "audio/music.h"
+#include "exe.h"
 #include "fe/fe.h"
 #include "fe/fe_page.h"
 #include "fe/fe_res.h"
@@ -10,7 +12,9 @@
 #include "game/select.h"
 #include "pending.h"
 #include "render/d3d7.h"
+#include "font.h"
 #include "text.h"
+#include <stdio.h>
 #include <string.h>
 
 static uint32_t idle_since;   /* DAT_0081904c */
@@ -129,4 +133,144 @@ void fe_4f25d0(Menu *m, bool back)
     Sel_Reset();
     for (uint32_t a = 0x817784; a < 0x817c84; a += 0x100) gw8(a, 0);   /* 0x4d05f0 */
     gw32(0x817780, 0xffffffffu);
+}
+
+/* ---- the Quit page (0x823df8): yes to 0x820798 (whose frame leaves the game, 0x4ef5e0), no back ---- */
+
+static bool quit_no;   /* DAT_00819878 */
+
+/* 0x4e2ab0: the trail, "Are you sure?" over the rows, the main menu's strip unlit */
+void fe_4e2ab0(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 1, NULL, -1);
+    List_Draw(m, Text_Get(0x89), -1, -1, 0, true);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);   /* 0x4f8410 */
+}
+
+/* 0x4f3b00: "No" first */
+void fe_4f3b00(Menu *m, bool back)
+{
+    (void)back;
+    quit_no = false;
+    m->sel = 1;
+}
+
+/* 0x4f3b20: no */
+void fe_4f3b20(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    quit_no = true;
+}
+
+/* 0x4f3b30: left other than by no or back (the main menu's strip moved on): to the quit */
+void fe_4f3b30(Menu *m, bool back)
+{
+    (void)m;
+    if (!quit_no && !back) Menu_Goto(&pg_820798);   /* 0x4f8990 */
+}
+
+/* 0x4ef5e0: the front end left for nothing: the quit */
+void fe_4ef5e0(Menu *m)
+{
+    (void)m;
+    Fe_Leave(false, false, false);
+}
+
+/* ---- the Options page (0x81f118) ---- */
+
+/* 0x4e2590: the trail, the rows, the main menu's strip unlit */
+void fe_4e2590(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 1, NULL, -1);
+    List_Draw(m, NULL, -1, -1, 0, true);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);   /* 0x4f8410 */
+}
+
+/* 0x4f29b0: the Cheats row (1000) on when a cheat has been found (0x52afc0's bits 0-7, by 0x406360)
+   or one of the cheat options 4-11 (0x52e890, by 0x406410) is on */
+void fe_4f29b0(Menu *m, bool back)
+{
+    (void)back;
+    Fe_SetPlayer(0);
+    bool any = gm8(0x52afc0) != 0 || (gm32(0x52e890) & 0xff0) != 0;
+    MenuItem *it = Menu_Item(m, 1000);
+    if (any) it->flags |= MIF_ENABLED | MIF_SELECTABLE;
+    else it->flags &= (uint8_t)~(MIF_ENABLED | MIF_SELECTABLE);
+}
+
+/* ---- the Sound page (0x81fa78): the music, effects and speech volumes (0x52afb8 bits 0-6, 7-13,
+   14-20) in tens ---- */
+
+static uint32_t vols_kept[3];   /* DAT_0081903c, DAT_00819860, DAT_00819754 */
+
+static uint32_t vol(int shift) { return gm32(0x52afb8) >> shift & 0x7f; }   /* 0x405e40, 0x405e70, 0x405ea0 */
+
+/* 0x405e10, 0x405e50, 0x405e80 (only the music's sets the player's volume) */
+static void set_vol(int shift, uint32_t v)
+{
+    gw32(0x52afb8, (gm32(0x52afb8) & ~(0x7fu << shift)) | (v & 0x7f) << shift);
+    if (shift == 0) Music_SetVolume((int)(v & 0x7f));
+}
+
+/* the three set, and the menus' sounds at the effects' volume (0..0x4000) */
+static void set_vols(uint32_t music, uint32_t fx, uint32_t speech)
+{
+    set_vol(0, music);
+    set_vol(7, fx);
+    set_vol(14, speech);
+    Menu_SetVolume((int32_t)(vol(7) << 0x10) / 100 / 4);
+}
+
+/* 0x4f2840: the volumes kept for a cancel, the rows from them */
+void fe_4f2840(Menu *m, bool back)
+{
+    (void)back;
+    for (int i = 0; i < 3; i++) {
+        vols_kept[i] = vol(7 * i);
+        m->items[i].value = (uint8_t)(vol(7 * i) / 10);
+    }
+}
+
+/* 0x4f2b00: the rows into the volumes */
+void fe_4f2b00(Menu *m)
+{
+    set_vols(m->items[0].value * 10u, m->items[1].value * 10u, m->items[2].value * 10u);
+}
+
+/* 0x4f2b70: back puts the kept volumes back; done keeps the rows' */
+void fe_4f2b70(Menu *m, bool back)
+{
+    if (back) set_vols(vols_kept[0], vols_kept[1], vols_kept[2]);
+    else fe_4f2b00(m);
+}
+
+/* the Sound page's labels: the three volumes "name n", Done (4) plain */
+static void sound_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    (void)m, (void)two, (void)w;
+    char b[256];
+    if (it->id < 0 || it->id == 3) return;
+    if (it->id < 3) snprintf(b, sizeof b, exe_str(0x516098), Text_Get(it->text), it->value * 10);
+    else if (it->id == 4) snprintf(b, sizeof b, "%s", Text_Get(it->text));
+    else return;
+    Font_Print(1, b, x, y, gm(c), 0x11);
+}
+
+/* 0x4e2610: the trail; the rows (centred a little higher than the option pages', between 8+38 and
+   384 of 480); the main menu's strip unlit */
+void fe_4e2610(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    int top = (h * 8 / 0x1e0 + h * 0x26 / 0x1e0 + h * 0x180 / 0x1e0) / 2 - h * 0x24 / 0x1e0 * m->n / 2;
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 2, NULL, -1);
+    Rows_Draw(m, sound_row, false, false, top, h * 2 / 0x1e0 + h * 0x12 / 0x1e0);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
 }

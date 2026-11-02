@@ -730,9 +730,6 @@ void fe_4d6f10(Menu *m)
     if (gm32(0x52afb4) >> 19 & 1) Strip_DrawMain(&pg_81d6d8, false, NULL);
 }
 
-typedef void RowFn(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w);
-static void rows_draw(Menu *m, RowFn *row_fn, bool two, bool third);
-
 /* ---- a new driver (0x4f0960): the tag (0x824a38), the full name (0x81d8b8), the birth date
    (0x81bc98), then the page after the drivers ---- */
 
@@ -988,7 +985,7 @@ void fe_4d7750(Menu *m)
     const char *names[2] = {player_title, Text_Get(0x17b)};
     Fe_Titles(m, title_x(), title_y(), true, 3, names, 2);
     Fe_Header();
-    rows_draw(m, date_row, false, false);
+    Rows_Draw(m, date_row, false, false, Rows_Top(m), Rows_ArrowDy());
     Fe_Hint(Text_Get(0x57), true);
 }
 
@@ -1234,40 +1231,6 @@ static void setup_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c,
     Font_Print(1, b, x, y, gm(c), 0x11);
 }
 
-/* 0x4d8ed0's rows as 0x4da710, 0x4daf90 and 0x4d7750 draw them: the lines between (lit about the
-   chosen), the arrows Ar_640A lit, Ar_640D (or, when the item is off and `third`, the third colour),
-   each label by `row` */
-static void rows_draw(Menu *m, RowFn *row_fn, bool two, bool third)
-{
-    int w, h;
-    screen(&w, &h);
-    int row = h * 0x24 / 0x1e0;
-    int16_t top = (int16_t)((h * 0x38 / 0x1e0 + h * 0x176 / 0x1e0) / 2 - row * m->n / 2);
-    int16_t r[4] = {(int16_t)(w * 99 / 0x280), top, (int16_t)(w * 0x11a / 0x280), 1};
-    Rect_Fill(r, gm(m->sel == 0 ? 0x524974 : 0x524978), 1);
-    r[1]++;
-    Rect_Fill(r, gm(m->sel == 0 ? 0x524968 : 0x52496c), 1);
-    Tex *a = g_fe.arrow_a;
-    int16_t aw = a ? (int16_t)a->width : 0, ah = a ? (int16_t)a->height : 0;
-    for (int i = 0; i < m->n; i++) {
-        MenuItem *it = &m->items[i];
-        bool on = m->sel == i;
-        Tex *t = on ? g_fe.arrow_a : g_fe.arrow_d;
-        uint32_t c = on ? 0x524968 : (!third || (it->flags & 1)) ? 0x52496c : 0x524970;
-        if (t) {
-            Rect16 src = {0, 0, t->width, t->height};
-            Rect16 dst = {(int16_t)(w * 100 / 0x280), (int16_t)(h * 0x14 / 0x1e0 + top + row * i - ah / 2), aw, ah};
-            Sprite_Add(&src, &dst, t, 1, 0, NULL, NULL, gm(c), 8);
-        }
-        row_fn(m, it, two, w * 0x7a / 0x280, h * 0x18 / 0x1e0 + r[1], c, w);
-        bool lit = m->sel == i || m->sel == i + 1;
-        r[1] = (int16_t)(row * (i + 1) + top);
-        Rect_Fill(r, gm(lit ? 0x524974 : 0x524978), 1);
-        r[1]++;
-        Rect_Fill(r, gm(lit ? 0x524968 : 0x52496c), 1);
-    }
-}
-
 /* 0x4da710 / 0x4daf90: the single race's options, the labels by setup_row; the trail Arcade, Single
    Race; the hint twice and the locations' strip (scroller 10) unlit */
 static void setup_draw(Menu *m, bool two)
@@ -1276,7 +1239,7 @@ static void setup_draw(Menu *m, bool two)
     Fe_Header();
     Fe_Titles(m, title_x(), title_y(), true, 3, names, 2);
     Fe_Hint(Text_Get(0x57), true);
-    rows_draw(m, setup_row, two, true);
+    Rows_Draw(m, setup_row, two, true, Rows_Top(m), Rows_ArrowDy());
     Fe_Hint(Text_Get(0x57), true);
     Strip_Draw(Fe_Scroll(10), false);
 }
