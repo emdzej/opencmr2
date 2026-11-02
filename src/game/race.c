@@ -1168,14 +1168,16 @@ static void split_labels(int p)
         int16_t v[4];
         char t[256];
         bool say = true;
-        if (Gs_Mode() == 4) PENDING_NOTE(0x473810, "the championship's names in the split screen");
         if (!Gs_SelBit26()) {
+            /* the names: in the challenge the match's sides' tags (0x473810), else the players' */
+            bool lost = R.winner == -1 || R.winner != p;
+            int who = lost ? o : p;
+            char name[32];
+            snprintf(name, sizeof name, "%s", Gs_Mode() == 4 ? Challenge_Tag(Challenge_Match(), who) : Player_Name(who));   /* 0x516e2c */
             View_Rect(p, v);
             Rect_Fill(v, dark, 2);
-            if (R.winner == -1 || R.winner != p)
-                snprintf(t, sizeof t, "%s %s %s", Text_Get(0x86), Text_Get(0x87), Player_Name(o));
-            else
-                snprintf(t, sizeof t, "%s %s", Text_Get(0x94), Player_Name(p));
+            if (lost) snprintf(t, sizeof t, "%s %s %s", Text_Get(0x86), Text_Get(0x87), name);
+            else snprintf(t, sizeof t, "%s %s", Text_Get(0x94), name);
         } else if ((gm32(0x52f2b0) >> 0xb & 1) && (gm32(0x52f2b0) & 7) == 0) {
             View_Rect(p, v);
             Rect_Fill(v, dark, 2);
