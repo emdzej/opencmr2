@@ -70,7 +70,7 @@ static uint8_t auto_box(int p)
 }
 
 /* 0x4eb0c0 */
-static void set_auto_box(int p, uint8_t v)
+void Fe_SetAutoBox(int p, uint8_t v)
 {
     if (mode() == 4) {
         uint32_t a = 0x52f3ec + 0xc4u * (uint32_t)p;
@@ -289,7 +289,7 @@ static void open_rallies(void)
 void fe_4f1a40(Menu *m, MenuItem *it)
 {
     Fe_SetPlayer(0);
-    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    Fe_SetAutoBox(Fe_SetupPlayer(), m->items[0].value);
     if (Fe_ToSet() == 0) {
         switch (mode()) {
         case 0:
@@ -383,7 +383,7 @@ void fe_4fac70(Menu *m, bool back)
 void fe_4fad40(Menu *m, MenuItem *it)
 {
     (void)it;
-    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    Fe_SetAutoBox(Fe_SetupPlayer(), m->items[0].value);
     Menu_Goto(Fe_ToSet() == 0 ? &pg_826ba0 : &pg_8241b8);
 }
 
@@ -463,7 +463,7 @@ void fe_4fae70(Menu *m, MenuItem *it)
 void fe_4fadd0(Menu *m, MenuItem *it)
 {
     (void)it;
-    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    Fe_SetAutoBox(Fe_SetupPlayer(), m->items[0].value);
     bool two = (gm32(0x52afb4) >> 13 & 0xf) == 2;
     if (Fe_ToSet() != 0) {
         if (two) Menu_SetParent(&pg_8241b8, m);
@@ -485,7 +485,7 @@ void fe_4fadd0(Menu *m, MenuItem *it)
 void fe_4faea0(Menu *m, MenuItem *it)
 {
     (void)it;
-    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    Fe_SetAutoBox(Fe_SetupPlayer(), m->items[0].value);
     Menu_Goto(Fe_ToSet() == 0 ? &pg_826420 : &pg_8241b8);
 }
 
@@ -503,7 +503,7 @@ void fe_4f19d0(Menu *m, bool back)
 void fe_4f1b30(Menu *m, MenuItem *it)
 {
     (void)it;
-    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    Fe_SetAutoBox(Fe_SetupPlayer(), m->items[0].value);
     if (Fe_ToSet() == 0) {
         open_rallies();
         Menu_Goto(&pg_823858);

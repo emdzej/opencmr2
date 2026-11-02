@@ -13,6 +13,8 @@ int Profiles_Count(void);                      /* 0x4eb440 */
 const uint8_t *Profiles_Entry(int i);          /* 0x4eb450: name (4 bytes), word, word */
 bool Profiles_InUse(int i);                    /* 0x4ebd60 */
 bool Profile_LoadInto(int player, int i);      /* 0x4eb4c0 */
+#include <stddef.h>
+uint8_t *Profile_LoadFile(const uint8_t *e, size_t *size);   /* 0x4eb2e0, 0x4eb4b0: malloc'd, NULL none */
 
 /* The saved championships (gamesave\*.rcs) */
 void Champs_Scan(void);                  /* 0x4f4ef0 */

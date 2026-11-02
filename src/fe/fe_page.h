@@ -37,6 +37,7 @@ int Fe_ToSet(void);                       /* DAT_00819048: the players still to 
 int Fe_SetupPlayer(void);                 /* players - DAT_00819048 - 1: the one being set up */
 void Fe_PlayerTitle(char *dst, size_t cap);   /* "Player n" for that player */
 void Fe_Leave(bool game, bool stage, bool race);   /* 0x4d2070 */
+void Fe_SetAutoBox(int player, uint8_t v);         /* 0x4eb0c0: the profile's automatic box (+0x54 bit 5) */
 void Fe_ChampTables(void);                /* 0x4cf060 */
 void Fe_OptionsMode(void);                /* 0x4eabc0 */
 void Fe_CarSetups(void);                  /* 0x406820 */

@@ -1,0 +1,10 @@
+/* The championship standings (0x533538-0x533698): sixteen points (0x533558, 16.16) with their order
+   (0x533538) and places (0x533548), sixteen times (0x533658, 16.16 s) with theirs (0x533638,
+   0x533648), and a count each (0x5335a8, the tie-break of equal points). Index 15 down are the
+   players, 0 up the computers. */
+#pragma once
+#include <stdint.h>
+
+void Stand_SetPoints(int i, int points);   /* 0x40d090 */
+void Stand_SetTime(int i, uint32_t cs);    /* 0x40d3f0: from 1/100 s */
+void Stand_Sort(void);                     /* 0x40d0c0 */

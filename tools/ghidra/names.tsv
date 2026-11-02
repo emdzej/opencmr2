@@ -1339,3 +1339,16 @@
 004ffed0	sv_save_go	game	high	The service Save item chosen
 00500020	sv_save_yes	game	high	The service save question's Yes: written over
 0050e280	sv_save_list_draw	game	high	The service Save page: the saved championships' rows
+0040d090	Stand_SetPoints	game	high	A standings slot's points (16.16)
+0040d3f0	Stand_SetTime	game	high	A standings slot's time from 1/100 s
+0040d0c0	Stand_Sort	game	high	The standings sorted: points down, times up, with ties
+0040d270	Stand_PointTies	game	high	The points' places and their ties (players, the counts)
+0040d180	Stand_TimeTies	game	high	The times' places and their ties (players)
+00409010	Player_CarDriven	game	high	A car marked driven in the player's profile
+004eb160	Champ_RecordsToStandings	fe	high	The standings from the player records
+004fb400	Champ_Load	fe	high	A saved championship's record put back
+004f3a00	fe_load_go	fe	high	Load: the chosen championship put back and started
+004ef4c0	fe_load_enter	fe	high	The Load page entered: the list at its top
+004ef4e0	fe_load_frame	fe	high	The Load page's frame: Up and Down in the list
+004e20e0	fe_load_draw	fe	high	The Load page: the saved championships' rows
+004e2040	fe_newload_draw	fe	high	The New / Load page's draw

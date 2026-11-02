@@ -66,6 +66,14 @@ static void profile_path(char *dst, size_t cap, uint32_t prof)
     entry_path(dst, cap, e);
 }
 
+/* 0x4eb2e0 and 0x4eb4b0: the saved profile of a name and word (12 bytes as at a profile's +0x10) */
+uint8_t *Profile_LoadFile(const uint8_t *e, size_t *size)
+{
+    char path[64];
+    entry_path(path, sizeof path, e);
+    return plat_load_user_file(path, size);
+}
+
 /* 0x4eb340: a profile's 0x650 bytes to its file */
 static bool profile_save(uint32_t prof)
 {
