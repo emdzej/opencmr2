@@ -1279,3 +1279,5 @@
 00501210	Sv_SetTimeLeft	service	high	a player's service time left, set
 00502d40	Sv_SetupTime	service	high	a set-up part's time
 00503930	Sv_RepairTime	service	high	a part's repair time
+0050cc10	Sv_Sliders	service	high	the set-up slider: bar, original and new values, the ends and tyre places
+00502c60	Sv_SetupOriginal	service	high	a set-up part's original value

@@ -505,6 +505,61 @@ static void part_panel(bool repair)
     for (int k = 0; k < 4; k++) type1(5, 1, 1, Text_Get(text + k), X(0x1c), Y(0x19a + 0xe * k), C_TEXT, C_NEXT, 0x11);
 }
 
+/* the slider's x (640 x 480) for value v of part (the tyres' 7 places, the gearbox's 5, the others
+   0-10 in tenths of the bar); the last place at 0x151 */
+static int slider_x(int part, int v, bool tenths)
+{
+    if (part == 0) return v == 6 ? 0x151 : v * 0x1824 / 0x78 + 0x1c;
+    if (part == 1) return v == 4 ? 0x151 : v * 0x1e2d / 100 + 0x1c;
+    return (tenths ? v * 0x135 / 100 : v * 0x135 / 10) + 0x1c;
+}
+
+/* 0x50cc10: the set-up's slider: the bar, the original value outlined (lit), the new one filled
+   (blinking when lit) and the ends' names; the tyres' places named along it */
+static void sliders(bool lit)
+{
+    static const int16_t ends[7][2] = {{0, 0}, {0xc9, 0xca}, {0xcb, 0xcc}, {0xce, 0xcd}, {0xce, 0xcd}, {0xcf, 0xd0}, {0xd2, 0xd1}};
+    int part = value_of(1), p = Sv_Player();
+    const uint8_t *c = lit ? C_LIT : C_LINE;
+    int16_t r[4] = {(int16_t)X(0x1c), (int16_t)Y(0x160), (int16_t)X(0x147), (int16_t)Y(0xd)};
+    Rect_Fill(r, gm(0x5273b8), 3);
+    if (lit && !(Timer_Centis() / 0x14 & 1)) {
+        r[0] = (int16_t)(r[0] - 3), r[2] = (int16_t)(r[2] + 6), r[1] = (int16_t)(r[1] - 3);
+        r[3] = (int16_t)((part == 0 ? Y(0x18e) : Y(0x181)) - r[1]);
+        outline(r, C_LIT);
+    }
+    int o = part >= 0 && part <= 6 ? gms8(0x82bf04 + 7u * (uint32_t)p + (uint32_t)part) : 0;   /* 0x502c60 */
+    int16_t m[4] = {(int16_t)(slider_x(part, o, true) * sw / 0x280), (int16_t)(Y(0x160) + 1), (int16_t)X(0x12), (int16_t)(Y(0xd) - 2)};
+    if (part > 6) return;
+    if (lit) outline(m, C_LINE);
+    m[0] = (int16_t)(slider_x(part, sv_setup.items[0].value, false) * sw / 0x280);
+    if (!lit || !(Timer_Centis() / 0x14 & 1)) Rect_Fill(m, c, 3);
+    if (part != 0) {
+        Font_Print(1, Text_Get(ends[part][0]), X(0x1c), Y(0x16c), C_TEXT, 9);
+        Font_Print(1, Text_Get(ends[part][1]), X(0x163), Y(0x16c), C_TEXT, 0xc);
+        return;
+    }
+    int16_t t[4] = {0, (int16_t)Y(0x16f), 1, (int16_t)Y(0x1a)};
+    int mid = lit;
+    for (int i = 0; i < 7; i++) {
+        char b[64];
+        int x;
+        uint32_t f;
+        if (i == 0) x = X(0x1c), snprintf(b, sizeof b, "%s", Text_Get(0x41)), f = 9;
+        else if (i == 6) x = X(0x163), snprintf(b, sizeof b, "%s", Text_Get(0x40)), f = 0xc;
+        else x = (i * 0x1824 / 0x78 + 0x25) * sw / 0x280, snprintf(b, sizeof b, "%s", Text_Get(0x41 + (i & 1))), f = 10;
+        Font_Print(1, b, x, Y(0x16c), C_TEXT, f);
+        if (i & 1) {
+            mid = Font_TextWidth(1, b) / 2 + x;
+            Font_Print(1, Text_Get(i / 2 + 0x3d), x + sw * -0x1a / 0x280, Y(0x179), C_TEXT, 10);
+        } else if (i > 0) {
+            int half = i == 6 ? Font_TextWidth(1, b) : Font_TextWidth(1, b) / 2;
+            t[0] = (int16_t)((mid + (x - half)) / 2);
+            Rect_Fill(t, C_LINE, 3);
+        }
+    }
+}
+
 static int last_view = -1;   /* DAT_00529430 */
 
 /* 0x50eba0: the top bar and the shown item's panel; with the set-up or repair list on a new part the
@@ -521,7 +576,7 @@ void sv_main_draw(Menu *m)
         time_panel();
         class_panel();
         list_panel(7, value_of(1), 2, (int16_t)gm32(0x5293a0), 0xf2, false);   /* 0x50a8a0 */
-        PENDING_NOTE(0x50cc10, "the set-up's sliders");
+        sliders(false);
         part_panel(false);
         PENDING_NOTE(0x500550, "the lines to the car's parts (0x82ac68)");
         v = Sv_SetupView(value_of(1));
@@ -558,7 +613,7 @@ void sv_setup_draw(Menu *m)
     time_panel();
     class_panel();
     list_panel(7, value_of(1), 2, (int16_t)gm32(0x5293a0), 0xf2, true);   /* 0x50a8a0 */
-    PENDING_NOTE(0x50cc10, "the set-up's sliders");
+    sliders(true);
     part_panel(false);
     PENDING_NOTE(0x500550, "the lines to the car's parts (0x82ac68)");
 }
