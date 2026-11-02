@@ -14,6 +14,7 @@ int Opp_Computers(void);                /* DAT_00541f98 */
 int Opp_Place(int player);              /* 0x455ca0 */
 int Opp_Order(int i);                   /* 0x455cf0 */
 int Opp_PlayerSlot(int player);         /* 0x455de0 */
+void Opp_AddStageTimes(void);           /* 0x455d10 */
 int32_t Opp_Time(int i);                /* 0x455d70: the i-th place's time, 1/100 s */
 bool Opp_Loaded(void);                  /* 0x455ae0 */
 int Opp_PlaceAt(int player, int split); /* 0x455c80 */

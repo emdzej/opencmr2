@@ -40,6 +40,8 @@
 #include "sim/fade.h"
 #include "sim/progress.h"
 #include "exe.h"
+#include "world/tod.h"
+#include "game/standings.h"
 #include "fixmath.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
@@ -502,6 +504,15 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
     if (fin) Camera_SelectAt((int)slot, 7, 0xffff, Camera_Car((int)slot), false);   /* the trackside cameras */
 }
 
+/* 0x4071c0 (not in the network game): a rally's last stage, the super special (10) of an odd rally,
+   else by the level 3, 7 or 9 */
+static int Rally_LastStage(uint32_t rally, uint32_t level)
+{
+    if (Gs_ModeBit19()) PENDING_NOTE(0x4071c0, "the network rally's last stage");
+    if (rally & 1) return 10;
+    return level == 0 ? 3 : level == 1 ? 7 : level == 2 ? 9 : 0;
+}
+
 /* state 9, 0x41db10: after the finish, four seconds (by the clock) before the finish is counted shown;
    once every player's is and no fade runs, on to the replay */
 static void s9_finished(ProcGroup *g, uint32_t slot)
@@ -521,11 +532,30 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
         R.first = true;
         return;
     }
+    for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+    uint32_t m = Gs_Mode();
+    if (Gs_SelBit22() || Gs_SelBit24()) PENDING_NOTE(0x4483e0, "the finish's arcade and night tables");
+    if (Gs_SelBit27()) PENDING_NOTE(0x455af0, "the finishers' times into the CPU table (0x537fbc)");
+    /* in alternation only once the last player has driven: the stage's times into the championship's
+       (rally, single rally, mode 8), and at a championship rally's last stage its points */
+    if (!Gs_ModeBit17() || Race_Base() == (int)Gs_Players() - 1) {
+        if (m == 0 || m == 1 || m == 8) {
+            Opp_AddStageTimes();   /* 0x455d10 */
+            if (m == 0 && (int)Tod_Stage() == Rally_LastStage(Tod_Rally(), Gs_Mode2())) Stand_AwardPoints();   /* 0x40cf30 */
+        }
+    }
+    if (m == 5) PENDING_NOTE(0x448620, "the arcade's points (0x40ccd0)");
+    if (m != 4 && !(m >= 8 && m <= 12) && (!Gs_ModeBit17() || Race_Base() == (int)Gs_Players() - 1)) {
+        if (gm8(0x52afc2)) {
+            /* with a cheat found: the players' records not kept */
+            for (uint32_t i = 0; i < players(); i++) gw8(0x537f68 + i, 0), gw8(0x537f78 + i, 0);
+        } else PENDING_NOTE(0x41b460, "the drivers' records after the stage");
+    }
     Results_Start(false);   /* 0x44a1b0 */
     Skids_Reset();          /* 0x465530 */
-    for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
     R.first = true;
 }
+
 
 /* 0x41e220, a player's replay fade's call: the replay from its start (the network game's others, the
    championship's and the CPU runs' replays of the other cars not ported) */
@@ -598,6 +628,8 @@ static void s11_results(ProcGroup *g, uint32_t slot)
         uint32_t m = Gs_Mode();
         bool service = Pause_ServiceAsked();
         Pause_ClearAsks();
+        /* a championship restarted at its rally's last stage: that rally's points back (0x40d010) */
+        if (m == 0 && (int)Tod_Stage() == Rally_LastStage(Tod_Rally(), Gs_Mode2())) Stand_UndoPoints();
         /* the players' carried damage dropped (0x408290) in the modes the original's switch lists */
         if (m <= 5 || (m >= 8 && m <= 10)) memset(gm(0x52ebc0), 0, 0x148 * 4);
         if ((m == 2 || m == 3 || m == 9 || m == 10) && !service && R.kind != 4) {

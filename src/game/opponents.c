@@ -2,6 +2,7 @@
    disassembly) and 0x40d520. */
 #include "game/weather.h"
 #include "game/opponents.h"
+#include "game/standings.h"
 #include "crt.h"
 #include "exe.h"
 #include "game/hud.h"
@@ -285,6 +286,13 @@ void Opp_Step(int race)
         if (Sectors_Split(i) && Gs_Mode() != 4) Opp_Insert(racing[race][i], Times_Race(), Sectors_SplitIndex(i));
         if (Sectors_Finished(i)) racer_done[i] = true;
     }
+}
+
+/* 0x455d10: the final split's times into the championship's (0x40d120) */
+void Opp_AddStageTimes(void)
+{
+    int sp = Sectors_Shown();
+    Stand_AddTimes(order[sp], by_time[sp], times[sp]);
 }
 
 int Opp_Computers(void) { return computers; }

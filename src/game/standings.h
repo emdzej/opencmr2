@@ -8,3 +8,6 @@
 void Stand_SetPoints(int i, int points);   /* 0x40d090 */
 void Stand_SetTime(int i, uint32_t cs);    /* 0x40d3f0: from 1/100 s */
 void Stand_Sort(void);                     /* 0x40d0c0 */
+void Stand_AddTimes(const int8_t *order, const int8_t *by, const int32_t *t);   /* 0x40d120 */
+void Stand_AwardPoints(void);              /* 0x40cf30: at a rally's end */
+void Stand_UndoPoints(void);               /* 0x40d010 */

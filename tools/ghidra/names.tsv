@@ -1352,3 +1352,9 @@
 004ef4e0	fe_load_frame	fe	high	The Load page's frame: Up and Down in the list
 004e20e0	fe_load_draw	fe	high	The Load page: the saved championships' rows
 004e2040	fe_newload_draw	fe	high	The New / Load page's draw
+0040d120	Stand_AddTimes	game	high	A stage's times into the championship's, sorted
+0040cf30	Stand_AwardPoints	game	high	A rally's points by the times' order (12 8 6 4 2 1)
+0040d420	Stand_PlacePoints	game	high	The points for a place
+0040d010	Stand_UndoPoints	game	high	The rally's points taken back on a restart
+00455d10	Opp_AddStageTimes	game	high	The final split's times into the championship's
+004071c0	Rally_LastStage	game	high	A rally's last stage by the level (network: the stage table)
