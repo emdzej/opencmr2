@@ -111,13 +111,24 @@ bool Car_Load(int n)
     int id;
     /* the player: in alternation (the race's kind 4) the one after the base, 0x41b370 */
     uint32_t pl = (uint32_t)n + (Race_Kind() == 4 ? (uint32_t)Race_Base() : 0);
-    if (!cpu) id = mode == 4 ? gm8(0x52f3e8 + 0xc4u * (uint32_t)n) : (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
+    if (mode == 4) {
+        /* the challenge: both cars of the match the same, one of the six at 0x516b98 (0x40eea0), the
+           first car's drawn unlike the last match's (0x51a8b8), into the record's slot of the car's
+           number (0x408600: not the match's driver's), flagged */
+        int32_t k = (int32_t)gm32(0x51a8b8);
+        if (n == 0) do k = crt_rand() % 6; while (k == (int32_t)gm32(0x51a8b8));
+        gw32(0x51a8b8, (uint32_t)k);
+        id = (int)exe_u32(0x516b98 + 4u * (uint32_t)k);
+        gw32(0x52f3e8 + 0xc4u * (uint32_t)n, (uint32_t)id & 0xff);
+        gw8(0x52f3ec + 0xc4u * (uint32_t)n, gm8(0x52f3ec + 0xc4u * (uint32_t)n) | 2);
+    } else if (!cpu) id = (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
     else if (mode == 5 || mode == 6) id = Sel_CpuCar(n);   /* 0x408010: by the car's own slot */
     else {
         PENDING_NOTE(0x457000, "Car_Load (the CPU cars of the other modes)");
         id = 0;
     }
-    int cls = (int)exe_u32(0x516b40 + 4u * (uint32_t)id);
+    /* the class (0x4a3630); in the challenge the drawn number in its place */
+    int cls = mode == 4 ? (int)gm32(0x51a8b8) : (int)exe_u32(0x516b40 + 4u * (uint32_t)id);
     /* the detail letter (0x51a3d0) and the set by the mode */
     char letter, far = 0;   /* the far model's letter (local_123) when there is one */
     int set = 1;
@@ -134,6 +145,11 @@ bool Car_Load(int n)
             far = (char)gm8(L + (split ? 0x13 : 6));
         } else letter = (char)gm8(L + (split ? 0x11 : 4));
         set = letter != 'A' ? 3 : 1;
+        break;
+    case 4:
+        /* the challenge: the split screen's letters at 0x5429c4 (a player) and 0x5429c5 */
+        if (cpu) letter = (char)(split ? gm8(0x5429c5) : gm8(L + 8));
+        else letter = (char)(split ? gm8(0x5429c4) : gm8(L + 7));
         break;
     case 10:
         letter = (char)gm8(L + 1);
@@ -173,7 +189,9 @@ bool Car_Load(int n)
     uint16_t ang[3];
     Csp_StartPos(n, sp);
     Csp_Angles(ang);
-    Car_Place(s->main, s->second, n, cls, ang, sp);
+    /* the class 0 for the head to head's CPU run (one player), the super special and the challenge */
+    bool none = (Gs_SelBit25() && !Gs_ModeBit19() && !split && n == 1) || Gs_SuperSpecial() || mode == 4;
+    Car_Place(s->main, s->second, n, none ? 0 : cls, ang, sp);
     Car *c = Car_Get(n);
     c->main = s->main;
     c->second = s->second;

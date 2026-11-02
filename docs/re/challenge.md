@@ -63,8 +63,16 @@ The port rebuilds the race on each of these (Play_End and Race_Frame); `Race_Ree
 way it came back in, so the set-up state and Stage_Load skip what the original's way does not do
 again (the resets; on event 7 also the opponents' times).
 
+## The cars (Car_Load 0x457000, mode 4)
+
+Both cars of a match are the same car: the first car's number is drawn (`rand() % 6`) until it
+differs from the last match's (0x51a8b8, -1 at the start), the second takes it; the car is
+0x40eea0's entry (0x516b98: cars 0, 4, 8, 9, 10, 11). 0x408600 writes it into the record's slot of
+the car's number (not the match's driver's) with +0xc bit 1. The slot table's class byte
+(0x542630) gets the drawn number, and Car_Place gets class 0 (as in the head to head's CPU run and
+the super special): equal handling. The detail letters are 0x51a3d0[7] (a player) and [8], in the
+split screen 0x5429c4 and 0x5429c5.
+
 ## Not ported
 
-- The computer opponent's car in mode 4 (Car_Load: a random car other than 0x51a8b8's, 0x40eea0,
-  0x408600).
 - The name entry of a second player and the two players' match (kind 3) are untested.
