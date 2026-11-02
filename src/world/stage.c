@@ -9,6 +9,8 @@
 #include "world/hpc.h"
 #include <stdio.h>
 #include "exe.h"
+#include "game/mem.h"
+#include "pending.h"
 #include <string.h>
 
 BflSlot g_stage_bfl, g_track_tex;
@@ -199,10 +201,19 @@ static int32_t rd32s(const uint8_t *p) { return (int32_t)((uint32_t)p[0] | p[1] 
 
 /* 0x456c70 -> 0x4583d0 in a rally (the head-to-head and arcade cases take other entries): the first
    record's x and z; y is left as the buffer at 0x542878 held. */
+static int32_t grid[8][3];   /* 0x542cd8 */
+void Csp_SetGrid(int car, int32_t x, int32_t z) { if (car >= 0 && car < 8) grid[car][0] = x, grid[car][2] = z; }
+
 void Csp_StartPos(int car, int32_t pos[3])
 {
-    (void)car;
     static int32_t held[3];   /* 0x542878 */
+    uint32_t sel = gm32(0x52f2ac);
+    if ((sel >> 0x1a & 1) || (sel >> 0x1f)) {   /* 0x4583d0: bits 26, 31: the grid */
+        held[0] = grid[car & 7][0], held[2] = grid[car & 7][2];
+        for (int i = 0; i < 3; i++) pos[i] = held[i];
+        return;
+    }
+    if ((sel >> 0x1b & 1)) PENDING_NOTE(0x4583d0, "Csp_StartPos (bit 27's two starts)");
     if (csp) {
         held[0] = rd32s(csp);
         held[2] = rd32s(csp + 8);

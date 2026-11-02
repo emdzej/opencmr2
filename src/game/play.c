@@ -40,24 +40,32 @@
 #include <string.h>
 
 static Obj camera;
-static Obj *cars[2];
+static Obj *cars[2 * CAR_MAX];
 
 static bool load_stage(void) { return true; }
 
-/* Cars_Load 0x456d90's part for one car: Car_Load, the lists, the progress start */
+/* Cars_Load 0x456d90's part: the grid, every car of the race (0x456ca0), Car_Load, the progress start, the
+   lists */
 static bool load_cars(void)
 {
-    if (!Car_Load(0)) {
-        plat_log("play: the car could not be loaded");
-        return false;
+    int n = Cars_Count();
+    if (Gs_SelBit22() || Gs_SelBit31()) Cars_Grid();   /* 0x4584d0 */
+    for (int i = 0; i < n; i++) {
+        if (!Car_Load(i)) {
+            plat_log("play: a car could not be loaded");
+            return false;
+        }
+        Car_ProgressStart(Car_Get(i));
     }
-    Sim_InitLists(1);
+    Sim_InitLists(n);
     Damage_CarsLoaded();
     Frame_SetRate(0x190000);   /* 25 frames a second, Cars_Load 0x466630 */
-    Car_ProgressStart(Car_Get(0));
-    cars[0] = Car_Slot(0)->main;
-    cars[1] = Car_Slot(0)->second;
-    World_SetCars(cars, cars[1] ? 2 : 1);
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        cars[k++] = Car_Slot(i)->main;
+        if (Car_Slot(i)->second) cars[k++] = Car_Slot(i)->second;
+    }
+    World_SetCars(cars, k);
     return true;
 }
 

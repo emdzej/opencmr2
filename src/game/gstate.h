@@ -19,6 +19,8 @@ static inline uint32_t Gs_SelBit24(void) { return gm32(0x52f2ac) >> 0x18 & 1; } 
 static inline uint32_t Gs_SelBit25(void) { return gm32(0x52f2ac) >> 0x19 & 1; }     /* 0x407e60 */
 static inline uint32_t Gs_SelBit26(void) { return gm32(0x52f2ac) >> 0x1a & 1; }     /* 0x407e70 */
 static inline uint32_t Gs_SelBit27(void) { return gm32(0x52f2ac) >> 0x1b & 1; }     /* 0x407e90 */
+static inline uint32_t Gs_SelBit22(void) { return gm32(0x52f2ac) >> 0x16 & 1; }     /* 0x407e30 */
+static inline uint32_t Gs_SelBit31(void) { return gm32(0x52f2ac) >> 0x1f; }           /* 0x407e80 */
 static inline uint32_t Gs_SelBit28(void) { return gm32(0x52f2ac) >> 0x1c & 1; }     /* 0x407ea0 */
 static inline uint8_t Gs_Byte537ef6(void) { return gm8(0x537ef6); }                 /* 0x41b370 */
 static inline uint32_t Gs_ClassB7c(int c) { return gm32(0x516c40 + 4 * (uint32_t)c); }   /* 0x40ee80 */

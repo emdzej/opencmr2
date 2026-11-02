@@ -1,6 +1,7 @@
 /* The sectors (see sectors.h). */
 #include "game/sectors.h"
 #include "game/gstate.h"
+#include "game/car_load.h"
 #include "sim/car.h"
 #include "sim/progress.h"
 #include "pending.h"
@@ -39,7 +40,7 @@ int32_t Sectors_Point(int i) { return i >= 0 && i < 64 ? split_at[i] : 0; }
 int Sectors_Shown(void) { return Gs_SelBit24() || Gs_SelBit25() ? nsplits : nsplits - 1; }
 
 /* 0x420190 for a rally: the players */
-static int race_cars(void) { return (int)Gs_SelBits14(); }
+static int race_cars(void) { return Cars_Racing(); }   /* 0x420190 */
 
 void Sectors_Init(void)
 {

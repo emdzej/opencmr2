@@ -864,6 +864,25 @@ car-to-car pass; the glows are placed whenever option 0 is on (Race_PoseInterp 0
 
 Checked in race_test: a ball rolls ahead of its car, and one inside another car's box knocks it.
 
+## The start grid
+
+`Cars_Load` 0x456d90 loads `Cars_Count` 0x456ca0 cars: `Cars_Racing` 0x420190 (selection bit 26, not
+networked: the players and the CPU cars from the low nibble of 0x52f2a9; bit 27: two; otherwise the
+players), plus one for the ghost (bit 28 with 0x406310), clamped to 1..8. The CPU cars come after the
+players (car n is a CPU car when n >= the player count, `Sel_CpuCar` 0x52ea98).
+
+With selection bit 22 or 31 it first calls `Cars_Grid` 0x4584d0, which fills the grid at 0x542cd8
+(twelve bytes per car, x and z used). Case 0 (the arcade; confirmed from the disassembly, jump table
+0x4589c4): the direction is the centre line's step from its last point before the finish
+(`Cat_FinishPoint() - 1`) to point 0, an angle by `atan2` (0x498d80, degrees at 0x5113f8, x 65536)
+turned to a table index by 1/5760. Car i gets slot k: k = i, the championship order at 0x533620 in
+mode 5 with more than two cars, 1 - i with two players. The slot is 5 k - 5 n units back along the
+direction (-10 for two cars), 4 units to one side for even k and the other for odd, so slot 0 is
+the last; the car's progress start (0x542d38 + 4 k) is the last point. Cases 1-3 (bit 27's head to
+head, bit 31, the network) are pending.
+
+`Csp_StartPos` (0x4583d0's part) returns the grid entry when selection bit 26 or 31 is set.
+
 ## Skid marks
 
 The skid marks (0x464c60-0x465ea0, `src/game/skids.c`) are kept per car (8) and wheel in a ring of 200

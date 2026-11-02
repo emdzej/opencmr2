@@ -882,3 +882,7 @@
 004fb370	Fe_ArcadeLocation	fe	high	The location chosen: rally/stage index bits 10-13, CPU cars, on
 004f3220	Fe_RaceOptionsEnter	fe	high	Single race options: laps and CPU cars from 0x52afbc
 004f0090	Fe_RaceOptions	fe	high	Single race options kept, the start
+00420190	Cars_Racing	game	high	The cars racing: players and CPU cars (bit 26), two (bit 27), else the players
+00456ca0	Cars_Count	game	high	The cars loaded: Cars_Racing, plus the ghost, 1..8
+004584d0	Cars_Grid	game	high	The start grid at 0x542cd8 (case 0 the arcade)
+004583d0	Csp_GridStart	game	medium	A car start: the grid with bits 26/31

@@ -22,6 +22,7 @@ void Stage_LoadTre(const char *stage, bool detail);
 bool Stage_LoadHpc(const char *stage);   /* 0x41fc90: <stage>.hpc, Hpc_Parse */
 bool Stage_LoadCsp(const char *stage);   /* 0x456c10: <stage>.csp, the start positions */
 void Csp_StartPos(int car, int32_t pos[3]);   /* 0x456c70 */
+void Csp_SetGrid(int car, int32_t x, int32_t z);   /* the grid at 0x542cd8 (Cars_Grid 0x4584d0) */
 void Csp_Angles(uint16_t a[3]);               /* 0x456c90 */
 extern C3d g_stage_obj, g_stage_sht;   /* TEMP.OBJ (scenery), TEMP.SHT */
 bool Stage_LoadObj(void);              /* 0x472830 */
