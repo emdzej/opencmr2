@@ -1358,3 +1358,13 @@
 0040d010	Stand_UndoPoints	game	high	The rally's points taken back on a restart
 00455d10	Opp_AddStageTimes	game	high	The final split's times into the championship's
 004071c0	Rally_LastStage	game	high	A rally's last stage by the level (network: the stage table)
+0041b460	Unlocks_AfterStage	game	high	After a stage: medals, the next rally, cars and bonus stages opened
+00408e30	Player_HasDriven	game	high	A car driven by the player (with the cheats' options)
+00408f20	Player_CountDriven	game	high	The profile's +0x18 count up
+00408f70	Player_CountMedal	game	high	The profile's +0x19 count up
+00409090	Medal_Championship	game	high	The championship's medal by the level
+00409150	Medal_Rally	game	high	A rally's medal by the level
+00409680	Medal_Arcade	game	high	The arcade's medal by the level and kind
+004097b0	Medal_All	game	high	Every medal field exactly 2
+004057c0	Settings_Dirty	game	high	The game's settings to be saved (0x52ea51)
+00407150	Rally_Stages	game	high	A rally's stages by the level

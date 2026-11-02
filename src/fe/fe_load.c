@@ -11,6 +11,7 @@
 #include "game/profile.h"
 #include "game/saves.h"
 #include "game/standings.h"
+#include "game/unlocks.h"
 #include "render/d3d7.h"
 #include "text.h"
 #include "world/tod.h"
@@ -100,19 +101,6 @@ static void to_gm(uint32_t dst, const uint8_t *src, uint32_t n)
     for (uint32_t i = 0; i < n; i++) gw8(dst + i, src[i]);
 }
 
-/* 0x409010: car c marked driven in the player's profile (+0x4c), the profile changed and its count at
-   +0x18 up (0x408f20); nothing without a profile or when marked already */
-static void car_driven(int p, uint32_t c)
-{
-    uint32_t w = Player_Word(p);
-    if ((w & 0x3c0000) == 0x3c0000) return;
-    uint32_t k = w >> 0x12 & 0xf, a = 0x52fa54 + k * 0x650, bit = 1u << (c & 0x1f);
-    if (gm32(a) & bit) return;
-    gw32(a, gm32(a) | bit);
-    gw8(0x52fa00 + k, 1);
-    gw8(0x52fa20 + k * 0x650, (uint8_t)(gm8(0x52fa20 + k * 0x650) + 1));
-}
-
 /* 0x4eb160: the standings from the player records' points (bits 6-12) and times (+4): the players
    into 15 down, the computers' from 0 up; then sorted */
 static void records_to_standings(void)
@@ -183,7 +171,7 @@ bool Champ_Load(const uint8_t *rec)
     }
     for (int p = 0; p < np; p++) {
         Fe_SetAutoBox(p, (uint8_t)(rd32(rec + 0x34 + 8 * p) >> 6 & 1));
-        car_driven(p, Player_Word(p) & 0x3f);
+        Player_CarDriven(p, Player_Word(p) & 0x3f);   /* 0x409010 */
     }
     for (uint32_t k = 0; k < 16; k++) gw8(0x5335a8 + k, rec[0x7dc + k]);   /* 0x40cff0 */
     /* Tod_Weather(0)'s block: with the stage table's time its two words at 0x52ea60 and what follows */

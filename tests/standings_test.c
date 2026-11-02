@@ -5,6 +5,7 @@
 #include "exe.h"
 #include "game/mem.h"
 #include "game/standings.h"
+#include "game/unlocks.h"
 #include "vfs.h"
 #include "vfs_host.h"
 #include <stdio.h>
@@ -53,6 +54,18 @@ int main(void)
     CHECK(p_order(0) == 2 && p_order(1) == 15);
     Stand_SetTime(0, 12345);
     CHECK(gms32(0x533658) == (int32_t)(((int64_t)12345 * 0x28f5c28) >> 16));
+    /* a championship's first rally won at level 0 (its last stage, 3): the next rally opened, the
+       rally's gold, the odd rallies' bit for rally 1 */
+    gw32(0x52afb4, (gm32(0x52afb4) & ~0x1ff8u) | 0u << 3 | 0u << 10);   /* mode 0, level 0 */
+    gw32(0x531350, 0x0);   /* player 0: profile 0, car 0, not a guest */
+    gw32(0x52f2ac, (gm32(0x52f2ac) & ~0x3ffu) | 0 | 3u << 5);   /* rally 0, stage 3 */
+    gw32(0x52b03c, 1u << 8), gw32(0x52b040, 0);
+    gw8(0x533648, 0), gw8(0x533548, 0);   /* slot 0 first on times and points */
+    Unlocks_AfterStage();
+    CHECK((gm32(0x52b03c) >> 8 & 0xf) == 2);
+    CHECK((gm32(0x52fa08 + 0x62c) >> 0x10 & 3) == 3);
+    CHECK(gm32(0x52b040) == 1);
+    CHECK(gm32(0x537f68) == 0x12);
     printf("standings_test: %s\n", fails ? "FAILED" : "ok");
     return fails ? 1 : 0;
 }

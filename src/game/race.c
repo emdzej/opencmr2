@@ -40,6 +40,7 @@
 #include "sim/fade.h"
 #include "sim/progress.h"
 #include "exe.h"
+#include "game/unlocks.h"
 #include "world/tod.h"
 #include "game/standings.h"
 #include "fixmath.h"
@@ -547,9 +548,9 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
     if (m == 5) PENDING_NOTE(0x448620, "the arcade's points (0x40ccd0)");
     if (m != 4 && !(m >= 8 && m <= 12) && (!Gs_ModeBit17() || Race_Base() == (int)Gs_Players() - 1)) {
         if (gm8(0x52afc2)) {
-            /* with a cheat found: the players' records not kept */
-            for (uint32_t i = 0; i < players(); i++) gw8(0x537f68 + i, 0), gw8(0x537f78 + i, 0);
-        } else PENDING_NOTE(0x41b460, "the drivers' records after the stage");
+            /* with a cheat found: nothing opened */
+            for (uint32_t i = 0; i < Gs_Players(); i++) gw32(0x537f68 + 4 * i, 0), gw32(0x537f78 + 4 * i, 0);
+        } else Unlocks_AfterStage();   /* 0x41b460 */
     }
     Results_Start(false);   /* 0x44a1b0 */
     Skids_Reset();          /* 0x465530 */
