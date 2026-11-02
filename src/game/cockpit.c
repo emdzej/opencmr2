@@ -62,12 +62,28 @@ static int16_t S16(const uint8_t *p) { return (int16_t)(p[0] | p[1] << 8); }
 static int32_t S32(const uint8_t *p) { return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24); }
 static void angles_at(uint16_t a[3], const uint8_t *p) { for (int i = 0; i < 3; i++) a[i] = (uint16_t)S16(p + 2 * i); }
 
+/* The files of cockpits set aside by a reset: a restart loads the cockpits again (s5) while the old
+   objects stay hung under the cars' second models, as in the original, whose race heap keeps their
+   data until the race ends; the port frees them then (Cockpit_Free) */
+static uint8_t *spent[16];
+static int nspent;
+
+void Cockpit_Free(void)
+{
+    for (int i = 0; i < nspent; i++) free(spent[i]);
+    nspent = 0;
+    for (int i = 0; i < 2; i++) free(ck[i].file), ck[i].file = NULL;
+}
+
 /* 0x475f80 (0x421610, the cameras' set-up): nothing loaded, the heads and hands at rest */
 void Cockpit_Reset(void)
 {
     for (int i = 0; i < 2; i++) {
         Cockpit *k = &ck[i];
-        free(k->file);
+        if (k->file) {
+            if (nspent == (int)(sizeof spent / sizeof *spent)) free(spent[--nspent]);   /* the port's bound */
+            spent[nspent++] = k->file;
+        }
         memset(k, 0, sizeof *k);
         k->eye[1] = 0x3333;
         k->hstate = 1;

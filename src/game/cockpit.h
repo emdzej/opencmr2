@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 void Cockpit_Reset(void);                      /* 0x475f80 */
+void Cockpit_Free(void);                       /* the port: the cockpits' files, at the race's end */
 void Cockpit_Load(int slot, int car);          /* 0x4760a0 */
 bool Cockpit_Ready(int car);                   /* 0x476520 */
 Obj *Cockpit_Model(int car);                   /* 0x58d49c */

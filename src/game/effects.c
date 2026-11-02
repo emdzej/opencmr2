@@ -633,7 +633,7 @@ static uint32_t v1(uint32_t base, int n) { return base + 4 * (uint32_t)n; }
 
 static uint32_t flat_len(int32_t dx, int32_t dz)
 {
-    int32_t l = (int32_t)Fx_Sqrt((uint32_t)(fx_mul(dx, dx) + fx_mul(dz, dz)));
+    int32_t l = (int32_t)Fx_Sqrt((uint32_t)fx_mul(dx, dx) + (uint32_t)fx_mul(dz, dz));
     return (uint32_t)(l < 0 ? -l : l);
 }
 

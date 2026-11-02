@@ -197,6 +197,7 @@ bool Play_Begin(void)
 void Play_End(void)
 {
     World_SetCars(NULL, 0);
+    Cockpit_Free();
     Scenery_CollFree();   /* 0x472720 */
     Scenery_FreeAll();
     Fin_Free();
