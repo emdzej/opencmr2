@@ -23,6 +23,7 @@ void Frame_Pitch(int32_t *m, uint32_t ang);                /* 0x422e70: m pitche
 void Frame_Blend(int32_t *o, const int32_t *a, const int32_t *b, int32_t k0, int32_t k1, int32_t kp, int mode);
 /* the chase camera's settings (0x53d048 the profile's offset as given, 0x53d090 its angle, 0x53d098
    the distance) */
+void Camera_LookAround(int p, bool on);   /* 0x423010: the pause's camera page's swing around the car */
 void Chase_SetOffset(int p, const int32_t off[3]);   /* 0x447d20 */
 void Chase_SetAngle(int p, int16_t a);               /* 0x447e20 */
 void Chase_Raw(int p, int32_t off[3]);               /* 0x447cf0 */

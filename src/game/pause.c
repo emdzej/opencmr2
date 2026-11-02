@@ -98,6 +98,7 @@ void Pause_Begin(int p)
 void Pause_End(void)
 {
     Input_SetMenuMode(false);
+    Camera_LookAround(base, false);
     paused = false;
     gw8(0x52af40, 0);
 }
@@ -530,7 +531,7 @@ static void camera_live(void)
     }
     if (cam_live) {
         Race_PausedCamera(base);
-        if (page == &pg_cam && pg_cam.sel == 2) PENDING_NOTE(0x423010, "the look-around on the camera page's distance");
+        Camera_LookAround(base, page == &pg_cam && pg_cam.sel == 2);   /* 0x423010: on the distance */
     }
 }
 

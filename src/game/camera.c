@@ -39,6 +39,11 @@ static int32_t chase_up[8][3];           /* 0x53d060 */
 static int32_t set_off[4][3], set_raw[4][3];   /* 0x53d000, 0x53d048 */
 static int16_t set_ang_raw[4], set_ang[4];     /* 0x53d090, 0x53d094 */
 static int32_t set_dist[4];                     /* 0x53d098 */
+/* the pause's camera page's look-around (0x423010): its state (0x538f00: 0 off, 1 opening, 2 open, 3
+   closing), its share (0x538c98, a tenth of 0.8 a step) and its swing's phase (0x538df8) */
+static int look[4];
+static int32_t look_k[4];
+static uint16_t look_ph[4];
 
 static void row(int32_t o[3], const int32_t *m, int r) { o[0] = m[4 * r], o[1] = m[4 * r + 1], o[2] = m[4 * r + 2]; }
 static void set_row(int32_t *m, int r, const int32_t v[3]) { m[4 * r] = v[0], m[4 * r + 1] = v[1], m[4 * r + 2] = v[2]; }
@@ -604,7 +609,7 @@ static void cam_init(Cam *k, int kind, int sub)
 static void cam_step(Cam *k)
 {
     const Car *c = Car_Get(k->car);
-    int flag = CI32(c, 0xc04) != 0;
+    int flag = CI32(c, 0xc04) != 0 && !look[k->player];
     const int32_t *r = follow(k->car);
     switch (k->kind) {
     case 1: case 2: case 10: interior_step(k, r, flag || CI32(c, 0xb60)); break;
@@ -620,13 +625,41 @@ static void cam_step(Cam *k)
     k->f60 = 0;
 }
 
-/* 0x423b20: the followed frame: the car's orientation (+0x750); the look-around (0x538f00) open */
+
+void Camera_LookAround(int p, bool on)
+{
+    if (!on) {
+        if (look[p]) look[p] = 3;
+    } else if (look[p] != 2) {
+        if (look[p] == 0) look_ph[p] = 0, look_k[p] = 0;
+        look[p] = 1;
+    }
+}
+
+/* 0x423b20: the followed frame: the car's orientation (+0x750); with the look-around the car's frame
+   (+0x754) blended by its share to the level one turned about the up axis by the swing: the sine of
+   its phase times 20 degrees, and 45 more over the distance's 8 to 24 */
 static void cam_ref(int p)
 {
     const Car *c = Car_Get(p);
     for (uint32_t i = 0; i < 12; i++) ref[p][i] = CI32(c, 4 * i);
     ref[p][12] = CI32(c, 0x30), ref[p][13] = CI32(c, 0x34), ref[p][14] = CI32(c, 0x38), ref[p][15] = 0x10000;
     if (Gs_Option(6)) PENDING_NOTE(0x423b20, "Camera_Ref (option 6)");
+    if (!look[p]) return;
+    int32_t d = set_dist[p];
+    int32_t amp = (int32_t)((((int64_t)(d - 0x80000)) << 16) / 0x100000) * 0x5a + 0x140000;
+    int32_t deg = fx_mul(g_sin[look_ph[p] & 0xfff], amp);
+    uint16_t a = (uint16_t)llrint((double)deg * (1.0 / 5760.0));
+    int32_t own[16];
+    for (uint32_t i = 0; i < 16; i++) own[i] = CI32(c, 0x40 + 4 * i);   /* +0x754 */
+    FxMat lv, r, o;
+    memcpy(lv.m, ref[p], sizeof lv.m);
+    level(lv.m);   /* 0x423070 */
+    memset(r.m, 0, sizeof r.m);
+    int32_t s = g_sin[a & 0xfff], co = g_sin[(a + 0x400) & 0xfff];
+    r.m[0] = co, r.m[2] = -s, r.m[5] = 0x10000, r.m[8] = s, r.m[10] = co, r.m[15] = 0x10000;
+    Mat_Mul(&o, &r, &lv);
+    blend(ref[p], own, o.m, look_k[p], look_k[p], look_k[p], 0);
 }
 
 static void cam_copy(Cam *d, const Cam *s)   /* 0x423ee0: all but the indices */
@@ -679,6 +712,7 @@ void Camera_Replace(int p)
 
 void Camera_Reset(int p)
 {
+    look[p] = 0;   /* (0x421610) */
     cur[p] = 0;
     sw[p] = -1;
     for (int i = 0; i < 2; i++) {
@@ -785,7 +819,12 @@ int Camera_Next(int p, int state)
 
 void Camera_Step(int p)
 {
-    PENDING_NOTE(0x538f00, "Camera_LookAround");
+    if (look[p]) {
+        if (look[p] == 1 && (look_k[p] += 0xccc) > 0xffff) look[p] = 2, look_k[p] = 0x10000;
+        else if (look[p] == 3 && (look_k[p] -= 0xccc) < 1) look[p] = 0, look_k[p] = 0;
+        look_ph[p] = (uint16_t)(look_ph[p] + 0x44);
+        if ((int16_t)look_ph[p] > 0xfff) look_ph[p] = (uint16_t)(look_ph[p] - 0x1000);
+    }
     cam_ref(p);
     Cam *c = &slots[cur[p] + 2 * p];
     cam_copy(&prev[p], sw[p] < 0 ? c : &out[p]);

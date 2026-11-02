@@ -1661,3 +1661,4 @@
 00410fa0	Race_DrawDemo	race	high	Race state 13's draw: the view and "demo"
 00406580	Unlocks_ClearNew	game	high	The stages' new marks taken off what the progress opened
 0041f560	Race_Names	race	high	Race_Setup's stage names (replays, demo run, ghost, archive)
+00423010	Camera_LookAround	camera	high	The pause camera page's swing around the car
