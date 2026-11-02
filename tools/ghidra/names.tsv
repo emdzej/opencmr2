@@ -1250,3 +1250,14 @@
 00502b10	Sv_SetupKept	service	high	a set-up value unchanged
 00502630	Sv_CanSet	service	high	time left for a set-up change
 00407150	Tod_SuperSpecialNo	game	high	the super special's stage number by rally and difficulty
+0050a3f0	Sv_TimePanel	service	high	the service time left, a minute a frame towards the player's
+0050a680	Sv_ClassPanel	service	high	the car's class notes, four lines
+0050a8a0	Sv_SetupList	service	high	the set-up list panel
+0050a8e0	Sv_RepairList	service	high	the repair list panel
+0050a920	Sv_PartPanel	service	high	the part box: picture, time, damage bar, notes
+0050cb30	Sv_Outline	service	high	a box's one-pixel outline
+0050ee50	Sv_Gradient	service	high	a box in slices through three colours
+005004a0	Sv_ShownTime	service	high	the service time shown
+005004b0	Sv_SetShownTime	service	high	the service time shown, set
+00501200	Sv_TimeLimit	service	high	a player's service time limit in minutes
+005011f0	Sv_TimeLeft	service	high	a player's service time left in hundredths

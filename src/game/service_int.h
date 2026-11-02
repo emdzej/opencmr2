@@ -30,7 +30,7 @@ typedef struct {
     uint8_t pulse[4];    /* DAT_0082b1b8 */
     int race_in, quit_in;      /* DAT_0082ac4c, DAT_0082ac50: frames to the race or the quit */
     int setup_last, repair_last, info_last;   /* DAT_00526f48, 4c, 50 */
-    int info_page;       /* DAT_0082a92c */
+    int shown_time;      /* DAT_0082a92c: the service time shown, a minute a frame towards time[] */
     int blink, blink_at; /* DAT_0082ac58, 5c */
     int main_sel;        /* DAT_00526f44: the main page's selection last frame */
     int panel[6];        /* DAT_0082a90c: each item's panel state (0 in, 1 shown, 2 out, 3 gone) */

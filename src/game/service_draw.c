@@ -373,6 +373,138 @@ static void quit_draw(void)
     list_panel(2, value_of(5), 3, 0xf0, 0xd7, false);
 }
 
+/* 0x50a3f0: the service time left, shown a minute a frame towards the player's (0x5004a0), red in the
+   warning blink; the limit (Text 0x91) */
+static void time_panel(void)
+{
+    int p = Sv_Player(), t = S.time[p], shown = S.shown_time, x = (int)gm32(0x5293a0) * sw / 0x280;
+    int d = t;
+    if (t < shown && t <= shown - 6000) d = shown - 6000;
+    else if (shown < t && shown + 6000 <= t) d = shown + 6000;
+    type1(4, 0, 0, Text_Get(0x90), x, Y(0x5d), C_TEXT, C_NEXT, 0x11);
+    char b[128];
+    snprintf(b, sizeof b, Text_Get(0x91), S.time_lim[p]);
+    type1(4, 1, 0, b, x, Y(0x6d), C_TEXT, C_NEXT, 0x11);
+    S.shown_time = d;
+    snprintf(b, sizeof b, exe_str(0x51a904), d / 100 / 0x3c, d / 100 % 0x3c);
+    bool bl = Sv_BlinkLit();
+    type1(4, 3, 3, b, x, Y(0x96), bl ? C_BLINK : C_LIT, bl ? C_BLINK : C_FAINT, 0x11);
+    int wx = Font_TextWidth(3, b);
+    snprintf(b, sizeof b, "%s", exe_str(0x5295f0));
+    type1(4, 0, 0, b, (int)gm32(0x5293a0) * sw / 0x280 + wx, Y(0x90), bl ? C_BLINK : C_LIT, bl ? C_BLINK : C_FAINT, 0x11);
+}
+
+/* 0x50a680: the car's class, four lines (Text 0x4c + 4 class) */
+static void class_panel(void)
+{
+    int x = (int)gm32(0x5293a0) * sw / 0x280, c = Sv_CarClass();
+    static const int ys[4] = {0xb4, 0xc2, 0xd0, 0xde};
+    for (int i = 0; i < 4; i++) type1(3, i ? 1 : 0, 0, Text_Get(c * 4 + 0x4c + i), x, Y(ys[i]), C_TEXT, C_NEXT, 0x11);
+}
+
+/* 0x50cb30: a box's outline, a pixel wide */
+static void outline(const int16_t r[4], const uint8_t *c)
+{
+    int16_t e[4] = {r[0], r[1], r[2], 1};
+    Rect_Fill(e, c, 3);
+    e[1] = (int16_t)(r[3] + r[1] - 1);
+    Rect_Fill(e, c, 3);
+    e[0] = r[0], e[1] = r[1], e[2] = 1, e[3] = r[3];
+    Rect_Fill(e, c, 3);
+    e[0] = (int16_t)(r[2] + r[0] - 1);
+    Rect_Fill(e, c, 3);
+}
+
+/* 0x50ee50: r in n slices from colour 0 to 1 over the first half, 1 to 2 over the rest (rgba at 0, 4,
+   8 of cols) */
+static void gradient(const int16_t r[4], uint32_t n, const uint8_t *cols)
+{
+    int32_t c0[3], d0[3], c1[3], d1[3];
+    for (int k = 0; k < 3; k++) {
+        c0[k] = cols[k] << 16, c1[k] = cols[4 + k] << 16;
+        d0[k] = (cols[4 + k] - cols[k]) << 16, d1[k] = (cols[8 + k] - cols[4 + k]) << 16;
+    }
+    n &= 0xff;
+    int half = (int)(n >> 1);
+    int16_t s[4] = {r[0], r[1], r[2], r[3]};
+    int32_t step = (int32_t)(((int64_t)r[2] << 32) / ((int64_t)n << 16));
+    for (int i = 0; i < (int)n; i++) {
+        s[2] = (int16_t)((int16_t)(((int64_t)((i + 1) << 16) * step) >> 32) + r[0] - s[0]);
+        uint8_t c[4] = {0, 0, 0, 0xff};
+        for (int k = 0; k < 3; k++) {
+            int32_t v;
+            if (half < i) {
+                int32_t t = (int32_t)(((int64_t)(i - half) << 32) / ((int64_t)half << 16));
+                v = fmul(d1[k], t) + c1[k];
+            } else {
+                int32_t t = (int32_t)(((int64_t)i << 32) / ((int64_t)half << 16));
+                v = fmul(d0[k], t) + c0[k];
+            }
+            v >>= 16;
+            c[k] = (uint8_t)(v < 0 ? 0 : v > 0xff ? 0xff : v);
+        }
+        Rect_Fill(s, c, 3);
+        s[0] = (int16_t)(s[0] + s[2]);
+    }
+}
+
+/* the damage bar's marker for d percent */
+static void damage_mark(int16_t r[4], int d)
+{
+    int32_t k = (int32_t)(((int64_t)d << 32) / 0x640000);
+    if (k < 0) k = 0;
+    else if (k > 0x10000) k = 0x10000;
+    r[0] = (int16_t)(((fmul(k, 0x1350000) + 0x1c0000) >> 16) * sw / 0x280);
+    r[1] = (int16_t)(Y(0x160) + 1), r[2] = (int16_t)X(0x12), r[3] = (int16_t)(Y(0xd) - 2);
+}
+
+/* 0x50a920: the part's box: its name, picture and time; for a repair the damage bar (green to red)
+   with the car's damage outlined and the kept one blinking; four lines of notes */
+static void part_panel(bool repair)
+{
+    static const uint8_t bar[12] = {0xae, 0xc9, 0x65, 0xff, 0x57, 0x94, 0xc4, 0xff, 0xc1, 0x61, 0xa0, 0xff};
+    int16_t r[4] = {(int16_t)X(0x1c), (int16_t)Y(0xff), (int16_t)X(0xc9), (int16_t)Y(0x5d)};
+    Rect_Fill(r, gm(0x5273b0), 3);
+    r[0] = (int16_t)(r[0] + r[2]);
+    int16_t bottom = (int16_t)(r[3] + r[1]);
+    r[1] = (int16_t)Y(0x12a), r[2] = (int16_t)X(0x7e), r[3] = (int16_t)(bottom - r[1]);
+    Rect_Fill(r, gm(0x5273b4), 3);
+    char b[128];
+    snprintf(b, sizeof b, "%s", Text_Get(repair ? 0x134 : 0x135));
+    Font_Print(1, b, r[2] / 2 + r[0] - Font_TextWidth(1, b) / 2, Y(0x124), C_TEXT, 0x11);
+    int v = repair ? value_of(2) : value_of(1);
+    int view = repair ? Sv_RepairView(v) : Sv_SetupView(v);
+    Tex *t = view >= 0 && view < 12 ? t_parts[view] : NULL;
+    if (t) {
+        int16_t d[4] = {(int16_t)X(0x2c), (int16_t)(Y(0x12d) - t->height / 2), t->width, t->height};
+        sprite(t, d, C_WHITE);
+    }
+    int time, text;
+    if (!repair) {
+        text = 0xad + v * 4;
+        time = (int)gm32(0x5293c0 + 4u * (uint32_t)v) * 6000;
+    } else {
+        int16_t g[4] = {(int16_t)X(0x1c), (int16_t)Y(0x160), (int16_t)X(0x147), (int16_t)Y(0xd)};
+        gradient(g, 0x15, bar);
+        snprintf(b, sizeof b, "%s", exe_str(0x519fb0));
+        Font_Print(0, b, g[0], Y(0x17c), C_TEXT, 0x11);
+        snprintf(b, sizeof b, "%s", exe_str(0x524e20));
+        Font_Print(0, b, g[2] + g[0], Y(0x17c), C_TEXT, 0x14);
+        Font_Print(1, Text_Get(0xf9), g[2] / 2 + g[0], Y(0x17c), C_TEXT, 0x12);
+        int p = Sv_Player();
+        int16_t m[4];
+        damage_mark(m, Sv_Damage(p, view, true));
+        outline(m, C_LINE);
+        damage_mark(m, Sv_Damage(p, view, false));
+        if (!(Timer_Centis() / 0x14 & 1)) Rect_Fill(m, C_LIT, 3);
+        time = (int)gm32(0x5270b4 + 4u * (uint32_t)view);   /* 0x503930 */
+        text = 0xc + view * 4;
+    }
+    snprintf(b, sizeof b, exe_str(0x51a904), time / 100 / 0x3c, time / 100 % 0x3c);
+    Font_Print(3, b, X(0x124), Y(0x150), Sv_BlinkLit() ? C_BLINK : C_LIT, 0x12);
+    for (int k = 0; k < 4; k++) type1(5, 1, 1, Text_Get(text + k), X(0x1c), Y(0x19a + 0xe * k), C_TEXT, C_NEXT, 0x11);
+}
+
 static int last_view = -1;   /* DAT_00529430 */
 
 /* 0x50eba0: the top bar and the shown item's panel; with the set-up or repair list on a new part the
@@ -386,7 +518,12 @@ void sv_main_draw(Menu *m)
     switch (Sv_Active()) {
     case 0: info_panel(); break;
     case 1:
-        PENDING_NOTE(0x50a3f0, "the set-up panel (0x50a3f0, 0x50a680, 0x50a8a0, 0x50cc10, 0x50a920, 0x500550)");
+        time_panel();
+        class_panel();
+        list_panel(7, value_of(1), 2, (int16_t)gm32(0x5293a0), 0xf2, false);   /* 0x50a8a0 */
+        PENDING_NOTE(0x50cc10, "the set-up's sliders");
+        part_panel(false);
+        PENDING_NOTE(0x500550, "the lines to the car's parts (0x82ac68)");
         v = Sv_SetupView(value_of(1));
         if (last_view != v) {
             Sv_CarView(Sv_Player(), v, false);
@@ -395,7 +532,10 @@ void sv_main_draw(Menu *m)
         }
         break;
     case 2:
-        PENDING_NOTE(0x50a8e0, "the repair panel (0x50a3f0, 0x50a8e0, 0x50a920, 0x500550)");
+        time_panel();
+        list_panel(0xb, value_of(2), 1, (int16_t)gm32(0x5293a0), 0xaa, false);   /* 0x50a8e0 */
+        part_panel(true);
+        PENDING_NOTE(0x500550, "the lines to the car's parts (0x82ac68)");
         v = Sv_RepairView(value_of(2));
         if (last_view != v) {
             Sv_CarView(Sv_Player(), v, false);
@@ -415,7 +555,12 @@ void sv_setup_draw(Menu *m)
     (void)m;
     D3d_ScreenSize(&sw, &sh);
     top_bar(true);
-    PENDING_NOTE(0x50a3f0, "the set-up value page (0x50a3f0, 0x50a680, 0x50a8a0, 0x50cc10, 0x50a920, 0x500550)");
+    time_panel();
+    class_panel();
+    list_panel(7, value_of(1), 2, (int16_t)gm32(0x5293a0), 0xf2, true);   /* 0x50a8a0 */
+    PENDING_NOTE(0x50cc10, "the set-up's sliders");
+    part_panel(false);
+    PENDING_NOTE(0x500550, "the lines to the car's parts (0x82ac68)");
 }
 
 /* 0x50edf0 */

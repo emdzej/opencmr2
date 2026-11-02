@@ -613,7 +613,7 @@ void sv_main_leave(Menu *m, bool back)
 void Sv_MainReset(void)
 {
     S.setup_last = 0, S.repair_last = 0, S.info_last = 0;   /* 0x526f48-0x526f50 */
-    S.info_page = 0;   /* 0x82a92c */
+    S.shown_time = 0;   /* 0x82a92c */
     S.blink = 0, S.blink_at = 0;   /* 0x82ac58, 0x82ac5c */
     S.panel[0] = 0;
     S.main_sel = 2;    /* 0x526f44 */
