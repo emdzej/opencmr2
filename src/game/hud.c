@@ -3,6 +3,7 @@
 #include "game/profile.h"
 #include "crt.h"
 #include "text.h"
+#include "world/tod.h"
 #include "exe.h"
 #include "game/pause.h"
 #include "game/opponents.h"
@@ -658,6 +659,101 @@ static void standings(int p)
     }
 }
 
+/* 0x408cb0: a player's profile record block (NULL without a profile; the original then reads at a
+   small address, the port reads zero) */
+static uint32_t profile_of(int n)
+{
+    uint32_t w = gm32(0x531350 + 0x30u * (uint32_t)n);
+    return (w & 0x3c0000) == 0x3c0000 ? 0 : 0x52fa8c + (w >> 0x12 & 0xf) * 0x650;
+}
+
+/* 0x4147f0 for one view: the records panel of the other modes. The record to beat and its holder
+   (0x52b044's table: mode 3 by rally and stage, the others by the circuit 0x52f2ac bits 10-11 and
+   12-13), the player's own best (its profile), the race's best (0x53706c, 0x536ed0) and the last lap:
+   four rows in modes 5-7 (two with 0x52afbc bit 11), three in the others, two in modes 10 and 12
+   (whose rows are the time trial's: its driver and time 0x5320a8, the ghost 0x531cf0 and 0x531f80);
+   with a profile the own best is left out and the rows below move up. A row whose message is on
+   (0x536c00, 0x536e88, 0x536c28, 0x536ec4) flashes white in the message's first six steps. */
+static void records(int p)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int ox = 0, oy = 0;   /* 0x464b10: the view's corner */
+    uint32_t m = Gs_Mode(), mine = 0, rec = 0;
+    char holder[32] = "";
+    uint32_t pr = profile_of(Gs_Byte537ef6() + p);
+    if (m == 3) {
+        uint32_t k = Tod_Rally() * 0xb + Tod_Stage();
+        if (pr) mine = gm32(pr + 0x154 + (Tod_Stage() + Tod_Rally() * 0xc) * 8);
+        rec = gm32(0x52b044 + 0x658 + k * 8) >> 7 & 0xffff;
+        snprintf(holder, sizeof holder, "%s", (const char *)gm(0x52b044 + 0x654 + k * 8));
+    } else {
+        uint32_t k = (gm32(0x52f2ac) >> 10 & 3) * 3 + (gm32(0x52f2ac) >> 0xc & 3);
+        if (pr) mine = gm32(pr + 0x4c0 + k * 8);
+        rec = gm32(0x52b044 + 0x1214 + k * 8) >> 7 & 0xffff;
+        snprintf(holder, sizeof holder, "%s", (const char *)gm(0x52b044 + 0x1210 + k * 8));
+    }
+    int step = (h * 0xccc) >> 16, n = 3;
+    if (m == 5 || m == 6 || m == 7) n = gm32(0x52afbc) >> 0xb & 1 ? 2 : 4;
+    if (m == 10 || m == 12) n = 2;
+    bool trial = m == 10 || m == 12, lapsonly = gm32(0x52afbc) >> 0xb & 1;
+    int16_t by = (int16_t)(((h << 0xc) >> 16) + oy);
+    int flash = (int8_t)gm8(0x536c08 + (uint32_t)p) - 0x77;
+    if (flash < 0) flash = 0;
+    for (int k = 0, row_y = 0; k < n; k++, row_y += step) {
+        int kind = k, ty = row_y;
+        if (!trial) {
+            if (lapsonly) kind = k + 2;
+            else if (Player_HasProfile(Gs_Byte537ef6() + p)) {
+                if (k == 1) continue;
+                if (k > 1) ty = row_y - step;
+            }
+        }
+        char b[96];
+        int32_t t = 0;
+        uint32_t flag = 0;
+        bool on;
+        switch (kind) {
+        case 0:
+            if (trial) snprintf(b, sizeof b, "%s", driver_name(0)), t = gms32(0x5320a8);
+            else snprintf(b, sizeof b, exe_str(0x517dd8), Text_Get(0x69), holder), t = (int32_t)rec;
+            flag = 0x536c00;
+            break;
+        case 1:
+            if (trial) {
+                snprintf(b, sizeof b, exe_str(0x517dd8), Text_Get(0x84), (const char *)gm(0x531cf0));
+                if (m == 10) t = gms32(0x531f80 + 4u * (Gs_SelBit25() ? 2 : 8));
+                else t = gms32(0x531c98);   /* 0x40a420(0) in mode 12 */
+                flag = 0x536c28;
+            } else snprintf(b, sizeof b, "%s", driver_name(Gs_Byte537ef6() + p)), t = (int32_t)mine, flag = 0x536e88;
+            break;
+        case 2:
+            snprintf(b, sizeof b, exe_str(0x517dd8), Text_Get(0x84), (const char *)gm(0x536ed0));
+            t = gms32(0x53706c), flag = 0x536c28;
+            break;
+        default:
+            snprintf(b, sizeof b, "%s", Text_Get(0xa5));
+            t = gms32(0x53d9b4 + 4u * (uint32_t)(Sectors_LastLap(p) + p * 0x22));
+            flag = 0x536ec4;
+            break;
+        }
+        on = gm32(flag + 4u * (uint32_t)p) && flash;
+        uint8_t c[4];
+        memcpy(c, colour(0x5170d4), 4);
+        if (on && flash < 4) {
+            for (int i = 0; i < 3; i++) c[i] = (uint8_t)(c[i] + (0xff - c[i]) * flash / 3);
+            c[3] = (uint8_t)(c[3] + ((int)gm8(0x5170f7) - c[3]) * flash / 3);
+        } else if (on)
+            c[0] = c[1] = c[2] = 0xff, c[3] = gm8(0x5170f7);
+        int16_t r[4] = {(int16_t)(((w * 0xc00) >> 16) + ox), by, (int16_t)((w * 0x47ae) >> 16), (int16_t)step};
+        Rect_Fill(r, c, 2);
+        int y = oy + 1 + ty + ((h * 0x1b32) >> 16);
+        Font_Print(0, b, ((w * 0xf95) >> 16) + ox, y, colour(0x5170d0), 0x21);
+        draw_time(t ? t : -1, 5, (int32_t)(((int64_t)ox << 16) / w) + 0x51e4, (int32_t)(((int64_t)(y - 1) << 16) / h), colour(0x5170d0), 0x24, NULL, false);
+        by = (int16_t)(by + step);
+    }
+}
+
 /* 0x415bd0: a time as <prefix>mm:ss.cc (or --:--.--) in a font at a fraction of the screen, in white,
    on a box of its own colour when asked */
 static void draw_time(int32_t t, int font, int32_t fx, int32_t fy, const uint8_t *box_rgba, uint32_t flags, const char *prefix, bool box)
@@ -740,7 +836,7 @@ void Hud_Draw(int p)
     uint32_t m = Gs_Mode();
     if (flags & 4) {
         if (m == 0 || m == 1 || m == 2) standings(p);
-        else PENDING_NOTE(0x4147f0, "Hud_Standings (the other modes)");
+        else records(p);   /* 0x4147f0 */
     }
     if (flags & 8) time_panel(p);
     if (flags & 0x20) {
