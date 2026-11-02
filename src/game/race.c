@@ -570,7 +570,8 @@ static void draw(ProcGroup *g, uint32_t slot)
 
 void Race_DrawOverlays(int player)
 {
-    Hud_Draw(player);         /* 0x4125f0, in the view 0x40f0c0 */
+    Hud_MessageReset();       /* 0x417e60, in the view 0x40f0c0 */
+    Hud_Draw(player);         /* 0x4125f0 */
     Codriver_Notes(player);   /* 0x4177d0 */
     fade_overlay(player, gm8(0x52af40) != 0);
 }

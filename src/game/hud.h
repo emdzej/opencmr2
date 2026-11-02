@@ -15,5 +15,6 @@ void Hud_LoadSounds(void);        /* 0x411120: up, down, blip, cross, timeout */
 void Hud_LoadMap(void);           /* 0x411280: the map's textures (Stage_Load) */
 void Hud_Init(int again);         /* 0x411450: Stage_Load (0), the line (1), a restart */
 void Hud_Update(int player, bool on_line);   /* 0x411f70 */
-void Hud_Draw(int player);       /* 0x4125f0 */
+void Hud_Draw(int player);
+void Hud_MessageReset(void);     /* 0x417e60 (each view, 0x40f0c0): the next message is drawn */       /* 0x4125f0 */
 int32_t Times_Split(int player, int k);   /* 0x448680: the race time at split k */

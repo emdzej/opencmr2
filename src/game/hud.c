@@ -1004,19 +1004,153 @@ static void time_panel(int p)
     draw_time(hud_time[p], 4, 0xaf30, 0x2e66, colour(0x5170f4), 0x21, NULL, false);
 }
 
+/* the player's display flags (Profile_HudFlags 0x408a00: mode 4's at 0x52f3ed, else the profile's
+   +0x574; the original reads through NULL without a profile, the port reads zero) */
+static uint8_t hud_flags(int n)
+{
+    if (Gs_Mode() == 4) return gm8(0x52f3ed + 0xc4u * (uint32_t)n);
+    uint32_t t = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
+    return t != 0xf ? gm8(0x52ff90 + t * 0x650) : 0;
+}
+
+static bool msg_lock;   /* 0x537190: one message a view */
+
+void Hud_MessageReset(void) { msg_lock = false; }   /* 0x417e60 */
+
+/* 0x417e70: a message in the big font (slot 2), centred in the view at a quarter of the screen's
+   height (lower by 0x10 with display flags 1 of 3; on a split screen at 0.1375 of the height
+   further down or, one above the other, up from the half's line), with a shadow when asked, or at
+   (x, y) given; only the view's first message is drawn */
+static void message(const char *text, const uint8_t *rgba, int p, bool shadow, int x, int y)
+{
+    if (msg_lock) return;
+    msg_lock = true;
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int16_t v[4] = {0, 0, (int16_t)w, (int16_t)h};   /* View_Rect 0x464b10 */
+    bool split = split_screen();
+    int off = 0;
+    if (split) {
+        if (!Gs_ModeBit18()) off = (h * 0x2333) >> 16;
+        else off = (p == 1 ? h / 2 : 0) - ((h * 0x2333) >> 16);
+    }
+    int ty = ((h << 0xe) >> 16) + off;
+    if (!split && (hud_flags(Gs_Byte537ef6() + p) & 3) == 1) ty += 0x10;
+    int tx = v[2] / 2 + v[0];
+    uint32_t fl = 0x12;
+    if (x != -1) fl = 9, tx = x, ty = y;
+    if (shadow) Font_Print(2, text, tx + 1, h / 0x60 + 1 + ty, colour(0x517e28), fl);
+    Font_Print(2, text, tx, h / 0x60 + ty, rgba, fl);
+}
+
+/* 0x412970: with the lap game's clock (0x52f2b0 bit 11) done (0x53d1a7), in its kinds 1 and 2 the
+   winner's message (text 0xbe) for the car at the head (0x53e184) */
+static void game_over(int p)
+{
+    if (!gm8(0x53d1a7)) return;
+    uint32_t k = gm32(0x52f2b0) & 7;
+    if ((k == 1 || k == 2) && (int8_t)gm8(0x53e184 + (uint32_t)p) == 0) message(Text_Get(0xbe), colour(0x5170f4), p, false, -1, -1);
+}
+
+/* 0x4129d0 for one view: the arcade's time panel, the box (taller by a line or two for the laps,
+   0x543098, by the language's slot) with the time at its left; under it "Lap n" (modes 7 and 12,
+   or the lap game's kind 1) or "Lap n / laps" (not with the selection's bit 27), or in the lap
+   game's kind 2 text 0xbc with the car's count (0x53d1a4) of 0x52f2b0's bits 7-10; at the right,
+   outside modes 7 and 12 (and stage 10 of mode 10), text 0x99 and the place in slot 6 (with ghosts
+   the own run's slot, the text left when there is none) */
+static void arcade_time(int p)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int m8 = w * 3 / 0x280, m20 = w * 0x2c / 0x280, dy = h * 3 / 0x1e0;
+    int ox = 0, oy = 0;
+    if (split_screen()) {
+        if (!Gs_ModeBit18()) { if (p == 0) ox = -(w / 2); }
+        else if (p == 1) oy = h / 2;
+    }
+    int16_t r[4] = {(int16_t)(((w * 0xab9b) >> 16) + ox), (int16_t)(((h << 0xc) >> 16) + oy), (int16_t)(((w * 0x4865) >> 16) + 1),
+                    (int16_t)(h * 0x35 / 0x1e0)};
+    uint32_t lang = gm32(0x52afb4) & 7;   /* 0x4057f0 */
+    int extra = (lang == 1 || lang == 3 || lang == 2 ? 2 : 1) * (h * 0x18 / 0x1e0);
+    if (gm32(0x543098)) r[3] = (int16_t)(r[3] + extra);   /* 0x459390 */
+    Rect_Fill(r, colour(0x5170bc), 2);
+    if (gm32(0x543098)) r[3] = (int16_t)(r[3] - extra);
+    draw_time(hud_time[p], 4, (int32_t)(((int64_t)(r[0] + 0x10 + m8) << 16) / w), (int32_t)(((int64_t)(r[3] + r[1] - dy + 1) << 16) / h),
+              colour(0x5170c4), 0x21, NULL, false);
+    int lap = Sectors_Lap(p), laps = (int)(gm32(0x52f2ac) >> 0x10 & 0xf);   /* 0x4582d0, Gs_Laps 0x406990 */
+    int ys = r[1] + dy - h * 2 / 0x1e0, yb = r[1] + dy, x = r[0] + m8;
+    uint32_t m = Gs_Mode(), kind = gm32(0x52f2b0) >> 0xb & 1 ? gm32(0x52f2b0) & 7 : 0;
+    char b[64];
+#define PUT(font, y) (Font_Print(font, b, x, y, colour(0x5170c4), 9), x += Font_TextWidth(font, b))
+    if (kind == 2) {
+        snprintf(b, sizeof b, exe_str(0x517dd4), Text_Get(0xbc)), PUT(0, ys);
+        snprintf(b, sizeof b, exe_str(0x517dd0), (int8_t)gm8(0x53d1a4 + (uint32_t)p)), PUT(5, yb);   /* 0x448c60 */
+        snprintf(b, sizeof b, "%s", exe_str(0x517dcc)), PUT(0, ys);
+        snprintf(b, sizeof b, exe_str(0x517dd0), (int)(gm32(0x52f2b0) >> 7 & 0xf)), PUT(5, yb);   /* 0x4082c0 */
+    } else if (m == 7 || m == 12 || kind == 1) {
+        if (lap < 0) lap = 0;
+        snprintf(b, sizeof b, exe_str(0x517dd4), Text_Get(0x2f)), PUT(0, ys);
+        snprintf(b, sizeof b, exe_str(0x517dd0), (lap + 1) % 100), PUT(5, yb);
+    } else if (!Gs_SelBit27()) {
+        if (lap < 0) lap = 0;
+        if (lap < laps) lap++;
+        snprintf(b, sizeof b, exe_str(0x517dd4), Text_Get(0x2f)), PUT(0, ys);
+        snprintf(b, sizeof b, exe_str(0x517dd0), lap % 100), PUT(5, yb);
+        snprintf(b, sizeof b, "%s", exe_str(0x517dcc)), PUT(0, ys);
+        snprintf(b, sizeof b, exe_str(0x517dd0), laps), PUT(5, yb);
+    }
+#undef PUT
+    if (m == 7 || m == 12 || (Tod_Stage() == 10 && m == 10)) return;
+    snprintf(b, sizeof b, "%s", Text_Get(0x99));
+    Font_Print(0, b, r[0] - m20 + r[2], ys, colour(0x5170c4), 0xc);
+    if (m == 11 || (Gs_ModeBit19() && Gs_SelBit25())) {
+        for (int i = 0; i < 8; i++)
+            if (gms32(0x531bb8 + 0x1cu * (uint32_t)i) == -2) snprintf(b, sizeof b, exe_str(0x517dd0), i + 1);   /* 0x40a700 */
+    } else
+        snprintf(b, sizeof b, exe_str(0x517dd0), Times_Place(p) + 1);
+    Font_Print(6, b, r[0] - m8 + r[2], yb, colour(0x5170c4), 0xc);
+}
+
+/* 0x4125f0 for one view: the debug line (0x52afd0 bit 29: the car's point of the finish's, the race's
+   seconds), the lap game's or the circuits' end message, the messages, then by the display flags: 4
+   the records (modes 3, 5-7, 10, 12; not on a split screen beside each other) or the standings
+   (modes 0-2; modes 8, 9, 11 their own; neither with the selection's bit 27 unless 0x52afb4 bit 19),
+   8 the time panel (the arcade's in modes 5-7, 11, 12 or on a circuit), 0x20 the map (the same
+   modes) and the split delta */
 void Hud_Draw(int p)
 {
-    PENDING_NOTE(0x405d60, "Hud_Draw (the debug position line)");
-    uint32_t t = gm32(0x531350 + 0x30u * (uint32_t)p) >> 0x12 & 0xf;
-    uint8_t flags = Gs_Mode() == 4 ? gm8(0x52f3ed + 0xc4u * (uint32_t)p) : t != 0xf ? gm8(0x52ff90 + t * 0x650) : 0;
-    uint32_t m = Gs_Mode();
-    if (flags & 4) {
-        if (m == 0 || m == 1 || m == 2) standings(p);
-        else records(p);   /* 0x4147f0 */
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int16_t v[4] = {0, 0, (int16_t)w, (int16_t)h};   /* View_Rect 0x464b10 */
+    static const uint8_t white[4] = {0xff, 0xff, 0xff, 0xff};
+    if (gm32(0x52afd0) >> 0x1d & 1) {   /* 0x405d60 */
+        char b[64];
+        snprintf(b, sizeof b, exe_str(0x517dc0), Car_CatIndex(Car_Get(p)), Cat_FinishPoint(), Times_Race() / 100);   /* 0x4ab600 */
+        Font_Print(0, b, v[0] + 10, v[3] + v[1] - 10, white, 0x21);
     }
-    if (flags & 8) time_panel(p);
+    if (gm32(0x52f2b0) >> 0xb & 1) game_over(p);   /* 0x4082e0 */
+    else if (split_screen() && (Gs_SelBit24() || Gs_SelBit25()) && Race_Finished(p) && (int8_t)gm8(0x53e184 + (uint32_t)p) == 0)
+        message(Text_Get(0xbe), colour(0x5170f4), p, false, -1, -1);
+    static const uint32_t msgs[4][2] = {{MSG_88, 0xbd}, {MSG_REC, 0x30}, {MSG_NOPROF, 0x6a}, {MSG_BEST, 0x83}};
+    for (int i = 0; i < 4; i++)
+        if (gm32(msgs[i][0] + 4u * (uint32_t)p)) message(Text_Get(msgs[i][1]), colour(0x5170e8), p, true, -1, -1);
+    uint8_t flags = hud_flags(Gs_Byte537ef6() + p);
+    uint32_t m = Gs_Mode();
+    bool arcade = m == 5 || m == 6 || m == 7 || m == 11 || m == 12 || Gs_SelBit25();
+    if (flags & 4) {
+        if (m == 7 || m == 5 || m == 6 || m == 3 || m == 10 || m == 12) {
+            if (!split_screen() || Gs_ModeBit18()) records(p);   /* 0x4147f0 */
+        } else if (!Gs_SelBit27() || Gs_ModeBit19()) {
+            if (m == 2 || m == 0 || m == 1) standings(p);   /* 0x414ed0 */
+            else if (m == 8 || m == 9 || m == 11) PENDING_NOTE(0x415480, "Hud_Standings (the network's and mode 11's)");
+        }   /* (else 0x415bc0, empty) */
+    }
+    if (flags & 8) {
+        if (arcade) arcade_time(p);   /* 0x4129d0 */
+        else time_panel(p);           /* 0x413fe0 */
+    }
     if (flags & 0x20) {
-        if (m == 5 || m == 6 || m == 7 || m == 11 || m == 12 || Gs_SelBit25()) map(p);   /* 0x415f50 */
-        split_delta(p);   /* 0x4137e0 */
+        if (arcade) map(p);   /* 0x415f50 */
+        split_delta(p);       /* 0x4137e0 */
     }
 }
