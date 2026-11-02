@@ -804,7 +804,7 @@ void Camera_SelectAt(int p, int kind, int idx, int car, bool smooth)
     }
     o->kind = kind;
     o->car = (uint8_t)car;   /* (0x4ae410 on a change, empty) */
-    /* 0x423810, 0x423860: the new camera from the old (chase on the same car: its axes) */
+    /* 0x423810, 0x423860 (Chase_FromOther 0x447be0): the new camera from the old (chase on the same car: its axes) */
     if ((kind == 4 || kind == 5) && c->car == o->car && (c->kind == 4 || c->kind == 5 || c->kind == 6)) {
         memcpy(chase_up[o->slot], chase_up[c->slot], 12);
         memcpy(chase_fwd[o->slot], chase_fwd[c->slot], 12);

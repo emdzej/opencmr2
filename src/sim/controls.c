@@ -376,7 +376,7 @@ void Car_Controls(Car *car)
     if (!CI32(c, 0xb88)) steer_digital();
     else steer_analog();
     if (!CI32(c, 0xb90)) {
-        ramp(c->s[0x1d3] && !CI32(c, 0xb94), 0x83c, 0x834, 0x838, 0x82c);
+        ramp(c->s[0x1d3] && !CI32(c, 0xb94), 0x83c, 0x834, 0x838, 0x82c);   /* Car_BrakeRamp 0x494880 */
         if (CI32(c, 0xb8c) && CI32(c, 0xb94)) CW32(c, 0x79c, fx_mul(CI32(c, 0x788), input(0x1d3)));
     } else if (!c->s[0x1d3]) {
         CW32(c, 0x838, 0);
