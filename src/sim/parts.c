@@ -464,10 +464,209 @@ static void part_hinged(void)
     if (brk) part_break(kept);
 }
 
-/* the types 2 and 3 updates (0x484310, 0x483570, 2.5 and 3.4 KB), not ported: their parts stay at
-   rest while loose */
-static void part_type2(void) { PENDING_NOTE(0x484310, "Part_Type2 (a loose part's update)"); }
-static void part_type3(void) { PENDING_NOTE(0x483570, "Part_Type3 (a loose part's update)"); }
+/* the wobble (16.16 degrees: the angle times 5760) times k, as an angle unit (0x511300, or 0x511308
+   negated) */
+static int16_t wob_turn(int32_t k, bool neg) { return rnd16((double)fx_mul(wob_ang * 5760, k) * (neg ? -DEG : DEG)); }
+
+/* the base rows made square again: r0 unit, r2 square to it, r1 = r2 x r0 */
+static void rows_square(int32_t *rows)
+{
+    int32_t *r0 = rows, *r1 = rows + 3, *r2 = rows + 6, t[3];
+    Vec_Unit(r0);
+    int32_t d = dot3(r2, r0);
+    scale3(t, r0, d);
+    for (int i = 0; i < 3; i++) r2[i] -= t[i];
+    Vec_Unit(r2);
+    cross3(t, r2, r0);
+    Vec_Unit(t);
+    memcpy(r1, t, sizeof t);
+}
+
+/* Part_Flap 0x484310 (type 2). Kinds 9 and 11 only wobble (about y once, about x three times). The
+   car's acceleration (+0x408 less +0x414) times -6 (x negated unless kind 8 for the type 12 objects,
+   which are all of them) less 0.328 of gravity, through the part's frame, gives a torque about the
+   hinge (the arm to the slot's centre, 0.2 up, no x for kind 8); its z starts the part moving and
+   then drives the spin about z (damped by 0.893 a step, times the z inertia, the half step taken
+   back). The first row's y is held at or above 0 (kind 8; else at or below), its x at least 0.4
+   (kind 8; else 0.8), the spin stopped or bounced back at 0.6 (stopped, and the part still, below
+   0.06); after a stop the rows are made square. Then the wobble about z (negated) and the place. */
+static void part_type2(void)
+{
+    Part *p = cur;
+    Car *c = cur_car;
+    uint8_t kind = c->s[0xb1b];
+    uint16_t a[3] = {0, 0, 0};
+    if (kind == 9) {
+        a[1] = (uint16_t)wob_turn(0x10000, true);
+        part_turn(a);
+        part_place();
+        return;
+    }
+    if (kind == 11) {
+        a[0] = (uint16_t)wob_turn(0x30000, true);
+        part_turn(a);
+        part_place();
+        return;
+    }
+    int32_t F[3], L[3], r[3], X[3];
+    for (uint32_t i = 0; i < 3; i++) F[i] = fx_mul(CI32(c, 0x408 + 4 * i) - CI32(c, 0x414 + 4 * i), -0x60000);
+    if (kind != 8 && p->obj && (uint8_t)p->obj->type == 0x0c) F[0] = -F[0];
+    F[1] -= 0x53f7;
+    vec_rot_t(L, F, p->world.m);
+    r[0] = kind == 8 ? 0 : p->pivot[0] - p->hinge[0];
+    r[1] = 0x3333;
+    r[2] = p->pivot[2] - p->hinge[2];
+    cross3(X, L, r);
+    if (!(p->flags & 8) && 0 < X[2]) p->flags |= 8;
+    if (p->flags & 8) {
+        scale3(p->av, p->av, 0xe49b);
+        int32_t dA = fx_mul(-fx_mul(X[2], p->inertia[2]), dt());
+        p->av[2] += dA;
+        a[2] = (uint16_t)rnd16((double)(fx_mul(p->av[2], dt()) - fx_mul(dA, dt() / 2)) * TO_ANG);
+        Rows_Turn3(p->rows, 3, a);
+        bool stop = false, square = true;
+        if (kind == 8) {
+            if (p->rows[1] < 0) {
+                p->rows[1] = 0;
+                stop = true;
+                if (p->av[2] < 0) {
+                    if (p->av[2] < -0xf5c) p->av[2] = -fx_mul(p->av[2], 0x9999);
+                    else p->av[2] = 0, p->flags &= 0xf7;
+                }
+            }
+            if (p->rows[0] < 0x6666) {
+                p->rows[0] = 0x6666;
+                if (0 < p->av[2]) p->av[2] = 0;
+            } else if (!stop)
+                square = false;
+        } else {
+            if (0 < p->rows[1]) {
+                p->rows[1] = 0;
+                stop = true;
+                if (0 < p->av[2]) {
+                    if (p->av[2] < 0xf5d) p->av[2] = 0, p->flags &= 0xf7;
+                    else p->av[2] = -fx_mul(p->av[2], 0x9999);
+                }
+            }
+            if (p->rows[0] < 0xcccc) {
+                p->rows[0] = 0xcccc;
+                if (p->av[2] < 0) p->av[2] = 0;
+            } else if (!stop)
+                square = false;
+        }
+        if (square) rows_square(p->rows);
+    }
+    memset(a, 0, sizeof a);
+    a[2] = (uint16_t)wob_turn(0x10000, true);
+    part_turn(a);
+    part_place();
+}
+
+/* .cin section 3's first vector (the hinge's stop direction) */
+static void cin_axis(int32_t n[3])
+{
+    const uint8_t *q = cin3[idx(cur_car)];
+    for (int i = 0; i < 3; i++) n[i] = q ? (int32_t)((uint32_t)q[4 * i] | q[4 * i + 1] << 8 | q[4 * i + 2] << 16 | (uint32_t)q[4 * i + 3] << 24) : 0;
+}
+
+/* Part_Hatch 0x483570 (type 3, swinging free from its loosening). Kind 8 only wobbles (about z, five
+   times, negated). Nothing once too far. On its hinge: the spring towards the rest angle (as type
+   1's, 4 per unit off); the car's acceleration times -5, -10, -5 breaks it off when its flat part
+   passes 2.5 (squared 0x64000) with its panel (+0x288) past 0.5, else it pushes with 0.25 of gravity;
+   the spin damped (as type 1's), the push through the part's frame (with the spring unless breaking,
+   which stops the spin) gives a torque about the hinge times the inertias (none about z). It keeps
+   moving while the car does (+0x778 above 0x7ae) or it is off. Moving, the spin turns the base rows
+   (the half step taken back). Still on its hinge: past the .cin's stop direction on the hinge's side
+   the third row is laid square to it (the first row's y cleared, the rows made square, the spin left
+   along the stop direction only), then the wobble about x (half, negated for a hinge at negative z)
+   and the place; off it or breaking, the rows as they are. Breaking, off the hinge with the push. */
+static void part_type3(void)
+{
+    Part *p = cur;
+    Car *c = cur_car;
+    uint16_t a[3] = {0, 0, 0};
+    if (c->s[0xb1b] == 8) {
+        a[2] = (uint16_t)wob_turn(0x50000, true);
+        part_turn(a);
+        part_place();
+        return;
+    }
+    if (part_too_far()) return;
+    bool brk = false;
+    int32_t A[3] = {0, 0, 0}, K[3] = {0, 0, 0};
+    if (!(p->flags & 4)) {
+        int32_t S[3] = {0, 0, 0}, T[3], D[3];
+        uint16_t g = (uint16_t)p->ang;
+        int32_t sn = g_sin[g & 0xfff], cs = g_sin[(uint16_t)(g + 0x400) & 0xfff];
+        if (0 < p->hinge[2]) T[0] = sn - p->rows[6], T[1] = -p->rows[7], T[2] = cs - p->rows[8];
+        else T[0] = p->rows[6] - sn, T[1] = p->rows[7], T[2] = p->rows[8] - cs;
+        int32_t l = (int32_t)len3(T);
+        if (0 < l) {
+            scale3(T, T, (int32_t)(0x100000000LL / l));
+            scale3(S, T, -fx_mul(l, 0x40000));
+        }
+        for (uint32_t i = 0; i < 3; i++) D[i] = CI32(c, 0x408 + 4 * i) - CI32(c, 0x414 + 4 * i);
+        D[0] = fx_mul(D[0], -0x50000), D[1] = fx_mul(D[1], -0xa0000), D[2] = fx_mul(D[2], -0x50000);
+        if (fx_mul(D[0], D[0]) + fx_mul(D[2], D[2]) > 0x64000 && dmg(0x288) > 0x8000) {
+            memcpy(K, D, sizeof K);
+            brk = true;
+        } else
+            D[1] -= 0x4000;
+        int32_t k = 0x10000 - dt();
+        if (k < 0) k = 0;
+        else if (k > 0x8000) k = 0x8000;
+        k = fx_mul(k, 0xc937) + 0x8000;
+        scale3(p->av, p->av, k);
+        int32_t F[3], r[3], X[3];
+        vec_rot_t(F, D, p->world.m);
+        if (!brk) for (int i = 0; i < 3; i++) F[i] += S[i];
+        else memset(p->av, 0, sizeof p->av);
+        for (int i = 0; i < 3; i++) r[i] = p->pivot[i] - p->hinge[i];
+        cross3(X, F, r);
+        for (int i = 0; i < 3; i++) A[i] = -fx_mul(X[i], p->inertia[i]);
+        scale3(A, A, dt());
+        for (int i = 0; i < 3; i++) p->av[i] += A[i];
+        p->av[2] = 0;
+    }
+    p->flags |= 8;
+    if (!brk && !(p->flags & 4) && CI32(c, 0x778) <= 0x7ae) p->flags &= 0xf7;
+    if (p->flags & 8) {
+        int32_t W[3], H[3];
+        scale3(W, p->av, dt());
+        scale3(H, A, dt() / 2);
+        for (int i = 0; i < 3; i++) a[i] = (uint16_t)rnd16((double)(W[i] - H[i]) * TO_ANG);
+        Rows_Turn3(p->rows, 3, a);
+    } else
+        memset(p->av, 0, sizeof p->av);
+    if (!brk && !(p->flags & 4)) {
+        int32_t N[3], *r0 = p->rows, *r1 = p->rows + 3, *r2 = p->rows + 6, t[3];
+        cin_axis(N);
+        int32_t d = dot3(N, r2);
+        if ((p->flags & 8) && ((p->hinge[2] < 0 && d < 0) || (0 < p->hinge[2] && 0 < d))) {
+            scale3(t, N, d);
+            for (int i = 0; i < 3; i++) r2[i] -= t[i];
+            Vec_Unit(r2);
+            r0[1] = 0;
+            int32_t d2 = dot3(r0, r2);
+            scale3(t, r2, d2);
+            for (int i = 0; i < 3; i++) r0[i] -= t[i];
+            Vec_Unit(r0);
+            cross3(t, r2, r0);
+            Vec_Unit(t);
+            memcpy(r1, t, sizeof t);
+            int32_t dv = dot3(p->av, N);
+            scale3(p->av, N, dv);
+        }
+        int32_t w = fx_mul(wob_ang * 5760, 0x8000);
+        if (p->hinge[2] < 0) w = -w;
+        memset(a, 0, sizeof a);
+        a[0] = (uint16_t)rnd16((double)w * DEG);
+        part_turn(a);
+    } else
+        for (int r = 0; r < 3; r++) set_row(&p->local, r, p->rows + 3 * r);
+    part_place();
+    if (brk) part_break(K);
+}
 
 /* Part_Take 0x4813b0: a free record takes the car's part k: its object's local and world matrices,
    the main model's local as the parent, the second model's world as its own, the base rows */

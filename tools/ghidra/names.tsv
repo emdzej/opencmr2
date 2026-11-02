@@ -751,8 +751,6 @@
 00483010	Part_Drop	damage	med	Bit 1 cleared, the damage record's part flag set
 00483050	Part_Unhinge	damage	med	A badly damaged hinge moved, the part swinging free
 00483100	Part_Scrape	damage	med	Sparks where a part's corner drags on a sparking surface
-00483570	Part_Type3	damage	low	Type 3's step (not ported)
-00484310	Part_Type2	damage	low	Type 2's step (not ported)
 00484d30	Parts_Interp	damage	high	Every loose part's drawn matrix between its last two steps
 0046b670	Parts_HideFallen	damage	med	Each fallen-off part hidden (Part_Hide with the damage flag)
 00469bf0	Damage_PartOff	damage	med	Part k fallen off: the record's flag, then the panels
@@ -951,3 +949,5 @@
 004abaf0	Mesh_Clone	render	confirmed	A scenery mesh copied into its placement's frame, batched and buffered
 004b8aa0	Section_Unlink	world	confirmed	An object out of its cell's list
 004b8b10	Section_Link	world	confirmed	An object onto the list of the cell of its world position
+00484310	Part_Flap	sim	confirmed	Loose part type 2: a flap swung by the deceleration about z, stops and bounces
+00483570	Part_Hatch	sim	confirmed	Loose part type 3: a hatch on its hinge, spring, stop direction from the .cin, breaks off

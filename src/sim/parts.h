@@ -4,7 +4,7 @@
    the ground, break off their hinge and, once too far from the car, fall off (the damage record's
    part flag, then hidden when drawn). Each part has a 0x1a0-byte record per car (four arrays at
    0x590d7c); its update is per type: 0 a wobble about the hinge (0x4814d0), 1 the hinged panel
-   (0x4816f0), 2 and 3 their own (0x484310, 0x483570, not ported). */
+   (0x4816f0), 2 a flap (0x484310), 3 a hatch on its hinge (0x483570). */
 #pragma once
 #include "sim/car.h"
 #include "sim/sim.h"

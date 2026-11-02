@@ -500,15 +500,24 @@ int main(void)
                 int32_t speed = CI32(c, 0x778);
                 CW32(c, 0x778, 0x30000);
                 Obj *o1 = Parts_Obj(0, 1);
-                int32_t moved = 0;
+                int32_t moved = 0, moved_k[4] = {0, 0, 0, 0};
                 for (int i = 0; i < 25; i++) {
+                    /* braking hard for the first steps: the flap (type 2, 0x484310) and the hatch
+                       (type 3, 0x483570) swing with the car's deceleration */
+                    if (i < 5) CW32(c, 0x414, CI32(c, 0x408) + fx_mul(CI32(c, 0x360), 0x2000)),
+                               CW32(c, 0x41c, CI32(c, 0x410) + fx_mul(CI32(c, 0x368), 0x2000));
                     Parts_Step(&one);
                     Parts_Interp(0x10000);
-                    for (int j = 0; o1 && j < 16; j++) {
-                        int32_t d = o1->local.m[j] - o1->rest.m[j];
-                        if ((d < 0 ? -d : d) > moved) moved = d < 0 ? -d : d;
+                    for (int k = 0; k < 4; k++) {
+                        Obj *ok = Parts_Obj(0, k);
+                        for (int j = 0; ok && j < 16; j++) {
+                            int32_t d = ok->local.m[j] - ok->rest.m[j];
+                            if ((d < 0 ? -d : d) > moved_k[k]) moved_k[k] = d < 0 ? -d : d;
+                        }
                     }
                 }
+                moved = moved_k[1];
+                printf("parts: moved %.4f %.4f %.4f %.4f\n", moved_k[0] / 65536.0, moved_k[1] / 65536.0, moved_k[2] / 65536.0, moved_k[3] / 65536.0);
                 memcpy(dw + 0x240 + 4 * pan[1], (uint8_t[4]){0, 0xf0, 0, 0}, 4);
                 Parts_Step(&one);
                 uint8_t f1 = Parts_Flags(0, 1);
@@ -521,6 +530,8 @@ int main(void)
                 printf("parts: objects %#x, loose %#x, type 1 moved %.4f, flags %#x, after the reset %#x (at rest %d)\n",
                        have, loose, moved / 65536.0, f1, still, rest);
                 CHECK(have & 2);
+                CHECK(!(have & 8) || moved_k[3] > 0);
+                CHECK(!(have & 4) || moved_k[2] > 0);
                 CHECK(loose == have && moved > 0 && (f1 & 0x13) == 0x13 && still == 0 && rest);
                 for (int k = 0; k < 4; k++) memset(dw + 0x240 + 4 * pan[k], 0, 4);
             }

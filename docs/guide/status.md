@@ -55,8 +55,7 @@
   service screens between them (mode 2), the movies, the options and the saves are not done yet; the menu music plays.
 
 Next: mode 2's set-up and service screens and the race's results, the rest of the front end's pages,
-then the rest of the simulation (the loose parts' other motions, the other entities of
-the step) and the race's cameras and HUD.
+then the rest of the simulation (the loose parts' pieces, the other entities of the step) and the race's cameras and HUD.
 
 | Area | State |
 |---|---|
@@ -67,7 +66,7 @@ the step) and the race's cameras and HUD.
 | World (objects, stage sections) | Object trees, terrain, scenery, sky, shadows, lights, the glows and camera-facing sprites, the start lights, the cars' lamps and lenses, the particle engine, its types and the wheels' grass, leaves, dust, snow, splashes and stones, the rain and snow, the device lights (the sun, the headlights), the skid marks, the cars' shadows, the super special's fireworks, the sky's colours, fog, sun and sun glow by the time of day and the frame function ported; the other particle emitters and the cars' own drawing open |
 | Race flow | Process framework, race states, Race_Update, Stage_Load, Car_Load, sectors and the race clock ported for one player in a rally, and the arcade's races (its stages, the computer drivers' cars on a grid, driven by their neural networks from the stage's `.ai` files); the chase camera, the HUD's clock, split bar, split difference and standings, the pause menu and the results; the other cameras, the HUD's messages and the other modes' panels, and the replay open |
 | Front end | The process, menu engine, every page's construction and the single-stage path's and the arcade's pages up to the race ported; the options, profiles, championship and network pages, the arcade's standings, the saves, mode 2's set-up and service screens open |
-| Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls and stopped by the scenery (trees, posts, walls) and knocks the movable objects (signs, posts) over, rolls and is recovered; hits dent the car, wear its handling and break its glass, and are carried to the next stage; a broken engine misfires; the car-to-car contacts are ported; two of the loose parts' four kinds of motion (the wobbling and hinged panels are ported) and the step's other entities open |
+| Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls and stopped by the scenery (trees, posts, walls) and knocks the movable objects (signs, posts) over, rolls and is recovered; hits dent the car, wear its handling and break its glass, and are carried to the next stage; a broken engine misfires; the car-to-car contacts are ported; the loose parts' four kinds of motion are ported; their broken-off pieces and the step's other entities open |
 | Sound | A DirectSound emulation and mixer, the sound layer, the engine loops, the co-driver's calls and the collision sounds (hits, rolls, glass) ported; the menus' sounds and music ported; backfires and surfaces open |
 | Movies (Bink 1) | Not started |
 | Network (DirectPlay 4) | Located; last step |
