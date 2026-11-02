@@ -86,6 +86,33 @@ Obj *Damage_PartObj(int n, int k) { return Parts_Obj(n, k); }
 int Damage_Slots(int n) { return count(&dmg[n >= 0 && n < CAR_MAX ? n : 0]); }
 int Damage_SlotVerts(int n, int s) { return s >= 0 && s < SLOTS ? nverts(&dmg[n >= 0 && n < CAR_MAX ? n : 0], s) : 0; }
 
+/* 0x469c30: a random point of slot s's mesh in its own frame: a random polygon, one of its three
+   edges and a random share along it (each corner's float to 16.16, to nearest); false and zero for
+   an empty slot */
+bool Damage_RandomPoint(int n, int s, int32_t p[3])
+{
+    const Dmg *d = &dmg[n >= 0 && n < CAR_MAX ? n : 0];
+    p[0] = p[1] = p[2] = 0;
+    if (s < 0 || s >= SLOTS || !d->mesh[s]) return false;
+    const Obj *o = d->obj[s];
+    int np = (int)rd32(d->mesh[s] + 0x28);
+    int a = crt_rand(), e = crt_rand(), r = crt_rand();
+    const uint8_t *poly = o && o->model ? C3d_Ref(o->model, d->mesh[s] + 0x24, o->model->polys) : NULL;
+    const uint8_t *v = verts(d, s);
+    if (!poly || !v || np <= 0) return true;   /* (the original divides by the count regardless) */
+    int32_t t = (int32_t)nearbyint((double)r * (double)(float)(1.0 / 32767.0) * 65536.0);
+    const uint8_t *q = poly + (size_t)(a % np) * C3D_POLY;
+    static const uint8_t from[3] = {0x40, 0x42, 0x44}, to[3] = {0x42, 0x44, 0x40};
+    const uint8_t *va = v + (size_t)(q[from[e % 3]] | q[from[e % 3] + 1] << 8) * C3D_VERTEX;
+    const uint8_t *vb = v + (size_t)(q[to[e % 3]] | q[to[e % 3] + 1] << 8) * C3D_VERTEX;
+    for (uint32_t k = 0; k < 3; k++) {
+        int32_t x = vget(va, 4 * k);
+        p[k] = fx_mul(vget(vb, 4 * k) - x, t) + x;
+    }
+    return true;
+}
+Obj *Damage_SlotObj(int n, int s) { return s >= 0 && s < SLOTS ? dmg[n >= 0 && n < CAR_MAX ? n : 0].obj[s] : NULL; }
+
 bool Damage_RestVert(int n, int s, int v, int32_t p[3])
 {
     const Dmg *d = &dmg[n >= 0 && n < CAR_MAX ? n : 0];

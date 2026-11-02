@@ -1,6 +1,7 @@
 /* The rally's weather (see weather.h). */
 #include "pending.h"
 #include "game/weather.h"
+#include "sim/damage.h"
 #include "crt.h"
 #include "fixmath.h"
 #include "game/gstate.h"
@@ -1026,11 +1027,26 @@ static void sprite(uint32_t at, Tex *t)
 }
 static float ff(int32_t v) { return (float)((double)v * 1.52587890625e-05); }   /* fild; fmul 1/65536 */
 
-/* 0x460ca0: drops on the car (splat2 at random points of its body) */
+/* 0x460ca0: drops on the car: of share x the frame's scale x 30 drops a random count below that
+   (the quotient of a random number by it is the original's return), each a splat2 sprite at a random
+   point of a random damage slot's mesh, when that point is above the slot's origin */
 static void car_drops(int32_t share_, const Car *c)
 {
-    (void)share_, (void)c, (void)t_splat2;   /* (splat2 its texture) */
-    PENDING_NOTE(0x460ca0, "Weather_CarDrops (random points of the damage slots' meshes, 0x469c30)");
+    int car = CI8(c, 0xb1a);
+    int n = fx_mul(fx_mul(scale(), share_), 0x1e0000) >> 16;
+    if (n <= 0) return;
+    int k = crt_rand() % n;
+    for (; k > 0; k--) {
+        int slots = Damage_Slots(car);
+        int s = slots > 0 ? crt_rand() % slots : 0;   /* (the original divides regardless) */
+        int32_t p[3];
+        const Obj *o = Damage_SlotObj(car, s);
+        if (!Damage_RandomPoint(car, s, p) || p[1] <= 0 || !o) continue;
+        const int32_t *m = o->world.m;
+        for (uint32_t q = 0; q < 3; q++)   /* Vec_Mul3 0x4b9c20, then the position */
+            gw32(CARSPLAT + 4 * q, (uint32_t)(fx_mul(m[8 + q], p[2]) + fx_mul(m[4 + q], p[1]) + fx_mul(m[q], p[0]) + m[12 + q]));
+        sprite(CARSPLAT, t_splat2);   /* 0x4b11c0 */
+    }
 }
 
 /* 0x460390: a record's drops. Rain: a streak per drop, a triangle from its tail (the drop less twice

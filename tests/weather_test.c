@@ -121,7 +121,8 @@ int main(void)
     }
     printf("rain: 100 frames, %d drops outside the box, %d splats, %d sprites queued, wind %.3f (aim %.3f), y %.2f\n",
            out, splats, drawn, gms32(0x547940) / 65536.0, gms32(0x547944) / 65536.0, y0 / 65536.0);
-    CHECK(out == 0 && splats > 0 && drawn == splats);
+    /* the sprites: the splats and the drops on the car (0x460ca0) */
+    CHECK(out == 0 && splats > 0 && drawn > splats);
     CHECK(gms32(0x54794c) > 0 || gms32(0x547940) != 0);   /* a gust held or blowing */
 
     /* heavy snow (type 8): one flake a drop each frame */

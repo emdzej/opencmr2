@@ -44,6 +44,8 @@ void Damage_Misfire(Car *c);   /* 0x46b4e0: a broken engine's cutting out (the c
 bool Damage_Dents(int n);                    /* 0x46b4c0: car n's dents on */
 Obj *Damage_PartObj(int n, int k);           /* 0x484de0: car n's loose part k's object (NULL: none) */
 int Damage_Slots(int n);                     /* the record's +0x45c: the mesh slots */
+bool Damage_RandomPoint(int n, int s, int32_t p[3]);   /* 0x469c30: in the slot's frame */
+Obj *Damage_SlotObj(int n, int s);           /* the record's +0x3c + 4 s */
 int Damage_SlotVerts(int n, int s);          /* +0x420 + 4s: slot s's vertices */
 /* slot s's vertex v at rest (the +0x78 arrays, 16.16); false when the slot has none */
 bool Damage_RestVert(int n, int s, int v, int32_t p[3]);
