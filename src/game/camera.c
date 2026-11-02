@@ -893,12 +893,35 @@ void Camera_Frame(int p, int32_t frac, Obj *camera)
     near_f[p] = lerp(prev[p].f4c, out[p].f4c, frac);
     int32_t m[16];
     blend(m, prev[p].m, out[p].m, frac, frac, frac, 1);   /* 0x423de0 */
-    /* the frame's ground lift raises the camera (its tilt back towards the car, and the f48 share
-       added to the car's +0x71c and +0x720 objects' +0xcc, are not ported) */
+    /* the frame's ground lift (+0x60): the car's two models raised by its +0x48 share (after the pose
+       has set them), the camera by all of it, and with +0x5c the camera's forward (row 2) tilted by
+       the lift's +0x58 share: scaled by +0x5c, plus its flat part's length taken from y and its y
+       times x and z added, made unit; side (row 0) made square to it, up its cross with side */
     int32_t lift = lerp(prev[p].f60, out[p].f60, frac);
     if (lift) {
+        Car *car = Car_Get(p);
+        int32_t up = fx_mul(lerp(prev[p].f48, out[p].f48, frac), lift);
+        if (car->main) car->main->local.m[13] += up;
+        if (car->second) car->second->local.m[13] += up;
         m[13] += lift;
-        PENDING_NOTE(0x422140, "Camera_Frame (the ground lift's tilt)");
+        int32_t k = lerp(prev[p].f5c, out[p].f5c, frac), t = fx_mul(lift, lerp(prev[p].f58, out[p].f58, frac));
+        if (k && t) {
+            int32_t f[3], s[3], u[3], h[3];
+            row(f, m, 2);
+            h[0] = f[0], h[1] = 0, h[2] = f[2];
+            int32_t len = Vec_Length(h);
+            h[0] = fx_mul(fx_mul(f[0], f[1]), t), h[1] = fx_mul(-len, t), h[2] = fx_mul(fx_mul(f[2], f[1]), t);
+            for (int q = 0; q < 3; q++) f[q] = fx_mul(f[q], k) + h[q];
+            Vec_Normalize(f);
+            set_row(m, 2, f);
+            row(s, m, 0);
+            int32_t d = fx_mul(f[2], s[2]) + fx_mul(f[0], s[0]) + fx_mul(f[1], s[1]);
+            for (int q = 0; q < 3; q++) s[q] -= fx_mul(f[q], d);
+            Vec_Normalize(s);
+            set_row(m, 0, s);
+            cross(u, f, s);
+            set_row(m, 1, u);
+        }
     }
     for (int i = 0; i < 12; i++) camera->local.m[i] = m[i];
     camera->local.m[12] = m[12], camera->local.m[13] = m[13], camera->local.m[14] = m[14];
