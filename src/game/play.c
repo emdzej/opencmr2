@@ -157,8 +157,9 @@ static void draw(int player, int state)
         if (CI32(c, 0xc0c) || CI32(c, 0xb68 + 4 * (uint32_t)player)) continue;
         if (!multi) {
             if (gm32(0x588cd4 + 4u * (uint32_t)(player + n * 2)) != 7) Shadow_Draw(c, player);
-        } else if (Gs_SelBit27() || Gs_SelBit26()) Shadow_Draw(c, 1);
-        else PENDING_NOTE(0x466570, "the cars' pass: Camera_Car(1)'s car in a shared replay");
+        } else if (Gs_SelBit27() || Gs_SelBit26() || i == (Camera_Car(1) & 0xff)) Shadow_Draw(c, 1);
+        /* (in a shared replay otherwise only the second view's car, its number compared with the
+           list's place as in the original) */
     }
     int32_t eye[3] = {camera->world.m[12], camera->world.m[13], camera->world.m[14]};
     Aerials_Draw(g_all.car, g_all.n, player, eye);   /* 0x485690 */
