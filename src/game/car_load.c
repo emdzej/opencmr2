@@ -310,7 +310,7 @@ const uint8_t *Car_CinSection(int n, int k)
    handling class (+0xb1b, 0 in mode 4) and the words +0x724, +0x728-+0x734, +0xc0c and +0xb58 are kept while the
    blocks (0x42b740) and their counters (0x42b5b0, 0x53a230) are cleared; each is placed at its start
    (Car_Place, its models kept), then the damage (0x4669b0, Damage_Setup again), the players' tyres
-   (0x45c610 again), the clouds' texture (0x46ef20, not ported), the skids, the poses snapped and
+   (0x45c610 again), the mud washed off (0x46ef20), the skids, the poses snapped and
    taken by the models, the progress started again outside selection bits 26 and 27, the poses
    captured (0x42af50). */
 void Cars_Reset(int first, int n, bool keep)
@@ -345,6 +345,7 @@ void Cars_Reset(int first, int n, bool keep)
     Damage_Clear(first, n);   /* 0x4669b0 */
     Damage_Setup(true, keep, l.car, n);
     Tyres_Start(true, keep, (int)Gs_SelBits14());   /* 0x45c610 */
+    Mud_Reset();   /* 0x46ef20 */
     Skids_Reset();
     for (int i = first; i < first + n; i++) Pose_Snap(i);   /* 0x42c840 */
     for (int i = first; i < first + n; i++) Car_PoseToObjects(Car_Get(i));   /* 0x43ecd0 */

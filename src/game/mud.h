@@ -10,3 +10,4 @@
 void Mud_Setup(int car, int cls);   /* 0x458050 (0x46e580, 0x46e620 for each patch) */
 void Mud_Throw(int car);            /* 0x46ea10 */
 void Mud_Paint(void);               /* 0x46e780 */
+void Mud_Reset(void);               /* 0x46ef20: the body texture clean again */

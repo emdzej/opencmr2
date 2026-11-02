@@ -36,7 +36,7 @@ void Glass_Pieces(Car *c);
    A chip, or the spark in its place, marks the record (+0x46c) and adds 2 to the count (at most 255).
    Not in mode bit 26 or for a car out of the race (+0xc0c). */
 void Sparks_Add(int32_t strength, const int32_t pos[3], Car *c, const int32_t rows[9], int32_t most, int32_t chips);   /* 0x498dd0 (0x466360, after Race_StartLights) */
-/* 0x45b550 (from the engine's backfire in Engine_Mix 0x479360, not ported): the car's exhausts flame
+/* 0x45b550 (from the engine's backfire in Engine_Mix 0x479360): the car's exhausts flame
    for the given frames */
 void Effects_Backfire(int car, int frames);
 /* Wheel_Slip 0x465d70: wheel w's slip as 0..1 (0 for cars from 8) */

@@ -2,6 +2,7 @@
    offsets (so a saved file is the original's layout); its pointers (+0x24, +0x30, +0x3c, +0x40,
    +0x104 and the unread +0x28, +0x2c, +0x34, +0x38) are kept beside it. */
 #include "game/replay.h"
+#include "game/mud.h"
 #include "game/race.h"
 #include "game/gstate.h"
 #include "game/opponents.h"
@@ -329,7 +330,7 @@ bool Replay_Play(Replay *r, int seg, int pre, int car)
     if (kind(r) == 0) snap_restore(snap_of(r, seg), (uint8_t)car);
     else if (kind(r) == 1) snap1_restore(snap_of(r, seg), (uint8_t)car);
     else PENDING_NOTE(0x46c390, "Replay_Play (kind 2: the network game's poses)");
-    /* 0x46ef20: the clouds' texture again (the clouds are not ported) */
+    Mud_Reset();   /* 0x46ef20 */
     w32(r, 0x14, 0);
     r->b[0x10c] = kind(r) == 0 ? snap_of(r, seg)[CHG0 + 4] : snap_of(r, seg)[0x20];
     /* car 0's run with computer drivers or head to head (not networked): the cars' progress again

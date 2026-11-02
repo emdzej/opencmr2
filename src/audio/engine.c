@@ -460,7 +460,7 @@ static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int
 
 /* 0x478c40: on the pause every engine voice of the players' cars (and the super special's second car
    with one player, not in mode 3 or a network game) at volume 0; the two voices at 0x58ddc8
-   stop (those of 0x47aa70 and 0x47ad20, not ported; option 0x13's two loops play on) */
+   stop (those of 0x47aa70 and 0x47ad20; option 0x13's two loops play on) */
 void Engine_Pause(void)
 {
     uint32_t n = Gs_SelBits14();

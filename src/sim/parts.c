@@ -106,7 +106,7 @@ void Parts_Init(void)
     thresh[0] = thresh[1] = thresh[2] = 0x8000;
     thresh[3] = 0x3333;
     panel_of[0] = 0x16, panel_of[1] = 0x14, panel_of[2] = 0x15, panel_of[3] = 0x12;
-    gw8(0x590bfc, 1), gw8(0x590bfd, 2);   /* read by 0x485690 / 0x485860 (not ported) */
+    gw8(0x590bfc, 1), gw8(0x590bfd, 2);   /* read by 0x485690 / 0x485860 (sim/aerials.c) */
 }
 
 void Parts_ClearFlag(void) { gw32(0x590d70, 0); }   /* Parts_Clear 0x480a50 */
@@ -139,7 +139,7 @@ void Parts_Reset(const Car *c)
 }
 
 /* Part_Hide 0x480ac0: with the flag, the part's object drawn in no pass. Nothing here gives the
-   passes back: the view's 0x46b8f0 sets the car's every frame (not ported). */
+   passes back: the view's 0x46b8f0 (Car_Masks) sets the car's every frame. */
 void Parts_Hide(const Car *c, int k, int32_t off)
 {
     Obj *o = part_obj[k][idx(c)];

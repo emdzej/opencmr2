@@ -19,8 +19,7 @@ void Shadow_Place(void);
 void Shadow_Build(const Car *c);
 /* 0x494db0 (in the cars' pass 0x466570): the record's triangles, nudged toward view's camera */
 void Shadow_Draw(const Car *c, int view);
-/* 0x498370: the sun direction the outline is cast along (from Sun_Direction 0x463070, not ported: the
-   exe's initial value stays) */
+/* 0x498370: the sun direction the outline is cast along (from Sun_Direction 0x463070) */
 void Shadow_SunDirection(const int32_t d[3]);
 /* 0x4984b0 (from 0x462aa0): car's outline scale (+0x250), and the texture factor's alpha, 100 plus 75 v */
 void Shadow_Light(int car, int32_t v);

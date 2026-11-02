@@ -1736,3 +1736,4 @@
 004a5730	Surf_Red8	render	high	A locked surface's texel red as 8 bits (16 or 32 bits a pixel)
 004a57e0	Surf_Alpha8	render	high	A locked surface's texel alpha as 8 bits (16 or 32 bits a pixel)
 004a6370	Tex_LoadBumpTga	render	high	A bump surface straight from a TGA (its first byte the height, +0x80 past the edges)
+0046ef20	Mud_Reset	game	high	The body texture reloaded clean when any mud was painted (cars put back, a replay started)

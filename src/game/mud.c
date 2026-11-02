@@ -35,6 +35,7 @@ static Splat splats[64];
 static int nsplats;       /* DAT_00589318 */
 static int quarter;       /* DAT_00589334 */
 static bool flip;         /* DAT_00589331: the class 0's patches the other way round */
+static bool painted;      /* DAT_00589330: a splat painted since the last clear */
 static int thrown[4];     /* 0x589320: throws by wheel (not read back) */
 
 /* 0x46e530 */
@@ -42,7 +43,7 @@ static void clear(void)
 {
     nsplats = 0;
     for (int k = 0; k < npatches; k++) patches[k].acc = patches[k].splats = 0, patches[k].full = false;
-    /* (0x589330, set when a splat is painted, is not read back) */
+    painted = false;
     memset(thrown, 0, sizeof thrown);
 }
 
@@ -257,7 +258,18 @@ void Mud_Paint(void)
                 if (l < px && px < r && tp < py && py < b && px < s->width && py < s->height)
                     texel(s->rgba + ((size_t)py * (size_t)s->width + (size_t)px) * 4, mud);
             }
+        painted = true;
     }
     s->dirty = true;   /* 0x4a56c0 */
     nsplats = 0;
+}
+
+/* 0x46ef20 (the cars put back, 0x42b800; a replay started, 0x46cce0): with patches and a splat painted,
+   the body texture made again from its archive and the splats and counts cleared */
+void Mud_Reset(void)
+{
+    if (npatches > 0 && painted) {
+        Tex_Reload(body[0]);   /* 0x4a5da0 */
+        clear();               /* 0x46e530 */
+    }
 }

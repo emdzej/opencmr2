@@ -234,7 +234,7 @@ static void cb_45d2d0(Particle *p, PType *t, void *a)
     }
 }
 
-/* the sparks' and chips' callbacks (0x499070-0x499ac0), not ported yet */
+/* the sparks' and chips' callbacks (0x499070-0x499ac0) */
 /* the spark's triangle (0x592878, three PolyVerts: colour 0xfefefe from 0x498dd0, uv from 0x499020) */
 enum { SPARK_TRI = 0x592878 };
 static uint32_t vlen(const int32_t v[3]) { return Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2])); }

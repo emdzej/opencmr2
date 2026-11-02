@@ -196,7 +196,7 @@ void World_RenderCube(const Obj *o, const Obj *cam, uint32_t pass, Obj *const *o
     Render_AlphaBlend(1);
 }
 
-/* Not ported yet: FUN_004b6240 (pass) at the end of the 3D; of the frame statistics FUN_004b21e0 after the 2D only the frame rate. */
+/* Of the frame statistics FUN_004b21e0 after the 2D only the frame rate. */
 bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
 {
     g_polys_drawn = 0;

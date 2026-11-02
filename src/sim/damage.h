@@ -4,8 +4,8 @@
    which the models keep in their vertex colours), adds to a 3 x 3 grid of cells over the car, and the
    cells set 34 panels whose values are the handling factors (engine, steering, brakes, drag) and the
    glass. Each hit is logged (20 entries, the weakest replaced) and the log is carried between stages,
-   replayed by Damage_Reset. The loose parts are sim/parts.c. Not ported: the glass pieces (0x49a910) and
-   the relighting marks (0x4b4100). */
+   replayed by Damage_Reset. The loose parts are sim/parts.c, the glass pieces game/effects.c (0x49a910),
+   the relighting marks world/carshade.c (0x4b4100). */
 #pragma once
 #include "sim/car.h"
 #include <stdbool.h>
