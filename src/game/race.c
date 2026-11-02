@@ -283,9 +283,24 @@ static void Race_Update(uint8_t state, bool flag)
             Replay_Start(Race_Replay(0), 0);   /* 0x46c750 */
             if (Gs_Bit30()) Ghost_Start(0, 0);
         }
-        /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60, 0x418b00) */
-        if (car0 && state > 6 && !gm8(0x52af40))
-            for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i), Surface_Step((int)i, (int)i), Crash_UpdateSounds();
+        /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60, 0x418b00);
+           on the super special only while the first player's replay plays, else every voice stopped
+           once (0x537f2c); the super special's second car with one player heard from the first view */
+        if (car0 && state > 6 && !gm8(0x52af40)) {
+            if (!Gs_SuperSpecial() || Replay_Playing(Race_Replay(0))) {   /* 0x41f3d0 */
+                uint32_t n = np + (np == 1 && Gs_SelBit25() && !Gs_ModeBit19() && Gs_Mode() != 3);
+                for (uint32_t i = 0; i < n; i++) {
+                    int view = n > np ? 0 : (int)i;
+                    Engine_Update((int)i, view), Surface_Step((int)i, view), Crash_UpdateSounds();
+                }
+            } else if (!gm32(0x537f2c)) {
+                Voices_StopAll();
+                gw32(0x537f2c, 1);
+            }
+            if (!Gs_ModeBit19()) {
+                if ((Gs_Mode() == 5 || Gs_Mode() == 6) && np == 1) Engine_Others();   /* 0x47aa70 */
+            } else if (Gs_Mode() == 11 || Gs_Mode() == 12) Engine_Circuit();   /* 0x47ad20 */
+        }
         Sim_StepDone(&g_all);
     }
     Knock_Interp(R.frac);   /* 0x471950, first in Race_PoseInterp */

@@ -7,12 +7,14 @@
 #include "game/effects.h"
 #include "game/timer.h"
 #include "game/replay.h"
+#include "game/opponents.h"
 #include "crt.h"
 #include "game/mem.h"
 #include "fixmath.h"
 #include "exe.h"
 #include "pending.h"
 #include "sim/car.h"
+#include "sim/sim.h"
 #include <stdio.h>
 
 enum { FS, RS, FM, RM, WHINE, FT, RT, CHATTER, DET1, DET2, DET3, DET4, DETIDLE, NSOUNDS };
@@ -40,6 +42,7 @@ static int32_t k_fs, k_rs, k_fm, k_rm, k_ft, k_rt;   /* 0x58df38, 0x51f274, 0x58
    game state, set per camera here; the two loops play each car's sounds 13 and 14, past its own 13 (the
    next car's fs and rs, or whatever was loaded after the last car's) */
 static int32_t v_x13a[4], v_x13b[4];       /* 0x58ddd8, 0x58df30 */
+static int32_t v_other[2];                 /* 0x58ddc8: the two nearest other cars (0x47aa70, 0x47ad20) */
 static bool option(int n) { return gm32(0x52e890) >> n & 1; }   /* 0x406410 */
 
 /* A band of revs (0x51ea60 slow, 0x51eab8 medium, 0x51ec50 fast): steps over [lo, hi], a frequency
@@ -117,16 +120,26 @@ void Engine_Reset(void)
         high_gear[i] = high_revs[i] = chattered[i] = 0;
         bf_end[i] = bf_quiet[i] = idle_on[i] = det_on[i] = 0;
     }
+    v_other[0] = v_other[1] = -1;
 }
 
 bool Engine_Load(int players)
 {
     bool ok = true;
-    for (int n = 0; n < players && n < 4; n++) {
+    /* with one player the super special's second car too (not round a circuit, not in mode 3) */
+    int extra = players == 1 && Gs_SelBit25() && !Gs_ModeBit19() && Gs_Mode() != 3;
+    for (int n = 0; n < players + extra && n < 4; n++) {
         /* the player's car (0x4086b0), its class (0x40ee90): the engine (0x51f044) and the names'
            suffix (0x51f15c), 20 bytes a class */
         uint32_t pl = (uint32_t)n + (Race_Kind() == 4 ? (uint32_t)Race_Base() : 0);   /* 0x41b370 */
         int car = (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
+        if (extra && n > 0) {
+            /* the second car: 0x407fc0 of the paired driver (0x455ab0): in modes 5-7 the loaded
+               car's (0x456c00, cars 0-5), else the driver's (0x51681c, 0-14) */
+            int d = Opp_Pair(Race_Base()), m = (int)Gs_Mode();
+            if (m == 5 || m == 6 || m == 7) car = d >= 0 && d < 6 ? (int)(uint8_t)gm32(0x54260c + 4u * (uint32_t)d) : 0;
+            else car = d >= 0 && d <= 0xe ? gm8(0x51681c + (uint32_t)d) : 0;
+        }
         uint32_t cls = exe_u32(0x516b40 + 4u * (uint32_t)car);
         const char *engine = exe_str(0x51f044 + cls * 20), *suffix = exe_str(0x51f15c + cls * 20);
         base[n] = (int16_t)Snd_Count();
@@ -456,6 +469,84 @@ void Engine_Pause(void)
         int32_t *v[] = {&v_fm[i], &v_rm[i], &v_fs[i], &v_rs[i], &v_whine[i], &v_det[i], &v_ft[i], &v_rt[i]};
         for (int k = 0; k < 8; k++)
             if (Voice_Playing(*v[k])) Voice_SetVolume(*v[k], 0);
+    }
+    for (int k = 0; k < 2; k++)
+        if (v_other[k] != -1) Voice_Stop(v_other[k]);   /* (the handles kept) */
+}
+
+/* The distance from the first camera to car (0x4babe0 and 0x4bac40 on its +0x750 and on 0x538d30) */
+static int32_t camera_distance(int car)
+{
+    const Car *c = Car_Get(car);
+    int32_t cam[3], v[3];
+    Camera_Position(0, cam);
+    v[0] = CI32(c, 0x30) - cam[0], v[1] = CI32(c, 0x34) - cam[1], v[2] = CI32(c, 0x38) - cam[2];
+    return Vec_Length(v);
+}
+
+/* The shared part of 0x47aa70 and 0x47ad20: car's sound on voice k, the first player's rt (sound 6,
+   looped from the first player's class's offset) at the fast band's frequency for the car's revs
+   (2,000 to 6,500) shifted by the Doppler on the first camera, silent outside the band; the volume
+   is faded by the distance twice */
+static void other_voice(int k, int car)
+{
+    Band fast = band_at(0x51ec50, 0x51ec64, 0x51ed62);
+    int32_t fade = fx_mul(Engine_DistanceFade(car, 0), 0x10000);
+    const Car *c = Car_Get(car);
+    int rpm = fx_mul(fx_mul(CI32(c, 0x7ac), CI32(c, 0x798)), 0x19640000) >> 16;
+    rpm = rpm < 2000 ? 2000 : rpm > 0x1964 ? 0x1964 : rpm;
+    if (!Voice_Playing(v_other[k])) {
+        uint32_t cls = exe_u32(0x516b40 + 4u * (gm32(0x531350) & 0x3f));   /* 0x4086b0, 0x40ee90 */
+        int32_t vol = fx_mul(Engine_DistanceFade(car, 0), fx_mul(master, fx_mul(fade, k_rt)));
+        v_other[k] = Voice_Play(base[0] + RT, vol, 0x5622, exe_u32(0x51f2d8 + 4 * cls), true, false);
+    }
+    int32_t vol = 0;
+    if (in_band(rpm, &fast)) {
+        Voice_SetFrequency(v_other[k], Engine_Doppler(0, car, (uint16_t)band_freq(rpm, &fast)) & 0xffff);
+        vol = fx_mul(Engine_DistanceFade(car, 0), fx_mul(master, fx_mul(fade, k_rt)));
+    }
+    Voice_SetVolume(v_other[k], vol);
+}
+
+void Engine_Others(void)
+{
+    int np = (int)Gs_SelBits14(), n = g_all.n - np;
+    if (n <= 0) return;
+    int32_t dist[8] = {0};
+    int left[8] = {0};
+    for (int i = 0; i < n && i < 8; i++) left[i] = 1, dist[i] = camera_distance(np + i);
+    /* the nearest not yet taken, starting from 0x42400000 (48.0's bits, taken as an int); the
+       original indexes the taken flags by the car (np + i), which matches with one player */
+    int pick = 0;
+    for (int k = 0; k < (n < 2 ? n : 2); k++) {
+        int32_t best = 0x42400000;
+        for (int i = 0; i < n && i < 8; i++)
+            if (dist[i] < best && left[i]) pick = i, best = dist[i];
+        left[pick] = 0;
+        other_voice(k, np + pick);
+    }
+}
+
+void Engine_Circuit(void)
+{
+    int car[8], n = 0;
+    for (int i = 0; i < 7; i++)   /* 0x409cb0, 0x40b010: the network slots in use, their cars */
+        if (gm32(0x53177c + 0x80u * (uint32_t)i) >> 7 & 1) car[n++] = (int)gm32(0x531780 + 0x80u * (uint32_t)i);
+    if (n == 0) return;
+    int32_t dist[8];
+    int left[8] = {0};
+    for (int i = 0; i < n; i++) left[i] = 1, dist[i] = camera_distance(car[i]);
+    /* each pass restarts from the first slot whether taken or not, and clears the flag by the car's
+       number rather than the slot's, as the original does: the same car can be picked twice */
+    int pick = 0;
+    for (int k = 0; k < (n < 2 ? n : 2); k++) {
+        int32_t best = 0;
+        for (int i = 0; i < n; i++) {
+            if (i == 0) best = dist[0], pick = car[0];
+            if (dist[i] < best && left[i]) pick = car[i], best = dist[i];
+        }
+        if (pick >= 0 && pick < 8) left[pick] = 0;
+        other_voice(k, pick);
     }
 }
 

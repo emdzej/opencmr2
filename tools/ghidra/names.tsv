@@ -1698,3 +1698,5 @@
 004a24a0	Voice_LoopFrom	audio	high	A voice's second buffer: the sound from its start offset on, looped after the first pass
 004a27c0	Voice_Update	audio	high	One voice once a frame: on to its tail, or freed when played
 004a2430	Voice_IsPlaying	audio	high	The buffer playing, or the voice has a start offset
+0047aa70	Engine_Others	audio	high	Modes 5 and 6 with one player: the two nearest other cars on the first player's rt loop
+0047ad20	Engine_Circuit	audio	high	Circuit modes 11 and 12: the two nearest network slots' cars on the first player's rt loop
