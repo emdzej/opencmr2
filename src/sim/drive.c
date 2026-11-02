@@ -6,6 +6,7 @@
 #include "pending.h"
 #include "fixmath.h"
 #include "game/gstate.h"
+#include "game/challenge.h"
 #include "game/mem.h"
 #include "game/camera.h"
 #include "game/race.h"
@@ -34,20 +35,44 @@ static void action_masks(int player)
 
 static uint32_t act(int a) { return gm16(0x51f4b0 + 2u * (uint32_t)a); }
 
-/* the camera key's next camera (Camera_Key 0x47b970 for the race kinds of one profile a player) */
-static void camera_key(int player)
+/* 0x47b970's and 0x47bad0's profile for a player by the race's kind (0x58e0a4, kept between calls,
+   as the match's drivers at 0x58df98): the player; in a challenge match of two players (kind 2) the
+   first driver when a player, else the second; in one of a player each (kind 3) the first for the
+   first player, the second for the other; in alternation (kind 4) the one after the base */
+static int profile_of(int player)
 {
-    int state = Race_State(player);
-    int now = Camera_Next(player, state);
-    if ((state == 7 || state == 8) && now >= 1 && now <= 5) Player_SetCameraKind(player, (uint32_t)now);   /* 0x408760 */
+    static uint32_t who, a, b;
+    switch (Race_Kind()) {
+    case 0: case 1: who = (uint32_t)player; break;
+    case 2:
+        Challenge_Pair(&a, &b);   /* 0x407830 */
+        who = Player_Driver((int)(a & 0xff)) == -1 ? a : b;   /* 0x408500 */
+        break;
+    case 3:
+        if (player == 0) Challenge_Pair(&who, &b);
+        else Challenge_Pair(&a, &who);
+        break;
+    case 4: who = (uint32_t)(Race_Base() + player); break;
+    }
+    return (int)who;
 }
 
-/* 0x408800 for the race's kinds 0, 1 and 4 (2 and 3 pair the players, 0x407830) */
+/* the camera key's next camera (Camera_Key 0x47b970): on the line or the stage (the first slot's
+   state) the profile's camera kept when one of the players' (1-5) */
+static void camera_key(int player)
+{
+    int now = Camera_Next(player, Race_State(player));
+    int st = Race_State(0);
+    if (st == 8 || st == 7) {
+        int who = profile_of(player);
+        if (who < (int)Gs_Players() && now >= 1 && now <= 5) Player_SetCameraKind(who, (uint32_t)now);   /* 0x408760 */
+    }
+}
+
+/* 0x408800 */
 static int profile_kind(int player)
 {
-    int k = Race_Kind(), p = player;
-    if (k == 4) p = Race_Base() + player;
-    else if (k == 2 || k == 3) PENDING_NOTE(0x407830, "the rear view's profile in a paired race");
+    int p = profile_of(player);
     if (Gs_Mode() == 4) return gm8(0x52f3e4 + 0xc4u * (uint32_t)p);
     uint32_t t = gm32(0x531350 + 0x30u * (uint32_t)p) >> 0x12 & 0xf;
     return t != 0xf ? (int)gm32(0x52fa60 + t * 0x650) : 0;

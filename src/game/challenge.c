@@ -86,6 +86,13 @@ uint32_t Challenge_Match(void)
     return a && round_kind() != 4 ? a + 12 * match_no() : a;
 }
 
+void Challenge_Pair(uint32_t *a, uint32_t *b)
+{
+    uint32_t m = Challenge_Match();
+    if (!m) return;
+    *a = gm32(m) & 0x1f, *b = gm32(m) >> 5 & 0x1f;
+}
+
 uint32_t Challenge_Slot(int side)
 {
     uint32_t m = Challenge_Match();

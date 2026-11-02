@@ -9,6 +9,7 @@
 #include "font.h"
 #include "game/common.h"
 #include "game/gstate.h"
+#include "game/challenge.h"
 #include "game/input.h"
 #include "game/ctlcfg.h"
 #include "game/mem.h"
@@ -513,10 +514,15 @@ static void camera_live(void)
         int k = Camera_Kind(base);
         if (k != 5 && k != 8) {
             Camera_SelectAt(base, 5, 0xffff, Camera_Car(base), true);
-            int who = base;
-            if (Race_Kind() == 2 || Race_Kind() == 3) PENDING_NOTE(0x407830, "the camera kind's player in a paired race");
-            else if (Race_Kind() == 4) who = Race_Base() + base;
-            Player_SetCameraKind(who, 5);
+            /* the profile: in a challenge match its first driver (kind 2), or the pausing player's
+               side (kind 3, 0x407830; outside a round the base here, the original's stack value) */
+            uint32_t who = (uint32_t)base, other = 0;
+            if (Race_Kind() == 2) Challenge_Pair(&who, &other);
+            else if (Race_Kind() == 3) {
+                if (base == 0) Challenge_Pair(&who, &other);
+                else Challenge_Pair(&other, &who);
+            } else if (Race_Kind() == 4) who = (uint32_t)(Race_Base() + base);
+            Player_SetCameraKind((int)who, 5);
         }
         int32_t raw[3];
         Chase_Raw(base, raw);
