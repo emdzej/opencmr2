@@ -3,6 +3,8 @@
 #include "audio/snd.h"
 #include "game/camera.h"
 #include "game/gstate.h"
+#include "game/race.h"
+#include "crt.h"
 #include "game/mem.h"
 #include "fixmath.h"
 #include "exe.h"
@@ -147,10 +149,56 @@ static void ease_throttle(int t, int car)
     thr_s[car] = thr[car] = t;
 }
 
+static int32_t shift_at[4], shift_end[4], whine_lvl[4];   /* 0x58dd88, 0x58de10, 0x58dd78 */
+
+/* 0x47a3d0: the gearbox whine by the speed (the band 0x51ede8: 193 steps over 0-160). A gear up
+   stops the fast loops (ft, rt) and dips the whine for one second of stage time, from a moment
+   now or (one time in four, by rand) a second later, by the curve 0x51f310 (23 steps); the whine
+   comes up in tenths while the throttle is open, and is off in neutral, at 160 or over, on the
+   0x539ed8 cars (none) and while its voice is not playing. (The record's +0x14 and +0x18, never set,
+   would keep the volume.) */
+static void whine(int car, int player, int speed, int gear, int throttle)
+{
+    Band b = band_at(0x51ede8, 0x51edfc, 0x51ef80);
+    if (gear_was[car] < gear) {
+        stop_voice(&v_rt[car]);
+        stop_voice(&v_ft[car]);
+        shift_end[car] = Race_StageTime(car);
+    } else
+        shift_end[car] = -1;
+    if (gear != gear_was[car] && gear_was[car] < gear)
+        shift_at[car] = (crt_rand() % 4 == 0) ? Race_StageTime(car) + 100 : Race_StageTime(car);   /* (C's remainder of a non-negative value, as the mask) */
+    int dip = 0;
+    if (0 < gear && gear < 4) {
+        uint32_t t = (uint32_t)(Race_StageTime(car) - shift_at[car]);
+        dip = t < 100 ? (int)exe_u32(0x51f310 + 4 * ((t * 0x17) / 100)) : 0;
+    }
+    if (speed < (int)exe_u32(0x51edf0) && gear != 0) {
+        if (throttle == 100) {
+            whine_lvl[car] += 10;
+            if (100 < whine_lvl[car]) whine_lvl[car] = 100;
+        } else
+            whine_lvl[car] = 0;
+        if (!gm8(0x539ed8) && in_band(speed, &b)) {   /* 0x427aa0 */
+            if (!Voice_Playing(v_whine[car])) return;
+            PENDING_NOTE(0x41f3d0, "the cars' records (0x537f3c): the whine's Doppler 0x427e20");
+            Voice_SetFrequency(v_whine[car], band_freq(speed, &b));
+            int v = band_vol(speed, &b);
+            if (0 < gear && gear < 4) v -= dip;
+            if (v < 0) v = 10;
+            v = whine_lvl[car] * v / 100;
+            v = v < 0 ? 0 : v > 100 ? 100 : v;
+            Voice_SetVolume(v_whine[car], fx_mul(Engine_DistanceFade(car, player), fx_mul(master, fx_mul((v << 16) / 100, gms32(0x51f280)))));
+            return;
+        }
+    }
+    if (Voice_Playing(v_whine[car])) Voice_SetVolume(v_whine[car], 0), Voice_SetFrequency(v_whine[car], 0x2b11);
+}
+
 /* 0x479360's engine loops: the slow band (fs, rs), the medium band off the throttle (fm, rm), the
    fast band on it (ft, rt, looped from the class's offset), the chatter when the throttle closes
    after a gear above 1 and 5,000 revs */
-static void mix(int car, int player, int rpm2, int rpm, int gear, int throttle)
+static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int throttle)
 {
     const Car *c = Car_Get(car);
     Band slow = band_at(0x51ea60, 0x51ea74, 0x51ea9e), mid = band_at(0x51eab8, 0x51eacc, 0x51ebca),
@@ -213,7 +261,7 @@ static void mix(int car, int player, int rpm2, int rpm, int gear, int throttle)
         Voice_SetFrequency(loop_voice(&v_rt[car], car, RT, exe_u32(0x51f2d8 + 4 * cls)), f);
         Voice_SetVolume(v_rt[car], fx_mul(fade, fx_mul(master, fx_mul(v, k_rt))));
     }
-    PENDING_NOTE(0x47a3d0, "Car_SurfaceSounds");
+    whine(car, player, speed, gear, throttle);   /* 0x47a3d0 */
     gear_was[car] = gear_now[car];
     (void)rpm;
 }
@@ -236,5 +284,9 @@ void Engine_Update(int car, int player)
     rpm2 = rpm2 < 2000 ? 2000 : rpm2 > 0x2134 ? 0x2134 : rpm2;
     int64_t t = ((int64_t)CI32(c, 0x79c) * 0x640000) >> 16;
     int throttle = ((t << 16) / CI32(c, 0x788)) > 0x4ffff ? 100 : 0;
-    mix(car, player, rpm2, rpm1, CI8(c, 0xb1e), throttle);
+    /* the speed: +0x778 by 0x431168 over 0x9ef9, 0 to 260 */
+    int32_t m = (int32_t)(((int64_t)CI32(c, 0x778) * 0x431168) >> 16);
+    int speed = (int32_t)(((int64_t)m << 16) / 0x9ef9) >> 16;
+    speed = speed < 0 ? 0 : speed > 0x104 ? 0x104 : speed;
+    mix(car, player, rpm2, rpm1, speed, CI8(c, 0xb1e), throttle);
 }
