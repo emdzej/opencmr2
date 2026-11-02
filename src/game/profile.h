@@ -20,6 +20,7 @@ void Profile_Create(int player);
 /* The front end's player and profile set-up (0x4085a0, 0x4eb000-0x4ec210). A profile is in use when
    its byte at +0x14 (0x52fa18) is set and bit 21 of its first word (0x52fa1c) clear. */
 uint32_t Player_Word(int player);          /* the player record's first word (0x531350 + 0x30 n) */
+const char *Player_Name(int player);        /* 0x408400: the profile's name ("" without one) */
 bool Player_HasProfile(int player);        /* 0x4085a0: one set (in mode 4 always), and bit 26 */
 void Player_AssignProfile(int player, int profile);   /* 0x4eb860: -1 picks a free or the oldest one */
 void Player_SetGuest(int player, bool guest);         /* 0x4eb000 */

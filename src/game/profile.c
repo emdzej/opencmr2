@@ -161,6 +161,12 @@ static void set_word(int n, uint32_t v) { gw32(0x531350 + 0x30u * (uint32_t)n, v
 static uint32_t prof_word(uint32_t p, uint32_t off) { return gm32(0x52fa1c + p * 0x650 + off); }
 static bool prof_used(uint32_t p) { return gm8(0x52fa18 + p * 0x650) && !(prof_word(p, 0) & 0x200000); }
 
+const char *Player_Name(int n)
+{
+    uint32_t k = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
+    return k == 0xf ? "" : (const char *)gm(0x52fa18 + k * 0x650);
+}
+
 bool Player_HasProfile(int n)
 {
     if ((Player_Word(n) & 0x3c0000) == 0x3c0000) return false;

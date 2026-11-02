@@ -550,13 +550,6 @@ static void standings_rows(int p)
     else rows[p][0] = pl - 1, rows[p][1] = pl, rows[p][2] = pl + 1;
 }
 
-/* 0x408400: a player's profile name ("" without one) */
-static const char *driver_name(int n)
-{
-    uint32_t k = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
-    return k == 0xf ? "" : (const char *)gm(0x52fa18 + k * 0x650);
-}
-
 /* the name into 0x536ed0 (the original passes it to sprintf as the format) */
 static void set_name(const char *n)
 {
@@ -586,12 +579,12 @@ static void lap_message(int p)
     if (!Gs_ModeBit19()) {
         if (gms32(MSG_TIME) == 0 || t < gms32(MSG_TIME)) {
             gw32(MSG_TIME, (uint32_t)t);
-            set_name(driver_name(Gs_Byte537ef6() + p));
+            set_name(Player_Name(Gs_Byte537ef6() + p));
             named = true;
         }
     } else if (Gs_Mode() == 12 && gm32(0x531ce4)) {
         gw32(MSG_TIME, gm32(Gs_Mode() == 12 ? 0x531c98 : 0x531c94));   /* 0x40a420(0) */
-        set_name(driver_name(0));
+        set_name(Player_Name(0));
         named = true;
     }
     if (named) gw32(MSG_BEST + o, 1), gw8(MSG_COUNT + (uint32_t)p, 0x7d);
@@ -610,7 +603,7 @@ static void messages(int p)
     if (!Gs_SelBit24() && (!Gs_SelBit25() || Gs_Mode() != 3 || Gs_ModeBit19())) {
         if (Race_Finished(p) && (gms32(MSG_TIME) == 0 || hud_time[p] < gms32(MSG_TIME))) {
             gw32(MSG_TIME, (uint32_t)hud_time[p]);
-            set_name(driver_name(Gs_Byte537ef6() + p));
+            set_name(Player_Name(Gs_Byte537ef6() + p));
         }
     } else
         lap_message(p);
@@ -765,7 +758,7 @@ static void records(int p)
         bool on;
         switch (kind) {
         case 0:
-            if (trial) snprintf(b, sizeof b, "%s", driver_name(0)), t = gms32(0x5320a8);
+            if (trial) snprintf(b, sizeof b, "%s", Player_Name(0)), t = gms32(0x5320a8);
             else snprintf(b, sizeof b, exe_str(0x517dd8), Text_Get(0x69), holder), t = (int32_t)rec;
             flag = 0x536c00;
             break;
@@ -775,7 +768,7 @@ static void records(int p)
                 if (m == 10) t = gms32(0x531f80 + 4u * (Gs_SelBit25() ? 2 : 8));
                 else t = gms32(0x531c98);   /* 0x40a420(0) in mode 12 */
                 flag = 0x536c28;
-            } else snprintf(b, sizeof b, "%s", driver_name(Gs_Byte537ef6() + p)), t = (int32_t)mine, flag = 0x536e88;
+            } else snprintf(b, sizeof b, "%s", Player_Name(Gs_Byte537ef6() + p)), t = (int32_t)mine, flag = 0x536e88;
             break;
         case 2:
             snprintf(b, sizeof b, exe_str(0x517dd8), Text_Get(0x84), (const char *)gm(0x536ed0));
@@ -1080,7 +1073,7 @@ static void ghost_standings(int p)
         char b[256];
         uint32_t car;
         if (k == -2) {
-            snprintf(b, sizeof b, "%s", driver_name(0));
+            snprintf(b, sizeof b, "%s", Player_Name(0));
             Rect_Fill(r, colour(0x5170d8), 2);
             car = gm32(0x5a1ea0);   /* 0x4a1a00 */
         } else {

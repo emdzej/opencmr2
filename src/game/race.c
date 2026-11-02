@@ -17,6 +17,8 @@
 #include "audio/crash.h"
 #include "audio/engine.h"
 #include "audio/codriver.h"
+#include "game/intro.h"
+#include "render/rstate.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/timer.h"
@@ -301,6 +303,10 @@ static void s4_cars(ProcGroup *g, uint32_t slot)
         Engine_Reset();                /* 0x478dc0 */
     }
     R.place = 1;
+    /* (the bar at 100% and the clear colour, sage or with 0x52afb4 bit 17 black, are the loading
+       screen's: 0x40fec0, 0x49d940) */
+    Render_SetClearColour(Gs_ModeBit17() ? 0 : 0x9c, Gs_ModeBit17() ? 0 : 0xb4, Gs_ModeBit17() ? 0 : 0xac);
+    Intro_Start();   /* 0x536ac8 */
     Proc_Event(g, slot, 0, 2);
 }
 
@@ -575,6 +581,7 @@ void Race_DrawOverlays(int player)
     Hud_Draw(player);         /* 0x4125f0 */
     Codriver_Notes(player);   /* 0x4177d0 */
     fade_overlay(player, gm8(0x52af40) != 0);
+    Intro_Draw(player, Race_State(player));   /* 0x40f8d0 */
 }
 
 /* The table at 0x5190b0 in its order; 6 (the intro camera, 0x472e00) and 13 (0x41e5c0) are not ported */
