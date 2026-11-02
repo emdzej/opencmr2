@@ -155,7 +155,11 @@ static void player_step(int p)
 static void Race_Update(uint8_t state, bool flag)
 {
     uint32_t np = players();
-    PENDING_NOTE(0x445a20, "Replay_Playing");   /* a replay: no controls, Sim_Step only on its frames */
+    /* 0x445a20: held with the free camera (kind 9) or 0x53cdb4 (never set in 1.11): no race
+       controls, the world stepped only once a step is asked for (0x445a40, 0x53cdbc), the particles not */
+    bool held = Camera_Kind(0) == 9 || gm32(0x53cdb4);
+    bool one = gm32(0x53cdbc) != 0;
+    if (one) gw32(0x53cdbc, 0);
     Frame_RateStep();   /* 0x42b790 */
     R.steps = Sim_StepCount(&R.frac);
     for (uint32_t k = 0; k < R.steps; k++) {
@@ -191,7 +195,10 @@ static void Race_Update(uint8_t state, bool flag)
                 if (cpu) Car_StartLineControlsCpu(c);
                 else Car_StartLineControls(c, rec);
                 break;
-            case 8: case 13:
+            case 8:
+                if (held) break;
+                /* falls through */
+            case 13:
                 if (cpu) Car_RaceControlsCpu(c, i);
                 else Car_RaceControls(c, rec);
                 break;
@@ -211,6 +218,7 @@ static void Race_Update(uint8_t state, bool flag)
                    controls), else stopping, a player driven on with the computer drivers */
                 if (Gs_SelBit26() && !cpu && !Replay_Playing(rp)) Ai_AutoDrive(i, false);
                 else if (Replay_Playing(rp)) {
+                    if (held) break;
                     if (cpu) Car_RaceControlsCpu(c, i);
                     else Car_RaceControls(c, rec);
                 } else Car_FinishedControls(c);
@@ -239,7 +247,7 @@ static void Race_Update(uint8_t state, bool flag)
             if (flag) player_step((int)i);   /* 0x41d0c0 */
             if (Camera_Kind((int)i) == 7) Camera_Trackside((int)i);   /* 0x421930 */
         }
-        Sim_Step();
+        if (!held || one) Sim_Step();
         if (car0) {
             /* Stage_Step 0x466520 */
             Lights_Step();   /* 0x463bd0 */
@@ -259,7 +267,7 @@ static void Race_Update(uint8_t state, bool flag)
             if (Car_Get((int)i)->s[0xb43]) Camera_Step((int)i);   /* 0x4219b0 */
         /* the particles (not while a replay plays); the original passes the camera after the last
            player's (0x538e2c[players]), read only by the types' callbacks */
-        if (car0) Particles_Step(NULL);   /* 0x4b0110 */
+        if (car0 && (!held || one)) Particles_Step(NULL);   /* 0x4b0110 */
         /* a circuit's time trial (bits 24 and 28; mode 12's lap records 0x427950, 0x40af00 not
            ported): at each lap car 0's run ended; a lap at or under the location's lap record
            (0x52c308, with the low-detail clouds 0x52d5cc; +0x1214, 8 bytes a stage: the time in bits
