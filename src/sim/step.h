@@ -4,4 +4,4 @@
 #include "sim/car.h"
 
 void Sim_StepCars(const int16_t *list, int n);
-extern int g_pending_passes;   /* the port: passes of the step not ported yet, run as no-ops */
+extern int g_pending_passes;   /* the port: passes of the step not ported (none now; kept for the tests) */

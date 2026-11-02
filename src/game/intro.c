@@ -10,7 +10,6 @@
 #include "world/tod.h"
 #include "exe.h"
 #include "font.h"
-#include "pending.h"
 #include "text.h"
 #include <stdio.h>
 #include <string.h>
@@ -26,13 +25,14 @@ static void rgb_alpha(uint8_t c[4], uint32_t a, int alpha)
     c[3] = (uint8_t)alpha;
 }
 
-/* 0x4100a0: no bar in mode 4's late rounds (0x407820, not ported) or with 0x52afb4 bit 17 for a
-   second player slot (0x537ef6), which clears the target instead */
+/* 0x4100a0: no bar in the challenge's late rounds (0x52f2b4: 5 less bits 0-2 below bits 3-5), or with
+   0x52afb4 bit 17 for a second player (0x537ef6), which clears the target instead */
 static bool no_bar(void)
 {
-    if (Gs_Mode() == 4) PENDING_NOTE(0x407820, "LoadBar (the network's rounds)");
+    uint32_t w = gm32(0x52f2b4);   /* 0x407820 */
+    if (Gs_Mode() == 4 && 5 - (int)(w & 7) < (int)(w >> 3 & 7)) return true;
     if (Gs_ModeBit17() && Gs_Byte537ef6()) {
-        PENDING_NOTE(0x49dc60, "Render_ClearTarget (the load bar's)");
+        Render_ClearTarget();   /* 0x49d960 */
         return true;
     }
     return false;

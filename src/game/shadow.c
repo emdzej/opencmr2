@@ -25,7 +25,7 @@ typedef struct {
     int32_t rear[4][3];       /* +0x1c8: its rear middle */
     int32_t pt_y[18];         /* +0x1f8: the points' last ground heights */
     int32_t wheel_y[4];       /* +0x240: the wheels' */
-    int32_t scale;            /* +0x250: the outline's inner ring, 0x9999 (0x4984b0, not ported) */
+    int32_t scale;            /* +0x250: the outline's inner ring, 0x9999 (Shadow_Light 0x4984b0) */
     int32_t wheel_a[4];       /* +0x254: each wheel patch's strength */
     int16_t wheel_tri[4];     /* +0x264: the ground triangles, kept between calls */
     int16_t pt_tri[18];       /* +0x26c */

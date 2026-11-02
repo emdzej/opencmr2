@@ -1,8 +1,8 @@
 /* The stage's results (0x448e00-0x454400): pages on the menu engine shown over the replay (race
    state 10), from the replay's title through the times, the splits and the standings to the choices
    (restart, restart at the service area, quit), which fade out and post the race's event 1 like the
-   pause menu's. Started by state 9 once every player has finished (0x44a1b0). Ported for a one-player
-   single stage or time trial; the tables of the times pages are not ported yet. */
+   pause menu's. Started by state 9 once every player has finished (0x44a1b0). The rally's, the time
+   trial's, the challenge's and the arcade's pages are ported; the network modes' (8-12) are not. */
 #pragma once
 #include <stdbool.h>
 

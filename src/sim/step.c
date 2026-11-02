@@ -15,11 +15,11 @@
 #include "sim/sim.h"
 #include "fixmath.h"
 #include "game/gstate.h"
-#include "pending.h"
+#include "game/mem.h"
+#include "game/sectors.h"
 #include "world/section.h"
 
 int g_pending_passes;
-#define PENDING_PASS(addr, name) do { PENDING_NOTE(addr, name); g_pending_passes++; } while (0)
 
 /* 0x43b090: the drag-like coefficients from the constant at 0x519c8c */
 static void coefficients(Car *c)
@@ -150,11 +150,34 @@ static void corner_velocities(Car *c)
 /* the differential tests' probes before the passes (tools/emu/sim_diff.c) */
 #define PROBE(id) do { if (g_sim_probe) g_sim_probe(id, &me, 1); } while (0)
 
+/* Sim_HeadToHeadBalance 0x433e80: two players alone round a circuit (selection bit 24) with the
+   catch-up option (0x52afbc bit 11, 0x406440): from 3 points of the course apart (Sectors_Steps of each
+   car's +0xb1a) to 15, the leader's final drive (+0x788, from its base +0x78c) is lowered by up to
+   0.05 and the other's raised as much */
+static void head_to_head(const int16_t *list, int n)
+{
+    if (Gs_SelBits14() != 2 || n != 2 || !Gs_SelBit24() || !(gm32(0x52afbc) >> 0xb & 1)) return;
+    Car *a = Car_Get(list[0]), *b = Car_Get(list[1]);
+    int d = Sectors_Steps(CI8(a, 0xb1a)) - Sectors_Steps(CI8(b, 0xb1a));
+    int32_t g = d * 0x10000, k;
+    if (g < 0) g = -g;
+    if (g <= 0x30000) k = 0;
+    else if (g < 0xf0000) {
+        k = fx_mul(g - 0x30000, 0x1555);
+        k = k < 0 ? 0 : k > 0x10000 ? 0x10000 : k;
+    } else
+        k = 0x10000;
+    int32_t u = fx_mul(k, 0xccc);
+    Car *lead = d >= 0 ? a : b, *back = d >= 0 ? b : a;
+    CW32(lead, 0x788, CI32(lead, 0x78c) - u);
+    CW32(back, 0x788, CI32(back, 0x78c) + u);
+}
+
 /* Sim_StepCars 0x433890, in its passes, each over every car (last to first). */
 void Sim_StepCars(const int16_t *list, int n)
 {
     g_pending_passes = 0;
-    if (Gs_SelBits14() == 2 && n == 2 && Gs_SelBit24()) PENDING_PASS(0x433e80, "Sim_HeadToHeadBalance");
+    head_to_head(list, n);   /* 0x433e80 */
     for (int i = n - 1; i >= 0; i--) {
         Car *c = Car_Get(list[i]);
         g_car = c;
