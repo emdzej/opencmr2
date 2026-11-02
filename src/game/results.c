@@ -428,7 +428,49 @@ static void draw_rally_result(Menu *m)
     Font_SetLayer(2);
 }
 
-static Menu pg_rpoints, pg_result, pg_champ, pg_final, pg_final2;   /* 0x53e6a0, 0x540118, 0x541ae0, 0x53f790, 0x53f970 */
+static Menu pg_rpoints, pg_result, pg_champ, pg_final, pg_final2, pg_opened;   /* 0x53e6a0, 0x540118, 0x541ae0, 0x53f790, 0x53f970, 0x540e50 */
+
+/* 0x452be0: what the stage opened, for each player: a car (0x7f with the car's name, flag 0x80) or
+   else a bonus stage (0xad's form of 0xad + its number, flag 0x2000), the arcade's next level (0xbf
+   with 5 or 7, flags 0x1800), its cars (0xc1, 0x300) and its other track (0xc0, 0x400). The first
+   line is placed by the player alone, the others by the lines so far and the player (as the
+   original). */
+static void draw_opened(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    dim();
+    int x = w * 0x1e / 0x280, y0 = h * 0xf2 / 0x1e0, lines = 0;
+    Font_Print(2, Text_Get(0x49), x, y0, C(0x519ecc), 0x11);
+    int fh = Font_Height(0), step = h * 10 / 0x1e0 + fh;
+    char b[160];
+    for (int p = 0; p < (int)Gs_SelBits14(); p++) {
+        uint32_t f = gm32(0x537f68 + 4u * (uint32_t)p);
+        bool first = false;
+        if (f & 0x80) {
+            snprintf(b, sizeof b, Text_Get(0x7f), car_name((int)gm32(0x537f78 + 4u * (uint32_t)p)));
+            first = true;
+        } else if (f & 0x2000) {
+            snprintf(b, sizeof b, Text_Get(0xad), Text_Get(0xad + (int)gm32(0x537f0c + 4u * (uint32_t)p)));
+            first = true;
+        }
+        if (first) {
+            Text_ToFontCase(b);
+            Font_Print(0, b, x, h * 5 / 0x1e0 + fh + y0 + step * p, C(0x519ecc), 0x11);
+            lines++;
+        }
+        static const struct { uint32_t mask; int16_t text; } more[3] = {{0x1800, 0xbf}, {0x300, 0xc1}, {0x400, 0xc0}};
+        for (int k = 0; k < 3; k++) {
+            if (!(f & more[k].mask)) continue;
+            if (k == 0) snprintf(b, sizeof b, Text_Get(0xbf), Text_Get(f & 0x800 ? 5 : 7));
+            else snprintf(b, sizeof b, "%s", Text_Get(more[k].text));
+            Text_ToFontCase(b);
+            Font_Print(0, b, x, h * 5 / 0x1e0 + fh + y0 + step * lines + step * p, C(0x519ecc), 0x11);
+            lines++;
+        }
+    }
+}
 
 /* 0x451690: the championship's final: on 0x53f790 the level's championship (0x8e + level) and each
    player's points place; on 0x53f970 only the screen dimmed (not in the super special) */
@@ -606,6 +648,7 @@ static void build_questions(int16_t restart_text)
    when a player was in the first six (else only restart or quit), after the last rally the
    championship's final (0x53f790) on to its end (0x53f970, which goes on at once); in a single rally
    the result when a player was in the first six, then restart or quit */
+static void champ_end(int best);
 static void build_rally_end(void)
 {
     Menu_Init(&pg_rpoints, NULL, 0, &pg_rally, false, NULL, 1, 0, 0);
@@ -639,8 +682,24 @@ static void build_rally_end(void)
     if (mode() == 1) {
         if (Gs_Players() && best <= 5) pg_rally.items[0].target = &pg_result, pg_result.parent = &pg_rally, pg_result.items[0].target = &pg_end;
         build_end(0, &pg_rally, 0x25);
-        return;
+    } else
+        champ_end(best);
+    /* a car or bonus stage opened: its page after the rally's result (the arcade's after 0x53e888) */
+    bool opened = false;
+    for (int p = 0; p < (int)Gs_SelBits14(); p++) opened |= (gm32(0x537f68 + 4u * (uint32_t)p) & 0x2080) != 0;
+    if (opened) {
+        Menu_Init(&pg_opened, NULL, 0, &pg_result, false, NULL, 1, 0, 0);
+        Menu_AddPage(&pg_opened, NULL, 0, pg_result.items[0].target, NULL, 0);
+        Menu_SetCallbacks(&pg_opened, NULL, NULL, draw_opened, NULL);
+        Menu_Reset(&pg_opened);
+        if (pg_result.items[0].target) pg_result.items[0].target->parent = &pg_opened;
+        pg_result.items[0].target = &pg_opened;
     }
+}
+
+/* the championship's way from the rally's times at its last stage */
+static void champ_end(int best)
+{
     pg_rally.items[0].target = &pg_rpoints;
     pg_rpoints.items[0].target = &pg_result;
     pg_result.items[0].target = &pg_champ;
@@ -655,8 +714,6 @@ static void build_rally_end(void)
         pg_champ.items[0].target = &pg_end;
         build_end(1, &pg_champ, 0x25);
     }
-    if (gm32(0x537f68) & 0x2080 || (Gs_Players() > 1 && gm32(0x537f6c) & 0x2080))
-        PENDING_NOTE(0x452be0, "the results' page of what the stage opened (0x540e50)");
 }
 
 void Results_Start(bool again)

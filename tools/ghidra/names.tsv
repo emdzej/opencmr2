@@ -1390,3 +1390,7 @@
 0040d050	Stand_PointsOrder	game	high	The k-th of the points' order
 0040d390	Stand_TimesOrder	game	high	The k-th of the times' order
 0040d410	Stand_RallyPoints	game	high	A driver's points from the last rally
+00452be0	res_draw_opened	game	high	Results: what the stage opened (cars, bonus stages, arcade levels)
+0041bf50	Race_OpenedFlags	race	high	A player's flags of what the stage opened (0x537f68)
+0041bf60	Race_OpenedCar	race	high	The car the stage opened (0x537f78)
+0041bf70	Race_OpenedBonus	race	high	The bonus stage opened (0x537f0c)
