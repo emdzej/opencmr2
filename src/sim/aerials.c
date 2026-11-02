@@ -271,10 +271,10 @@ static void draw_one(int k, const int32_t cam[3], bool shown)
 /* 0x485690: per car (from the last; not +0xc0c, not hidden from this view +0xb68, nor the camera's own
    car in its interior view) the car's light (Light_ByteRamp of +0xa70) as 0..1 per channel, and each
    aerial drawn, standing ones when the car's interior (not loaded by the port) or first wheel is in
-   this pass. The interior test 0x423fc0 asks the replay's TV cameras (0x591740, not ported): false. */
+   this pass. Inside: the interior view or a trackside camera behind the car (0x423fc0). */
 void Aerials_Draw(const int16_t *cars, int n, int player, const int32_t cam[3])
 {
-    bool inside = Camera_Kind(player) == 10;
+    bool inside = Camera_TsBehind(player) || Camera_Kind(player) == 10;
     int camcar = Camera_Car(player) & 0xff;
     for (int i = n - 1; i >= 0; i--) {
         cur_car = Car_Get(cars[i]);

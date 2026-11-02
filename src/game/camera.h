@@ -18,6 +18,7 @@ void Camera_SelectAt(int player, int kind, int idx, int car, bool smooth);   /* 
 bool Camera_LoadTsc(const uint8_t *tsc, uint32_t size);   /* 0x48caa0: the stage's trackside cameras */
 void Camera_Trackside(int player);                        /* 0x421930: the nearest trackside camera */
 int Camera_TscIndex(int player);                          /* 0x421980 */
+bool Camera_TsBehind(int player);                         /* 0x423fc0: on a trackside camera behind the car */
 void Frame_Pitch(int32_t *m, uint32_t ang);                /* 0x422e70: m pitched about its first row */
 /* 0x4224e0: a blend of two frames (forward by k0; mode 0 up by k1, mode 1 side by k1; position by kp) */
 void Frame_Blend(int32_t *o, const int32_t *a, const int32_t *b, int32_t k0, int32_t k1, int32_t kp, int mode);

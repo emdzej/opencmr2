@@ -1737,3 +1737,5 @@
 004a57e0	Surf_Alpha8	render	high	A locked surface's texel alpha as 8 bits (16 or 32 bits a pixel)
 004a6370	Tex_LoadBumpTga	render	high	A bump surface straight from a TGA (its first byte the height, +0x80 past the edges)
 0046ef20	Mud_Reset	game	high	The body texture reloaded clean when any mud was painted (cars put back, a replay started)
+00423fc0	Camera_TsBehind	camera	high	The current camera is trackside (kind 7) and that camera sits behind on the car (0x48df10)
+0048df10	Ts_Behind	camera	high	A camera record of kind 7 whose trackside camera roll is within 0x3f5-0x40a below 0 (behind on the car)

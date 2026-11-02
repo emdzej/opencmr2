@@ -607,6 +607,13 @@ static void ts_step(Cam *k, const int32_t *r, int flag)
 
 int Camera_TscIndex(int p) { return ts_idx[slots[cur[p] + 2 * p].slot]; }   /* 0x421980 (0x48d930) */
 
+/* 0x423fc0 (0x48df10 on the current camera): a trackside camera of kind 7 on the car's back */
+bool Camera_TsBehind(int p)
+{
+    const Cam *c = &slots[cur[p] + 2 * p];
+    return c->kind == 7 && tsc && on_car(ts_idx[c->slot]) == 2;
+}
+
 /* 0x423300: a camera of a kind made for its car */
 static void cam_init(Cam *k, int kind, int sub)
 {
