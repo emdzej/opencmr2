@@ -3,6 +3,7 @@
 #include "game/balls.h"
 #include "game/shadow.h"
 #include "game/race.h"
+#include "game/ai.h"
 #include "game/weather.h"
 #include "game/skids.h"
 #include "game/proc.h"
@@ -107,12 +108,15 @@ static void Race_Update(uint8_t state, bool flag)
                 if (H->read_input) H->read_input(i, &held, &pressed);
             } else
                 kind = Proc_State(&R.group, 0) < 8 ? 7 : 8;   /* CPU cars (0x407ea0, 0x407e90 cases open) */
+            bool cpu = (uint32_t)i >= np;   /* no pad (0x42b710 -1) */
             switch (kind) {
             case 5: case 7:
-                Car_StartLineControls(c, held, pressed);
+                if (cpu) Car_StartLineControlsCpu(c);
+                else Car_StartLineControls(c, held, pressed);
                 break;
             case 8: case 13:
-                Car_RaceControls(c, held, pressed);
+                if (cpu) Car_RaceControlsCpu(c, i);
+                else Car_RaceControls(c, held, pressed);
                 break;
             case 9: case 10:
                 /* after the finish: braking to a stop, the player's input read first once finished */
@@ -283,6 +287,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Chips_Setup();     /* 0x498dd0, in 0x466360 */
             Lights_Setup();    /* 0x463410, in 0x466360 */
             Effects_Types();   /* 0x45a170, the end of 0x466360 */
+            if (Gs_SelBit26()) Ai_Init();   /* 0x48ca70 -> 0x47bda0 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */
             Hud_Init(1);       /* 0x411450 */
             R.place_count = 1;
@@ -328,6 +333,10 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
         Proc_Event(g, slot, 0, 2);
         PENDING_NOTE(0x46c750, "Replay_Start");
         Times_Clear();            /* 0x448100 */
+        if (Gs_SelBit22() && !Gs_SelBit25() && !Gs_ModeBit19()) {
+            PENDING_NOTE(0x42b800, "the CPU cars' states");
+            if (Gs_SelBit26()) Ai_Go(false);   /* 0x47bdc0 */
+        }
         timer_start((int)slot);   /* the stage time runs from the go */
     }
 }
@@ -414,6 +423,7 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             for (int i = 0; i < g_all.n; i++) Car_Replace(g_all.car[i]);
             for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
             Codriver_Reset();   /* 0x416670 */
+            if (Gs_SelBit26()) Ai_Go(true);   /* 0x47bdc0 */
             Opp_Times(false);   /* 0x455470 */
             Engine_Reset();
             Times_Clear();

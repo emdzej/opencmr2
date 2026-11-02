@@ -19,6 +19,9 @@ void Drive_ReadInput(uint32_t *held, uint32_t *pressed);
 void Car_ControlsFromInput(Car *c, uint32_t held, uint32_t pressed);
 /* The race state's reader 0x47b000: controls cleared, read, and the automatic box enabled (+0xb9c). */
 void Car_RaceControls(Car *c, uint32_t held, uint32_t pressed);
+void Car_RaceControlsCpu(Car *c, int n);       /* 0x47b000 without a pad */
+void Car_StartLineControlsCpu(Car *c);         /* 0x47b640 without a pad */
+void Car_Launch(Car *c);                       /* 0x43f570 */
 /* Car_StartLineControls 0x47b640: controls cleared and read, the handbrake held, the automatic box off. */
 void Car_StartLineControls(Car *c, uint32_t held, uint32_t pressed);
 /* After the finish: 0x47b870 (no input) and 0x47b7b0 (the player's, then overridden): braking to a stop. */

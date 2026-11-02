@@ -185,3 +185,10 @@ void Rows_Turn3(int32_t *m, int stride, const uint16_t a[3])
     if (a[2]) turn(m, stride, 2, 0, 1, a[2]);
     if (a[0]) turn(m, stride, 0, 1, 2, a[0]);
 }
+
+int32_t Fx_Atan2Deg(int32_t y, int32_t x)
+{
+    return (int32_t)nearbyint(atan2((double)y, (double)x) * (180.0 / 3.14159) * 65536.0);
+}
+
+int Fx_DegIndex(int32_t a) { return (int)((int64_t)nearbyint((double)a * (1.0 / 5760.0)) & 0xfff); }

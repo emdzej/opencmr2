@@ -886,3 +886,25 @@
 00456ca0	Cars_Count	game	high	The cars loaded: Cars_Racing, plus the ghost, 1..8
 004584d0	Cars_Grid	game	high	The start grid at 0x542cd8 (case 0 the arcade)
 004583d0	Csp_GridStart	game	medium	A car start: the grid with bits 26/31
+0047b620	Car_CpuControls	ai	high	A car without a pad: the computer driver with selection bit 26
+0047bda0	Ai_Init	ai	high	The bias inputs, the start revs, the car counts
+0047bdc0	Ai_Go	ai	high	The start revs and the CPU cars launched
+0047bdd0	Ai_Drive	ai	high	A CPU car's controls from the nets and rules
+0047c1e0	Ai_StartRevs	ai	high	rand() per racing car: the CPU cars' revs at the start
+0047c5b0	Ai_EdgeDistance	ai	high	The distance to the nearer verge
+0047c5c0	Ai_Bias	ai	high	The layers' bias inputs at 1.0
+0047c5e0	Ai_Recover	ai	high	Near a verge or turned across: a fixed reply
+0047c9a0	Ai_RunMap	ai	high	The map's five outputs from its nets
+0047ca30	Ai_Layers	ai	high	A net's layers through the squashing curve
+0047cbc0	Ai_Pick	ai	high	The set's racing line and map for the point's section
+0047cc30	Ai_Counts	ai	high	The car counts
+0047cc50	Ai_Aim	ai	high	Option 0: car 0 ahead within 10 degrees
+0047cd00	Ai_Aimed	ai	high	Option 0's flag
+0047cd10	Ai_Overtake	ai	high	A slow car ahead: the side to pass
+0047d0e0	Ai_Alongside	ai	high	Option 3: a car alongside, the side to give way
+0047d330	Ai_AutoDrive	ai	med	Race_Update's simple driver (not ported)
+00498590	Ai_LinesToWorld	ai	high	The racing lines' x and z by point 0
+00498620	Ai_State	ai	high	The car's state against the centre line and the racing line
+00498ca0	Ai_Inputs	ai	high	A net's inputs from the state by code
+00498d80	Fx_Atan2Deg	math	high	atan2 in 16.16 degrees
+00498db0	Fx_WrapDeg	math	high	An angle into -180..180

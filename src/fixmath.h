@@ -27,6 +27,19 @@ void Mat_ToFloat(float out[16], const FxMat *m);                   /* 0x4ba090 *
 void Mat_Mul(FxMat *out, const FxMat *a, const FxMat *b);          /* 0x4b9f20: a b */
 void Mat_Inverse(FxMat *out, const FxMat *m);                      /* 0x4ba440 */
 uint32_t Fx_Sqrt(uint32_t x);   /* the inline table square root: sqrt of a 16.16 value, in 16.16 */
+/* 0x498d80: atan2(y, x) in 16.16 degrees (the x87's atan, times the double at 0x5113f8, 180 / 3.14159,
+   and 65536, rounded to nearest) */
+int32_t Fx_Atan2Deg(int32_t y, int32_t x);
+/* 0x498db0: an angle in 16.16 degrees brought into -180..180 by one turn */
+static inline int32_t Fx_WrapDeg(int32_t a)
+{
+    if (a > 0xb3ffff) a -= 0x1680000;
+    if (a < -0xb40000) a += 0x1680000;
+    return a;
+}
+/* The inline turn of 16.16 degrees into a sine-table index: times 1/5760 (0x511300), rounded to
+   nearest, the low 12 bits */
+int Fx_DegIndex(int32_t a);
 /* 0x4ba3b0: v (in place, and out) turned by m about the point c (only its x and y are used). */
 void Vec_RotateAbout(FxVec *out, FxVec *v, const FxVec *c, const FxMat *m);
 /* The game's inline normalisation: v times 2^32 / (table square root of v.v), zero for a zero length. */

@@ -2,6 +2,7 @@
    0x591ae8 (the car, the wall, its ends and normal, the corners' distances, the strongest hit); they
    are the fields of W here, named after their addresses where the meaning is open. */
 #include "sim/walls.h"
+#include "game/ai.h"
 #include "world/fin.h"
 #include "world/section.h"
 #include "fixmath.h"
@@ -516,10 +517,8 @@ void Sim_Collide(const int16_t *list, int n)
         if (!CI32(c, 0xb64)) {
             Car_Scenery(c);   /* 0x4878a0 */
         }
-        if (!CI32(c, 0xc18)) {
-            if (CI32(c, 0xb64)) PENDING_NOTE(0x47c5b0, "0x47c5b0");   /* with +0xb64, above 2.0 the walls are skipped */
-            Car_Walls(c, k);
-        }
+        /* with +0xb64, the walls skipped when the computer driver's verge distance is 2.0 or more */
+        if (!CI32(c, 0xc18) && !(CI32(c, 0xb64) && Ai_EdgeDistance(CI8(c, 0xb1a)) > 0x1ffff)) Car_Walls(c, k);
         int32_t *b = box_rec[k];
         b[B_PREV] = b[B_VALID];
         if (b[B_VALID])

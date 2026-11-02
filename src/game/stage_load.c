@@ -4,6 +4,7 @@
 #include "game/sectors.h"
 #include "game/hud.h"
 #include "game/opponents.h"
+#include "game/ai.h"
 #include "audio/codriver.h"
 #include "sim/progress.h"
 #include "sim/scenery.h"
@@ -53,6 +54,7 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     Weather_StageLoad();       /* 0x45ea70 */
     Stage_LoadTm(stage);       /* 0x455300 */
     Opp_Times(true);           /* 0x455470 */
+    Ai_LoadLines(stage);       /* 0x47c2f0 */
     /* 4: the trackside cameras' splines (0x48caa0), the sections */
     PENDING_NOTE(0x48caa0, "Stage_LoadTsc");
     Section_Init(&g_world);

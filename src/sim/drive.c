@@ -8,6 +8,8 @@
 #include "game/mem.h"
 #include "game/camera.h"
 #include "game/race.h"
+#include "game/ai.h"
+#include "crt.h"
 #include "sim/road_follow.h"
 #include "sim/step.h"
 #include "sim/progress.h"
@@ -89,7 +91,7 @@ void Car_ControlsFromInput(Car *c, uint32_t held, uint32_t pressed)
 /* 0x43f570: the launch when the automatic box first takes over: first gear, the driven wheels' spins
    (+0x860-+0x86c, by the drive split +0x7b4: rear, all four, or front) at the revs through first gear,
    the clutch counter +0xb1f at 10. The last line uses the car being worked on (0x53cc18), not c. */
-static void launch(Car *c)
+void Car_Launch(Car *c)
 {
     c->s[0xb1e] = 1;
     int32_t w = fx_mul(CI32(c, 0x7a4), CI32(c, 0x7e0)), split = CI32(c, 0x7b4);
@@ -105,8 +107,44 @@ void Car_RaceControls(Car *c, uint32_t held, uint32_t pressed)
     CW32(c, 0x1d8, 0);
     memset(c->s + 0x1d0, 0, 5);
     Car_ControlsFromInput(c, held, pressed);
-    if (!CI32(c, 0xb9c) && CI32(c, 0xb48) != 1) launch(c);
+    if (!CI32(c, 0xb9c) && CI32(c, 0xb48) != 1) Car_Launch(c);
     CW32(c, 0xb9c, 1);
+}
+
+/* 0x47b000 for a car without a pad: 0x47b620, the computer driver (Ai_Drive 0x47bdd0) with
+   selection bit 26 */
+void Car_RaceControlsCpu(Car *c, int n)
+{
+    CW32(c, 0x1dc, 0);
+    CW32(c, 0x1d8, 0);
+    memset(c->s + 0x1d0, 0, 5);
+    if (Gs_SelBit26()) Ai_Drive(c, n, false);
+    if (!CI32(c, 0xb9c) && CI32(c, 0xb48) != 1) Car_Launch(c);
+    CW32(c, 0xb9c, 1);
+}
+
+/* 0x47b640 for a car without a pad: the revs blipped, the counter +0xb47 counting 5-14 steps up on
+   the throttle (from rand()), then as many down off it */
+void Car_StartLineControlsCpu(Car *c)
+{
+    CW32(c, 0x1e0, 0);
+    CW32(c, 0x1dc, 0);
+    CW32(c, 0x1d8, 0);
+    memset(c->s + 0x1d0, 0, 5);
+    int8_t k = CI8(c, 0xb47);
+    if (k < 0) {
+        c->s[0xb47] = (uint8_t)(k + 1);
+        if (!c->s[0xb47]) c->s[0xb47] = (uint8_t)(crt_rand() % 10 + 5);
+    } else if (k < 1)
+        c->s[0xb47] = (uint8_t)(crt_rand() % 10 + 5);
+    else {
+        c->s[0xb47] = (uint8_t)(k - 1);
+        if (!c->s[0xb47]) c->s[0xb47] = (uint8_t)(-5 - crt_rand() % 10);
+    }
+    c->s[0x1d2] = CI8(c, 0xb47) < 1 ? 0 : 0x3f;
+    CW32(c, 0x1d8, 1);
+    CW32(c, 0x1dc, 0);
+    CW32(c, 0xb9c, 0);
 }
 
 void Car_StartLineControls(Car *c, uint32_t held, uint32_t pressed)
@@ -115,9 +153,7 @@ void Car_StartLineControls(Car *c, uint32_t held, uint32_t pressed)
     CW32(c, 0x1dc, 0);
     CW32(c, 0x1d8, 0);
     memset(c->s + 0x1d0, 0, 5);
-    /* a player's controls from the input; a car without a player (0x42b710 -1) blips its revs: the
-       counter +0xb47 runs 5-14 steps on the throttle and as many off, from rand() (not ported: no
-       CPU cars at the start yet) */
+    /* a player's controls from the input (a car without a pad: Car_StartLineControlsCpu) */
     Car_ControlsFromInput(c, held, pressed);
     CW32(c, 0x1d8, 1);
     CW32(c, 0x1dc, 0);

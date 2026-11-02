@@ -5,7 +5,6 @@
 #include "game/select.h"
 #include "sim/progress.h"
 #include "fixmath.h"
-#include <math.h>
 #include "bfl.h"
 #include "c3d.h"
 #include "exe.h"
@@ -208,17 +207,15 @@ void Cars_Grid(void)
     int32_t a[3], b[3];
     Cat_Point(Cat_FinishPoint() - 1, a);
     Cat_Point(0, b);
-    double deg = atan2((double)(b[2] - a[2]), (double)(b[0] - a[0])) * (180.0 / 3.14159) * 65536.0;   /* 0x498d80; the double at 0x5113f8 */
-    int32_t angle = (int32_t)nearbyint(deg);
-    uint16_t idx = (uint16_t)(int64_t)nearbyint((double)angle * (1.0 / 5760.0));
-    int32_t s = fx_mul(0x40000, g_sin[idx & 0xfff]), c = fx_mul(0x40000, g_sin[(idx + 0x400) & 0xfff]);
+    int idx = Fx_DegIndex(Fx_Atan2Deg(b[2] - a[2], b[0] - a[0]));
+    int32_t s = fx_mul(0x40000, g_sin[idx]), c = fx_mul(0x40000, g_sin[(idx + 0x400) & 0xfff]);
     for (int i = 0; i < n; i++) {
         int k = i;
         if (Gs_Mode() == 5 && n > 2) k = (int8_t)gm8(0x533620 + (uint32_t)i);   /* 0x40cec0 */
         if (Gs_SelBits14() == 2) k = 1 - i;
         gw32(0x542d38 + 4u * (uint32_t)k, (uint32_t)(Cat_FinishPoint() - 1));
         int32_t back = n > 2 ? fx_mul(0x50000, k << 16) - ((n * 5) << 16) : (int32_t)0xfff60000;
-        int32_t dx = fx_mul(back, g_sin[(idx + 0x400) & 0xfff]), dz = fx_mul(back, g_sin[idx & 0xfff]);
+        int32_t dx = fx_mul(back, g_sin[(idx + 0x400) & 0xfff]), dz = fx_mul(back, g_sin[idx]);
         if (k % 2 == 0) dx += s, dz -= c;
         else dx -= s, dz += c;
         Csp_SetGrid(i, b[0] + dx, b[2] + dz);
