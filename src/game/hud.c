@@ -32,6 +32,7 @@
 static int32_t shown, clock_;          /* DAT_0053d1b0, DAT_0053d1b4 */
 static bool capped;                    /* DAT_0053d1d8 */
 static int32_t finish[CAR_MAX];        /* 0x53d1b8 */
+const int32_t *Hud_FinishTimes(void) { return finish; }
 static uint8_t done[CAR_MAX];          /* 0x53d1da */
 static int32_t hud_time[4];            /* 0x536e0c + 0x48 n */
 static int32_t splits[4][9];           /* 0x53e190: the players' times at each split */

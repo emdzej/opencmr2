@@ -545,7 +545,7 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
             if (m == 0 && (int)Tod_Stage() == Rally_LastStage(Tod_Rally(), Gs_Mode2())) Stand_AwardPoints();   /* 0x40cf30 */
         }
     }
-    if (m == 5) PENDING_NOTE(0x448620, "the arcade's points (0x40ccd0)");
+    if (m == 5) Stand_ArcadeAward(Hud_FinishTimes());   /* 0x448620 */
     if (m != 4 && !(m >= 8 && m <= 12) && (!Gs_ModeBit17() || Race_Base() == (int)Gs_Players() - 1)) {
         if (gm8(0x52afc2)) {
             /* with a cheat found: nothing opened */

@@ -23,3 +23,4 @@ uint8_t Hud_Flags(int n);         /* Profile_HudFlags 0x408a00: profile slot n's
 void Hud_Message(const char *text, const uint8_t *rgba, int p, bool shadow, int x, int y);
 void Hud_MessageReset(void);     /* 0x417e60 (each view, 0x40f0c0): the next message is drawn */
 int32_t Times_Split(int player, int k);   /* 0x448680: the race time at split k */
+const int32_t *Hud_FinishTimes(void);   /* 0x53d1b8: each car's finish time (16.16 s) */

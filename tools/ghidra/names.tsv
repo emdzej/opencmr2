@@ -1368,3 +1368,6 @@
 004097b0	Medal_All	game	high	Every medal field exactly 2
 004057c0	Settings_Dirty	game	high	The game's settings to be saved (0x52ea51)
 00407150	Rally_Stages	game	high	A rally's stages by the level
+0040ccd0	Stand_ArcadeAward	game	high	An arcade race's points by the finishing order
+0040ce40	Stand_ArcadePoints	game	high	The arcade's points for a place (6 4 3 2 1)
+00448620	Race_ArcadeAward	game	high	The arcade race's points from the finish tables

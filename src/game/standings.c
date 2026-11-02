@@ -110,3 +110,44 @@ void Stand_UndoPoints(void)
         gw32(a, gm32(a) - ((uint32_t)(int32_t)(int8_t)gm8(0x533598 + i) << 16));
     }
 }
+
+/* 0x40ce40: the arcade's points for a place */
+static int arcade_points(int place)
+{
+    static const int8_t pts[5] = {6, 4, 3, 2, 1};
+    return place >= 0 && place < 5 ? pts[place] : 0;
+}
+
+/* 0x40ccd0: an arcade race's points for the eight by their finishing order (0x53e17c): the winner's
+   wins up (0x533628), the points (0x5335b8, 16.16) and the race's at 0x5335d8 + car x 3 + the race
+   (0x406950); the totals sorted down from their last order (0x533610) with the places (0x533618);
+   the finish times (16.16) added to 0x5335f0; then within equal points a car with more wins first,
+   and car 0 (the player) before an equal one */
+void Stand_ArcadeAward(const int32_t *finish)
+{
+    uint32_t race = gm32(0x52f2ac) >> 0xc & 3;
+    for (int k = 0; k < 8; k++) {
+        int8_t c = (int8_t)gm8(0x53e17c + (uint32_t)k);
+        if (k == 0) gw8(0x533628 + (uint32_t)c, (uint8_t)(gm8(0x533628 + (uint32_t)c) + 1));
+        int pts = arcade_points(k);
+        gw32(0x5335b8 + 4u * (uint32_t)c, gm32(0x5335b8 + 4u * (uint32_t)c) + ((uint32_t)pts << 16));
+        gw8(0x5335d8 + (uint32_t)c * 3 + race, (uint8_t)pts);
+    }
+    for (int i = 0; i < 8; i++)
+        for (int j = i + 1; j < 8; j++) {
+            int8_t a = idx(0x533610, i), b = idx(0x533610, j);
+            if (val(0x5335b8, a) < val(0x5335b8, b)) gw8(0x533610 + (uint32_t)i, (uint8_t)b), gw8(0x533610 + (uint32_t)j, (uint8_t)a);
+        }
+    for (int i = 0; i < 8; i++) gw8(0x533618 + (uint32_t)idx(0x533610, i), (uint8_t)i);
+    for (uint32_t i = 0; i < 8; i++) gw32(0x5335f0 + 4 * i, gm32(0x5335f0 + 4 * i) + (uint32_t)finish[i]);
+    for (int i = 0; i < 8; i++)
+        for (int j = i + 1; j < 8; j++) {
+            int8_t a = idx(0x533610, i), b = idx(0x533610, j);
+            if (val(0x5335b8, a) != val(0x5335b8, b)) break;
+            int8_t wa = (int8_t)gm8(0x533628 + (uint32_t)a), wb = (int8_t)gm8(0x533628 + (uint32_t)b);
+            if ((wa == wb && b == 0) || wa < wb) {
+                gw8(0x533618 + (uint32_t)a, (uint8_t)j), gw8(0x533618 + (uint32_t)b, (uint8_t)i);
+                gw8(0x533610 + (uint32_t)i, (uint8_t)b), gw8(0x533610 + (uint32_t)j, (uint8_t)a);
+            }
+        }
+}
