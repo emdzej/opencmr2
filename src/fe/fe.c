@@ -33,6 +33,7 @@
 #include "world/frame.h"
 #include "world/obj.h"
 #include "world/relight.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -398,11 +399,14 @@ uint32_t Fe_MenuTime(void) { return since_menu; }
 /* 0x4d1cc0 (state 7): going on to the game at the first stage of a championship or single rally, the
    music off and the loading screen for four seconds (select ends them), then the rally's movie
    (CountrySpecific\<region>\<FIN, GRE, ...>.bik, on the language's sound track); otherwise on at once */
+static bool rally_movie;   /* DAT_00817fec (0x4d20f0) */
 static void st_rally_movie(ProcGroup *g, uint32_t s)
 {
     (void)g, (void)s;
+    rally_movie = false;
     static const uint32_t codes[8] = {0x519280, 0x51927c, 0x519278, 0x519274, 0x519270, 0x51926c, 0x519268, 0x519264};
     if (to_game && (Gs_Mode() == 0 || Gs_Mode() == 1) && Tod_Stage() == 0) {
+        rally_movie = true;
         if (Movie_Playing()) {
             if (movie_step("", 0)) return;
             Proc_Event(&group, 0, 0, 2);
@@ -559,14 +563,45 @@ static void dr_menus(ProcGroup *g, uint32_t s)
 }
 
 /* 0x4d0ba0 (state 7): "Loading" and the rally on black */
+/* 0x4d0d30: a word of the loading screen in font 2 at (x, y), white fading to black from 2.5 s to 4 s
+   after the stamp; a 2-pixel bar after it unless the last; the x for the next */
+static int loading_word(int x, int y, const char *s, bool last)
+{
+    int w, h;
+    screen(&w, &h);
+    int t = (int)(Time_Get() - Fe_Stamped());
+    uint8_t c = 0xff;
+    if (t >= 0x9c5) c = t < 0xfa1 ? (uint8_t)(0xff - (int)lrintf((float)(t - 0x9c4) * (1.0f / 1500.0f) * 255.0f)) : 0;   /* (0x513ec8, 0x511324) */
+    uint8_t rgba[4] = {c, c, c, 0xff};
+    Font_Print(2, s, x, y, rgba, 0x11);
+    if (last) return x;
+    x += w * 10 / 0x280 + Font_TextWidth(2, s);
+    int16_t r[4] = {(int16_t)x, (int16_t)(h * 200 / 0x1e0), 2, (int16_t)(h * 0x3c / 0x1e0)};
+    Rect_Fill(r, rgba, 1);
+    return x + w * 10 / 0x280;
+}
+
+/* 0x4d0ba0 (state 7's draw) while the rally's movie is due: "Loading" and the rally's name on black
+   (the name in lower case, 0x4aa090), the scene; the movie's frame while it plays */
 static void dr_rally_movie(ProcGroup *g, uint32_t s)
 {
     if (Movie_Playing()) {
         dr_movie(g, s);
         return;
     }
-    (void)g, (void)s;
-    PENDING_NOTE(0x4d0ba0, "the rally movie's screen");
+    if (!rally_movie) return;
+    int w, h;
+    screen(&w, &h);
+    Obj_SetPosition(&camera, (const int32_t[3]){0, 0, -0x140000});
+    Obj_SetAngles(&camera, (const uint16_t[3]){0, 0, 0});
+    Render_SetClearColour(0, 0, 0);
+    begin();
+    int x = loading_word(w * 0x1e / 0x280, h / 2, Text_Get(0x1bd), false);
+    char b[200];
+    snprintf(b, sizeof b, "%s", Text_Get((int)(Tod_Rally() & 0xff) + 0x27));   /* 0x516180 */
+    Text_Lower(b);
+    loading_word(x, h / 2, b, true);
+    draw_scene();
 }
 
 static const ProcState states[10] = {

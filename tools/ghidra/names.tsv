@@ -1601,3 +1601,6 @@
 004d1ba0	Fe_MovieCm	frontend	high	FrontEnd\Videos\cm.bik on black
 004d1c30	Fe_MovieIntro	frontend	high	FrontEnd\Videos\Intro.bik
 004d1cc0	Fe_RallyMovie	frontend	high	the loading screen four seconds, then the rally's movie
+004d0ba0	Fe_DrawRallyLoading	frontend	high	the rally's loading screen: the welcome and the rally's name on black
+004d0d30	Fe_LoadingWord	frontend	high	a loading screen word fading to black, a bar after it
+004d20f0	Fe_RallyMovieDue	frontend	high	the rally's movie is due (DAT_00817fec)
