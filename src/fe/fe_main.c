@@ -108,6 +108,25 @@ void fe_4ef420(Menu *m)
     }
 }
 
+/* 0x4d4350: an item's text when selectable, in the selection's colour, the enabled's or the rest's */
+static void plain_item(const char *t, int x, int y, uint32_t flags, int i, const Menu *m)
+{
+    uint8_t f = m->items[i].flags;
+    if (!(f & MIF_SELECTABLE)) return;
+    Font_Print(1, t, x, y, gm(m->sel == i ? 0x524968 : (f & MIF_ENABLED) ? 0x52496c : 0x524970), flags);
+}
+
+/* 0x4d43e0: the plain page (0x81fe38): the header, the title centred at the top and the items' texts
+   under it, 20 lines apart from 100 (in pixels, not scaled to the screen) */
+void fe_4d43e0(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    Font_Print(1, Text_Get(m->text), w / 2, 10, gm(0x524968), 10);
+    for (int i = 0; i < m->n; i++) plain_item(Text_Get(m->items[i].text), w / 2, (i * 5 + 0x19) * 4, 10, i, m);
+}
+
 /* 0x4d4ba0 */
 void fe_4d4ba0(Menu *m)
 {
