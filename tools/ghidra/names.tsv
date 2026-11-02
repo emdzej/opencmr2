@@ -1662,3 +1662,5 @@
 00406580	Unlocks_ClearNew	game	high	The stages' new marks taken off what the progress opened
 0041f560	Race_Names	race	high	Race_Setup's stage names (replays, demo run, ghost, archive)
 00423010	Camera_LookAround	camera	high	The pause camera page's swing around the car
+0042be30	Wheels_SetFrames	sim	high	Each wheel's texture frame from its tyre wear mark and spin (near and far wheels)
+0045c720	Tyres_Mark	game	high	A race car's wheel wear mark (+0x90 of its tyre record via 0x408a60)

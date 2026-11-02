@@ -4,6 +4,9 @@
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "game/mem.h"
+#include "game/profile.h"
+#include "game/race.h"
+#include "render/mesh.h"
 #include "exe.h"
 #include "pending.h"
 #include <math.h>
@@ -149,6 +152,25 @@ void Pose_Capture(const CarList *l)
     }
 }
 
+/* 0x42be30: each wheel's texture frame (its polygons of flag 1) from the tyre's wear mark (Tyres_Tally's
+   +0x90: 1 spin, 2 more, 3 slide) and whether it spins (0x53ac48): still 0, 3, 5, 8; spinning 6, 4,
+   7, 9; the near and the far wheel alike */
+static void wheel_frames(void)
+{
+    static const uint8_t still[4] = {0, 3, 5, 8}, spun[4] = {6, 4, 7, 9};
+    for (int k = g_all.n - 1; k >= 0; k--) {
+        int n = g_all.car[k];
+        Car *c = Car_Get(n);
+        uint32_t r = Player_Tyres(Race_Base() + n);   /* 0x45c720 */
+        for (int w = 0; w < 4; w++) {
+            uint32_t m = r ? gm32(r + 0x90 + 4u * (uint32_t)w) : 0;
+            uint32_t f = (spinning[n][w] ? spun : still)[m <= 3 ? m : 0];
+            if (c->wheel[w]) Mesh_SetFrame(c->wheel[w]->model, c->wheel[w]->mesh, 1, f);   /* 0x49c440 */
+            if (c->far[1 + w]) Mesh_SetFrame(c->far[1 + w]->model, c->far[1 + w]->mesh, 1, f);
+        }
+    }
+}
+
 void Car_PoseInterp(void)
 {
     for (int k = g_all.n - 1; k >= 0; k--) {
@@ -191,7 +213,15 @@ void Car_PoseInterp(void)
             for (int r = 0; r < 3; r++) w[4 * r] = m[3 * r], w[4 * r + 1] = m[3 * r + 1], w[4 * r + 2] = m[3 * r + 2];
             w[12] = o[0], w[13] = o[1], w[14] = o[2], w[15] = 0x10000;
             if (c->wheel[i]) copy34(c->wheel[i]->local.m, w), c->wheel[i]->dirty = 1;
-            PENDING_NOTE(0x42bf70, "Car_PoseInterp (the hubs at +0x728)");
+            /* the far model's wheel (+0x728 + 4i): the same matrix, row 2 narrowed only when the near
+               wheel is not (a kind A car on surface 6), then dirty up to its root */
+            Obj *h = c->far[1 + i];
+            if (h) {
+                copy34(h->local.m, w);
+                if (!Pose_Narrow(c, 0) && Pose_Narrow(c, 1))
+                    for (int q = 8; q < 11; q++) h->local.m[q] = fx_mul(h->local.m[q], 0x9999);
+                for (Obj *o = h; o; o = o->parent) o->dirty = 1;
+            }
         }
         /* the normal: the step's (the original adds the whole difference), unit */
         int32_t nn[3];
@@ -201,7 +231,7 @@ void Car_PoseInterp(void)
         for (int q = 0; q < 4; q++) out[n][P_HEIGHT + q] = lerp(prev[n][P_HEIGHT + q], cur[n][P_HEIGHT + q], f);
         car_box(box[n], out[n], c);   /* Car_Shadow 0x487140 */
     }
-    PENDING_NOTE(0x42be30, "Car_PoseInterp 0x42be30");
+    wheel_frames();
 }
 
 void Pose_Init(int n)
