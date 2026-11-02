@@ -151,6 +151,55 @@ static void msg_clear(int p)
     gw32(MSG_REC + o, 0), gw32(MSG_88 + o, 0), gw32(MSG_NOPROF + o, 0), gw32(MSG_BEST + o, 0), gw32(MSG_LAP + o, 0);
 }
 
+/* 0x415e30: the map: a mark every hundred points (0x536c24, at least one), the centre line's extent
+   giving the scale (0x53705c: 0.64 over the longer side, 16.16) and the middle (0x536bf0, 0x536bf8;
+   0x536bf4 zero); 0x536fe0, the rows' alternative, cleared (nothing sets it) */
+static void map_init(void)
+{
+    int32_t x1 = -0x7d000000, x0 = 0x7d000000, z1 = -0x7d000000, z0 = 0x7d000000;
+    gw32(0x536fe0, 0);
+    uint32_t n = (uint32_t)Cat_FinishPoint();
+    gw32(0x536c24, n < 100 ? 1 : n / 100 + 1);
+    for (int i = 0; i < Cat_FinishPoint(); i++) {
+        int32_t q[3];
+        Cat_Point(i, q);
+        if (x1 < q[0]) x1 = q[0];
+        if (q[0] < x0) x0 = q[0];
+        if (z1 < q[2]) z1 = q[2];
+        if (q[2] < z0) z0 = q[2];
+    }
+    int64_t span = x1 - x0 < z1 - z0 ? (int64_t)z1 - z0 : (int64_t)x1 - x0;
+    gw32(0x53705c, span ? (uint32_t)(int32_t)(0xa3d70000LL / span) : 0);   /* (the original traps on 0) */
+    gw32(0x536bf4, 0);
+    gw32(0x536bf0, (uint32_t)((x0 + x1) / 2));
+    gw32(0x536bf8, (uint32_t)((z0 + z1) / 2));
+}
+
+/* 0x415870: on circuits (selection bit 24 or 25) the three counters 0x536c30 run down and the rows
+   are the first three with the car's place (0x536fe0 is never set, so the other way, by the car's
+   position 0x448330, never runs); out of modes 5 and 6 a split passed shows the split for 75 steps */
+static void arcade_rows(int p)
+{
+    if (Gs_SelBit24() || Gs_SelBit25()) {
+        for (uint32_t a = 0x536c30; a < 0x536c3c; a += 4)
+            if (0 < gms32(a)) gw32(a, (uint32_t)(gms32(a) - 1));
+        if (!gm32(0x536fe0)) {
+            for (int i = 0; i < 3; i++) rows[p][i] = i;
+            hud_place[p] = Times_Place(p);
+        } else {
+            int k = (int8_t)gm8(0x53d9ea + 0x88u * (uint32_t)p);   /* 0x448330 */
+            rows[p][0] = rows[p][1] = rows[p][2] = -1;
+            hud_place[p] = k;
+            if (k != -1) {
+                int b = k < 1 ? k : k < 5 ? k - 1 : k - 2;
+                for (int i = 0; i < 3; i++) rows[p][i] = b + i;
+            }
+        }
+    }
+    uint32_t m = Gs_Mode();
+    if (m != 5 && m != 6 && Sectors_Split(p)) show_for[p] = 0x4b;
+}
+
 /* Hud_Init 0x411450 (Stage_Load with 0, the line with 1, the restart with 0x53810c): the clock's
    cap, the reference splits forgotten (0x4111a0), the bar laid out; the map in the other modes */
 void Hud_Init(int again)
@@ -159,7 +208,8 @@ void Hud_Init(int again)
     /* 0x4111a0 */
     memset(ref_split, 0, sizeof ref_split);
     hud_ready = false;
-    gw32(0x536c40, 0);
+    gw32(0x536c40, 0), gw32(0x536c3c, 0), gw32(0x537050, 0);
+    gw32(0x536c30, 0), gw32(0x536c34, 0), gw32(0x536c38, 0);
     memset(show_for, 0, sizeof show_for);
     for (int i = 0; i < 4; i++) {
         rows[i][0] = rows[i][1] = rows[i][2] = -1;
@@ -171,7 +221,7 @@ void Hud_Init(int again)
     gw32(0x536c08, 0), gw32(0x536cac, 0), gw32(0x536c04, 0), gw32(0x537050, 0);
     if (!again) gw32(0x53706c, 0), gw8(MSG_NAME, 0);   /* (sprintf of the empty string 0x52ea5c) */
     uint32_t m = Gs_Mode();
-    if (m == 5 || m == 6 || m == 7 || m == 4 || m == 11 || m == 12 || Gs_SelBit25()) PENDING_NOTE(0x415e30, "Hud_MapInit");
+    if (m == 5 || m == 6 || m == 7 || m == 4 || m == 11 || m == 12 || Gs_SelBit25()) map_init();   /* 0x415e30 */
 }
 
 int32_t Times_Race(void) { return shown; }
@@ -547,7 +597,7 @@ void Hud_Update(int p, bool on_line)
     rally_split(p);   /* 0x413160 */
     if (Gs_SelBit26() && (gm32(0x52f2b0) >> 0xb & 1)) PENDING_NOTE(0x4118b0, "Hud_LapSounds (the arcade's lap beeps and countdown)");
     uint32_t m = Gs_Mode();
-    if (m == 5 || m == 6 || m == 7 || Gs_SelBit25()) PENDING_NOTE(0x415870, "Hud_ArcadeRows");
+    if (m == 5 || m == 6 || m == 7 || Gs_SelBit25()) arcade_rows(p);   /* 0x415870 */
     else standings_rows(p);   /* 0x414720 */
     if (show_for[p]) show_for[p]--;
 }
