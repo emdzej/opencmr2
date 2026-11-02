@@ -393,7 +393,7 @@ void fe_4f0600(Menu *m, bool back)
 {
     (void)m, (void)back;
     Fe_SetPlayer(0);
-    PENDING_NOTE(0x4a0c40, "the menus' input record reset (0x4a0c40(1))");
+    Menu_SoundsOn(true);   /* 0x4a0c40 */
 }
 
 /* 0x4f0620: a new choice slides the row from where the old one was, by the shorter way round (80 of
