@@ -7,6 +7,8 @@
 #include "sim/controls.h"
 #include "fixmath.h"
 #include "game/gstate.h"
+#include "game/race.h"
+#include "game/replay.h"
 #include "pending.h"
 #include "world/tod.h"
 #include <math.h>
@@ -43,8 +45,24 @@ static void boost(void)
         return;
     }
     CW32(c, 0xa84, 0);
-    /* the car's type in the tables at 0x537f3c and 0x537dd0 (pointers into the heap) */
-    PENDING_NOTE(0x41b390, "Car_TypeTable");
+    /* racing (race state 8, 0x41b390's group), or a player's replay playing what it recorded racing
+       (0x41f3d0, 0x41f350's +0x10c): the handbrake pushes the car along its forward (+0x360) by a
+       quarter of +0xa84, full to 2.75 of +0x778 and fading out by 3.0 */
+    int n = CI8(c, 0xb1a);
+    bool replay = n < (int)Gs_SelBits14() && Replay_Playing(Race_Replay(n)) && Replay_State(Race_Replay(n)) == 8;
+    if (Race_State(n) != 8 && !replay) return;
+    if (CI32(c, 0x1d8)) {
+        int32_t v = CI32(c, 0x778);
+        if (v < 0x2c001) CW32(c, 0xa84, 0x10000);
+        else if (v < 0x30001) {
+            int32_t k = fx_mul(v - 0x2c000, 0x40000);
+            if (k > 0x10000) k = 0x10000;
+            CW32(c, 0xa84, 0x10000 - k);
+        }
+        int32_t k = fx_mul(CI32(c, 0xa84), 0x4000);
+        for (uint32_t q = 0; q < 3; q++) CW32(c, 0x5c4 + 4 * q, CI32(c, 0x5c4 + 4 * q) + fx_mul(CI32(c, 0x360 + 4 * q), k));
+    }
+    CW32(c, 0x1d8, 0);
 }
 
 /* 0x4946c0: the digital throttle ramp (+0x7a0, along a quarter sine of 90 degrees) */

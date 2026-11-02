@@ -1664,3 +1664,5 @@
 00423010	Camera_LookAround	camera	high	The pause camera page's swing around the car
 0042be30	Wheels_SetFrames	sim	high	Each wheel's texture frame from its tyre wear mark and spin (near and far wheels)
 0045c720	Tyres_Mark	game	high	A race car's wheel wear mark (+0x90 of its tyre record via 0x408a60)
+0040a3e0	Trial_BestLap	game	high	The time trial's best lap (0x5320a8)
+0040a330	Lap_Best	game	high	A lap against the lap records; in the time trial its record and name

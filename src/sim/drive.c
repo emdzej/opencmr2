@@ -19,22 +19,8 @@
 #include "game/pause.h"
 #include "game/replay.h"
 #include "game/cockpit.h"
+#include "game/profile.h"
 #include <string.h>
-
-/* 0x408760: the player's profile keeps the camera chosen */
-static void profile_camera(int player, int kind)
-{
-    uint32_t t = gm32(0x531350 + 0x30u * (uint32_t)player) >> 0x12 & 0xf;
-    if (Gs_Mode() == 4) {
-        gw8(0x52f3e4 + 0xc4u * (uint32_t)player, (uint8_t)kind);
-        gw8(0x52f3ec + 0xc4u * (uint32_t)player, (uint8_t)(gm8(0x52f3ec + 0xc4u * (uint32_t)player) | 2));
-        return;
-    }
-    if (t == 0xf) return;
-    if (gm32(0x52fa1c + t * 0x650) & 0x200000) PENDING_NOTE(0x405fd0, "Profile_Camera (0x405fd0)");
-    gw32(0x52fa60 + t * 0x650, (uint32_t)kind);
-    gw8(0x52fa00 + t, 1);
-}
 
 /* 0x47bca0: the player's action bits (0x51f4b0-0x51f4c0, a word each) and whether the steering and
    the pedals are analogue (0x58e0a8-0x58e0aa) */
@@ -53,7 +39,7 @@ static void camera_key(int player)
 {
     int state = Race_State(player);
     int now = Camera_Next(player, state);
-    if ((state == 7 || state == 8) && now >= 1 && now <= 5) profile_camera(player, now);
+    if ((state == 7 || state == 8) && now >= 1 && now <= 5) Player_SetCameraKind(player, (uint32_t)now);   /* 0x408760 */
 }
 
 /* 0x408800 for the race's kinds 0, 1 and 4 (2 and 3 pair the players, 0x407830) */

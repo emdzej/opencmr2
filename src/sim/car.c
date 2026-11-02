@@ -353,7 +353,7 @@ void Car_Init(Car *c, Obj *obj, int cls, const int32_t pos[3], int n, bool keep)
     if (m == 5 || m == 6 || m == 7 || (m == 4 && CI8(c, 0xb1a) != 0) || (Gs_SelBit28() && Gs_Bit30()) ||
         Gs_Byte52ea52() || m == 11 || m == 12)
         CW32(c, 0xb50, 0);
-    if (Gs_SelBit25() && !Gs_ModeBit19()) PENDING_NOTE(0x408500, "Champ_DriverIndex");
+    if (Gs_SelBit25() && !Gs_ModeBit19() && Player_Driver(c->s[0xb1a]) != -1) CW32(c, 0xb50, 0);   /* 0x408500 */
     if (Gs_ModeBit17() && n == 1 && Gs_SelBit25()) CW32(c, 0xb50, 0);
     if (m == 4) CW32(c, 0xb50, 0);
     CW32(c, 0xb4c, 0);

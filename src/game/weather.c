@@ -286,12 +286,7 @@ static void cam_rows(int p, int32_t pos[3], int32_t fwd[3])   /* 0x4bac40, 0x4ba
     }
 }
 /* 0x4209d0: the car's share of its centre-line segment (0x538ab8, the progress record's +0x10) */
-static int32_t seg_frac(const Car *c)
-{
-    (void)c;
-    PENDING_NOTE(0x4209d0, "the progress record's segment fraction (sim/progress.c has no accessor)");
-    return 0;
-}
+static int32_t seg_frac(const Car *c) { return Car_SegmentFrac(c); }
 
 void Weather_Alloc(int n)
 {

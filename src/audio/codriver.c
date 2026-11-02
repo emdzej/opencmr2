@@ -74,6 +74,18 @@ bool Codriver_LoadSpeech(void)
     return n > 0;
 }
 
+/* 0x417780: after a recovery the calls start again from the car's point (0x53708c, 0x537198); the
+   speech queue's first five entries forgotten (sound and voice -1, not playing nor in use; the rest
+   are left, as the original's loop stops at 0x5370e4) */
+void Codriver_Rewind(int player)
+{
+    int i = Car_CatIndex(Car_Get(player));
+    /* (the original writes cars 4-7 past both arrays, into the queue's first entries, which are
+       then cleared anyway, and into the countdown's numbers: the port keeps to the four) */
+    if (player < 4) last_point[player] = i, wrong_at[player] = i;
+    for (int k = 0; k < 5; k++) queue[k].id = -1, queue[k].voice = -1, queue[k].flags &= 0xfc;
+}
+
 /* 0x416670 */
 void Codriver_Reset(void)
 {

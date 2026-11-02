@@ -398,6 +398,32 @@ static void at_split(int k)
     if (pos == n - 1) gw8(AR(k, 0x80), 0xff);
 }
 
+/* 0x40a3e0: the time trial's best lap (0x5320a8, 0 none) */
+static void trial_best(uint32_t t)
+{
+    if (t < gm32(0x5320a8) || !gm32(0x5320a8)) gw32(0x5320a8, t);
+}
+
+/* 0x40a330: a lap against the lap records (0x531c94, a word each); in the time trial (mode 12) its
+   record (0x531c98), the last kept at 0x531ce0, the driver's name at 0x531cf0 and 0x531ce4 set when
+   beaten, clear when not */
+static void lap_best(uint32_t t, int i)
+{
+    if (Gs_Mode() != 12) {
+        uint32_t a = 0x531c94 + 4u * (uint32_t)i;
+        if (t < gm32(a) || !gm32(a)) gw32(a, t);
+        return;
+    }
+    if (t >= gm32(0x531c98) && gm32(0x531c98)) {
+        gw32(0x531ce4, 0);
+        return;
+    }
+    gw32(0x531ce0, gm32(0x531c98));
+    gw32(0x531c98, t);
+    strcpy((char *)gm(0x531cf0), Player_Name(0));   /* 0x408400 */
+    gw32(0x531ce4, 1);
+}
+
 /* 0x448920: a lap done (the line crossed at split 0): its time (from the table, or with bit 28 or
    in mode 12 from +0x7c, capped), the lap's splits; the players' records (0x4cf530-0x4cfe80) and
    time trial's (0x40a3e0) pending; 0x52f2b0 bit 11's duels; the next lap's start */
@@ -418,7 +444,7 @@ static void lap_done(int k)
             gw32(AR(k, 0x28), 0);
             for (int j = 0; j < 4; j++) gw32(AR(k, 0x2c + 4 * j), (uint32_t)cap((int32_t)gm32(LAPSP(k, lap, 1 + j)) - from));
         }
-        if (Gs_Mode() == 12) PENDING_NOTE(0x40a3e0, "the time trial's lap records");
+        if (Gs_Mode() == 12) trial_best(gm32(lt)), lap_best(gm32(lt), 0);
     }
     /* a circuit's lap records (as the results': without the cheats' options or a recovery's
        penalty, nor for "cmr"): the lap's time, the profile's best (0x53e18d), the lap's record

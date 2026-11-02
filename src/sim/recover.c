@@ -1,6 +1,7 @@
 /* The recovery (see recover.h). */
 #include "game/weather.h"
 #include "sim/recover.h"
+#include "audio/codriver.h"
 #include "world/particles.h"
 #include "sim/car_internal.h"
 #include "sim/drive.h"
@@ -163,7 +164,7 @@ static void recover(int ch)
         Cat_Point(i, pos);
     }
     reset_at(c, pos, dir);
-    PENDING_NOTE(0x417780, "Codriver_Rewind");
+    Codriver_Rewind(ch & 0xff);   /* 0x417780 */
     Particles_KillAll();   /* 0x4aff80 */
     if ((uint32_t)(ch & 0xff) < Gs_SelBits14()) Camera_Replace(ch & 0xff);   /* 0x421d80 */
     CW32(c, 0xbf8, 0);

@@ -353,7 +353,7 @@ static void race_draw(void)
 {
     char b[256];
     snprintf(b, sizeof b, "%s", Text_Get(0x131));
-    PENDING_NOTE(0x40bac0, "the key names in the race prompt");
+    /* (0x40bac0 would put the keys' names in; in 1.11 it is empty) */
     int w = Font_TextWidth(0, b);
     Sv_Type1(4, 0, 0, b, X(0x140) - w / 2, Y(0xf0), C_TEXT, C_NEXT, 0x11);
 }

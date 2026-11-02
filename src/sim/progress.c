@@ -227,6 +227,7 @@ int32_t Car_StageShare(const Car *c)
 }
 
 int Car_PointsPassed(const Car *c) { return (int)rec[CI8(c, 0xb1a)].passed; }
+int32_t Car_SegmentFrac(const Car *c) { return rec[CI8(c, 0xb1a)].frac; }   /* 0x4209d0 */
 
 int Car_CatIndex(const Car *c) { return finish ? (int)rec[CI8(c, 0xb1a)].idx : 0; }
 int Car_CatIndex16(const Car *c) { return finish ? (int)rec[CI8(c, 0xb1a)].idx16 : 0; }
