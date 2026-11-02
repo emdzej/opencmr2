@@ -568,8 +568,16 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
     }
     for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
     uint32_t m = Gs_Mode();
-    if (Gs_SelBit22() || Gs_SelBit24()) PENDING_NOTE(0x4483e0, "the finish's arcade and night tables");
-    if (Gs_SelBit27()) PENDING_NOTE(0x455af0, "the finishers' times into the CPU table (0x537fbc)");
+    if (Gs_SelBit22() || Gs_SelBit24()) Times_Estimate();   /* 0x4483e0 */
+    /* the head to head's winners' times into the computer drivers' tables (0x455af0); with one player
+       in the arcade or round a circuit, fewer than two through, car 1's time at split 2 as its
+       paired driver's (0x455ab0: 0x541f79, made with the championship's pairs, not ported) */
+    if (Gs_SelBit27() && !Gs_ModeBit19()) {
+        for (int p = 0; p < 2; p++)
+            if (gm8(0x537fbc + (uint32_t)p)) Opp_Insert(Opp_PlayerSlot(p), Times_Finish(p), Sectors_Shown());
+        if ((Gs_SelBit22() || Gs_SelBit24()) && players() == 1 && gm8(0x53e18c) < 2)
+            PENDING_NOTE(0x455ab0, "the head to head's paired driver (0x541f79)");
+    }
     /* in alternation only once the last player has driven: the stage's times into the championship's
        (rally, single rally, mode 8), and at a championship rally's last stage its points */
     if (!Gs_ModeBit17() || Race_Base() == (int)Gs_Players() - 1) {

@@ -318,6 +318,41 @@ static void finished(int k)
     gw8(0x53e18c, (uint8_t)(f + 1));
 }
 
+/* 0x4483e0 (state 9, in the arcade and round a circuit): the cars that have not finished put in
+   the finish order by their places, each given a finish: the time shown over the share of the race
+   it has covered (its furthest point over laps x points, 16.16; 0x40d4b0 and 0x40d480 between
+   1/100 s and 16.16 s), twice the time when that is nothing; one more than its own when the share
+   is the last given's (a tie). In a head to head the time is also car 1's at split 2 (0x53e1bc).
+   The places are gone through again until every car is in. */
+void Times_Estimate(void)
+{
+    int n = Sectors_Cars(), count = (int8_t)gm8(0x53e18c), last = 0;
+    int64_t whole = (int64_t)(int32_t)((uint32_t)(gm32(0x52f2ac) >> 0x10 & 0xf) * (uint32_t)Cat_FinishPoint() * 0x10000u);   /* Gs_Laps 0x406990 */
+    while (count < n) {
+        for (int i = 0; i < n; i++) {
+            int k = (int8_t)gm8(STANDING(i));
+            bool in = false;
+            for (int j = 0; j < count; j++) in |= (int8_t)gm8(0x53e17c + (uint32_t)j) == k;
+            if (in) continue;
+            gw8(0x53e17c + (uint32_t)count, (uint8_t)k);
+            gw8(0x53e184 + (uint32_t)k, (uint8_t)count);
+            count++;
+            done[k] = 1;
+            int32_t share = whole ? (int32_t)(((int64_t)(int16_t)Sectors_Most(k) << 32) / whole) : 0;
+            if (share < 1) finish[k] = shown * 2;
+            else {
+                int32_t t = (int32_t)((shown % 100) * 0x10000 / 100) + (shown / 100) * 0x10000;
+                int32_t inv = (int32_t)(0x100000000LL / share);
+                int32_t v = (int32_t)(((int64_t)inv * t) >> 16);
+                finish[k] = (int32_t)(((int64_t)(v + 0x147) << 16) / 0x28f5c28);
+            }
+            if (Gs_SelBit27()) splits[1][2] = finish[k];
+            if (last && last == share) finish[k]++;
+            last = share;
+        }
+    }   /* (the count 0x53e18c is not written back) */
+}
+
 /* 0x448630: the head to head won by k (the cars touching near each other): finished at the time
    shown, its time at the last split that, its finish time 18000 more (the winner's 180 s), a finisher
    more */

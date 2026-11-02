@@ -1467,3 +1467,4 @@
 004584c0	Sectors_Side	race	high	The head to head's side (0x542cb0)
 00448630	Times_Won	race	high	The head to head won: finished now, its last split, its finish time 180 s more
 00487130	Cars_Touching	sim	high	The last pair of cars whose boxes were tested touched (0x591390)
+004483e0	Times_Estimate	race	high	At the end the unfinished cars put in the finish order, their finishes from their share of the race

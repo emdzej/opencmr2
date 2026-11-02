@@ -12,6 +12,7 @@ int Times_Standing(int i);       /* 0x4481e0: the car in place i */
 int32_t Times_Race(void);        /* 0x448110: the shown race time, 1/100 s */
 int32_t Times_Finish(int car);   /* 0x4483c0 */
 void Times_Won(int car);         /* 0x448630 */
+void Times_Estimate(void);       /* 0x4483e0: the unfinished cars' finishes at the end */
 void Hud_LoadSounds(void);        /* 0x411120: up, down, blip, cross, timeout */
 void Hud_LoadMap(void);           /* 0x411280: the map's textures (Stage_Load) */
 void Hud_Init(int again);         /* 0x411450: Stage_Load (0), the line (1), a restart */
