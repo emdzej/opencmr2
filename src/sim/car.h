@@ -1,7 +1,7 @@
 /* The car state (docs/formats/cars.md#handling): 0xc24 bytes per car, kept as the original's block and
    addressed by its offsets (CI32 and friends), since the simulation (0x428000-0x445000) is written
    against them. Pointers the original keeps inside the block (the models at +0x71c/+0x720, the wheels
-   at +0x738-+0x744, the parts at +0x748/+0x74c, the self pointer at +0x750) are kept beside it. */
+   at +0x738-+0x744, the far model at +0x724-+0x734, the parts at +0x748/+0x74c, the self pointer at +0x750) are kept beside it. */
 #pragma once
 #include "world/obj.h"
 #include <stdbool.h>
@@ -12,6 +12,7 @@ enum { CAR_SIZE = 0xc24, CAR_MAX = 8 };
 typedef struct {
     uint8_t s[CAR_SIZE];
     Obj *main, *second;   /* +0x71c, +0x720 */
+    Obj *far[5];          /* +0x724-+0x734: the far model's body (type 5) and wheels (types 1-4), under main */
     Obj *wheel[4];        /* +0x738-+0x744: objects of type 1-4 under the main model */
     Obj *part748, *part74c;   /* types 0xf and 0xe under the second model */
 } Car;

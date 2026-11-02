@@ -1038,3 +1038,5 @@
 004f3280	Fe_DuelEnter	fe	confirmed	The two players' single race options entered: the kind, its count, the on/off
 004f3310	Fe_DuelFrame	fe	confirmed	The two players' single race options: the count list follows the kind
 004f0110	Fe_DuelStart	fe	confirmed	The two players' single race options kept, the start
+00428bf0	Cars_Lod	car	confirmed	Which cars get their full models: the nearest three on the screen within 60 units
+0046b760	Car_SetNear	car	confirmed	A car near (full models) or far (0x588bb4)

@@ -20,6 +20,7 @@
 #include "render/tex.h"
 #include "render/mesh.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -27,6 +28,9 @@ static C3d models[CAR_MAX];
 static uint8_t *cins[CAR_MAX];     /* 0x5428c4 region: the cars' .cin files */
 static uint32_t cin_size[CAR_MAX];
 static BflSlot textures[CAR_MAX];   /* the slots' texture archives (0x542634 + 0x24 n) */
+static C3d far_models[CAR_MAX];     /* 0x5428c4 + 4 n: the far models */
+static uint8_t *far_files[CAR_MAX];   /* 0x542944 + 4 n */
+static BflSlot far_tex[CAR_MAX];    /* 0x542af4 + 0x18 n */
 
 static const char *car_name(int id) { return exe_str(exe_u32(0x516bb0 + 4u * (uint32_t)id)); }   /* 0x40ee60 */
 
@@ -63,6 +67,37 @@ void Car_LodTable(void)
     }
 }
 
+/* the tail of 0x457000: a CPU car of modes 5, 6, 8, 9, 11 and 12 (not with option 16) has a far model,
+   <car><letter><set>.C3D with its .bfl under the world root; its body (type 5) and wheels (1-4) into
+   +0x724-+0x734 and hung under the main model. (0x4b2d90's car number in the meshes and 0x4b45d0's
+   shadows, not ported for the main model either.) */
+static bool far_load(int n, const char *name, char letter, int set, Car *c)
+{
+    for (int i = 0; i < 5; i++) c->far[i] = NULL;
+    if (!letter || (gm32(0x52e890) & 0x10000)) return true;
+    gw8(0x542651 + 0x24u * (uint32_t)n, (uint8_t)letter);
+    char path[96];
+    snprintf(path, sizeof path, "Game\\Cars\\%s%c%d.C3D", name, letter, set);
+    free(far_files[n]);
+    far_files[n] = File_Load(path, 0);
+    if (!far_files[n]) return false;
+    uint32_t size = File_LastSize();
+    snprintf(path, sizeof path, "Game\\Cars\\%s%c%d.bfl", name, letter, set);
+    Bfl_Mount(&far_tex[n], path);
+    C3d *m = &far_models[n];
+    if (!C3d_Load(m, far_files[n], size, g_tex_count)) return false;
+    C3d_Textures(m->data + m->slots, m->data + m->paths, m->ntex, m->kind, &far_tex[n], "");
+    C3d_Build(m);
+    Obj *root = C3d_Objects(m, &g_world);
+    if (!root) return false;
+    static const uint32_t types[5] = {5, 1, 2, 3, 4};
+    for (int i = 0; i < 5; i++) c->far[i] = Obj_FindType(root, types[i]);
+    for (int i = 0; i < 5; i++)
+        if (c->far[i]) Obj_Reparent(c->far[i], c->main);
+    if (letter != 'A') PENDING_NOTE(0x42cb90, "Car_Textures (the far wheels)");
+    return true;
+}
+
 bool Car_Load(int n)
 {
     uint32_t mode = Gs_Mode();
@@ -78,7 +113,7 @@ bool Car_Load(int n)
     }
     int cls = (int)exe_u32(0x516b40 + 4u * (uint32_t)id);
     /* the detail letter (0x51a3d0) and the set by the mode */
-    char letter;
+    char letter, far = 0;   /* the far model's letter (local_123) when there is one */
     int set = 1;
     const uint32_t L = 0x51a3d0;
     switch (mode) {
@@ -90,7 +125,7 @@ bool Car_Load(int n)
     case 5: case 6: case 8: case 9: case 11: case 12:
         if (cpu) {
             letter = (char)gm8(L + (split ? 0x12 : 5));
-            PENDING_NOTE(0x457000, "Car_Load (a CPU car's second model, letter 0x51a3d0[6])");
+            far = (char)gm8(L + (split ? 0x13 : 6));
         } else letter = (char)gm8(L + (split ? 0x11 : 4));
         set = letter != 'A' ? 3 : 1;
         break;
@@ -139,7 +174,7 @@ bool Car_Load(int n)
     /* dents on for the rally modes (0x46b400), never turned off here */
     if (!(mode == 5 || mode == 6 || mode == 7 || mode == 11 || mode == 12) && !(Gs_SelBit28() && Gs_Bit30())) Damage_SetDents(1, n);
     PENDING_NOTE(0x42cb50, "Car_Load (the wheels' other models)");
-    return true;
+    return far_load(n, name, far, set, c);
 }
 
 const uint8_t *Car_Cin(int n) { return n >= 0 && n < CAR_MAX ? cins[n] : NULL; }

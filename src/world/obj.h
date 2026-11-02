@@ -43,6 +43,9 @@ extern int g_nobjs;            /* DAT_00683370 */
    Returns the first object (the model's), NULL if it has none. */
 Obj *C3d_Objects(const C3d *m, Obj *parent);
 void Obj_FreeAll(void);   /* the port (each object's 0x4ac680) */
+/* Obj_ToScreen 0x4bad40: a world point on the screen through the camera, 16.16 pixels; (-100, -100)
+   when nearer than 1 in front */
+void Obj_ToScreen(int32_t out[2], const int32_t pt[3], const Obj *cam);
 Obj *Obj_New(Obj *parent);                                          /* 0x4ac6f0 */
 void Obj_Place(Obj *o, const int32_t pos[3], const uint16_t a[3]);  /* 0x4ac3d0 */
 void Obj_Attach(Obj *o, Obj *parent);   /* 0x4ac200 */

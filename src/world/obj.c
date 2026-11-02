@@ -2,6 +2,8 @@
 #include "world/obj.h"
 #include "render/dlight.h"
 #include "render/mesh.h"
+#include "render/view.h"
+#include <math.h>
 #include "world/section.h"
 #include <stdlib.h>
 #include <string.h>
@@ -269,4 +271,31 @@ void Obj_Frame(Obj *list, Obj *camera)
     Obj_UpdateTree(list);
     Obj_Commit(list);
     if (camera) View_Set(camera);
+}
+
+/* Obj_ToScreen 0x4bad40: a world point on the screen through the camera (its world matrix inverted, then the
+   projection 0x4ba870 and the screen's middle), 16.16 pixels; (-100, -100) when it is nearer than 1
+   in front */
+void Obj_ToScreen(int32_t out[2], const int32_t pt[3], const Obj *cam)
+{
+    FxMat inv;
+    FxVec v = {pt[0], pt[1], pt[2]}, c;
+    Mat_Inverse(&inv, &cam->world);
+    Vec_Transform(&c, &v, &inv);
+    if (c.z < 0x10000) {
+        out[0] = out[1] = -0x640000;
+        return;
+    }
+    const int32_t *m = Proj_Fixed();
+    int sw, sh;
+    D3d_ScreenSize(&sw, &sh);
+    int32_t p[3] = {c.x, c.y, c.z};
+    int32_t col[3];
+    for (int k = 0; k < 3; k++) col[k] = m[12 + (k == 2 ? 3 : k)] + fx_mul(m[8 + (k == 2 ? 3 : k)], p[2]) + fx_mul(m[4 + (k == 2 ? 3 : k)], p[1]) + fx_mul(m[(k == 2 ? 3 : k)], p[0]);
+    double w = (double)col[2] * (1.0 / 65536.0);
+    float k16 = (float)(1.0 / 65536.0);
+    out[0] = (int32_t)llround((double)((float)col[0] * k16) / (w / (double)((float)sw * 0.5f)) * 65536.0);
+    out[1] = (int32_t)llround(-(double)((float)col[1] * k16) / (w / (double)((float)sh * 0.5f)) * 65536.0);
+    out[0] += (int32_t)llround((double)(sw / 2) * 65536.0);
+    out[1] += (int32_t)llround((double)(sh / 2) * 65536.0);
 }

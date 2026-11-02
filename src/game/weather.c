@@ -1104,33 +1104,6 @@ static void draw_drops(int n, int p)
     r->box[0] = keep[0], r->box[1] = keep[1], r->box[2] = keep[2];
 }
 
-/* Obj_ToScreen 0x4bad40: a world point on the screen through the camera (its world matrix inverted, then the
-   projection 0x4ba870 and the screen's middle), 16.16 pixels; (-100, -100) when it is nearer than 1
-   in front */
-static void to_screen(int32_t out[2], const int32_t pt[3], const Obj *cam)
-{
-    FxMat inv;
-    FxVec v = {pt[0], pt[1], pt[2]}, c;
-    Mat_Inverse(&inv, &cam->world);
-    Vec_Transform(&c, &v, &inv);
-    if (c.z < 0x10000) {
-        out[0] = out[1] = -0x640000;
-        return;
-    }
-    const int32_t *m = Proj_Fixed();
-    int sw, sh;
-    D3d_ScreenSize(&sw, &sh);
-    int32_t p[3] = {c.x, c.y, c.z};
-    int32_t col[3];
-    for (int k = 0; k < 3; k++) col[k] = m[12 + (k == 2 ? 3 : k)] + fx_mul(m[8 + (k == 2 ? 3 : k)], p[2]) + fx_mul(m[4 + (k == 2 ? 3 : k)], p[1]) + fx_mul(m[(k == 2 ? 3 : k)], p[0]);
-    double w = (double)col[2] * (1.0 / 65536.0);
-    float k16 = (float)(1.0 / 65536.0);
-    out[0] = (int32_t)llround((double)((float)col[0] * k16) / (w / (double)((float)sw * 0.5f)) * 65536.0);
-    out[1] = (int32_t)llround(-(double)((float)col[1] * k16) / (w / (double)((float)sh * 0.5f)) * 65536.0);
-    out[0] += (int32_t)llround((double)(sw / 2) * 65536.0);
-    out[1] += (int32_t)llround((double)(sh / 2) * 65536.0);
-}
-
 /* Weather_SunGlow 0x462d80 (in the views' weather pass): the glow sprite over the sun's point on the
    screen. The 16 x 16 pixels around it are tested against the disc's colour (SunGlow_Test 0x462d10: the share near
    it, the last frame's, kept as 100 less it in 0x543ea0, the share hidden). The glow fades as the
@@ -1146,7 +1119,7 @@ static void sun_glow(int p)
     Sky_SunPoint(pt);
     if (g_sky) so[0] = g_sky->local.m[12], so[1] = g_sky->local.m[13], so[2] = g_sky->local.m[14];   /* 0x46f4a0 */
     for (int k = 0; k < 3; k++) pt[k] += so[k];
-    to_screen(s, pt, cam);
+    Obj_ToScreen(s, pt, cam);
     Rect16 q = {(int16_t)((int16_t)(s[0] >> 16) - 8), (int16_t)((int16_t)(s[1] >> 16) - 8), 16, 16};
     int32_t sx = s[0] >> 16, sy = s[1] >> 16;
     uint32_t dc = Sky_DiscColour();

@@ -120,6 +120,7 @@ static void draw(int player, int state)
     Weather_Sky(player);   /* 0x461c30 */
     Sky_Follow(cp);
     for (int i = 0; i < g_all.n; i++) Car_GroundLight(i, player);   /* 0x462aa0 */
+    Cars_Lod(player, view);   /* 0x428bf0 */
     Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */
     /* the cars' kinds per view (0x46bb40), per car its masks (0x46b8f0) and the fallen-off parts
        hidden (0x46b670) */
