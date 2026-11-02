@@ -13,6 +13,7 @@
 #include "sim/progress.h"
 #include "world/stage.h"
 #include "game/hud.h"
+#include "game/sectors.h"
 #include "game/pause.h"
 #include "render/d3d7.h"
 #include "render/tex.h"
@@ -40,7 +41,8 @@ static Call calls[4][5];
 static int last_point[4];        /* 0x53708c */
 static int wrong_at[4];          /* 0x537198 */
 static int wrong_way[4];         /* 0x537248 */
-static int counted[4][6];        /* 0x5371a4: the countdown's numbers said (five a player, the sixth the next's first) */
+static int counted[21];          /* 0x5371a4: the countdown's numbers said, at 5 p + the number (a 5 runs into the next
+                                    player's first, as the original's); ten cleared */
 static bool go_said;             /* DAT_005371a0 */
 static bool ahead;               /* DAT_00537354: calls within six points */
 static int said;                 /* the port: the words queued, for the tests */
@@ -78,8 +80,8 @@ void Codriver_Reset(void)
     for (int p = 0; p < 4; p++) {
         wrong_at[p] = 9999, wrong_way[p] = 0, last_point[p] = -1;
         for (int k = 0; k < 5; k++) calls[p][k].flags &= 0xfffffc00, calls[p][k].desc = calls[p][k].desc2 = 0;
-        for (int k = 0; k < 6; k++) counted[p][k] = 0;
     }
+    memset(counted, 0, 10 * sizeof counted[0]);
     go_said = false;
     for (int i = 0; i < 20; i++) queue[i].flags &= 0xfc, queue[i].voice = -1, queue[i].id = -1;
 }
@@ -137,12 +139,13 @@ void Codriver_Start(int p)
         else digit = (500 - raw) / 100 < 5 ? (500 - raw) / 100 + 1 : -1;
     }
     speak();
-    if (0 < p) {
-        PENDING_NOTE(0x416f70, "Codriver_Start (the second player)");
+    /* a later player's number counts once the one before has said it (and its point is left) */
+    if (0 < p && counted[5 * (p - 1) + left]) {
+        counted[5 * p + left] = 1;
         return;
     }
-    if (!counted[0][left]) {
-        counted[0][left] = 1;
+    if (p == 0 && !counted[left]) {
+        counted[left] = 1;
         Lights_Countdown(left + 1);   /* 0x463ce0 */
         if (left == 2) say(base + 0x38);
         else if (left == 1) say(base + 0x39);
@@ -185,7 +188,8 @@ void Codriver_Step(int p)
 {
     int fin = Cat_FinishPoint();
     if (!fin) return;
-    if (Gs_SelBit24() || Gs_SelBit25()) PENDING_NOTE(0x417090, "Codriver_Step (the arcade)");
+    /* round a circuit (selection bit 28 with 24 or 25) the calls start again at each lap */
+    if (Gs_SelBit28() && (Gs_SelBit25() || Gs_SelBit24()) && Sectors_Lapped(p)) last_point[p] = 0;   /* 0x458270 */
     int last = last_point[p], cur = Car_CatIndex(Car_Get(p));
     if (!go_said && p == 0) {
         Lights_Countdown(0);   /* 0x463ce0 */
@@ -211,10 +215,11 @@ void Codriver_Step(int p)
     for (int i = last_point[p] + 1; i <= last_point[p] + 6; i++)
         if (fin <= i || Cat_Record(i)[0x19] != 0xff) ahead = true;
     if (Race_State(p) == 9 || (calls[p][0].flags & 0x100)) ahead = true;
-    if (!rolled(p) && Race_State(p) == 8) {
+    /* (on a circuit of selection bit 25 nothing once the stage is done) */
+    if (!rolled(p) && Race_State(p) == 8 && !(Gs_SelBit25() && Car_StageShare(Car_Get(p)) > 0xffff)) {
         if (last_point[p] < cur) {
             for (int i = last + 1; i <= cur; i++) {
-                if (Cat_Record(i)[0x19] == 0xff || rolled(p)) continue;
+                if (Cat_Record(i)[0x19] == 0xff || Gs_SelBit24() || rolled(p)) continue;   /* 0x4174d0 */
                 if (i + 1 >= 2 && Cat_Record(i - 1)[0x19] != 0xff) continue;   /* said with the one before */
                 uint8_t next = i + 1 < Cat_Points() ? Cat_Record(i + 1)[0x19] : 0xff;
                 queue_call(p, Cat_Record(i)[0x19], next);
@@ -226,7 +231,7 @@ void Codriver_Step(int p)
     if (wrong_at[p] + 6 < cur) wrong_at[p] = cur - 6;
     /* the first call's countdown (a type-0x19 call waits while there is nothing ahead) */
     Call *c0 = &calls[p][0];
-    if (c0->flags & 0x100) {
+    if (!Gs_SelBit24() && (c0->flags & 0x100)) {   /* 0x4174d0 */
         if ((uint8_t)c0->flags != 0x19 || ahead) c0->flags = (c0->flags & ~0xffu) | (uint8_t)((uint8_t)c0->flags - 1);
         if (!(uint8_t)c0->flags) {
             memmove(&calls[p][0], &calls[p][1], 4 * sizeof calls[p][0]);
