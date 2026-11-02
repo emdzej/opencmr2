@@ -682,7 +682,9 @@ static void standings(int p)
     if (rows[p][0] == -1 && !Pause_Active()) return;
     int w, h;
     D3d_ScreenSize(&w, &h);
-    int ox = 0, oy = 0;   /* 0x464b10: the view's corner */
+    int16_t vr[4];
+    View_Rect(p, vr);   /* 0x464b10: the view's corner */
+    int ox = vr[0], oy = vr[1];
     int step = ((h * 0xccc) >> 16) - 2, ty = ((h * 0x1b32) >> 16) - 2 + oy;
     int16_t r[4] = {(int16_t)(((w * 0xc00) >> 16) + ox), (int16_t)(((h << 0xc) >> 16) + oy), (int16_t)((w * 0x47ae) >> 16), (int16_t)step};
     for (int k = 0; k < 3; k++, r[1] = (int16_t)(r[1] + step), ty += step) {
@@ -721,7 +723,9 @@ static void records(int p)
 {
     int w, h;
     D3d_ScreenSize(&w, &h);
-    int ox = 0, oy = 0;   /* 0x464b10: the view's corner */
+    int16_t vr[4];
+    View_Rect(p, vr);   /* 0x464b10: the view's corner */
+    int ox = vr[0], oy = vr[1];
     uint32_t m = Gs_Mode(), mine = 0, rec = 0;
     char holder[32] = "";
     uint32_t pr = profile_of(Gs_Byte537ef6() + p);
@@ -877,7 +881,9 @@ static void map(int p)
     (void)p;
     int w, h;
     D3d_ScreenSize(&w, &h);
-    int ox = 0;   /* 0x464b10: the view's corner */
+    int16_t vr[4];
+    View_Rect(p, vr);   /* 0x464b10: the view's corner */
+    int ox = vr[0];
     static const uint8_t white[4] = {0xff, 0xff, 0xff, 0xff};
     Rect16 src = {0, 0, 0, 0}, dot = {0, 0, 0, 0}, dst = {0, 0, 0, 0};
     int16_t box[4] = {0, 0, 0, 0};   /* (the original leaves the box unset without a map) */
@@ -1063,7 +1069,9 @@ static void ghost_standings(int p)
     (void)p;
     int w, h;
     D3d_ScreenSize(&w, &h);
-    int ox = 0, oy = 0;   /* 0x464b10: the view's corner */
+    int16_t vr[4];
+    View_Rect(p, vr);   /* 0x464b10: the view's corner */
+    int ox = vr[0], oy = vr[1];
     int16_t r[4] = {(int16_t)(((w * 0xc00) >> 16) + ox), (int16_t)(((h << 0xc) >> 16) + oy), (int16_t)((w * 0x47ae) >> 16),
                     (int16_t)(((h * 0xccc) >> 16) - 2)};
     int ty = ((h * 0x1b32) >> 16) - 2 + oy;
@@ -1117,7 +1125,8 @@ void Hud_Message(const char *text, const uint8_t *rgba, int p, bool shadow, int 
     msg_lock = true;
     int w, h;
     D3d_ScreenSize(&w, &h);
-    int16_t v[4] = {0, 0, (int16_t)w, (int16_t)h};   /* View_Rect 0x464b10 */
+    int16_t v[4];
+    View_Rect(p, v);   /* 0x464b10 */
     bool split = Hud_SplitScreen();
     int off = 0;
     if (split) {
@@ -1211,7 +1220,8 @@ void Hud_Draw(int p)
 {
     int w, h;
     D3d_ScreenSize(&w, &h);
-    int16_t v[4] = {0, 0, (int16_t)w, (int16_t)h};   /* View_Rect 0x464b10 */
+    int16_t v[4];
+    View_Rect(p, v);   /* 0x464b10 */
     static const uint8_t white[4] = {0xff, 0xff, 0xff, 0xff};
     if (gm32(0x52afd0) >> 0x1d & 1) {   /* 0x405d60 */
         char b[64];

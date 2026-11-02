@@ -10,6 +10,10 @@
 #include "pending.h"
 #include "crt.h"
 #include "game/cockpit.h"
+#include "render/d3d7.h"
+#include "game/race.h"
+#include "game/hud.h"
+#include "render/view.h"
 #include <string.h>
 #include <math.h>
 
@@ -779,14 +783,39 @@ void Camera_Step(int p)
     sw[p] -= dt;
 }
 
+static int32_t zoom_f[4], near_f[4];   /* 0x5391cc, 0x538df0: the frame's interpolated +0x54 and +0x4c */
+
 void Camera_Frame(int p, int32_t frac, Obj *camera)
 {
+    zoom_f[p] = lerp(prev[p].f54, out[p].f54, frac);
+    near_f[p] = lerp(prev[p].f4c, out[p].f4c, frac);
     int32_t m[16];
     blend(m, prev[p].m, out[p].m, frac, frac, frac, 1);   /* 0x423de0 */
     PENDING_NOTE(0x422140, "Camera_Frame (the ground lift's tilt)");
     for (int i = 0; i < 12; i++) camera->local.m[i] = m[i];
     camera->local.m[12] = m[12], camera->local.m[13] = m[13], camera->local.m[14] = m[14];
     for (Obj *o = camera; o; o = o->parent) o->dirty = 1;
+}
+
+/* 0x422d40: the projection's scales from the frame's zoom (by 2.46, the screen's aspect and 1.14 across,
+   2.08 up), one of them doubled on a split screen (across when it is split left and right); with
+   option 2 mirrored; the super special's far plane at least 150. The far plane is the port's (the
+   draw distance's, 0x423f30 by 0x422f90, not ported). */
+void Camera_Projection(int p)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int32_t aspect = (int32_t)llrint((double)w / (double)h * 65536.0);
+    int32_t xs = fx_mul(fx_mul(fx_mul(zoom_f[p], 0x275c2), aspect), 0x123d7);
+    int32_t ys = fx_mul(fx_mul(zoom_f[p], 0x275c2), 0x2147a);
+    if (!(Gs_SelBits14() > 1 && Race_State(0) == 10) && Hud_SplitScreen()) {   /* 0x41f3a0, 0x411880 */
+        if (!Gs_ModeBit18()) xs *= 2;
+        else ys *= 2;
+    }
+    int32_t far = Proj_Far();
+    if (Gs_Option(2)) Proj_Set(-xs, ys, far, near_f[p]);
+    else if (Gs_SuperSpecial() && far < 0x960000) Proj_Set(xs, ys, 0x960000, near_f[p]);
+    else Proj_Set(xs, ys, far, near_f[p]);
 }
 
 void Camera_Position(int p, int32_t pos[3]) { pos[0] = out[p].m[12], pos[1] = out[p].m[13], pos[2] = out[p].m[14]; }

@@ -39,5 +39,6 @@ void Race_DrawOverlays(int player);          /* 0x4057d0 */
 void Race_EventAll(uint32_t event, uint32_t prio);   /* 0x49c1c0 on every race process */
 int Race_Cars(void);           /* 0x42b700: the cars in the race */
 int32_t Race_Frac(void);       /* 0x41f270: car 0's step fraction (DAT_00537f60) */
+void View_Rect(int player, int16_t r[4]);   /* 0x464b10 */
 int Race_Base(void);           /* 0x41b370: the first player of the race (DAT_00537ef6) */
 int Race_Kind(void);           /* 0x41b380: DAT_00537df0 */

@@ -45,7 +45,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static Obj camera;
+static Obj cameras[2];   /* 0x538e2c: a camera object per view */
 static Obj *cars[2 * CAR_MAX + 2];
 static int ncars;   /* the cars' objects (the cockpits after them, each frame) */
 
@@ -94,8 +94,7 @@ static bool load_cars(void)
 
 static void input(int player, uint32_t *held, uint32_t *pressed)
 {
-    (void)player;
-    Drive_ReadInput(held, pressed);
+    Drive_ReadInputFor(player, held, pressed);
 }
 
 static void pose(int32_t frac) { (void)frac; }
@@ -103,18 +102,21 @@ static void pose(int32_t frac) { (void)frac; }
 static void draw(int player, int state)
 {
     (void)state;
-    int w, h;
-    D3d_ScreenSize(&w, &h);
-    Render_SetClearColour(0x30, 0x40, 0x58);
-    Render_ClearTarget();
-    int32_t r[4] = {0, 0, w, h};
+    Obj *camera = &cameras[player & 1];
+    if (player == 0) {
+        Render_SetClearColour(0x30, 0x40, 0x58);
+        Render_ClearTarget();
+    }
+    int16_t view[4];
+    View_Rect(player, view);
+    int32_t r[4] = {view[0], view[1], view[0] + view[2], view[1] + view[3]};   /* a D3DRECT */
     D3d_Clear(1, r, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
-    camera.world = camera.local;
-    camera.world.m[15] = 0x10000;
-    camera.dirty = 1;
-    int32_t cp[3] = {camera.world.m[12], camera.world.m[13], camera.world.m[14]};
+    camera->world = camera->local;
+    camera->world.m[15] = 0x10000;
+    camera->dirty = 1;
+    int32_t cp[3] = {camera->world.m[12], camera->world.m[13], camera->world.m[14]};
     Knock_Draw();   /* 0x471a60 */
-    Cars_ShellsToCamera(&camera);
+    Cars_ShellsToCamera(camera);
     Weather_Sky(player);   /* 0x461c30 */
     Sky_Follow(cp);
     for (int i = 0; i < g_all.n; i++) Car_GroundLight(i, player);   /* 0x462aa0 */
@@ -131,7 +133,7 @@ static void draw(int player, int state)
     for (int i = 0; i < 2 && k < (int)(sizeof cars / sizeof *cars); i++)
         if (Cockpit_Model(i)) cars[k++] = Cockpit_Model(i);
     World_SetCars(cars, k);
-    Obj_Frame(&g_world, &camera);
+    Obj_Frame(&g_world, camera);
     /* the cars' pass 0x466570: each car's shadow but those the view hides (0x46bd20's 7) */
     bool multi = Gs_SelBits14() > 1 && Race_State(0) == 10;   /* 0x41f3a0, as weather.c */
     for (int i = 0; i < g_all.n; i++) {
@@ -143,13 +145,13 @@ static void draw(int player, int state)
         } else if (Gs_SelBit27() || Gs_SelBit26()) Shadow_Draw(c, 1);
         else PENDING_NOTE(0x466570, "the cars' pass: Camera_Car(1)'s car in a shared replay");
     }
-    int32_t eye[3] = {camera.world.m[12], camera.world.m[13], camera.world.m[14]};
+    int32_t eye[3] = {camera->world.m[12], camera->world.m[13], camera->world.m[14]};
     Aerials_Draw(g_all.car, g_all.n, player, eye);   /* 0x485690 */
     Weather_Draw(player);   /* 0x460330, at the end of the cars' pass 0x466570 */
     if (Fireworks_On()) Fireworks_Draw();   /* 0x47f740 */
     Race_DrawOverlays(player);
-    int16_t view[4] = {0, 0, (int16_t)w, (int16_t)h};
-    World_Render(&camera, view, 0, true);
+    Camera_Projection(player);   /* 0x422d40 */
+    World_Render(camera, view, (uint32_t)player, true);
     /* after the world, as Race_DrawView 0x40f0c0 (the marks' triangles drawn with the next frame's) */
     if (!gm8(0x52af40)) {
         Skids_Centres(player);   /* 0x4657d0 */
@@ -158,11 +160,7 @@ static void draw(int player, int state)
     Skids_Draw(player);          /* 0x465780 */
 }
 
-static Obj *cam(int player)
-{
-    (void)player;
-    return &camera;
-}
+static Obj *cam(int player) { return &cameras[player & 1]; }
 
 static const RaceHost host = {load_stage, load_cars, NULL, input, pose, draw, cam};
 
@@ -178,10 +176,12 @@ bool Play_Begin(void)
         plat_log("play: no such stage");
         return false;
     }
-    memset(&camera, 0, sizeof camera);
-    camera.kind = 3;
-    camera.mask = 0xff;
-    Mat_Identity(&camera.world);
+    memset(cameras, 0, sizeof cameras);
+    for (int i = 0; i < 2; i++) {
+        cameras[i].kind = 3;
+        cameras[i].mask = 0xff;
+        Mat_Identity(&cameras[i].world);
+    }
     /* the race's far plane (the race's own set-up, 0x45eca0, to come); the lights are the stage's sun
        (Light_Defaults) and the headlights' (Lamps_Setup) */
     Light_SetMode(4);

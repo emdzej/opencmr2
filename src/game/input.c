@@ -14,6 +14,20 @@ static const bool repeat_adds = true;      /* DAT_0052086c */
 void Input_SetMenuMode(bool on) { menu_mode = on; }
 InputRecord *Input_Record(int n) { return &rec[n]; }
 
+static uint32_t pad_bits(int n)
+{
+    uint32_t p = plat_pad(n), h = 0;
+    if (menu_mode) {
+        if (p & PAD_LEFT) h |= 1;
+        if (p & PAD_RIGHT) h |= 2;
+        if (p & PAD_UP) h |= 4;
+        if (p & PAD_DOWN) h |= 8;
+        if (p & (PAD_A | PAD_START)) h |= 0x10;
+        if (p & PAD_B) h |= 0x20;
+    }
+    return h;
+}
+
 static uint32_t keyboard(void)
 {
     uint8_t k[KEY_COUNT];
@@ -30,24 +44,17 @@ static uint32_t keyboard(void)
             if (k[0x3c]) h |= 0x2000;   /* F2 */
         }
     }
-    uint32_t p = plat_pad(0);
-    if (menu_mode) {
-        if (p & PAD_LEFT) h |= 1;
-        if (p & PAD_RIGHT) h |= 2;
-        if (p & PAD_UP) h |= 4;
-        if (p & PAD_DOWN) h |= 8;
-        if (p & (PAD_A | PAD_START)) h |= 0x10;
-        if (p & PAD_B) h |= 0x20;
-    }
-    return h;
+    return h | pad_bits(0);
 }
 
 static void poll(int n)
 {
     InputRecord *r = &rec[n];
     uint32_t old = r->held;
-    r->device = n == 0 ? 1 : 0;
-    r->held = n == 0 ? keyboard() : 0;
+    /* Port: records 1-3 read pads 1-3 (the original binds each record to the DirectInput device its
+       profile chose, 0x40c050 / 0x40c610, not ported) */
+    r->device = n == 0 ? 1 : n < 4 ? 2 : 0;
+    r->held = n == 0 ? keyboard() : n < 4 ? pad_bits(n) : 0;
     r->pressed = (r->held ^ old) & r->held;
     if (r->held & 0xfffffff0u) r->held |= 0x10000;
     uint32_t now = Timer_Now();

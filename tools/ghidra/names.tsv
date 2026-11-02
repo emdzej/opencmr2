@@ -1035,3 +1035,6 @@
 0046b790	Car_AddView	race	confirmed	A view's bit into the groups its kind draws
 00477460	Cockpit_Dash	camera	confirmed	The dash rev counter bands and gear digit keyed in their textures
 004775f0	Cockpit_Digit	camera	confirmed	The gear digit on the DIGIT texture's seven segments
+004f3280	Fe_DuelEnter	fe	confirmed	The two players' single race options entered: the kind, its count, the on/off
+004f3310	Fe_DuelFrame	fe	confirmed	The two players' single race options: the count list follows the kind
+004f0110	Fe_DuelStart	fe	confirmed	The two players' single race options kept, the start

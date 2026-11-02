@@ -16,12 +16,13 @@
 #include "sim/progress.h"
 #include <string.h>
 
-void Drive_ReadInput(uint32_t *held, uint32_t *pressed)
+void Drive_ReadInputFor(int player, uint32_t *held, uint32_t *pressed)
 {
-    static uint32_t last;
+    static uint32_t last[2];
     uint8_t k[KEY_COUNT];
     uint32_t h = 0;
-    if (plat_keys(k)) {
+    player &= 1;
+    if (player == 0 && plat_keys(k)) {
         if (k[0xcd]) h |= ACT_RIGHT;      /* Right */
         if (k[0xcb]) h |= ACT_LEFT;       /* Left */
         if (k[0xc8]) h |= ACT_THROTTLE;   /* Up */
@@ -31,7 +32,7 @@ void Drive_ReadInput(uint32_t *held, uint32_t *pressed)
         if (k[0x2c]) h |= ACT_GEAR_DOWN;  /* Z */
         if (k[0x2e]) h |= ACT_CAMERA;     /* C */
     }
-    uint32_t p = plat_pad(0);
+    uint32_t p = plat_pad(player);
     if (p & PAD_RIGHT) h |= ACT_RIGHT;
     if (p & PAD_LEFT) h |= ACT_LEFT;
     if (p & PAD_B) h |= ACT_THROTTLE;
@@ -41,9 +42,11 @@ void Drive_ReadInput(uint32_t *held, uint32_t *pressed)
     if (p & PAD_L) h |= ACT_GEAR_DOWN;
     if (p & PAD_X) h |= ACT_CAMERA;
     *held = h;
-    *pressed = h & ~last;
-    last = h;
+    *pressed = h & ~last[player];
+    last[player] = h;
 }
+
+void Drive_ReadInput(uint32_t *held, uint32_t *pressed) { Drive_ReadInputFor(0, held, pressed); }
 
 /* 0x408760: the player's profile keeps the camera chosen */
 static void profile_camera(int player, int kind)

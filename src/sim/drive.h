@@ -14,6 +14,9 @@ enum { ACT_RIGHT = 1, ACT_LEFT = 2, ACT_THROTTLE = 4, ACT_BRAKE = 8, ACT_HANDBRA
    throttle and brake, space the handbrake, A and Z the gears, C the camera; the pad's d-pad, B, Y, A, R,
    L and X. */
 void Drive_ReadInput(uint32_t *held, uint32_t *pressed);
+/* the port's controls by player: the keyboard and the first pad the first player's, the second pad
+   the second's (the original's devices per profile, 0x49e960, are not ported) */
+void Drive_ReadInputFor(int player, uint32_t *held, uint32_t *pressed);
 /* 0x47b0e0's digital path for car c: the controls (+0x1d0-+0x1d8) from the held and pressed bits, the
    steering and pedals digital (+0xb88, +0xb8c, +0xb90 clear); gears only once the race runs (+0xb9c). */
 void Car_ControlsFromInput(Car *c, uint32_t held, uint32_t pressed);

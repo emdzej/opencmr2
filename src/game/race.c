@@ -619,10 +619,21 @@ static void fade_overlay(int p, bool paused)
     if (a > 0xff) a = 0xff;
     uint32_t c = (uint32_t)Fade_Colour(p);
     uint8_t rgba[4] = {(uint8_t)c, (uint8_t)(c >> 8), (uint8_t)(c >> 16), (uint8_t)a};
+    int16_t r[4];
+    View_Rect(p, r);
+    Rect_Fill(r, rgba, Fade_Arg(car));
+}
+
+/* 0x464b10 (with 0x464b60): a player's viewport: the whole screen, or with two players (not in their
+   shared replay) the top and bottom halves with 0x52afb4 bit 18, else the left and right */
+void View_Rect(int p, int16_t r[4])
+{
     int w, h;
     D3d_ScreenSize(&w, &h);
-    const int16_t r[4] = {0, 0, (int16_t)w, (int16_t)h};   /* 0x464b10: the one player's viewport */
-    Rect_Fill(r, rgba, Fade_Arg(car));
+    r[0] = 0, r[1] = 0, r[2] = (int16_t)w, r[3] = (int16_t)h;
+    if (Gs_SelBits14() == 1 || (Gs_SelBits14() > 1 && Proc_State(&R.group, 0) == 10) || p < 0 || p > 1) return;
+    if (Gs_ModeBit18()) r[1] = (int16_t)(p * (h / 2)), r[3] = (int16_t)(h / 2);
+    else r[0] = (int16_t)(p * (w / 2)), r[2] = (int16_t)(w / 2);
 }
 
 static void draw(ProcGroup *g, uint32_t slot)

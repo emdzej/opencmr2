@@ -740,3 +740,74 @@ void fe_4f0090(Menu *m, MenuItem *it)
     }
     Menu_Goto(&pg_8214b8);
 }
+
+/* ---- the two players' single race (0x827aa0): the kind (0x52f2b0 bits 0-2), its count, the
+   duel's on/off (0x52afbc bit 11) ---- */
+
+static int duel_kind(void) { return (int)(gm32(0x52f2b0) & 7); }   /* 0x4082b0 */
+static int kind_shown;                                             /* DAT_00829320 */
+
+/* the second list by the kind: 0 the laps (1-10, 0x52afbc bits 3-7, id 4), 1 bits 12-15 (id 6), 2
+   bits 16-19 (id 5) */
+static void duel_count(Menu *m, int kind)
+{
+    MenuItem *it = &m->items[1];
+    int shift = kind == 0 ? 3 : kind == 1 ? 0xc : 0x10;
+    if (kind < 0 || kind > 2) return;
+    it->count = 10;
+    it->value = (uint8_t)((opts() >> shift & (kind == 0 ? 0x1f : 0xf)) - 1);
+    it->id = (int16_t)(kind == 0 ? 4 : kind == 1 ? 6 : 5);
+}
+
+/* 0x4f3280: the kind into the first list, its count into the second, the on/off into the third; the
+   start item selected */
+void fe_4f3280(Menu *m, bool back)
+{
+    (void)back;
+    kind_shown = duel_kind();
+    m->items[0].value = (uint8_t)duel_kind();
+    duel_count(m, duel_kind());
+    m->items[2].value = (opts() >> 0xb & 1) != 0;   /* 0x406440 */
+    m->sel = 3;
+}
+
+/* the second list's value kept by the kind: the laps (0x40d620, 0x4eaa90), 0x52f2b0 bits 3-6 with
+   0x52afbc bits 12-15 (0x40e3a0, 0x4eacb0) or bits 7-10 with bits 16-19 (0x40e380, 0x4eacd0) */
+static void duel_keep(int kind, uint32_t n)
+{
+    if (kind == 0) {
+        gw32(0x52f2ac, (gm32(0x52f2ac) & 0xfff0ffffu) | (n & 0xf) << 16);
+        gw32(0x52afbc, (opts() & 0xffffff07u) | (n & 0x1f) << 3);
+    } else if (kind == 1) {
+        gw32(0x52f2b0, (gm32(0x52f2b0) & 0xffffff87u) | (n & 0xf) << 3);
+        gw32(0x52afbc, (opts() & 0xffff0fffu) | (n & 0xf) << 0xc);
+    } else if (kind == 2) {
+        gw32(0x52f2b0, (gm32(0x52f2b0) & 0xfffff87fu) | (n & 0xf) << 7);
+        gw32(0x52afbc, (opts() & 0xfff0ffffu) | (n & 0xf) << 0x10);
+    }
+}
+
+/* 0x4f3310: a new kind reloads the second list; its value kept by the shown kind; the strip
+   (scroller 10) */
+void fe_4f3310(Menu *m)
+{
+    int k = m->items[0].value;
+    if (kind_shown != k) {
+        duel_count(m, k);
+        kind_shown = k;
+    }
+    duel_keep(k, (uint32_t)m->items[1].value + 1);
+    Scroll_Update(Fe_Scroll(10));
+}
+
+/* 0x4f0110: no CPU cars (0x40d640), the kind (0x40e360) and the on/off (0x4eac80) kept, the count by
+   the kind kept so far (0x4082b0, the kind just written), the start */
+void fe_4f0110(Menu *m, MenuItem *it)
+{
+    (void)it;
+    Sel_SetCpuCount(0);
+    gw32(0x52f2b0, (gm32(0x52f2b0) & ~7u) | (m->items[0].value & 7u));
+    gw32(0x52afbc, (opts() & 0xfffff7ffu) | (m->items[2].value & 1u) << 0xb);
+    duel_keep(duel_kind(), (uint32_t)m->items[1].value + 1);
+    Menu_Goto(&pg_8214b8);
+}
