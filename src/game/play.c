@@ -180,6 +180,7 @@ bool Play_Begin(void)
     /* the stage's directory (Race_Setup 0x41f560's 0x53823c, "Game\\Tracks\\<country>"; 0x41f8e0 gives it) */
     const char *slash = strrchr(st_path, '\\');
     snprintf((char *)gm(0x53823c), 0x104, "%.*s", slash ? (int)(slash - st_path) : 0, st_path);
+    Race_Names();   /* 0x41f560 */
     memset(cameras, 0, sizeof cameras);
     for (int i = 0; i < 2; i++) {
         cameras[i].kind = 3;

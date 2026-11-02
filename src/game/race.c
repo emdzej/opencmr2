@@ -5,6 +5,7 @@
 #include "game/race.h"
 #include "game/records.h"
 #include "font.h"
+#include "game/paths.h"
 #include "sim/knock.h"
 #include "sim/aerials.h"
 #include "game/ai.h"
@@ -378,7 +379,8 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
         Surface_Volume(fx_mul((int32_t)(gm32(0x52afb8) >> 7 & 0x7f) * 0x10000 / 100, 0x5555));   /* 0x41b040 */
         Codriver_Volume((int32_t)(gm32(0x52afb8) >> 0xe & 0x7f));   /* 0x418560 */
         Crash_Volume(fx_mul((int32_t)(gm32(0x52afb8) >> 7 & 0x7f) * 0x10000 / 100, 0xaaaa));   /* 0x418d20 */
-        PENDING_NOTE(0x41f560, "Race_Setup 0x41f560, 0x41f260, 0x40efa0, 0x475f00");
+        /* (Race_Setup's names, 0x41f560: Race_Names, from play.c once the stage's archive is found) */
+        PENDING_NOTE(0x41f260, "Race_Setup's 0x41f260 (0x537f5c), 0x475f00 (the page at 0x58cf80)");
         Bfl_MountCommon();
         Race_LoadText();   /* 0x478a20 */
         Race_LoadFonts();
@@ -515,6 +517,44 @@ static void s5_line(ProcGroup *g, uint32_t slot)
 }
 
 static void draw(ProcGroup *g, uint32_t slot);
+
+/* 0x41f560: the stage's names, the detail's two letters (hi, or lo with the low-detail clouds): for a
+   stage the replays' (0x538340 <dir>\\<rally><stage, two digits><detail>, 0x538130 without the detail),
+   the demo run's (0x53874c), the ghost's (0x538444) and the archive's (0x538548 <dir>\\<rally><detail>
+   t.bfl); for the arcade and its circuits the challenge tracks' by the location's race (its rally from
+   the order 6, 3, 1, 4, 0, 2, 5, 7; the eighth named from 0x5193f0; the archive under Tracks\\<country>). The stage's directory (0x53823c)
+   is the one its archive was found in (play.c). */
+void Race_Names(void)
+{
+    /* (a string the exe can't give, as for a rally out of the table's range, taken as empty) */
+#define S(x) ((x) ? (x) : "")
+    static const uint8_t order[8] = {6, 3, 1, 4, 0, 2, 5, 7};
+    const char *detail = exe_str((gm32(0x52afd0) >> 0x1b & 3) == 0 ? 0x519468 : 0x519464);
+    bool low = (gm32(0x52afd0) >> 0x1b & 3) != 0;
+    uint32_t m = Gs_Mode();
+    const char *dir = (const char *)gm(0x53823c);
+    if (m != 5 && m != 6 && m != 7 && m != 11 && m != 12) {
+        const char *code = S(exe_str(exe_u32(0x51931c + 4 * Tod_Rally())));
+        int st = (int)Tod_Stage() + 1;
+        snprintf((char *)gm(0x538340), 0x104, exe_str(0x519450), dir, code, st, detail);
+        snprintf((char *)gm(0x538130), 0x104, exe_str(0x519444), dir, code, st);
+        snprintf((char *)gm(0x53874c), 0x104, exe_str(0x51942c), S(Path_Root()), code, st);
+        snprintf((char *)gm(0x538444), 0x104, exe_str(low ? 0x519404 : 0x519418), S(Path_Root()), code, st);
+        snprintf((char *)gm(0x538548), 0x104, exe_str(0x5193f4), dir, code, detail);
+        return;
+    }
+    uint32_t sel = gm32(0x52f2ac);
+    int idx = (int)(sel >> 10 & 3) * 3 + (int)(sel >> 12 & 3), r = order[idx & 7];
+    const char *code = S(exe_str(exe_u32(0x51931c + 4u * (uint32_t)r)));
+    char name[16];
+    snprintf(name, sizeof name, "%s", idx == 7 ? S(exe_str(0x5193f0)) : code);
+    snprintf((char *)gm(0x538340), 0x104, exe_str(0x5193d4), dir, idx + 1, detail);
+    snprintf((char *)gm(0x538130), 0x104, exe_str(0x5193c8), dir, name);
+    snprintf((char *)gm(0x53874c), 0x104, exe_str(0x5193b0), S(Path_Root()), code);
+    snprintf((char *)gm(0x538444), 0x104, exe_str(low ? 0x519388 : 0x51939c), S(Path_Root()), code);
+    snprintf((char *)gm(0x538548), 0x104, exe_str(0x519378), S(Path_Tracks()), S(exe_str(exe_u32(0x5192f8 + 4u * (uint32_t)r))), code, detail);
+#undef S
+}
 
 /* state 13, 0x41e5c0: the demo: car 0's run (0x538110) played from its start with the clock owing no
    steps; in the arcade's demo car 0 a computer's (no pad). The race runs until the run has ended (the

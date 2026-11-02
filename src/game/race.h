@@ -53,4 +53,5 @@ void Race_ClearRestarted(void);    /* 0x41b330 */
 void Race_FadeOverlay(int player, bool paused);   /* 0x428680 */
 int Race_Reentry(void);        /* the port: 0 a new race, 1 the next player (state 3), 2 the next round's cars (state 4) */
 void Race_PausedCamera(int p);   /* the paused player's camera stepped and framed */
+void Race_Names(void);   /* 0x41f560: the stage's names (0x538130-0x538548) */
 int Race_Kind(void);           /* 0x41b380: DAT_00537df0 */
