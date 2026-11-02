@@ -25,6 +25,7 @@
 #include "render/view.h"
 #include "text.h"
 #include "game/saves.h"
+#include "game/service.h"
 #include "world/frame.h"
 #include "world/obj.h"
 #include "world/relight.h"
@@ -532,16 +533,13 @@ int Game_Frame(void)
         return 0;
     }
     if (m == 2) {
-        /* World_Frame 0x4ff450, the set-up and service screens, is not ported: straight to the race */
-        PENDING_NOTE(0x4ff450, "World_Frame (the stage set-up screens)");
+        /* after a stage the race's own state is freed first (the port's Play_End); the original's
+           results come before this (0x41e8d0) */
         if (raced) {
-            /* after the stage: back to the menus (the original's results and service screens) */
-            Game_SetMode(0);
-            return 0;
+            Play_End();
+            raced = false;
         }
-        raced = Play_Begin();
-        if (!raced) Game_SetMode(0);
-        return 0;
+        return World_Frame();   /* 0x4ff450 */
     }
     if (m == 3) {
         /* the arcade modes come straight here (0x4d0c60): the port's stage and car set-up (which the

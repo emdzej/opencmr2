@@ -1203,3 +1203,33 @@
 0040ccb0	ArcadeChamp_Order	game	confirmed	The start order from the standings
 0040cf00	Champ_Reset	game	confirmed	The rally championship standings cleared
 0040d100	Rally_Reset	game	confirmed	The single rally standings cleared
+00500c80	Sv_Init	service	confirmed	State 0: archives, scene, pages, music
+005012e0	Sv_Wait	service	confirmed	State 1: half a second
+00501780	Sv_DrawFadeIn	service	confirmed	The clear colour into the grey
+00500df0	Sv_PlayerTurn	service	confirmed	State 2: a player's car shown
+00500f80	Sv_Loop	service	confirmed	State 3: tweens, page, car
+005015d0	Sv_Draw	service	confirmed	The scene and the page
+00501350	Sv_Leave	service	confirmed	State 4: half a second out
+00501920	Sv_DrawFadeOut	service	confirmed	The grey back to the stage colour
+005010a0	Sv_ToRace	service	confirmed	State 5: to mode 3
+00501130	Sv_ToFrontEnd	service	confirmed	State 6: to mode 0
+005013a0	Sv_MakeScene	service	confirmed	World, camera, light
+0050f4f0	Sv_Mount	service	confirmed	SetupRep Common and Day archives, text
+0050f240	Sv_LoadText	service	confirmed	s<language>.txt
+0050f370	Sv_LoadFonts	service	confirmed	Four fonts
+0050f3c0	Sv_LoadSounds	service	confirmed	The menu sounds
+0050f180	Sv_BuildPages	service	confirmed	The five pages
+00502310	Sv_BuildMain	service	confirmed	Information, Set Up, Repair, Race, Save, Quit
+0050f1d0	Sv_MenuFrame	service	confirmed	The page with the player's keys
+00501b90	Sv_TweensStep	service	confirmed	The tweens on
+00501ac0	Sv_Pulse	service	confirmed	The pulsing grey
+00500ec0	Sv_TweensQueue	service	confirmed	The main page's pieces in turn
+004ffab0	SvMain_Frame	service	confirmed	The panels and the lists kept to the class
+00500130	Sv_RaceNow	service	confirmed	The next player or the race
+005001c0	Sv_QuitNow	service	confirmed	To the front end
+00500210	SvMain_Leave	service	confirmed	Back to the player before
+004ff4e0	Sv_MainReset	service	confirmed	The panels' state
+00502520	Sv_MainTurn	service	confirmed	A player's turn
+00500c00	Sv_WeatherCheck	service	confirmed	Weather and set-ups for a new rally
+00502d50	Sv_KeepSetups	service	confirmed	The set-ups kept
+00502db0	Sv_RestoreSetups	service	confirmed	The set-ups back
