@@ -1,5 +1,5 @@
-/* The controls pass of the step, 0x493520 (Car_Controls): the driver's inputs (+0x1d0 steer right,
-   +0x1d1 left, +0x1d2 throttle, +0x1d3 brake, all 0-63; +0x1d4 the gear request; +0x1d8 the handbrake)
+/* The controls pass of the step, 0x493520 (Car_Controls): the driver's inputs (+0x1d0 steer left,
+   +0x1d1 right, +0x1d2 throttle, +0x1d3 brake, all 0-63; +0x1d4 the gear request; +0x1d8 the handbrake)
    into throttle (+0x79c), brake (+0x838), handbrake (+0x848), the gearbox and the steering angle
    (+0xb10, in 4,096 units, and +0xb14). Two conversions in it are floating point, as in the original:
    16.16 degrees times 1/5760 (0x511300) or -1/5760 (0x511308), rounded to nearest (x87 FISTP). */

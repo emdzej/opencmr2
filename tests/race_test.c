@@ -87,11 +87,12 @@ static bool load_cars(void)
 }
 
 static int press_camera;
-static void input(int player, uint32_t *held, uint32_t *pressed)
+static void input(int player, InputRecord *r)
 {
     (void)player;
-    *held = ACT_THROTTLE;
-    *pressed = press_camera ? ACT_CAMERA : 0;
+    if (Results_Active()) return;   /* the results' pages read the keys */
+    r->held = ACT_THROTTLE;
+    r->pressed = press_camera ? ACT_CAMERA : 0;
     press_camera = 0;
 }
 
@@ -151,6 +152,7 @@ int main(void)
     }
     Math_InitTables();
     CHECK(Mem_Init());
+    Input_Init();   /* 0x49eaf0 */
     D3d_Open(640, 480, 16);
     VB_CreatePool();
     memset(&g_world, 0, sizeof g_world);

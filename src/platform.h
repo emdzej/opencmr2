@@ -19,6 +19,18 @@ enum { KEY_COUNT = 256 };
 
 void plat_log(const char *msg);
 uint32_t plat_pad(int player);          /* stable within a frame */
+/* A raw game controller in slot 0-3 (connection order), stable within a frame: buttons 0-1 and axes
+   -1..1 (y > 0 down); with standard, the W3C order (buttons 0 south, 1 east, 2 west, 3 north, 4/5
+   shoulders, 6/7 triggers, 8 select, 9 start, 10/11 stick clicks, 12-15 d-pad up, down, left, right;
+   axes 0/1 left stick, 2/3 right stick). False for an empty slot. */
+typedef struct {
+    bool standard;
+    int nbuttons, naxes;
+    float button[32];
+    float axis[16];
+} PlatGamepad;
+bool plat_gamepad(int slot, PlatGamepad *g);
+bool plat_gamepad_name(int slot, char *dst, size_t cap);   /* false for an empty slot */
 /* Held keys: keys[code] = 1. False if the runner has no keyboard. */
 bool plat_keys(uint8_t keys[KEY_COUNT]);
 /* Key presses since the previous frame, in order (no auto-repeat); count, at most cap. */

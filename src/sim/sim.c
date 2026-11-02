@@ -7,6 +7,7 @@
 #include "sim/parts.h"
 #include "sim/walls.h"
 #include "sim/road_follow.h"
+#include "game/ctlcfg.h"
 #include "game/gstate.h"
 #include "game/replay.h"
 #include "game/mem.h"
@@ -30,7 +31,14 @@ void Sim_InitLists(int n)
     memset(&g_all, 0, sizeof g_all);
     for (int i = 0; i < n && i < CAR_MAX; i++) g_all.car[i] = g_listA.car[i] = g_simple.car[i] = (int16_t)i;
     g_all.n = g_simple.n = g_collide.n = g_listA.n = (int16_t)n;
-    /* 0x40bbc0 for the two players' slots (0x53acc8), the pose buffers (0x42bcd0): not ported */
+    /* the cars' input records (0x53acc8, bytes): the two players' devices (0x40bbc0), -1 for a player
+       not in the race (not in a network game); the other cars' 0 */
+    gw32(0x53acc8, 0);
+    gw32(0x53accc, 0);
+    for (int i = 0; i < 2; i++) {
+        gw8(0x53acc8 + (uint32_t)i, (uint8_t)Ctl_Device(i));
+        if (!Gs_ModeBit19() && (int)Gs_SelBits14() <= i) gw8(0x53acc8 + (uint32_t)i, 0xff);
+    }
     Pose_Init(n);   /* 0x42bcd0 */
 }
 

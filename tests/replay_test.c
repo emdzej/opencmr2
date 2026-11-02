@@ -62,17 +62,17 @@ static bool load_cars(void)
    from the go); none while `script` is off */
 static bool script;
 static int32_t go_clock;
-static void input(int player, uint32_t *held, uint32_t *pressed)
+static void input(int player, InputRecord *r)
 {
     (void)player;
-    *held = 0, *pressed = 0;
-    if (getenv("RPL_REST_THR")) *held = ACT_THROTTLE;
+    r->held = 0, r->pressed = 0;
+    if (getenv("RPL_REST_THR")) r->held = ACT_THROTTLE;
     if (!script) return;
     int k = (Race_Clock() - go_clock) / 4;
-    *held = ACT_THROTTLE;
-    if (k >= 40 && k < 52) *held |= ACT_RIGHT;
-    if (k >= 100 && k < 108) *held |= ACT_LEFT;
-    if (k >= 150 && k < 170) *held = ACT_BRAKE;
+    r->held = ACT_THROTTLE;
+    if (k >= 40 && k < 52) r->held |= ACT_RIGHT;
+    if (k >= 100 && k < 108) r->held |= ACT_LEFT;
+    if (k >= 150 && k < 170) r->held = ACT_BRAKE;
 }
 static Obj camera;
 static Obj *host_camera(int player) { (void)player; return &camera; }
@@ -95,6 +95,7 @@ int main(void)
     }
     Math_InitTables();
     CHECK(Mem_Init());
+    Input_Init();   /* 0x49eaf0 */
     D3d_Open(640, 480, 16);
     VB_CreatePool();
     memset(&g_world, 0, sizeof g_world);

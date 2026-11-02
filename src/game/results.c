@@ -6,6 +6,7 @@
 #include "render/tex.h"
 #include "game/gstate.h"
 #include "game/input.h"
+#include "game/ctlcfg.h"
 #include "game/mem.h"
 #include "game/pause.h"
 #include "game/race.h"
@@ -788,7 +789,9 @@ void Results_Step(void)
     for (int i = 0; i < (int)Gs_SelBits14(); i++)
         if (Fade_Active(i)) return;
     page = next;   /* 0x448e60 */
-    Input_PollAll();
+    /* (the race's step polled the records, 0x49eab0) */
+    Ctl_AxisPresses();   /* 0x40bad0 */
+    Ctl_Merge(0, Input_Record(0));
     uint32_t b = Input_Record(0)->pressed;
     if (Gs_Mode() == 0 && (gm8(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160) b &= 0x10;   /* 0x407270 */
     if (page == &pg_title) b &= 0xffdf;

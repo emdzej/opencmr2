@@ -10,6 +10,27 @@
 void plat_log(const char *msg) { fprintf(stderr, "%s\n", msg); }
 uint32_t plat_pad(int player) { return 0; }
 
+/* the tests' game controllers (platform_host.h) */
+static PlatGamepad pads[4];
+static bool pad_on[4];
+void plat_host_gamepad(int slot, const PlatGamepad *g)
+{
+    pad_on[slot] = g != NULL;
+    if (g) pads[slot] = *g;
+}
+bool plat_gamepad(int slot, PlatGamepad *g)
+{
+    if (slot < 0 || slot > 3 || !pad_on[slot]) return false;
+    *g = pads[slot];
+    return true;
+}
+bool plat_gamepad_name(int slot, char *dst, size_t cap)
+{
+    if (slot < 0 || slot > 3 || !pad_on[slot]) return false;
+    snprintf(dst, cap, "Test Pad %d", slot + 1);
+    return true;
+}
+
 /* the tests' keyboard (platform_host.h): the keys held this frame and the presses to report */
 static uint8_t held[KEY_COUNT];
 static uint8_t presses[32];

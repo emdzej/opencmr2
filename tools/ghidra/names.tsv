@@ -1394,3 +1394,40 @@
 0041bf50	Race_OpenedFlags	race	high	A player's flags of what the stage opened (0x537f68)
 0041bf60	Race_OpenedCar	race	high	The car the stage opened (0x537f78)
 0041bf70	Race_OpenedBonus	race	high	The bonus stage opened (0x537f0c)
+0049e930	Input_SetMode2	input	high	The menus' key mode's copy (0x520870)
+0049e940	Input_HeldAll	input	high	Every record's held bits
+0049e960	Input_Poll	input	high	One record polled: held, pressed and the repeats
+0049ea90	Input_SetMenuMode	input	high	The menus' fixed keys on or off (0x59f8d0)
+0049eab0	Input_PollAll	input	high	The eight records polled
+0049eaf0	Input_Init	input	high	DirectInput, the records, the keyboard players and the controllers
+0049eb50	Input_Reinit	input	high	The devices let go and found again
+0049eb90	Input_BindKey	input	high	A keyboard record's key for one action bit
+0049edd0	Input_KeyDown	input	high	The first key held, -1 none
+0049edf0	Input_ShiftDown	input	high	Either shift key held
+0049ee10	Input_SetRange	input	high	An axis' range (DIPROP_RANGE)
+0049ee90	Input_SetDead	input	high	An axis' dead zone (DIPROP_DEADZONE)
+0049ef10	Input_SetSat	input	high	An axis' saturation (DIPROP_SATURATION)
+0049ef90	Input_DeviceCount	input	high	The keyboard players and the game controllers attached
+0049f300	Input_ReadKeyboard	input	high	The keyboard's state into 0x59f7c8
+0049f480	Input_Keyboard	input	high	A keyboard record's bits: its keys, or the menus' fixed keys
+0049f690	Input_EnumControllers	input	high	The game controllers enumerated (0x49f6d0)
+0049f6d0	Input_ControllerFound	input	high	A game controller's record: type, names, axes, buttons, hat
+0049fad0	Input_ControllerAxes	input	high	The eight axes' ranges tried and set
+0049fb70	Input_Joystick	input	high	A controller's state: axes, directions, hat and buttons
+0049fd00	Input_ButtonIndex	input	high	The button of a bit (0x520808)
+0040bad0	Ctl_AxisPresses	controls	high	Separate pedal axes as accelerate and brake presses
+0040bba0	Ctl_Count	controls	high	The devices configured (0x516904)
+0040bbc0	Ctl_Device	controls	high	A player's device (0x5168f4)
+0040bbe0	Ctl_SetDevice	controls	high	A player's device set
+0040bd60	Ctl_Merge	controls	high	A player's game controller's bits into a record
+0040be90	Ctl_Bind	controls	high	A player's device's keys into the player's record
+0040bf70	Ctl_Load	controls	high	Configuration\Controller.rcf read
+0040bff0	Ctl_Save	controls	high	Configuration\Controller.rcf written
+0040c050	Ctl_Configure	controls	high	A configuration record for each device there
+0040c210	Ctl_Axis	controls	high	An axis slot's axis, -1 none
+0040c2a0	Ctl_Mask	controls	high	An action's bits in the player's record
+0040c440	Ctl_SpareBits	controls	high	A controller's key-bound actions moved to free bits
+0040c610	Ctl_Defaults	controls	high	A configuration record's defaults from its input record
+0047bad0	Car_RearView	race	high	The rear view while its key is held, then the profile's camera
+0047bca0	Car_ActionMasks	race	high	The player's action bits and analogue flags for the controls reader
+00404e10	Pause_Pressed	race	high	The pause key (0x400 on the keyboard, the pause action on a controller)

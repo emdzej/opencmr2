@@ -8,12 +8,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "world/obj.h"
+#include "game/input.h"
 
 typedef struct {
     bool (*load_stage)(void);   /* state 3: Stage_Load 0x41f930 */
     bool (*load_cars)(void);    /* state 4: 0x420150 (Cars_Load 0x456d90) */
     void (*place_cars)(void);   /* state 5: 0x424ed0, 0x424c50 */
-    void (*read_input)(int player, uint32_t *held, uint32_t *pressed);   /* the input record */
+    /* after each step's poll (0x49eab0): a host's changes to the player's input record (the tests') */
+    void (*read_input)(int player, InputRecord *r);
     void (*pose)(int32_t frac); /* Race_PoseInterp 0x41d060 */
     void (*draw)(int player, int state);   /* the states' draws: the view (0x49d3f0) and the HUD */
     Obj *(*camera)(int player);            /* the player's camera object (0x538e2c) */

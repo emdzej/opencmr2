@@ -10,6 +10,7 @@
 #include "game/common.h"
 #include "game/gstate.h"
 #include "game/input.h"
+#include "game/ctlcfg.h"
 #include "game/mem.h"
 #include "game/paths.h"
 #include "game/race.h"
@@ -32,7 +33,6 @@ static int prev_sel;               /* DAT_0052af6c */
 static bool ask_restart, ask_quit, ask_service;   /* 0x53810c, 0x53810d, 0x537ffa */
 static Tex *arrow_on, *arrow_off;  /* DAT_0052aa60, DAT_0052aa68 */
 static int32_t keep_music, keep_effects, keep_speech;   /* 0x529ecc, 0x52a488, 0x52ad50 */
-static bool esc_was;
 
 static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }
 static const uint8_t *C(uint32_t va) { return gm(va); }   /* the colours at 0x516074-0x516090 */
@@ -52,16 +52,19 @@ void Pause_Ask(bool restart, bool service, bool quit)
 Tex *Pause_ArrowOn(void) { return arrow_on; }    /* 0x4055e0 */
 Tex *Pause_ArrowOff(void) { return arrow_off; }  /* 0x4055f0 */
 
-/* 0x404e10: the pause key, the race input's bit 0x400 (Escape on the keyboard); the port reads the
-   key's press and the pad's Start */
+/* 0x404e10: the pause key: on the keyboard (or the mouse) the bit 0x400 (Escape); on a game
+   controller its pause action's bits (kept in 0x52a0b8 to leave the pause with), or the first
+   keyboard's Escape */
 bool Pause_Pressed(int p)
 {
-    (void)p;
-    uint8_t k[KEY_COUNT];
-    bool esc = (plat_keys(k) && k[0x01]) || (plat_pad(0) & PAD_START);
-    bool hit = esc && !esc_was;
-    esc_was = esc;
-    return hit;
+    const InputRecord *r = Input_Record(Ctl_Device(p));
+    if (r->device == DEV_KEYBOARD || r->device == DEV_MOUSE) return (r->pressed & 0x400) != 0;
+    uint16_t m = Ctl_Mask(p, 9);
+    if (r->pressed & m) {
+        gw16(0x52a0b8, m);
+        return true;
+    }
+    return (Input_Record(0)->pressed & 0x400) != 0;
 }
 
 /* 0x404ea0 */
@@ -391,16 +394,24 @@ void Pause_Build(void)
 }
 
 /* 0x404f40's menu part (its camera page's live view not ported): the input on the page. A pause key
-   bound on a pad (the binding's bits kept in 0x52a0b8) also leaves it; the keyboard's Escape is the
+   bound on a game controller (its bits kept in 0x52a0b8) leaves it; the keyboard's Escape is the
    menus' back key, so "continue" is the way out of the main page. */
 void Pause_Frame(void)
 {
     page = next;
     Input_PollAll();   /* 0x49eab0 */
+    Ctl_AxisPresses();   /* 0x40bad0 */
     InputRecord *r = Input_Record(player);
-    if (page) Menu_SetFlags(page, true, true, true, true);
-    Menu *to = Menu_Input(page, r->pressed);
-    if (to) next = to;
+    Ctl_Merge(player, r);
+    if (!(r->pressed & gm16(0x52a0b8))) {
+        if (page) Menu_SetFlags(page, true, true, true, true);
+        Menu *to = Menu_Input(page, r->pressed);
+        if (to) next = to;
+    } else {
+        gw32(0x52a0b8, gm32(0x52a0b8) & 0xffff0000u);
+        if (page) Menu_Leave(page);
+        Pause_End();
+    }
     /* the fades run on while paused (a restart's or an exit's) */
     for (int i = 0; i < Race_Cars(); i++) {
         Fade_Tick(i, true);   /* 0x4284d0 */

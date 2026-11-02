@@ -808,7 +808,7 @@ static bool load_cars(void)
     return true;
 }
 
-static void input(int player, uint32_t *held, uint32_t *pressed) { (void)player, *held = 0, *pressed = 0; }
+static void input(int player, InputRecord *r) { (void)player, r->held = 0, r->pressed = 0; }
 static Obj camera;
 static Obj *host_camera(int player) { (void)player; return &camera; }
 static const RaceHost host = {load_stage, load_cars, NULL, input, NULL, NULL, host_camera};
@@ -843,6 +843,7 @@ int main(int argc, char **argv)
         return 0;
     }
     Mem_Init();
+    Input_Init();
     D3d_Open(640, 480, 16);
     VB_CreatePool();
     memset(&g_world, 0, sizeof g_world);

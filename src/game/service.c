@@ -12,6 +12,7 @@
 #include "font.h"
 #include "game/gstate.h"
 #include "game/input.h"
+#include "game/ctlcfg.h"
 #include "game/mem.h"
 #include "game/paths.h"
 #include "game/proc.h"
@@ -338,8 +339,9 @@ static void menu_frame(void)
 {
     cur = next;   /* 0x50f1c0 */
     Input_PollAll();   /* 0x4a2fe0 (the music's keep-alive) and 0x49eab0 */
-    int rec = Sv_Player() == 1 && !Gs_ModeBit17() ? 1 : 0;   /* split screen: the second pad */
-    PENDING_NOTE(0x40bd60, "the other players' keys on the shared pad (0x40bad0, 0x40bd60)");
+    int rec = Sv_Player() == 1 && !Gs_ModeBit17() ? 1 : 0;   /* split screen: the second player's */
+    Ctl_AxisPresses();   /* 0x40bad0 */
+    Ctl_Merge(rec, Input_Record(rec));
     Menu *m = Menu_Input(cur, Input_Record(rec)->pressed);
     if (m) next = m;
 }

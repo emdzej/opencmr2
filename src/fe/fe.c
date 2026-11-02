@@ -9,6 +9,7 @@
 #include "exe.h"
 #include "font.h"
 #include "game/input.h"
+#include "game/ctlcfg.h"
 #include "game/mem.h"
 #include "game/paths.h"
 #include "game/proc.h"
@@ -218,10 +219,12 @@ static void st_startup(ProcGroup *g, uint32_t s)
         Options_Defaults();
         for (int i = 0; i < 0x16; i++) gw32(0x52e898 + 4 * (uint32_t)i, 0x03030303);   /* 0x406560 */
         PENDING_NOTE(0x406580, "the unlocks' new marks");
-        /* 0x49eaf0(2): the input devices; GameInfo.rcf (0x4ea5e0); the network leaderboards
-           (0x40e3c0, 0x40e3f0) and Controller.rcf (0x40bf70) are not kept by the port yet */
+        /* the input devices (0x49eaf0(2)); GameInfo.rcf (0x4ea5e0); the network leaderboards
+           (0x40e3c0, 0x40e3f0) are not kept by the port yet; Controller.rcf (0x40bf70) */
+        Input_Init();
         bool loaded = GameInfo_Load();
         gw32(0x52afb4, gm32(0x52afb4) & ~0x80000u);
+        Ctl_Load();
         Input_SetMenuMode(true);
         gw32(0x81777c, 0);
         if (!fe_init(true)) return;
@@ -265,7 +268,8 @@ static void st_startup(ProcGroup *g, uint32_t s)
         gw8(0x52ea52, 0);
     }
     PENDING_NOTE(0x406580, "the unlocks' new marks");
-    GameInfo_Save();   /* 0x4ea840 (the leaderboards 0x40e470 and Controller.rcf 0x40bff0 not kept yet) */
+    GameInfo_Save();   /* 0x4ea840 (the leaderboards 0x40e470 not kept yet) */
+    Ctl_Save();        /* 0x40bff0 */
     Input_SetMenuMode(true);
     if (!fe_init(false)) return;
     if (gm8(0x52ea50)) Render_SetClearColour(0, 0, 0);
@@ -298,6 +302,8 @@ static void st_wait5(ProcGroup *g, uint32_t s)
     (void)g, (void)s;
     now = Time_Get();
     Input_PollAll();
+    Ctl_AxisPresses();   /* 0x40bad0 */
+    Ctl_Merge(0, Input_Record(0));
     if (now - Fe_Stamped() > 5000) {
         Fe_Stamp();
         Proc_Event(&group, 0, 0, 2);
@@ -332,7 +338,9 @@ static void st_title(ProcGroup *g, uint32_t s)
     (void)g, (void)s;
     now = Time_Get();
     Input_PollAll();
+    Ctl_AxisPresses();
     InputRecord *r = Input_Record(0);
+    Ctl_Merge(0, r);
     if (!(r->pressed & 0x10) && now - Fe_Stamped() < 0x1389) return;
     Fe_Stamp();
     Fe_MenuMusic();
@@ -349,9 +357,12 @@ static void st_menus(ProcGroup *g, uint32_t s)
     InputRecord *r = Input_Record(player);
     page = next_page;   /* 0x4ea470 */
     Input_PollAll();
+    Ctl_AxisPresses();
     Music_Poll();   /* 0x4a2fe0 */
+    /* not on the controller pages' configuration and analogue set-up, which read the devices */
+    if (page != &pg_8288c0 && page != &pg_828aa0) Ctl_Merge(player, r);
     uint32_t b = r->pressed;
-    if (player == 1) b |= Input_Record(0)->pressed & 0x20;
+    if (player == 1) b |= Input_Record(Ctl_Device(0))->pressed & 0x20;
     Menu *to = Menu_Input(page, b);
     if (to) {
         gw32(0x8189b8, Fe_Now());
@@ -375,6 +386,7 @@ static void st_pause(ProcGroup *g, uint32_t s)
 {
     (void)g, (void)s;
     Input_PollAll();
+    Ctl_AxisPresses();
     if (pause_count == (uint32_t)-1) {
         pause_start = Timer_Centis();
         pause_count = 0;

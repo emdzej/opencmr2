@@ -1,5 +1,6 @@
 /* The front end's pages (see pages.h): the constructors 0x4f5520-0x4fa780, each a page's title, items
    and callbacks, and Pages_Build 0x4e9f70, which runs them. */
+#include "game/ctlcfg.h"
 #include "fe/pages.h"
 #include "fe/fe.h"
 #include "fe/fe_page.h"
@@ -1243,7 +1244,7 @@ void Fe_BuildControllers(void)
     build_4fa540();
     build_4fa5d0();
     build_4fa650();
-    PENDING_NOTE(0x40c050, "the controller configuration");
+    Ctl_Configure();   /* 0x40c050 */
     build_4fa780();
     build_4fa6d0();
 }

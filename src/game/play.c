@@ -92,11 +92,6 @@ static bool load_cars(void)
     return true;
 }
 
-static void input(int player, uint32_t *held, uint32_t *pressed)
-{
-    Drive_ReadInputFor(player, held, pressed);
-}
-
 static void pose(int32_t frac) { (void)frac; }
 
 static void draw(int player, int state)
@@ -163,7 +158,7 @@ static void draw(int player, int state)
 
 static Obj *cam(int player) { return &cameras[player & 1]; }
 
-static const RaceHost host = {load_stage, load_cars, NULL, input, pose, draw, cam};
+static const RaceHost host = {load_stage, load_cars, NULL, NULL, pose, draw, cam};
 
 bool Play_Begin(void)
 {

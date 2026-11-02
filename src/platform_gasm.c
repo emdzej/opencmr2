@@ -31,6 +31,40 @@ static uint32_t pads[4];
 
 void plat_log(const char *msg) { gasm_log(msg, (uint32_t)strlen(msg)); }
 uint32_t plat_pad(int player) { return player >= 0 && player < 4 ? pads[player] : 0; }
+
+static float lef32(const uint8_t *p)
+{
+    uint32_t u = (uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24;
+    float f;
+    memcpy(&f, &u, 4);
+    return f;
+}
+
+bool plat_gamepad(int slot, PlatGamepad *g)
+{
+    uint8_t b[GASM_GAMEPAD_BYTES];
+    memset(g, 0, sizeof *g);
+    if (slot < 0 || slot > 3 || gasm_gamepad((uint32_t)slot, b, sizeof b) != GASM_GAMEPAD_BYTES) return false;
+    uint32_t flags = (uint32_t)b[GASM_GAMEPAD_OFF_FLAGS] | b[GASM_GAMEPAD_OFF_FLAGS + 1] << 8;
+    if (!(flags & GASM_GAMEPAD_CONNECTED)) return false;
+    g->standard = (flags & GASM_GAMEPAD_STANDARD) != 0;
+    g->nbuttons = b[GASM_GAMEPAD_OFF_BUTTON_COUNT];
+    g->naxes = b[GASM_GAMEPAD_OFF_AXIS_COUNT];
+    if (g->nbuttons > GASM_GAMEPAD_BUTTONS) g->nbuttons = GASM_GAMEPAD_BUTTONS;
+    if (g->naxes > GASM_GAMEPAD_AXES) g->naxes = GASM_GAMEPAD_AXES;
+    for (int i = 0; i < GASM_GAMEPAD_BUTTONS; i++) g->button[i] = lef32(b + GASM_GAMEPAD_OFF_BUTTONS + 4 * i);
+    for (int i = 0; i < GASM_GAMEPAD_AXES; i++) g->axis[i] = lef32(b + GASM_GAMEPAD_OFF_AXES + 4 * i);
+    return true;
+}
+
+bool plat_gamepad_name(int slot, char *dst, size_t cap)
+{
+    if (!cap || slot < 0 || slot > 3) return false;
+    int32_t n = gasm_gamepad_name((uint32_t)slot, dst, (uint32_t)cap - 1);
+    if (n < 0) return false;
+    dst[(size_t)n < cap - 1 ? (size_t)n : 0] = 0;
+    return true;
+}
 bool plat_param(const char *name, char *dst, size_t cap) { return gasm_param_str(name, dst, (uint32_t)cap); }
 static double frame_hz = APP_FRAME_HZ;
 void plat_set_frame_rate(double hz)

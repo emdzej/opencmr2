@@ -149,6 +149,7 @@ static void Race_Update(uint8_t state, bool flag)
     R.steps = Sim_StepCount(&R.frac);
     for (uint32_t k = 0; k < R.steps; k++) {
         bool car0 = Car_Get(0)->s[0xb43] != 0;
+        Input_PollAll();   /* 0x49eab0 */
         if (car0) {
             R.clock++;
             if (flag && state == 10) Results_Step();   /* 0x448e70 */
@@ -157,11 +158,12 @@ static void Race_Update(uint8_t state, bool flag)
             Car *c = Car_Get(i);
             if (!c->s[0xb43]) continue;
             uint8_t kind;
-            uint32_t held = 0, pressed = 0;
+            /* the player's input record (0x42b710: 0x53acc8, the players' devices, Sim_InitLists) */
+            int rec = i < 8 ? (int8_t)gm8(0x53acc8 + (uint32_t)i) : -1;
             if ((uint32_t)i < np) {
                 /* a player's replay playing: the state it recorded (0x41f3d0, +0x10c) */
                 kind = Replay_Playing(Race_Replay(i)) ? Replay_State(Race_Replay(i)) : Proc_State(&R.group, (uint32_t)i);
-                if (H->read_input) H->read_input(i, &held, &pressed);
+                if (H->read_input && rec >= 0) H->read_input(i, Input_Record(rec));
             } else {
                 /* a CPU car: on the line until player 0 races, then racing; head to head (bit 27, not
                    networked) stopped once it has finished. (Bit 28's ghost, 0x466090, is open.) */
@@ -175,11 +177,11 @@ static void Race_Update(uint8_t state, bool flag)
             case 5: case 7:
                 R.start_count = 0;
                 if (cpu) Car_StartLineControlsCpu(c);
-                else Car_StartLineControls(c, held, pressed);
+                else Car_StartLineControls(c, rec);
                 break;
             case 8: case 13:
                 if (cpu) Car_RaceControlsCpu(c, i);
-                else Car_RaceControls(c, held, pressed);
+                else Car_RaceControls(c, rec);
                 break;
             case 9:
                 /* after the finish: with the computer drivers (bit 26) a player's car driven on
@@ -189,7 +191,7 @@ static void Race_Update(uint8_t state, bool flag)
                     if (!cpu) Ai_AutoDrive(i, false);
                     else Car_RaceControlsCpu(c, i);
                 } else if (i < 4 && R.finished[i] && (Replay_Recording(rp) || Replay_Playing(rp)))
-                    Car_FinishedPlayerControls(c, held, pressed);
+                    Car_FinishedPlayerControls(c, rec);
                 else Car_FinishedControls(c);
                 break;
             case 10:
@@ -198,7 +200,7 @@ static void Race_Update(uint8_t state, bool flag)
                 if (Gs_SelBit26() && !cpu && !Replay_Playing(rp)) Ai_AutoDrive(i, false);
                 else if (Replay_Playing(rp)) {
                     if (cpu) Car_RaceControlsCpu(c, i);
-                    else Car_RaceControls(c, held, pressed);
+                    else Car_RaceControls(c, rec);
                 } else Car_FinishedControls(c);
                 break;
             }

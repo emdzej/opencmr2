@@ -170,11 +170,11 @@ static bool host_load_cars(void)
     World_SetCars(V.cars, V.cars[1] ? 2 : 1);
     return true;
 }
-static void host_input(int player, uint32_t *held, uint32_t *pressed)
+/* --param drive=auto: the throttle held */
+static void host_input(int player, InputRecord *r)
 {
     (void)player;
-    Drive_ReadInput(held, pressed);
-    if (V.autodrive) *held |= ACT_THROTTLE, *pressed &= ~ACT_THROTTLE;
+    if (V.autodrive) r->held |= ACT_THROTTLE, r->pressed &= ~(uint32_t)ACT_THROTTLE;
 }
 static void host_pose(int32_t frac) { (void)frac; }
 static void invert_rigid(const D3DMATRIX *v, D3DMATRIX *o);
@@ -432,14 +432,12 @@ void viewer_frame(void)
                camera 7 behind and 2.5 up along the car's heading */
             Car *c = Car_Get(0);
             static const int16_t list[1] = {0};
-            uint32_t held, pressed;
-            Drive_ReadInput(&held, &pressed);
-            if (V.autodrive) held |= ACT_THROTTLE;
             for (int k = Drive_StepsDue((uint32_t)V.frame, 60.0); k > 0; k--) {
                 bool done = Car_StageShare(c) >= 0x10000;
-                if (done) held = ACT_BRAKE;   /* past the finish: the car brakes to a stop */
-                Car_RaceControls(c, held, pressed);
-                pressed = 0;
+                InputRecord *r = Input_Poll(0);
+                if (V.autodrive) r->held |= ACT_THROTTLE;
+                if (done) r->held = ACT_BRAKE;   /* past the finish: the car brakes to a stop */
+                Car_RaceControls(c, 0);
                 Drive_Step(list, 1);
                 if (!done) V.steps++;
             }

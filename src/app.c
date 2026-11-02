@@ -14,6 +14,7 @@
 #include "platform.h"
 #include "text.h"
 #include "viewer.h"
+#include "game/input.h"
 #include "fe/fe.h"
 #include "game/timer.h"
 #include "render/dlight.h"
@@ -46,6 +47,7 @@ bool app_init(void)
     if (c || st) {
         Options_Defaults();   /* the front end's start-up work (0x4d15e0), for the viewer's race */
         Profiles_Init();
+        Input_Init();         /* 0x49eaf0 */
         gl_dev_register();
         viewing = viewer_init(c ? car : NULL, st ? stage : NULL);   /* both: the car parked on the stage */
         return true;
