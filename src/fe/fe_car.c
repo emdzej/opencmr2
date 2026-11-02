@@ -61,6 +61,8 @@ static void set_car(int p, int car)
     gw32(a, (gm32(a) & ~0x1fu) | ((uint32_t)car & 0x1f));
 }
 
+void Fe_SetCar(int p, int car) { set_car(p, car); }
+
 /* 0x4086f0: the automatic box (the profile's +0x40 bit 5; 1 without a profile) */
 static uint8_t auto_box(int p)
 {

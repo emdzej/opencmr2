@@ -36,6 +36,13 @@ int Fe_ToSet(void);                       /* DAT_00819048: the players still to 
 int Fe_SetupPlayer(void);                 /* players - DAT_00819048 - 1: the one being set up */
 void Fe_PlayerTitle(char *dst, size_t cap);   /* "Player n" for that player */
 void Fe_Leave(bool game, bool stage, bool race);   /* 0x4d2070 */
+void Fe_SetCar(int player, int car);                /* 0x408600 */
+void Fe_SetPlayerName(int player, const char *s);   /* 0x4eae90 */
+/* The attract-mode demo (0x52ea52): its set-up (0x4e9e40, after the selection kept by 0x406470), one
+   of four in turn (0x52f3d8): three single stages from the disc's runs, an arcade race; and the
+   selection back (0x4ead10) */
+void Fe_DemoSetup(void);
+void Fe_DemoRestore(void);
 void Fe_SetAutoBox(int player, uint8_t v);         /* 0x4eb0c0: the profile's automatic box (+0x54 bit 5) */
 void Fe_ChampTables(void);                /* 0x4cf060 */
 void Fe_OptionsMode(void);                /* 0x4eabc0 */

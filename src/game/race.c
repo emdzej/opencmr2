@@ -4,6 +4,7 @@
 #include "game/shadow.h"
 #include "game/race.h"
 #include "game/records.h"
+#include "font.h"
 #include "sim/knock.h"
 #include "sim/aerials.h"
 #include "game/ai.h"
@@ -474,7 +475,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Effects_Types();   /* 0x45a170, the end of 0x466360 */
             if (Fireworks_On()) Fireworks_Setup(20);   /* 0x47e4d0, the end of 0x466360 */
             /* the replays (Stage_Load's in mode 3); the demo's run (0x41c510) */
-            if (gm8(0x52ea52)) PENDING_NOTE(0x41c510, "Replay_LoadDemo");
+            if (gm8(0x52ea52)) Replay_LoadDemo();   /* 0x41c510 */
             else if (Gs_Mode() != 3) Replay_Setup();   /* 0x41c260 */
             if (Gs_SelBit26()) Ai_Init();   /* 0x48ca70 -> 0x47bda0 */
             Times_Reset();     /* 0x447f70 */
@@ -491,6 +492,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             uint32_t t = gm32(0x531350 + 0x30 * (i + (uint32_t)Race_Base())) >> 0x12 & 0xf;   /* 0x408800(base + i) */
             int kind = Gs_Mode() == 4 ? gm8(0x52f3e4 + 0xc4 * i) : t != 0xf ? (int)gm32(0x52fa60 + t * 0x650) : 0;
             if (!(kind == 1 || kind == 2 || (kind == 3 && Cockpit_Ready((int)i)) || (kind >= 4 && kind <= 6) || kind == 10)) kind = 4;   /* 0x4232a0 */
+            if (gm8(0x52ea52) || Gs_SuperSpecial()) kind = 7;   /* the demo and the super special: the trackside cameras */
             Camera_Reset((int)i);
             Camera_Select((int)i, kind, false);
         }
@@ -498,7 +500,11 @@ static void s5_line(ProcGroup *g, uint32_t slot)
         Race_Update(Proc_State(g, 0), false);
     }
     if (R.place_count < 1) {
-        /* the challenge's screen first (state 6), with the menus' input */
+        /* the demo to its state (13); the challenge's screen first (state 6), with the menus' input */
+        if (gm8(0x52ea52)) {
+            Proc_Event(g, slot, 6, 2);
+            return;
+        }
         if (Gs_Mode() == 4) {
             Input_SetMenuMode(true);   /* 0x49ea90 */
             Proc_Event(g, slot, 5, 2);
@@ -506,6 +512,39 @@ static void s5_line(ProcGroup *g, uint32_t slot)
         }
         Proc_Event(g, slot, 0, 2);
     }
+}
+
+static void draw(ProcGroup *g, uint32_t slot);
+
+/* state 13, 0x41e5c0: the demo: car 0's run (0x538110) played from its start with the clock owing no
+   steps; in the arcade's demo car 0 a computer's (no pad). The race runs until the run has ended (the
+   arcade's at the first lap), then every process to the results (event 1) with the exit asked, which
+   goes back to the front end. (0x424640, the wheel's force effects stopped, is not ported.) */
+static void s13_demo(ProcGroup *g, uint32_t slot)
+{
+    if (gm32(0x538110)) {
+        Replay_Play(Race_Replay(0), 0, 0, 0);   /* 0x46cce0 */
+        gw32(0x538110, 0);
+        Sim_ResetClock();   /* 0x538114 */
+    }
+    if (Gs_Mode() == 6) gw8(0x53acc8, 0xff);   /* 0x42b720(0, -1) */
+    if (slot) return;
+    bool over = Gs_Mode() == 6 ? Sectors_Lap(0) >= 1 : !Replay_Playing(Race_Replay(0));
+    if (over) {
+        for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 1, 3);
+        Pause_Ask(false, false, true);   /* 0x41f2a0 */
+    }
+    Race_Update(Proc_State(g, 0), true);
+    gw8(0x537f08, 1);
+}
+
+/* 0x410fa0: the view, "demo" at the top left */
+static void draw_demo(ProcGroup *g, uint32_t slot)
+{
+    draw(g, slot);
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    Font_Print(2, Text_Get(0x71), w * 0x1e / 0x280, h * 0x43 / 0x1e0, gm(0x516ce4), 0x11);
 }
 
 /* state 7, 0x41d2b0: the countdown: the stage clock restarted on its first frame, five seconds of steps
@@ -1104,11 +1143,11 @@ void Race_DrawOverlays(int player)
     Intro_Draw(player, Race_State(player));   /* 0x40f8d0 */
 }
 
-/* The table at 0x5190b0 in its order; 13 (0x41e5c0) is not ported */
+/* The table at 0x5190b0 in its order */
 static const ProcState states[14] = {
     {s0_setup, NULL}, {s1_loading, load_draw}, {s2_mount, load_draw}, {s3_stage, NULL}, {s4_cars, NULL},
     {s5_line, draw}, {Challenge_Step, Challenge_Draw}, {s7_countdown, draw}, {s8_stage, draw}, {s9_finished, draw},
-    {s10_replay, draw}, {s11_results, draw}, {s12_quit, NULL}, {NULL, draw},
+    {s10_replay, draw}, {s11_results, draw}, {s12_quit, NULL}, {s13_demo, draw_demo},
 };
 
 /* Race_Frame's build: the players (0x405d70) and the kind of race; the players into the selection

@@ -416,7 +416,7 @@ void fe_4ef590(Menu *m)
     bool two_arcade = (gm32(0x52afb4) >> 13 & 0xf) == 2 && mode() == 6;
     gw32(0x52f2b0, (gm32(0x52f2b0) & ~0x800u) | (two_arcade ? 0x800u : 0));   /* 0x40e330 */
     if (gm8(0x52ea52)) {
-        PENDING_NOTE(0x4e9e40, "the demo's set-up");
+        Fe_DemoSetup();   /* 0x4e9e40 */
         Fe_Leave(false, false, true);
         return;
     }

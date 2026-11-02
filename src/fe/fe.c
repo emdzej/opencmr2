@@ -268,7 +268,7 @@ static void st_startup(ProcGroup *g, uint32_t s)
         gw32(0x52afb4, gm32(0x52afb4) & ~0x80000u);
     }
     if (gm8(0x52ea52)) {
-        PENDING_NOTE(0x4ead10, "the demo's selection restored");
+        Fe_DemoRestore();   /* 0x4ead10 */
         gw8(0x52ea52, 0);
     }
     PENDING_NOTE(0x406580, "the unlocks' new marks");

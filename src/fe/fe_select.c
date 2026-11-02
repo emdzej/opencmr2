@@ -586,6 +586,8 @@ static void set_player_name(int n, const char *s)
     gw32(a, ((uint32_t)crt_rand() & 0x3f) << 0x16 | (gm32(a) & 0xf03fffffu));
 }
 
+void Fe_SetPlayerName(int n, const char *s) { set_player_name(n, s); }
+
 /* 0x4f0d30: typing on, the cursor at "end" when back, else the name cleared */
 void fe_4f0d30(Menu *m, bool back)
 {

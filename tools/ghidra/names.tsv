@@ -1654,3 +1654,8 @@
 00404c50	Pause_OsdLeave	game	high	The display page's flags kept or restored
 00404d00	Pause_OsdFrame	game	high	The display page's values into the profile's flags
 00408990	Profile_SetHudFlags	game	high	The player's profile's HUD panel flags set
+00406470	Sel_KeepForDemo	game	high	The selection kept before the demo
+004e9e40	Fe_DemoSetup	frontend	high	The attract-mode demo's selection, one of four in turn
+004ead10	Fe_DemoRestore	frontend	high	The selection back after the demo
+0041e5c0	Race_S13_Demo	race	high	Race state 13: the demo's run played to its end
+00410fa0	Race_DrawDemo	race	high	Race state 13's draw: the view and "demo"

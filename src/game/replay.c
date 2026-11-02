@@ -11,6 +11,7 @@
 #include "game/weather.h"
 #include "game/car_load.h"
 #include "game/profile.h"
+#include "game/paths.h"
 #include "game/ai.h"
 #include "game/sectors.h"
 #include "sim/car.h"
@@ -504,6 +505,21 @@ static bool load_cpu_run(int p)
     gw32(0x537f90, side);
     race[p] = cpu_run(side);
     return race[p] != NULL;
+}
+
+/* 0x41c510: the demo's run: the replays cleared, outside the arcade and the network's modes car 0's
+   from the disc's <root>\\Game\\DemoRuns\\<rally><stage, two digits> (0x53874c, Race_Setup's name,
+   0x51942c) with H.rpl, or L.rpl with the low-detail clouds; 0x538110 the run on */
+void Replay_LoadDemo(void)
+{
+    memset(race, 0, sizeof race);
+    snprintf((char *)gm(0x53874c), 0x104, exe_str(0x51942c), Path_Root(), exe_str(exe_u32(0x51931c + 4 * Tod_Rally())), (int)Tod_Stage() + 1);
+    char path[0x104];
+    snprintf(path, sizeof path, exe_str((gm32(0x52afd0) >> 0x1b & 3) == 0 ? 0x5192dc : 0x5192d4), (const char *)gm(0x53874c));
+    uint32_t m = Gs_Mode();
+    if (m == 5 || m == 6 || m == 7 || m == 11 || m == 12) return;
+    race[0] = Replay_Load(path);
+    gw32(0x538110, 1);
 }
 
 /* 0x41c260: the race's replays. With the CPU runs (bit 25, not networked) and bit 17 of the mode

@@ -35,6 +35,7 @@ int Replay_Frames(const Replay *r, int seg);
 /* The race's replays (0x537f3c, one per player; 0x41f3d0 and 0x41f3f0 read them) */
 Replay *Race_Replay(int p);
 void Race_SetReplay(int p, Replay *r);
+void Replay_LoadDemo(void);   /* 0x41c510 */
 void Replay_Setup(void);   /* 0x41c260 (the line's set-up 0x424c50; Stage_Load in mode 3) */
 /* For the differential tests: the made (0-7) and loaded (8-15) replays, and where in its image a
    replay's snapshots, frames and counts are */
