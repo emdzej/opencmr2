@@ -226,7 +226,7 @@ static void st_startup(ProcGroup *g, uint32_t s)
         gw32(0x81777c, 0);
         if (!fe_init(true)) return;
         Render_SetClearColour(0, 0, 0);
-        /* the saved games (0x4f4ef0): none yet */
+        Champs_Scan();   /* 0x4f4ef0: the saved championships */
         Render_SetClearColour(0x9c, 0xb4, 0xac);
         Fe_LoadSounds();   /* 0x4f3b50 */
         if (!Fe_LoadFonts() || !Fe_LoadText()) return;   /* 0x4f4d20, 0x4f4b90 */

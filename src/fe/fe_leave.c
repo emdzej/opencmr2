@@ -1,5 +1,6 @@
 /* The front end's work on the way out (0x406820, 0x4cf060, 0x4d0230, 0x4eabc0, 0x4ec1a0, and the
    teardown 0x49c0f0 / 0x4a5be0 / 0x4a5d10 runs). */
+#include "game/saves.h"
 #include "fe/fe.h"
 #include "fe/fe_page.h"
 #include "audio/snd.h"
@@ -75,6 +76,7 @@ void Fe_AgeProfiles(void)
 void Fe_Teardown(void)
 {
     Bfl_Unmount(Fe_Res());
+    Champs_Free();
     Bfl_Unmount(Fe_ResLang());
     Bfl_Unmount(Fe_Common());
     for (int i = 0; i < 5; i++) Bfl_Unmount(Fe_Text(i));

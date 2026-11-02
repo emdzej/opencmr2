@@ -3,6 +3,7 @@
    (0x502240-0x5024a0, 0x50f180) and the main page's items (0x4ff4e0-0x500210). */
 #include "game/service.h"
 #include "game/service_int.h"
+#include "game/saves.h"
 #include "audio/music.h"
 #include "audio/snd.h"
 #include "bfl.h"
@@ -404,7 +405,7 @@ static void s0_init(ProcGroup *g, uint32_t s)
     Sv_StageInit();
     Sv_ForecastInit();
     PENDING_NOTE(0x4b2970, "the service area's environment map (option 15, 16)");
-    PENDING_NOTE(0x4f4ef0, "the saved championships' list");
+    Champs_Scan();   /* 0x4f4ef0 */
     load_sounds();
     menu_sounds();
     load_fonts();

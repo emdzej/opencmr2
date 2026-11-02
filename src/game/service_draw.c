@@ -3,6 +3,7 @@
    panel (0x50bfd0) and the pages' draws (0x50e1c0-0x50ee10). Coordinates are the original's 640 x 480,
    scaled to the screen; the colours are the exe's at 0x527378-0x5273a8. */
 #include "game/service_int.h"
+#include "game/saves.h"
 #include "exe.h"
 #include "font.h"
 #include "game/gstate.h"
@@ -357,13 +358,29 @@ static void race_draw(void)
     Sv_Type1(4, 0, 0, b, X(0x140) - w / 2, Y(0xf0), C_TEXT, C_NEXT, 0x11);
 }
 
-/* 0x50e280: Save: the saved championships (none yet: the message), the slots */
+/* 0x50e280: Save: the saved championships, 13 rows from the list's top (the file, the players, rally
+   and stage, the name), the chosen one lit while the list is open; none: the message centred */
 static void save_draw(Menu *m)
 {
     (void)m;
-    const uint8_t *c = gm8(0x82ab44) ? C_TEXT : C_FAINT;   /* 0x82ab44 the list in use */
-    if (gms32(0x82ac48) < 1) Sv_Type1(4, 0, 0, Text_Get(0x140), sw / 2, sh / 2, c, C_NEXT, 0x12);
-    else PENDING_NOTE(0x50e280, "the saved championships' rows (0x4f4dc0-0x4f4e70)");
+    /* the stage names "1" to "10" and "SS" (instruction operands) */
+    static const uint32_t stage_str[11] = {0x524dc8, 0x516934, 0x516930, 0x516948, 0x524dc4, 0x51693c,
+                                           0x516928, 0x516938, 0x51692c, 0x524dc0, 0x524dbc};
+    bool open = gm8(0x82ab44);
+    const uint8_t *lit = open ? C_LIT : C_FAINT, *c = open ? C_FAINT : C_TEXT;
+    int rows = gms32(0x82ac48), top = gms32(0x82aa3c), sel = gms32(0x82a924);
+    if (rows < 1) Sv_Type1(4, 0, 0, Text_Get(0x140), sw / 2, sh / 2, c, C_NEXT, 0x12);
+    for (int r = 0; r < rows; r++) {
+        int i = top + r, st = Champs_Stage(i);
+        char b[256];
+        snprintf(b, sizeof b, Text_Get(0x145), Champs_Players(i), Text_Get(0x93 + Champs_Rally(i)),
+                 st < 11 ? exe_str(stage_str[st]) : "");
+        const uint8_t *k = i == sel ? lit : c;
+        int y = sh * 100 / 0x1e0 + sh * 0x14 / 0x1e0 * r;
+        Sv_Type1(4, 1, 1, Champs_File(i), X(0x32), y, k, C_NEXT, 0x11);
+        Sv_Type1(4, 1, 1, b, X(0x9b), y, k, C_NEXT, 0x11);
+        Sv_Type1(4, 1, 1, Champs_Name(i), X(0xff), y, k, C_NEXT, 0x11);
+    }
     list_panel(2, value_of(4), 4, 0x32, 0x17c, true);
 }
 

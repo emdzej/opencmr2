@@ -4,6 +4,9 @@
 #include "game/saves.h"
 #include "game/mem.h"
 #include "game/profile.h"
+#include "game/gstate.h"
+#include "sim/car.h"
+#include "world/tod.h"
 #include "exe.h"
 #include "platform.h"
 #include <stdio.h>
@@ -197,4 +200,151 @@ bool Profile_LoadInto(int player, int i)
     gw32(pr, gm32(pr) & 0xfe3fffff);
     free(d);
     return true;
+}
+
+/* ---- the saved championships (gamesave\*.rcs, 0x7f4 bytes each) ---- */
+
+enum { CHAMP = 0x81a858, CHAMP_SIZE = 0x7f4, CHAMP_MAX = 256 };
+
+/* The list (0x81b14c the records, 0x81b150 their file names, 0x81b154 the count); the port keeps the
+   records here rather than behind pointers in the game state */
+static uint8_t *champ[CHAMP_MAX];
+static char champ_name[CHAMP_MAX][64];
+static int nchamp;
+
+/* 0x4f4e80 */
+void Champs_Free(void)
+{
+    for (int i = 0; i < nchamp; i++) free(champ[i]), champ[i] = NULL;
+    nchamp = 0;
+}
+
+/* 0x4f4ef0: every gamesave\*.rcs in the platform's file order, 0x7f4 bytes taken from each. The
+   original copies 0x7f4 bytes from whatever File_Load gave; the port skips a shorter file. */
+void Champs_Scan(void)
+{
+    Champs_Free();
+    char name[160];
+    for (int i = 0; plat_user_file_name(i, name, sizeof name) && nchamp < CHAMP_MAX; i++) {
+        size_t n = strlen(name);
+        if (strncmp(name, "gamesave\\", 9) || n < 13 || strcmp(name + n - 4, ".rcs")) continue;
+        size_t sz = 0;
+        uint8_t *d = plat_load_user_file(name, &sz);
+        if (!d) continue;
+        if (sz < CHAMP_SIZE) {
+            free(d);
+            continue;
+        }
+        champ[nchamp] = d;
+        snprintf(champ_name[nchamp++], sizeof champ_name[0], "%s", name + 9);
+    }
+}
+
+int Champs_Count(void) { return nchamp; }                                               /* 0x4f4db0 */
+const uint8_t *Champs_Record(int i) { return i >= 0 && i < nchamp ? champ[i] : NULL; } /* 0x4f4e50 */
+const char *Champs_Name(int i) { return i >= 0 && i < nchamp ? (const char *)champ[i] + 0x10 : ""; }   /* 0x4f4dc0 */
+int Champs_Players(int i) { return i >= 0 && i < nchamp ? (int)(le32(champ[i] + 0x30) >> 10 & 0xf) : 0; }   /* 0x4f4de0 */
+int Champs_Rally(int i) { return i >= 0 && i < nchamp ? (int)(le32(champ[i] + 0x7d8) & 0x1f) : 0; }        /* 0x4f4e00 */
+int Champs_Stage(int i) { return i >= 0 && i < nchamp ? (int)(le32(champ[i] + 0x7d8) >> 5 & 0x1f) : 0; }   /* 0x4f4e20 */
+const char *Champs_File(int i) { return i >= 0 && i < nchamp ? champ_name[i] : ""; }   /* 0x4f4e70 */
+
+/* 0x4f5150: the first gamesave\game<nnnnn>.rcs not there (_access) */
+static void champ_new_name(char *dst, size_t cap)
+{
+    for (int i = 0;; i++) {
+        snprintf(dst, cap, "gamesave\\game%.5d.rcs", i);
+        size_t n = 0;
+        uint8_t *d = plat_load_user_file(dst, &n);
+        if (!d) return;
+        free(d);
+    }
+}
+
+static void put_bits(uint32_t va, uint32_t mask, uint32_t v) { gw32(va, (gm32(va) & ~mask) | (v & mask)); }
+
+static void copy_gm(uint32_t dst, uint32_t src, uint32_t n)
+{
+    for (uint32_t i = 0; i < n; i++) gw8(dst + i, gm8(src + i));
+}
+
+/* 0x40d480: a championship time (0x533658) to 1/100 s */
+static uint32_t champ_time(int32_t t) { return (uint32_t)(int32_t)(((int64_t)(t + 0x147) << 16) / 0x28f5c28); }
+
+/* 0x408d80: the player records' points (bits 6-12, 0x40d070: the high half of 0x533558) and times (+4,
+   0x40d3d0) from the standings: the players from the standings' end (15 down), the computers' from
+   their start */
+static void standings_to_records(void)
+{
+    int np = (int)Gs_Players();
+    for (int i = 0; i < 16; i++) {
+        int k = i < np ? 0xf - i : i - np, r = i;
+        uint32_t a = 0x531350 + 0x30u * (uint32_t)r;
+        put_bits(a, 0x1fc0, (uint32_t)((gms32(0x533558 + 4u * (uint32_t)k) >> 0x10) & 0x7f) << 6);
+        gw32(a + 4, champ_time(gms32(0x533658 + 4u * (uint32_t)k)));
+    }
+}
+
+/* 0x4f5190: the championship into its record (0x81a858) and to a file: the old file of list entry i
+   (name kept) when name is NULL (nothing for i < 0, the record still made), else a new file with the
+   name. The record: +0x10 the name; +0x30 the mode (bits 0-6), level (7-9), players (10-13), the
+   mode's bit 17 (14); +0x34 the 16 player records (8 bytes: the car, the car flag of a player, the
+   points, the time); +0xb4 the players' profile bits 0-12 (+0x5c), +0xc4 their name and birth (+0x10,
+   12 bytes), +0xf4 the cars as they will race (0x148 each), +0x614 the set-ups (7 each); +0x630 the
+   weather (0xa0 bytes from Tod_Weather(0): with the stage table's time, its two words and what
+   follows them), +0x6d0-+0x7d4 the weather tables (0x52f1a0, 0x52f294, 0x52f1f0, 0x52f240), +0x7d4
+   0x52f2a8, +0x7d8 rally and stage, +0x7dc 0x5335a8's 16 bytes. The original passes the name to
+   sprintf as the format; the name's letters have no '%'. */
+bool Champ_Save(int i, const char *name)
+{
+    standings_to_records();
+    uint32_t w = 0;
+    w |= gm32(0x52afb4) >> 3 & 0x7f;
+    w |= (gm32(0x52afb4) >> 10 & 7) << 7;
+    w |= (Gs_Players() & 0xf) << 10;
+    w |= Gs_ModeBit17() << 0xe;
+    put_bits(0x81a888, 0x7fff, w);
+    int np = (int)Gs_Players();
+    for (int p = 0; p < np; p++) put_bits(0x81a88c + 8u * (uint32_t)p, 0x40, Champ_CarFlag((uint8_t)p) ? 0x40 : 0);
+    for (uint32_t p = 0; p < 16; p++) {
+        uint32_t r = 0x81a88c + 8 * p, s = 0x531350 + 0x30 * p;
+        put_bits(r, 0x3f, gm32(s));
+        put_bits(r, 0x3f80, (gm32(s) & 0x1fc0) << 1);
+        gw32(r + 4, gm32(s + 4));
+    }
+    for (int k = 0; k < 16; k++) gw8(0x81b034 + (uint32_t)k, gm8(0x5335a8 + (uint32_t)k));
+    for (uint32_t p = 0; p < (uint32_t)np; p++) {
+        uint32_t t = gm32(0x531350 + 0x30 * p) >> 0x12 & 0xf;
+        /* 0x408860 gives no profile for 15, which the original then reads at 0x5c: a crash there */
+        if (t != 0xf) {
+            uint32_t prof = PROFILES + t * PROFILE_SIZE;
+            put_bits(0x81a90c + 4 * p, 0x1fff, gm32(prof + 0x5c));
+            copy_gm(0x81a91c + 0xc * p, prof + 0x10, 0xc);
+        }
+        copy_gm(0x81a94c + 0x148 * p, 0x52ebc0 + 0x148 * p, 0x148);
+        copy_gm(0x81ae6c + 7 * p, 0x52f0e0 + 7 * p, 7);
+    }
+    uint32_t wsrc = 0x52f100;
+    if (gm32(0x52f2ac) >> 24 & 1) {
+        /* 0x407520 with the stage table's time: the value into 0x52ea60 and 0x52ea64, copied from there */
+        const int32_t *tw = Tod_Weather(0);
+        gw32(0x52ea60, (uint32_t)tw[0]), gw32(0x52ea64, (uint32_t)tw[1]);
+        wsrc = 0x52ea60;
+    }
+    copy_gm(0x81ae88, wsrc, 0xa0);
+    copy_gm(0x81af28, 0x52f1a0, 0x50);
+    copy_gm(0x81af78, 0x52f294, 0x14);
+    copy_gm(0x81af8c, 0x52f1f0, 0x50);
+    copy_gm(0x81afdc, 0x52f240, 0x50);
+    put_bits(0x81b030, 0x3ff, (Tod_Rally() & 0x1f) | (Tod_Stage() & 0x1f) << 5);
+    gw8(0x81b02c, gm8(0x52f2a8));
+    char path[96];
+    if (!name) {
+        if (i < 0 || i >= nchamp) return false;
+        snprintf((char *)gm(0x81a868), 0x20, "%s", Champs_Name(i));
+        snprintf(path, sizeof path, "gamesave\\%s", champ_name[i]);
+    } else {
+        snprintf((char *)gm(0x81a868), 0x20, "%s", name);
+        champ_new_name(path, sizeof path);
+    }
+    return plat_save_user_file(path, gm(CHAMP), CHAMP_SIZE);
 }

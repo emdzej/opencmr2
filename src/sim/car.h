@@ -48,3 +48,5 @@ void Damage_Reset(Car *c);     /* 0x469690 (sim/damage.c) */
 void Car_Place(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3]);
 /* the same with Car_Place's last argument, the models kept (attached already) */
 void Car_PlaceKeep(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3], bool keep);
+/* 0x4086f0: a player's car flag (the challenge's bit, else the team's bit 5, true without a team) */
+bool Champ_CarFlag(uint8_t n);

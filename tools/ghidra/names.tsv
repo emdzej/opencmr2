@@ -1321,3 +1321,21 @@
 0050a020	Sv_HasSnowWheels	service	high	the class has snow wheels for tyre 6
 0050a050	Sv_HasTarmacWheels	service	high	the class has tarmac wheels for tyres 0-1
 004b7210	Render_ReadCaps	render	high	device caps; 0x6e0c34 is ZBUFFERLESSHSR (dwRasterCaps 0x8000)
+004f4db0	Champs_Count	game	high	The saved championships' count (0x81b154)
+004f4dc0	Champs_Name	game	high	A saved championship's name (record +0x10)
+004f4de0	Champs_Players	game	high	A saved championship's players (record +0x30 bits 10-13)
+004f4e00	Champs_Rally	game	high	A saved championship's rally (record +0x7d8 bits 0-4)
+004f4e20	Champs_Stage	game	high	A saved championship's stage (record +0x7d8 bits 5-9)
+004f4e50	Champs_Record	game	high	A saved championship's 0x7f4-byte record
+004f4e70	Champs_File	game	high	A saved championship's file name
+004f4e80	Champs_Free	game	high	The saved championships' list freed
+004f4ef0	Champs_Scan	game	high	The saved championships: gamesave\*.rcs into 0x81b14c
+004f5150	Champ_NewName	game	high	The first gamesave\game%.5d.rcs not there
+004f5190	Champ_Save	game	high	The championship into its record (0x81a858) and a file
+00408d80	Champ_StandingsToRecords	game	high	The player records' points and times from the standings
+0040d480	Champ_TimeCs	game	high	A championship time to 1/100 s
+004ff720	sv_save_frame	game	high	The service Save item's frame: the list and the name typed
+004ffa70	sv_main_enter	game	high	The service main page entered: the save list reset
+004ffed0	sv_save_go	game	high	The service Save item chosen
+00500020	sv_save_yes	game	high	The service save question's Yes: written over
+0050e280	sv_save_list_draw	game	high	The service Save page: the saved championships' rows

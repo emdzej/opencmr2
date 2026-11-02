@@ -71,7 +71,7 @@ static void attach_models(int n, Car *c)
 /* 0x4086f0 (0x4083f0 before it is empty): mode 4, bit 0 of the byte at 0x52f3ec + n x 0xc4; else
    the driver's team (bits 18-21 of 0x531350 + n x 0x30) and bit 5 of that team's word at 0x52fa5c +
    team x 0x650, 1 without a team (15). */
-static bool Champ_CarFlag(uint8_t n)
+bool Champ_CarFlag(uint8_t n)
 {
     if (Gs_Mode() == 4) return gm8(0x52f3ec + n * 0xc4u) & 1;
     uint32_t t = gm32(0x531350 + n * 0x30u) >> 0x12 & 0xf;

@@ -2,12 +2,16 @@
    set-up, information, message and save pages, and their draws (0x50a080-0x50ee10). */
 #include "game/service_int.h"
 #include "exe.h"
+#include "font.h"
 #include "game/gstate.h"
+#include "game/saves.h"
+#include "render/d3d7.h"
 #include "game/input.h"
 #include "game/mem.h"
 #include "game/timer.h"
 #include "pending.h"
 #include "text.h"
+#include <stdio.h>
 #include <string.h>
 
 int Sv_CarClass(void) { return (int)gm32(0x516b40 + 4u * (gm32(0x531350 + 0x30u * (uint32_t)Sv_Player()) & 0x3f)); }   /* 0x4086b0, 0x40ee90 */
@@ -66,13 +70,15 @@ static void setup_count(void)
     sv_setup.items[0].value = (uint8_t)Sv_SetupValue(Sv_Player(), v);
 }
 
-/* 0x4ffa70: the saved games' count; the save list reset unless back from it */
+/* 0x4ffa70: the saved games' count; the save list closed and at its top unless back from the message
+   or the question */
 void sv_main_enter(Menu *m, bool back)
 {
     (void)m, (void)back;
-    PENDING_NOTE(0x4f4db0, "the saved championships' count");
+    gw32(0x82aa40, (uint32_t)Champs_Count());
     if (!S.save_back) {
-        PENDING_NOTE(0x4ffa70, "the save list's position");
+        gw8(0x82ab44, 0);
+        gw32(0x82a924, 0), gw32(0x82aa3c, 0), gw32(0x82ac48, 0);
         return;
     }
     S.save_back = false;
@@ -96,6 +102,94 @@ static void back_key(Menu *m)
         int part = Sv_SetupPart(item_value(m, 1));
         if (Sv_SetupChanged(p, part)) Sv_SetupUndo(p, part);
     }
+}
+
+/* the save list's view: its top kept within 13 rows of the selection, the rows shown */
+static void save_rows(void)
+{
+    int sel = gms32(0x82a924), top = gms32(0x82aa3c), n = gms32(0x82aa40);
+    if (sel < top && --top < 0) top = 0;
+    if (top + 0xd <= sel) top++;
+    gw32(0x82aa3c, (uint32_t)top);
+    gw32(0x82ac48, (uint32_t)(n > 0xd ? 0xd : n));
+}
+
+/* the name being typed (0x82aa44) back to 0x52ea5c's (empty) */
+static void name_reset(void) { snprintf((char *)gm(0x82aa44), 0x100, "%s", (const char *)gm(0x52ea5c)); }
+
+/* 0x4ff720: the Save item's frame. With the list open (0x82ab44) Up and Down move in it and Back
+   closes it (the main page's flags off). Otherwise the item's value: 0 the list's, the name reset and
+   the typed characters dropped; 1 typing a new one: the keys off the page but Up (back to the list's
+   value) and Left / Right (to the next item), each resetting the name, these only once no key is
+   held since the item was reached (0x526f40); a typed letter goes in while the name is under 30
+   letters and narrower than 220 pixels at 640, backspace rubs out */
+static void save_frame(Menu *m)
+{
+    gw32(0x82aa40, (uint32_t)Champs_Count());
+    int n = gms32(0x82aa40);
+    if (gm8(0x82ab44)) {
+        Menu_SetFlags(m, false, false, true, true);
+        uint32_t k = Input_Record(0)->pressed;
+        int sel = gms32(0x82a924);
+        if (n < 1) {
+            gw8(0x82ab44, 0);
+            sel = -1;
+            gw32(0x82aa3c, 0);
+        } else if (sel == -1) sel = 0;
+        else if (k & MB_BACK) gw8(0x82ab44, 0), S.save_back = true;
+        else if ((k & MB_UP) && sel > 0) sel--;
+        else if ((k & MB_DOWN) && sel < n - 1) sel++;
+        gw32(0x82a924, (uint32_t)sel);
+        if (n < 1) {
+            /* the original's empty list: the top taken back by one (to 0) before the rows */
+            int top = gms32(0x82aa3c) - 1;
+            gw32(0x82aa3c, (uint32_t)(top < 0 ? 0 : top));
+            if (gms32(0x82aa3c) + 0xd <= sel) gw32(0x82aa3c, gm32(0x82aa3c) + 1);
+            gw32(0x82ac48, (uint32_t)(n > 0xd ? 0xd : n));
+            return;
+        }
+        save_rows();
+        return;
+    }
+    save_rows();
+    MenuItem *it = &m->items[Menu_IndexOf(m, 4)];
+    if (it->value != 1) {
+        Input_FlushChars();
+        name_reset();
+        gw8(0x526f40, 0);
+        Menu_SetFlags(m, true, true, true, true);
+        return;
+    }
+    Menu_SetFlags(m, false, false, true, false);
+    uint32_t k = Input_Record(0)->pressed;
+    if (!k) gw8(0x526f40, 1);
+    if (gm8(0x526f40)) {
+        if (k & MB_UP) it->value = 0, name_reset();
+        else if (k & MB_LEFT) m->sel--, name_reset();
+        else if (k & MB_RIGHT) m->sel++, name_reset();
+    }
+    char b[0x100];
+    snprintf(b, sizeof b, "%s", (const char *)gm(0x82aa44));
+    int c;
+    if (!Input_NextChar(&c)) return;
+    int snd;
+    size_t l = strlen(b);
+    if (c == 8) {
+        if (!b[0]) goto done;
+        b[l - 1] = 0;
+        snd = 2;
+    } else {
+        int sw, sh;
+        D3d_ScreenSize(&sw, &sh);
+        if (l > 0x1d || !strchr(exe_str(0x526fb8), c) || Font_TextWidth(0, (const char *)gm(0x82aa44)) >= sw * 0xdc / 0x280)
+            goto done;
+        b[l] = (char)c;
+        b[l + 1] = 0;
+        snd = 1;
+    }
+    Menu_Sound(snd);
+done:
+    snprintf((char *)gm(0x82aa44), 0x100, "%s", b);
 }
 
 /* 0x4ffab0: the main page's frame: the race or quit due, the panels sliding as the selection moves, the
@@ -159,7 +253,7 @@ void sv_main_frame(Menu *m)
         gw32(0x526f40, 0);
         return;
     }
-    PENDING_NOTE(0x4ff720, "the save list's frame");
+    save_frame(m);
 }
 
 /* 0x500100: Information: the stage's map zoomed in or out */
@@ -202,7 +296,38 @@ void sv_repair_go(Menu *m, MenuItem *it)
     else repair(m);
 }
 
-void sv_save_go(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4ffed0, "the save item"); }
+/* the message (0x82a93c) shown */
+static void message(int text)
+{
+    snprintf((char *)gm(0x82a93c), 0x100, "%s", Text_Get(text));
+    Menu_Goto(&sv_msg);
+}
+
+/* 0x4ffed0: Save: with the list open the question (over the chosen one); on the list's value with
+   saves the list opened; on the new name's a new save, the name reset, the list read again with the
+   new one chosen, the message saved (0x143) or not (0x144) */
+void sv_save_go(Menu *m, MenuItem *it)
+{
+    (void)it;
+    if (gm8(0x82ab44)) {
+        Menu_Goto(&sv_save);
+        return;
+    }
+    if (m->items[4].value == 0 && Champs_Count() > 0) {
+        gw8(0x82ab44, 1);
+        Menu_SetFlags(m, false, false, false, false);
+        return;
+    }
+    if (m->items[4].value != 1) return;
+    if (!Champ_Save(-1, (const char *)gm(0x82aa44))) {
+        message(0x144);
+        return;
+    }
+    name_reset();
+    message(0x143);
+    Champs_Scan();
+    gw32(0x82a924, (uint32_t)(Champs_Count() - 1));
+}
 
 /* 0x5003d0: a set-up value chosen: back to the original undoes the change; another sets it if there is
    the time or it was changed already (no warning otherwise) */
@@ -222,7 +347,17 @@ void sv_setup_choose(Menu *m, MenuItem *it)
     Menu_Goto(m->parent);
 }
 
-void sv_save_yes(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x500020, "the championship saved"); }
+/* 0x500020: Yes: the chosen save written over, the message, the list read again when saved */
+void sv_save_yes(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    if (!Champ_Save(gms32(0x82a924), NULL)) {
+        message(0x144);
+        return;
+    }
+    message(0x143);
+    Champs_Scan();
+}
 
 
 /* 0x502230 */
