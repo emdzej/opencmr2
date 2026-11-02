@@ -378,6 +378,20 @@ static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int
     gear_was[car] = gear_now[car];
 }
 
+/* 0x478c40: on the pause every engine voice of the players' cars (and the super special's second car
+   with one player, not in mode 3 or a network game) at volume 0; the two voices of option 0x13
+   (0x58ddc8) stop, which the port does not play yet (see Engine_Update) */
+void Engine_Pause(void)
+{
+    uint32_t n = Gs_SelBits14();
+    n += n == 1 && Gs_SelBit25() && !Gs_ModeBit19() && Gs_Mode() != 3;
+    for (uint32_t i = 0; i < n && i < 4; i++) {
+        int32_t *v[] = {&v_fm[i], &v_rm[i], &v_fs[i], &v_rs[i], &v_whine[i], &v_det[i], &v_ft[i], &v_rt[i]};
+        for (int k = 0; k < 8; k++)
+            if (Voice_Playing(*v[k])) Voice_SetVolume(*v[k], 0);
+    }
+}
+
 void Engine_Update(int car, int player)
 {
     /* the mix by the camera: inside (kinds 1-3) the front sounds louder, outside the rear */

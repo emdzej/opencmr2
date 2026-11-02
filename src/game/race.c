@@ -166,7 +166,7 @@ static void Race_Update(uint8_t state, bool flag)
                 if ((kind == 8 || kind == 5 || (kind == 7 && !Gs_ModeBit19())) && Pause_Pressed((int)i) &&
                     !Replay_Playing(rp) && !Fade_Active((int)i) && !gm8(0x52ea52)) {
                     Pause_Begin((int)i);   /* 0x404ea0 */
-                    PENDING_NOTE(0x478c40, "the engines' pause (0x478c40)");
+                    Engine_Pause();       /* 0x478c40 */
                     Surface_Silence();    /* 0x418ee0 */
                     Crash_StopSounds();   /* 0x418780 */
                 }
