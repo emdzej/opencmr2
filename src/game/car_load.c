@@ -144,16 +144,39 @@ bool Car_Load(int n)
         /* the ghost: its owner's car (0x4660f0, none: 0) */
         int o = Ghost_Owner();
         id = (int)(gm32(0x531350 + 0x30u * (uint32_t)(o == -1 ? 0 : o)) & 0x3f);
-    } else if (!cpu) id = (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
-    else if (mode == 5 || mode == 6) id = Sel_CpuCar(n);   /* 0x408010: by the car's own slot */
-    else if (Gs_SelBit27() && !Gs_ModeBit19()) {
-        /* the head to head: the paired driver's car (0x407fc0 of 0x455ab0; 0x51681c, drivers 0-14) */
-        int d = Opp_Pair(Race_Base());
-        id = d >= 0 && d <= 0xe ? gm8(0x51681c + (uint32_t)d) : 0;
-    } else {
-        PENDING_NOTE(0x457000, "Car_Load (the CPU cars of the other modes)");
-        id = 0;
-    }
+    } else if (Gs_SelBit27() && !Gs_ModeBit19()) {
+        /* the head to head: the players' cars, then the paired driver's (0x407fc0 of 0x455ab0) */
+        if (!cpu) id = (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
+        else {
+            int d = Opp_Pair(Race_Base());
+            if (mode == 5 || mode == 6 || mode == 7) id = d >= 0 && d < 6 ? (int)(uint8_t)gm32(0x54260c + 4u * (uint32_t)d) : 0;
+            else id = d >= 0 && d <= 0xe ? gm8(0x51681c + (uint32_t)d) : 0;
+        }
+    } else if (Gs_SuperSpecial()) {
+        /* the super special: every car the championship's leading player's (the lowest place,
+           0x533548 by 0x455de0; the first on a tie) */
+        int best = 99;
+        uint32_t who = 0;
+        for (uint32_t i = 0; i < Gs_Players(); i++) {
+            int place = (int8_t)gm8(0x533548 + (uint32_t)Opp_PlayerSlot((int)i));
+            if (place < best) best = place, who = i;
+        }
+        id = (int)(gm32(0x531350 + 0x30u * who) & 0x3f);
+    } else if (Gs_ModeBit19() && n > 0) {
+        /* round a circuit the cars after the first: the n-th network slot in use (0x409cb0; none
+           found: the mode's number, as the original leaves it), marked (0x40b200), its car (0x409d00)
+           and the car's number written back (0x40aff0) */
+        uint32_t slot = mode;
+        for (uint32_t i = 0, k = 0; i < 7; i++)
+            if (gm32(0x53177c + 0x80u * i) >> 7 & 1) {
+                if ((int)k == n - 1) { slot = i; break; }
+                k++;
+            }
+        gw32(0x53177c + 0x80u * slot, gm32(0x53177c + 0x80u * slot) | 0x800000);
+        id = (int)(gm32(0x53177c + 0x80u * slot) & 0x1f);
+        gw32(0x531780 + 0x80u * slot, (uint32_t)n);
+    } else id = (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
+    if (cpu && (mode == 5 || mode == 6)) id = Sel_CpuCar(n);   /* 0x408010: by the car's own slot */
     /* the class (0x4a3630); in the challenge the drawn number in its place */
     int cls = mode == 4 ? (int)gm32(0x51a8b8) : (int)exe_u32(0x516b40 + 4u * (uint32_t)id);
     /* the detail letter (0x51a3d0) and the set by the mode */
