@@ -741,6 +741,76 @@ void fe_4f0090(Menu *m, MenuItem *it)
     Menu_Goto(&pg_8214b8);
 }
 
+/* a row's label for 0x4da710 (one player) and 0x4daf90 (two): one player's id 0 "Number Of Laps: n" and
+   id 1 "Number Of CPU Drivers: n" (the first and second lists' values, whatever the row); with two
+   players id 3 "<0x1a3>: <0x1a4 + value>", ids 4, 5, 6 "<0x195, 0x1a2, 0x1a1>: <value + 1>" (the row's
+   own value); id 2 "Catch Up:" with Off and On (the chosen lit); any other its own text */
+static void setup_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    char b[256];
+    int id = it->id;
+    if (!two && (id == 0 || id == 1))
+        snprintf(b, sizeof b, "%s: %d", Text_Get(id == 0 ? 0x195 : 0x196), (id == 0 ? m->items[0].value : m->items[1].value) + 1);
+    else if (two && id == 3)
+        snprintf(b, sizeof b, "%s: %s", Text_Get(0x1a3), Text_Get(it->value + 0x1a4));
+    else if (two && id >= 4 && id <= 6)
+        snprintf(b, sizeof b, "%s: %d", Text_Get(id == 4 ? 0x195 : id == 5 ? 0x1a2 : 0x1a1), it->value + 1);
+    else if (id == 2) {
+        snprintf(b, sizeof b, "%s:", Text_Get(0x19e));
+        Font_Print(1, b, x, y, gm(c), 0x11);
+        int x1 = w * 10 / 0x280 + x + Font_TextWidth(1, b);
+        int x2 = w * 0x14 / 0x280 + x + Font_TextWidth(1, Text_Get(0x133)) + Font_TextWidth(1, b);
+        Font_Print(1, Text_Get(0x133), x1, y, gm(it->value == 0 ? 0x524968 : 0x52496c), 0x11);
+        Font_Print(1, Text_Get(0x134), x2, y, gm(it->value == 0 ? 0x52496c : 0x524968), 0x11);
+        return;
+    } else
+        snprintf(b, sizeof b, "%s", Text_Get(it->text));
+    Font_Print(1, b, x, y, gm(c), 0x11);
+}
+
+/* 0x4da710 / 0x4daf90: the single race's options as 0x4d8ed0's rows (the arrows Ar_640A lit, Ar_640D
+   or, when the item is off, the third colour), the labels by setup_row; the trail Arcade, Single
+   Race; the hint twice and the locations' strip (scroller 10) unlit */
+static void setup_draw(Menu *m, bool two)
+{
+    int w, h;
+    screen(&w, &h);
+    const char *names[2] = {Text_Get(0x94), Text_Get(0xe2)};
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 3, names, 2);
+    Fe_Hint(Text_Get(0x57), true);
+    int row = h * 0x24 / 0x1e0;
+    int16_t top = (int16_t)((h * 0x38 / 0x1e0 + h * 0x176 / 0x1e0) / 2 - row * m->n / 2);
+    int16_t r[4] = {(int16_t)(w * 99 / 0x280), top, (int16_t)(w * 0x11a / 0x280), 1};
+    Rect_Fill(r, gm(m->sel == 0 ? 0x524974 : 0x524978), 1);
+    r[1]++;
+    Rect_Fill(r, gm(m->sel == 0 ? 0x524968 : 0x52496c), 1);
+    Tex *a = g_fe.arrow_a;
+    int16_t aw = a ? (int16_t)a->width : 0, ah = a ? (int16_t)a->height : 0;
+    for (int i = 0; i < m->n; i++) {
+        MenuItem *it = &m->items[i];
+        bool on = m->sel == i;
+        Tex *t = on ? g_fe.arrow_a : g_fe.arrow_d;
+        uint32_t c = on ? 0x524968 : (it->flags & 1) ? 0x52496c : 0x524970;
+        if (t) {
+            Rect16 src = {0, 0, t->width, t->height};
+            Rect16 dst = {(int16_t)(w * 100 / 0x280), (int16_t)(h * 0x14 / 0x1e0 + top + row * i - ah / 2), aw, ah};
+            Sprite_Add(&src, &dst, t, 1, 0, NULL, NULL, gm(c), 8);
+        }
+        setup_row(m, it, two, w * 0x7a / 0x280, h * 0x18 / 0x1e0 + r[1], c, w);
+        bool lit = m->sel == i || m->sel == i + 1;
+        r[1] = (int16_t)(row * (i + 1) + top);
+        Rect_Fill(r, gm(lit ? 0x524974 : 0x524978), 1);
+        r[1]++;
+        Rect_Fill(r, gm(lit ? 0x524968 : 0x52496c), 1);
+    }
+    Fe_Hint(Text_Get(0x57), true);
+    Strip_Draw(Fe_Scroll(10), false);
+}
+
+void fe_4da710(Menu *m) { setup_draw(m, false); }
+void fe_4daf90(Menu *m) { setup_draw(m, true); }
+
 /* ---- the two players' single race (0x827aa0): the kind (0x52f2b0 bits 0-2), its count, the
    duel's on/off (0x52afbc bit 11) ---- */
 

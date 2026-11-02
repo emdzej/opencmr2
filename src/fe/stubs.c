@@ -13,8 +13,6 @@ void fe_4d7380(Menu *m) { (void)m; PENDING_NOTE(0x4d7380, "front-end callback");
 void fe_4d7750(Menu *m) { (void)m; PENDING_NOTE(0x4d7750, "front-end callback"); }
 void fe_4d9450(Menu *m) { (void)m; PENDING_NOTE(0x4d9450, "front-end callback"); }
 void fe_4d9a40(Menu *m) { (void)m; PENDING_NOTE(0x4d9a40, "front-end callback"); }
-void fe_4da710(Menu *m) { (void)m; PENDING_NOTE(0x4da710, "front-end callback"); }
-void fe_4daf90(Menu *m) { (void)m; PENDING_NOTE(0x4daf90, "front-end callback"); }
 void fe_4db850(Menu *m) { (void)m; PENDING_NOTE(0x4db850, "front-end callback"); }
 void fe_4dc7b0(Menu *m) { (void)m; PENDING_NOTE(0x4dc7b0, "front-end callback"); }
 void fe_4dc930(Menu *m) { (void)m; PENDING_NOTE(0x4dc930, "front-end callback"); }

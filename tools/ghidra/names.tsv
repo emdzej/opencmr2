@@ -1042,3 +1042,5 @@
 004220d0	Camera_Velocity	camera	confirmed	The step camera's move since the last step
 0040f8d0	Race_DrawHud	race	confirmed	The views' end: fades, the split screen's labels and line, the intro, the world
 0041f250	Race_ClearWinner	race	confirmed	The head to head's winner (0x5191a0) cleared
+004da710	Fe_SetupDraw	fe	confirmed	The single race's options page (one player)
+004daf90	Fe_DuelSetupDraw	fe	confirmed	The single race's options page (two players)
