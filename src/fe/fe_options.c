@@ -8,6 +8,7 @@
 #include "game/mem.h"
 #include "render/d3d7.h"
 #include "render/tex.h"
+#include "render/twod.h"
 #include "exe.h"
 #include "text.h"
 #include <stdio.h>
@@ -320,5 +321,138 @@ void fe_4e1890(Menu *m)
     Fe_Header();
     Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 2, names, 1);
     List_Draw(m, NULL, -1, -1, 0, true);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+/* ---- the graphics card (0x81c7d8) and the display mode (0x81cb98) ----
+   The original lists DirectDraw's devices (0x663b18 of them, names at 0x6634d8, 0xa0 apart) and the
+   chosen one's modes (0x663b28, at 0x6631f8, 12 bytes each). The port has one device and one mode,
+   its 640x480 at 32 bits; choosing either re-opens the same, so the display's reset and the
+   textures' reload (0x4a9a50, 0x4a78a0, 0x4d21e0, 0x4a4c40, 0x4f4d80, 0x4ef190) change nothing and
+   are left out. */
+
+static const char *device_name(int i) { (void)i; return "OpenGL ES 3"; }   /* 0x4a8bf0 */
+static int modes_count(void) { return 1; }                                 /* 0x4a8f10 */
+static int mode_current(void) { return 0; }                                /* 0x4a8eb0 */
+static void mode_get(int i, int *w, int *h, int *bpp)                      /* 0x4a8f20 */
+{
+    (void)i;
+    screen(w, h);
+    const D3dState *st = D3d_State();
+    *bpp = st ? st->bpp : 32;
+}
+
+/* the graphics settings back to their defaults after a new device or mode (the end of 0x4f2210) */
+static void graphics_defaults(void)
+{
+    uint32_t d = gm32(0x52afd0);
+    d &= ~6u;                                    /* 0x405b60(0): no environment map */
+    d &= ~8u;                                    /* 0x405b80(0) */
+    d &= ~0x10u;                                 /* 0x405bb0(0): no shadow map */
+    d &= 0xfff3ffffu;                            /* 0x405c80(0): no mip map */
+    d = (d & 0xfe1fffffu) | 1u << 0x15;          /* 0x405cb0(1): draw distance 2 */
+    d = (d & 0xf9ffffffu) | 1u << 0x19;          /* 0x405ce0(1): effects low */
+    d = (d & 0xe7ffffffu) | 1u << 0x1b;          /* 0x405d20(1): track low */
+    gw32(0x52afd0, d);
+    gw32(0x52afd4, (gm32(0x52afd4) & ~3u) | 2);  /* 0x405d40(2): car low */
+    g_render_opts &= ~(0x08u | 0x10u | 0x80u | 0x20u | 0x40u | 1u | 2u);
+    draw_dist_kept = 1;
+}
+
+/* 0x4f21c0: a row per device, the current one (0x52afd0 bits 5-8) chosen; those not hardware off */
+void fe_4f21c0(Menu *m, bool back)
+{
+    (void)back;
+    m->n = (int8_t)Fe_DisplayModes();
+    m->sel = (int8_t)(gm32(0x52afd0) >> 5 & 0xf);
+    for (int i = 0; i < m->n; i++) m->items[i].flags |= MIF_ENABLED;   /* 0x4a96c0: the port's is */
+}
+
+/* 0x4f2210: the device chosen (0x405be0, 0x4a8bd0), the display reset, the defaults; back */
+void fe_4f2210(Menu *m, MenuItem *it)
+{
+    (void)it;
+    gw32(0x52afd0, (gm32(0x52afd0) & 0xfffffe1fu) | ((uint32_t)m->sel & 0xf) << 5);
+    int w, h, bpp;
+    mode_get(mode_current(), &w, &h, &bpp);
+    gw32(0x52afc4, (uint32_t)w), gw32(0x52afc8, (uint32_t)h), gw32(0x52afcc, (uint32_t)bpp);   /* 0x405c20-0x405c60 */
+    graphics_defaults();
+    Menu_Goto(m->parent);
+}
+
+static void card_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    (void)two, (void)w;
+    Font_Print(1, device_name((int)(it - m->items)), x, y, gm(c), 0x11);
+}
+
+/* 0x4e1920 */
+void fe_4e1920(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 2, NULL, -1);
+    Rows_Draw(m, card_row, false, true, high_top(m), h * 2 / 0x1e0 + h * 0x12 / 0x1e0);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+static int mode_top;   /* DAT_00819128: the first of the ten shown */
+
+/* 0x4f2360: the list's count and the current mode; the first shown keeps it in the ten */
+void fe_4f2360(Menu *m, bool back)
+{
+    (void)back;
+    mode_top = mode_current();
+    if (modes_count() < mode_top + 10) {
+        mode_top = modes_count() - 10;
+        if (mode_top < 0) mode_top = 0;
+    }
+    m->items[0].count = (uint8_t)modes_count();
+    m->items[0].value = (uint8_t)mode_current();
+    /* 0x4a9b10(0): the display's lost flag cleared (the port's is never set) */
+}
+
+/* 0x4f23d0: the ten shown follow the value */
+void fe_4f23d0(Menu *m)
+{
+    int n = modes_count() > 10 ? 10 : modes_count();
+    int v = m->items[0].value;
+    if (v < mode_top) mode_top--;
+    if (n + mode_top <= v) mode_top++;
+}
+
+/* 0x4f2430: the mode chosen into the settings (0x405c20-0x405c60), the display reset; back */
+void fe_4f2430(Menu *m, MenuItem *it)
+{
+    (void)it;
+    int w, h, bpp;
+    mode_get(m->items[0].value, &w, &h, &bpp);
+    gw32(0x52afc4, (uint32_t)w), gw32(0x52afc8, (uint32_t)h), gw32(0x52afcc, (uint32_t)bpp);
+    Menu_Goto(m->parent);
+}
+
+/* 0x4e1d70: the scroll bar (a faint track, the visible part brighter) and up to ten modes
+   "WxH:Bbit" down the middle, the chosen lit */
+void fe_4e1d70(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    static const uint8_t track[4] = {0xff, 0xff, 0xff, 0x20}, thumb[4] = {0xff, 0xff, 0xff, 0x80};
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 2, NULL, -1);
+    int n = modes_count() > 10 ? 10 : modes_count();
+    int16_t r[4] = {(int16_t)(w / 2 + 0x50), 0x5f, 0x14, 0xd2};
+    Rect_Fill(r, track, 1);
+    int16_t t[4] = {(int16_t)(w / 2 + 0x55), (int16_t)((uint32_t)(mode_top * 100) / (uint32_t)modes_count() * 200 / 100 + 100),
+                    10, (int16_t)((uint32_t)(n * 100) / (uint32_t)modes_count() * 200 / 100)};
+    Rect_Fill(t, thumb, 1);
+    for (int i = 0; i < n; i++) {
+        int mw, mh, mb;
+        char b[64];
+        mode_get(i + mode_top, &mw, &mh, &mb);
+        snprintf(b, sizeof b, exe_str(0x524e04), mw, mh, mb);
+        Font_Print(1, b, w / 2, (i * 5 + 0x19) * 4, gm(i + mode_top == m->items[0].value ? 0x524968 : 0x52496c), 10);
+    }
     Strip_DrawMain(&pg_81d6d8, false, NULL);
 }

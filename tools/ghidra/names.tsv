@@ -1123,3 +1123,10 @@
 004b7550	Caps_CubeMap	render	confirmed	Cube maps
 004b7560	Caps_TexWidth	render	confirmed	A texture width within the caps
 004b7590	Caps_TexHeight	render	confirmed	A texture height within the caps
+004e1920	FeCard_Draw	fe	confirmed	The graphics card page
+004f21c0	FeCard_Enter	fe	confirmed	A row per device, the current chosen
+004f2210	FeCard_Choose	fe	confirmed	The device chosen, the display reset, the graphics defaults
+004e1d70	FeMode_Draw	fe	confirmed	The display mode page: scroll bar and ten modes
+004f2360	FeMode_Enter	fe	confirmed	The mode list's count and current
+004f23d0	FeMode_Frame	fe	confirmed	The ten shown follow the value
+004f2430	FeMode_Choose	fe	confirmed	The mode chosen, the display reset
