@@ -311,15 +311,16 @@ static void Race_Update(uint8_t state, bool flag)
         }
         Sim_StepDone(&g_all);
     }
-    Knock_Interp(R.frac);   /* 0x471950, first in Race_PoseInterp */
-    Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its other effects not ported) */
-    Dash_Interp(R.frac);   /* 0x445df0 */
-    if (Gs_Option(0)) Balls_Frame(R.frac);   /* 0x47e1e0, in 0x41d060 */
-    Parts_Interp(R.frac);   /* 0x484d30 */
-    Aerials_Interp(R.frac);   /* 0x486500 */
+    /* Race_PoseInterp 0x41d060 */
+    Car_PoseInterp();           /* 0x42bf70 */
+    Parts_Interp(R.frac);       /* 0x484d30 */
+    Knock_Interp(R.frac);       /* 0x471950 */
+    Aerials_Interp(R.frac);     /* 0x486500 */
     Particles_Interp(R.frac);   /* 0x4b06a0 */
     Weather_Interp(R.frac);     /* 0x461bb0 */
+    Dash_Interp(R.frac);        /* 0x445df0 */
     if (Gs_SuperSpecial()) Fireworks_Interp(R.frac);   /* 0x480600 */
+    if (Gs_Option(0)) Balls_Frame(R.frac);             /* 0x47e1e0 */
     if (H->pose) H->pose(R.frac);
     for (uint32_t i = 0; i < np; i++)
         if (H->camera) Camera_Frame((int)i, CI32(Car_Get((int)i), 0xa90), H->camera((int)i));   /* 0x422140 */
