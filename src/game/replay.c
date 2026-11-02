@@ -394,6 +394,13 @@ void Replay_PlayStep(void)
     }
 }
 
+Replay *Replay_Slot(int i) { return i < 0 || i >= 16 ? NULL : i < 8 ? made[i] : loaded[i - 8]; }
+
+void Replay_Layout(const Replay *r, uint32_t *snap, uint32_t *frames, uint32_t *counts)
+{
+    *snap = (uint32_t)(r->snap - r->b), *frames = (uint32_t)(r->frames - r->b), *counts = (uint32_t)(r->counts - r->b);
+}
+
 bool Replay_Playing(const Replay *r) { return r && h32(r, 4); }
 bool Replay_Recording(const Replay *r) { return r && h32(r, 0xc); }
 uint8_t Replay_State(const Replay *r) { return r ? r->b[0x10c] : 0; }

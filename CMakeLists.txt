@@ -51,3 +51,14 @@ foreach(src ${TEST_SRC})
   target_compile_options(${t} PRIVATE ${CMR2_WARN})
   add_test(NAME ${t} COMMAND ${t} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endforeach()
+
+# The differential test against the original's code (tools/emu/sim_diff.c), with Unicorn's headers and
+# library: -DOPENCMR2_UNICORN=<dir with include/ and lib/>.
+set(OPENCMR2_UNICORN "" CACHE PATH "Unicorn engine (include/, lib/) for tools/emu")
+if(OPENCMR2_UNICORN)
+  add_executable(sim_diff tools/emu/sim_diff.c ${HOST_SRC})
+  target_include_directories(sim_diff PRIVATE ${OPENCMR2_UNICORN}/include)
+  file(GLOB UNICORN_LIB ${OPENCMR2_UNICORN}/lib/libunicorn.so* ${OPENCMR2_UNICORN}/lib/libunicorn*.dylib)
+  target_link_libraries(sim_diff PRIVATE cmr2_core ${UNICORN_LIB})
+  set_target_properties(sim_diff PROPERTIES BUILD_RPATH ${OPENCMR2_UNICORN}/lib)
+endif()

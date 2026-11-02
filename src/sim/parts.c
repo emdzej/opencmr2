@@ -57,7 +57,7 @@ static int32_t dt(void) { return gms32(0x519c8c); }
 static int32_t dmg(uint32_t o) { return DI32(cur_dmg, o); }
 static int type_of(const Part *p) { return p->flags >> 4; }
 /* the x87 FISTP of a double (to nearest), its low word kept */
-static int16_t rnd16(double v) { return (int16_t)(uint16_t)(uint64_t)llrint(v); }
+static int16_t rnd16(double v, double k) { return (int16_t)(uint16_t)X87_MulRound(v, k); }
 
 static uint32_t len3(const int32_t v[3]) { return Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2])); }
 static int32_t dot3(const int32_t a[3], const int32_t b[3]) { return fx_mul(a[0], b[0]) + fx_mul(a[1], b[1]) + fx_mul(a[2], b[2]); }
@@ -328,7 +328,7 @@ static void part_hinged(void)
     uint8_t kind = c->s[0xb1b];
     if (kind == 9 || kind == 11) {
         int32_t w = fx_mul(wob_ang * 5760, kind == 9 ? 0x10000 : 0x20000);
-        uint16_t a[3] = {0, (uint16_t)rnd16((double)w * -DEG), 0};
+        uint16_t a[3] = {0, (uint16_t)rnd16((double)w, -DEG), 0};
         part_turn(a);
         part_place();
         return;
@@ -381,7 +381,7 @@ static void part_hinged(void)
                 int32_t k = fx_mul(d - 0x4ccc, (int32_t)(0x100000000LL / 0x4ccc));
                 if (k > 0x10000) k = 0x10000;
                 k = fx_mul(fx_mul(k, 0x50000), s);
-                p->ang = rnd16((double)(p->ang * 5760 + k) * DEG);
+                p->ang = rnd16((double)(p->ang * 5760 + k), DEG);
                 if (pos ? 0 < p->ang : p->ang < 0) p->ang = 0;
                 if ((p->ang < 0 ? -p->ang : p->ang) > 0xe3) brk = true;
             }
@@ -426,7 +426,7 @@ static void part_hinged(void)
             scale3(W, p->av, dt());
             scale3(A, A, dt() / 2);
             uint16_t a[3];
-            for (int i = 0; i < 3; i++) W[i] -= A[i], a[i] = (uint16_t)rnd16((double)W[i] * TO_ANG);
+            for (int i = 0; i < 3; i++) W[i] -= A[i], a[i] = (uint16_t)rnd16((double)W[i], TO_ANG);
             Rows_Turn3(p->rows, 3, a);
         }
     }
@@ -453,10 +453,10 @@ static void part_hinged(void)
         uint16_t a[3] = {0, 0, 0};
         int32_t w = wob_ang * 5760;
         if (!(p->flags & 2)) {
-            int16_t v = rnd16((double)fx_mul(w, 0x10000) * DEG);
+            int16_t v = rnd16((double)fx_mul(w, 0x10000), DEG);
             a[2] = (uint16_t)(t1 ? v : -v);
         } else {
-            int16_t v = rnd16((double)fx_mul(w, 0x8000) * DEG);
+            int16_t v = rnd16((double)fx_mul(w, 0x8000), DEG);
             if (t1) a[0] = (uint16_t)(0 < p->hinge[2] ? -v : v), a[1] = (uint16_t)(0 < p->hinge[2] ? v : -v);
             else a[0] = a[1] = (uint16_t)(0 < p->hinge[2] ? -v : v);
         }
@@ -469,7 +469,7 @@ static void part_hinged(void)
 
 /* the wobble (16.16 degrees: the angle times 5760) times k, as an angle unit (0x511300, or 0x511308
    negated) */
-static int16_t wob_turn(int32_t k, bool neg) { return rnd16((double)fx_mul(wob_ang * 5760, k) * (neg ? -DEG : DEG)); }
+static int16_t wob_turn(int32_t k, bool neg) { return rnd16((double)fx_mul(wob_ang * 5760, k), neg ? -DEG : DEG); }
 
 /* the base rows made square again: r0 unit, r2 square to it, r1 = r2 x r0 */
 static void rows_square(int32_t *rows)
@@ -525,7 +525,7 @@ static void part_type2(void)
         scale3(p->av, p->av, 0xe49b);
         int32_t dA = fx_mul(-fx_mul(X[2], p->inertia[2]), dt());
         p->av[2] += dA;
-        a[2] = (uint16_t)rnd16((double)(fx_mul(p->av[2], dt()) - fx_mul(dA, dt() / 2)) * TO_ANG);
+        a[2] = (uint16_t)rnd16((double)(fx_mul(p->av[2], dt()) - fx_mul(dA, dt() / 2)), TO_ANG);
         Rows_Turn3(p->rows, 3, a);
         bool stop = false, square = true;
         if (kind == 8) {
@@ -637,7 +637,7 @@ static void part_type3(void)
         int32_t W[3], H[3];
         scale3(W, p->av, dt());
         scale3(H, A, dt() / 2);
-        for (int i = 0; i < 3; i++) a[i] = (uint16_t)rnd16((double)(W[i] - H[i]) * TO_ANG);
+        for (int i = 0; i < 3; i++) a[i] = (uint16_t)rnd16((double)(W[i] - H[i]), TO_ANG);
         Rows_Turn3(p->rows, 3, a);
     } else
         memset(p->av, 0, sizeof p->av);
@@ -663,7 +663,7 @@ static void part_type3(void)
         int32_t w = fx_mul(wob_ang * 5760, 0x8000);
         if (p->hinge[2] < 0) w = -w;
         memset(a, 0, sizeof a);
-        a[0] = (uint16_t)rnd16((double)w * DEG);
+        a[0] = (uint16_t)rnd16((double)w, DEG);
         part_turn(a);
     } else
         for (int r = 0; r < 3; r++) set_row(&p->local, r, p->rows + 3 * r);
@@ -773,7 +773,7 @@ static void parts_wobble(void)
     int32_t d = t - *w;
     if ((d < 0 ? -d : d) > step) t = 0 < d ? *w + step : *w - step;
     *w = t;
-    wob_ang = rnd16((double)t * TO_ANG);
+    wob_ang = rnd16((double)t, TO_ANG);
 }
 
 /* Parts_Step 0x480bb0: per listed car (from the last) the loose check, the wobble, then each loose

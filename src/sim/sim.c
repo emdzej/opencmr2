@@ -17,6 +17,7 @@
 #include <string.h>
 
 CarList g_all, g_stepped, g_listA, g_simple, g_second, g_collide;
+void (*g_sim_probe)(int where, const int16_t *list, int n);   /* tests: around the passes */
 
 static uint8_t latched;                  /* DAT_0053b530: which of the three times are set */
 static uint32_t t_origin, t_now, t_last; /* DAT_0053bd64, DAT_0053bd40, DAT_0053a374 */
@@ -119,21 +120,30 @@ void Sim_Step(void)
     PENDING_NOTE(0x427890, "Net_Messages");
     build_lists();
     Replay_RecordStep();   /* 0x46c8e0 */
+    if (g_sim_probe) g_sim_probe(8, g_stepped.car, g_stepped.n);
     Replay_PlayStep();     /* 0x46d270 */
+    if (g_sim_probe) g_sim_probe(0, g_stepped.car, g_stepped.n);
     Sim_StepCars(g_stepped.car, g_stepped.n);
+    if (g_sim_probe) g_sim_probe(1, g_stepped.car, g_stepped.n);
     if (g_second.n) PENDING_NOTE(0x43f630, "Sim_SecondCars");
     if (g_simple.n) PENDING_NOTE(0x425950, "Sim_SimpleCars");
     Sim_Collide(g_collide.car, g_collide.n);
+    if (g_sim_probe) g_sim_probe(2, g_stepped.car, g_stepped.n);
     Knock_Step();   /* 0x470580 */
+    if (g_sim_probe) g_sim_probe(3, g_stepped.car, g_stepped.n);
     Sim_CarsPost(g_stepped.car, g_stepped.n);
+    if (g_sim_probe) g_sim_probe(4, g_stepped.car, g_stepped.n);
     PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0 (the replays' poses), 0x444c10");
     Pose_Spin(&g_listA);
     Pose_Spin(&g_simple);
     Pose_Capture(&g_listA);
     Pose_Capture(&g_simple);
+    if (g_sim_probe) g_sim_probe(5, g_stepped.car, g_stepped.n);
     PENDING_NOTE(0x46d510, "Sim_Step 0x46d510 (the replays' poses recorded)");
     Parts_Step(&g_listA);   /* 0x480bb0 */
+    if (g_sim_probe) g_sim_probe(6, g_stepped.car, g_stepped.n);
     Damage_Scrapes(g_stepped.car, g_stepped.n);   /* 0x469e40 */
+    if (g_sim_probe) g_sim_probe(7, g_stepped.car, g_stepped.n);
     /* 0x424710: the steering wheel's force feedback (DirectInput effects; gasm has none, left out) */
     PENDING_NOTE(0x4258e0, "Net_SendCars (the network game's car states, with 0x539cc8 set by 0x427640)");
 }

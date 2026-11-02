@@ -773,6 +773,76 @@ int Car_Scenery(Car *c)
     return hit;
 }
 
+/* The differential tests' image of the tables, as the original lays them out at `base`: the records
+   (0xa0 bytes, as loaded, the centre and placement from the port's), the volumes (8 bytes: the reach,
+   the box), the boxes (12), the entries (8: the record, the volume), the lists (pointers), counts and
+   cells, the standing bytes and flags. g gets the globals 0x58c940, 0x58c93c, 0x58ca78, 0x58c954,
+   0x58c960, 0x58c964, 0x58c948, 0x58c94c, 0x58c95c, 0x58ca6c, 0x58ca70, 0x58c944, 0x58c938, 0x58c958. */
+uint32_t Scenery_CollImage(uint8_t *buf, uint32_t cap, uint32_t base, uint32_t g[14])
+{
+    memset(g, 0, 14 * sizeof *g);
+    if (!vols || !cell_s) return 0;
+    int ls = 0, lm = 0;
+    for (int i = 0; i < g_nsec; i++) {
+        if (cell_s[i] >= ls) ls = cell_s[i] + 1;
+        if (cell_m[i] >= lm) lm = cell_m[i] + 1;
+    }
+    uint32_t at = 0;
+#define TAKE(n) (at = (at + 3) & ~3u, at += (uint32_t)(n), at - (uint32_t)(n))
+    uint32_t recs = TAKE(0xa0 * (size_t)g_nscenery), mst = TAKE(0x180 * (size_t)g_nscenery), vv = TAKE(8 * (size_t)nvols), bx = TAKE(12 * (size_t)nvols);
+    uint32_t es = TAKE(8 * (size_t)n_s), em = TAKE(8 * (size_t)n_m);
+    uint32_t lsp = TAKE(4 * (size_t)ls), lmp = TAKE(4 * (size_t)lm), cs = TAKE(2 * (size_t)ls), cm = TAKE(2 * (size_t)lm);
+    uint32_t ces = TAKE(2 * (size_t)g_nsec), cem = TAKE(2 * (size_t)g_nsec), st = TAKE((size_t)n_m), uf = TAKE(4 * (size_t)n_m);
+#undef TAKE
+    if (at > cap) return 0;
+    memset(buf, 0, at);
+#define P32(o, v) do { uint32_t v_ = (uint32_t)(v); memcpy(buf + (o), &v_, 4); } while (0)
+    for (int i = 0; i < g_nscenery; i++) {
+        uint8_t *r = buf + recs + 0xa0 * (uint32_t)i;
+        const Scenery *sc = g_scenery[i];
+        if (sc->rec) memcpy(r, sc->rec, 0xa0);
+        memcpy(r, sc->pos, 12);
+        /* its mesh: the volumes' count (+0x110) and the first volume's record (+0x10c, 0x5c bytes) */
+        uint32_t mo = mst + 0x180 * (uint32_t)i;
+        P32(recs + 0xa0 * (uint32_t)i + 0x0c, sc->mesh ? base + mo : 0);
+        if (sc->mesh) {
+            buf[mo + 0x110] = sc->mesh[0x110];
+            const uint8_t *v1 = nvol_of(sc) ? vol_first(sc) : NULL;
+            if (v1) memcpy(buf + mo + 0x120, v1, 0x5c);
+            P32(mo + 0x10c, v1 ? base + mo + 0x120 : 0);
+        }
+        memcpy(r + 0x18, sc->m.m, 0x40);
+        P32(recs + 0xa0 * (uint32_t)i + 0x98, 0);
+    }
+    for (int i = 0; i < nvols; i++) {
+        P32(vv + 8 * (uint32_t)i, vols[i].r);
+        P32(vv + 8 * (uint32_t)i + 4, vols[i].has_box ? base + bx + 12 * (uint32_t)i : 0);
+        memcpy(buf + bx + 12 * (uint32_t)i, vols[i].box, 12);
+    }
+    for (int m = 0; m < 2; m++) {
+        const Entry *e = m ? ent_m : ent_s;
+        int n = m ? n_m : n_s;
+        for (int i = 0; i < n; i++) {
+            int k = 0;
+            while (k < g_nscenery && g_scenery[k] != e[i].sc) k++;
+            uint32_t o = (m ? em : es) + 8 * (uint32_t)i;
+            P32(o, e[i].sc && k < g_nscenery ? base + recs + 0xa0 * (uint32_t)k : 0);
+            P32(o + 4, e[i].v ? base + vv + 8 * (uint32_t)(e[i].v - vols) : 0);
+        }
+    }
+    for (int i = 0; i < ls; i++) P32(lsp + 4 * (uint32_t)i, base + es + 8 * (uint32_t)(list_s[i] - ent_s));
+    for (int i = 0; i < lm; i++) P32(lmp + 4 * (uint32_t)i, base + em + 8 * (uint32_t)(list_m[i] - ent_m));
+    if (ls) memcpy(buf + cs, cnt_s, 2 * (size_t)ls);
+    if (lm) memcpy(buf + cm, cnt_m, 2 * (size_t)lm);
+    memcpy(buf + ces, cell_s, 2 * (size_t)g_nsec), memcpy(buf + cem, cell_m, 2 * (size_t)g_nsec);
+    if (n_m) memcpy(buf + st, standing, (size_t)n_m), memcpy(buf + uf, up_flag, 4 * (size_t)n_m);
+#undef P32
+    const uint32_t v[14] = {base + ces, base + cem, base + lsp, base + lmp, base + cs, base + cm, base + es, base + em,
+                            (uint32_t)n_s, (uint32_t)n_m, base + vv, base + bx, base + st, base + uf};
+    memcpy(g, v, sizeof v);
+    return at;
+}
+
 int Scenery_CollCount(int *boxes)
 {
     *boxes = 0;

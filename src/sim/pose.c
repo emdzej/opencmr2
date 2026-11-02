@@ -76,7 +76,7 @@ void Pose_Spin(const CarList *l)
         for (uint32_t i = 0; i < 4; i++) {
             int32_t w = fx_mul(CI32(c, 0x860 + 4 * i), gms32(0x519c8c));
             if (!CI32(c, 0xb60) || c->s[0x1d2] || c->s[0x1d3] || 0 < CI32(c, 0x1d8))
-                spin[n][i] = (int16_t)(spin[n][i] + (int16_t)llrint((double)w * -(4096.0 / (2.0 * M_PI * 65536.0))));
+                spin[n][i] = (int16_t)(spin[n][i] + (int16_t)X87_MulRound((double)w, -(4096.0 / (2.0 * M_PI * 65536.0))));
             spinning[n][i] = (w < 0 ? -w : w) > 0x8000;
         }
     }
@@ -120,7 +120,7 @@ void Pose_Capture(const CarList *l)
             }
             /* the angles kept times 5760 (back to units by 1/5760 when drawn): the damage's camber
                (+0x240, times 5), the front wheels' steer (+0xb14), the turn */
-            int16_t camber = (int16_t)llrint((double)fx_mul(DI32(d, 0x240 + 4 * i), 0x50000) * (1.0 / 5760.0));
+            int16_t camber = (int16_t)X87_MulRound((double)fx_mul(DI32(d, 0x240 + 4 * i), 0x50000), 1.0 / 5760.0);
             w[3] = camber * 0x1680;
             w[4] = i < 2 ? steer * 0x1680 : 0;
             w[5] = spin[n][i] * 0x1680;
@@ -154,8 +154,8 @@ void Car_PoseInterp(void)
             /* the right wheels (odd) mirrored: turned half a turn about up */
             uint16_t ang[3];
             const double u = 1.0 / 5760.0;
-            if (i & 1) ang[0] = (uint16_t)llrint(-(double)o[3] * u), ang[1] = (uint16_t)llrint((double)(o[4] + 0xb40000) * u), ang[2] = (uint16_t)llrint(-(double)o[5] * u);
-            else ang[0] = (uint16_t)llrint((double)o[3] * u), ang[1] = (uint16_t)llrint((double)o[4] * u), ang[2] = (uint16_t)llrint((double)o[5] * u);
+            if (i & 1) ang[0] = (uint16_t)X87_MulRound(-(double)o[3], u), ang[1] = (uint16_t)X87_MulRound((double)(o[4] + 0xb40000), u), ang[2] = (uint16_t)X87_MulRound(-(double)o[5], u);
+            else ang[0] = (uint16_t)X87_MulRound((double)o[3], u), ang[1] = (uint16_t)X87_MulRound((double)o[4], u), ang[2] = (uint16_t)X87_MulRound((double)o[5], u);
             int32_t m[9] = {0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x10000};
             Rows_Turn3(m, 3, ang);
             /* a fixed camber of 0x1c units, outwards on both sides */

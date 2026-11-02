@@ -7,3 +7,4 @@
    and with fixed values in places; 64 functions draw from it, the font print among them). */
 void crt_srand(uint32_t seed);
 int crt_rand(void);
+uint32_t crt_seed(void);   /* for the differential tests: the state */

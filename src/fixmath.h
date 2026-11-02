@@ -20,6 +20,13 @@ extern uint16_t g_atan[512];     /* 0x6e8ff4 */
 
 static inline int32_t fx_mul(int32_t a, int32_t b) { return (int32_t)(((int64_t)a * b) >> 16); }
 
+/* The x87 as the race runs it: at 64-bit precision (confirmed by tools/emu/sim_diff on the Fra01 demo:
+   16.16 degrees 0x360a40 times the double 1/5760 at 0x511300, a hair above the true value, is 614.5
+   and a hair; the original's FISTP makes it 615, where 53 or 24 bits would give the half and 614).
+   X87_MulRound is FILD, FMUL by a double and FISTP: the product rounded to 64 bits, then to the
+   nearest integer (ties to even). */
+int64_t X87_MulRound(double a, double b);
+
 void Mat_Identity(FxMat *m);                                       /* 0x4ba2b0 */
 void Mat_RotZ(FxMat *m, uint32_t angle);                           /* 0x4ba320 */
 void Vec_Transform(FxVec *out, const FxVec *v, const FxMat *m);    /* 0x4baa40 */

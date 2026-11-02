@@ -12,6 +12,13 @@ static struct {
     int32_t a, b, c;  /* 0x53a20c, 0x53a0cc, 0x53a00c */
 } F[8];
 
+void Fade_State(int ch, int32_t out[8])
+{
+    const int k = ch & 7;
+    out[0] = F[k].dur, out[1] = F[k].t, out[2] = F[k].prev, out[3] = F[k].fn != 0, out[4] = F[k].mode;
+    out[5] = F[k].level, out[6] = F[k].a, out[7] = F[k].b;
+}
+
 bool Fade_Active(int ch) { return F[ch & 7].mode != 0; }
 bool Fade_Rising(int ch) { return Fade_Active(ch) && 0 < F[ch & 7].t; }
 int32_t Fade_LevelOf(int ch) { return F[ch & 7].level; }

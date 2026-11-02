@@ -24,6 +24,8 @@ void Scenery_CollFree(void);   /* 0x472720 */
 int Car_Scenery(Car *c);       /* 0x4878a0 */
 /* The port, for tests: the fixed volumes (and how many are boxes), the i-th one's centre, reach and record flags */
 int Scenery_CollCount(int *boxes);
+/* the tables in the original's layout at base (for tools/emu/sim_diff.c); 0 when they do not fit */
+uint32_t Scenery_CollImage(uint8_t *buf, uint32_t cap, uint32_t base, uint32_t g[14]);
 /* the port, for tests: the car against a made-up box volume (7.9 fixed point) centred at pos */
 bool Scenery_CollTestBox(Car *c, const int32_t pos[3], const int16_t box[6], uint32_t flags);
 bool Scenery_CollAt(int i, int32_t pos[3], int32_t *r, bool *box, uint32_t *flags);

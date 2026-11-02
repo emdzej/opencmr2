@@ -6,6 +6,7 @@
 
 bool Hpc_Parse(const uint8_t *data, uint32_t size);   /* 0x490d50 */
 void Hpc_Free(void);
+const uint8_t *Hpc_Image(uint32_t *size);   /* for the differential tests: the file image parsed */
 extern int g_hpc_verts, g_hpc_tris;
 void Hpc_Triangle(int32_t out[9], int tri);              /* 0x490e00: three x, y, z */
 uint32_t Hpc_Surface(int tri);

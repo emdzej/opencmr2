@@ -43,7 +43,7 @@ static void wheel_angles(Car *c)
         int32_t w = CI32(c, 0x860 + 4 * i);
         uint32_t ao = 0xb08 + 2 * i;
         int16_t a = (int16_t)(c->s[ao] | c->s[ao + 1] << 8);
-        if (iabs(w) <= 0x10000) a = (int16_t)(a + (int16_t)(int64_t)llrint((double)w * (-4096.0 / (2.0 * M_PI * 65536.0))));
+        if (iabs(w) <= 0x10000) a = (int16_t)(a + (int16_t)X87_MulRound((double)w, -4096.0 / (2.0 * M_PI * 65536.0)));
         else a = (int16_t)(a + (w < 1 ? 0x28b : -0x28b));
         CW16(c, ao, (uint16_t)a);
         int32_t b = DI32(d, 0x240 + 4 * i);

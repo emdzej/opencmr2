@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 static const uint8_t *hpc;                       /* DAT_00591af8 */
+static uint32_t hpc_size;
 static uint32_t level[5];                         /* 0x591b00: each level's nodes (offsets) */
 static uint32_t verts, tris, list, grid;          /* 0x591b14, 0x591af0, 0x591b18, 0x591b20 */
 int g_hpc_verts, g_hpc_tris;
@@ -41,9 +42,16 @@ bool Hpc_Parse(const uint8_t *d, uint32_t size)
     grid = list + nl * 2;
     if (grid + 4 > size) return false;
     hpc = d;
+    hpc_size = size;
     g_hpc_verts = (int)nv;
     g_hpc_tris = (int)nt;
     return true;
+}
+
+const uint8_t *Hpc_Image(uint32_t *size)
+{
+    *size = hpc ? hpc_size : 0;
+    return hpc;
 }
 
 void Hpc_Triangle(int32_t out[9], int tri)

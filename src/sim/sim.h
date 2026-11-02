@@ -17,3 +17,5 @@ uint32_t Sim_StepCount(int32_t *frac);       /* 0x42c890: steps due, car 0's fra
 void Sim_StepDone(const CarList *l);         /* 0x42bc80 */
 void Sim_Step(void);                         /* 0x42baf0 */
 void Sim_ResetClock(void);                   /* 0x41f350's flag 0x538114: no steps owed */
+/* For the differential tests (tools/emu): called before (0) and after (1) Sim_StepCars with its list */
+extern void (*g_sim_probe)(int where, const int16_t *list, int n);

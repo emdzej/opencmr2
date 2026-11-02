@@ -12,6 +12,7 @@
 #include "sim/gearbox.h"
 #include "sim/grip.h"
 #include "sim/damage.h"
+#include "sim/sim.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "pending.h"
@@ -146,6 +147,9 @@ static void corner_velocities(Car *c)
         for (uint32_t k = 0; k < 3; k++) CW32(c, 0x42c + 12 * i + 4 * k, CI32(c, 0x42c + 12 * i + 4 * k) + CI32(c, 0x408 + 4 * k));
 }
 
+/* the differential tests' probes before the passes (tools/emu/sim_diff.c) */
+#define PROBE(id) do { if (g_sim_probe) g_sim_probe(id, &me, 1); } while (0)
+
 /* Sim_StepCars 0x433890, in its passes, each over every car (last to first). */
 void Sim_StepCars(const int16_t *list, int n)
 {
@@ -158,6 +162,8 @@ void Sim_StepCars(const int16_t *list, int n)
         gw32(0x53c9dc, 0);
         gw32(0x53c9e0, 0);
         gw32(0x53c9d4, 0);
+        const int16_t me = list[i];
+        PROBE(110);
         coefficients(c);
         /* the corner history: the last two steps' corners */
         for (uint32_t o = 0x300; o < 0x330; o += 0xc)
@@ -172,14 +178,19 @@ void Sim_StepCars(const int16_t *list, int n)
         for (uint32_t k = 0; k < 9; k++) CW32(c, 0x384 + 4 * k, CI32(c, 0x360 + 4 * k));
         CW32(c, 0x968, CI32(c, 0x964));
         CW32(c, 0x964, CI32(c, 0x960));
-        if (!CI32(c, 0xbfc)) damage_latch(c);
+        if (!CI32(c, 0xbfc)) { PROBE(111); damage_latch(c); }
+        PROBE(112);
         Car_SurfaceGrip(c, Weather_CarWet(c));   /* Weather_CarValue 0x460c80 */
+        PROBE(113);
         clutch_counter(c);
+        PROBE(114);
         Damage_Misfire(c);   /* 0x46b4e0 */
     }
     for (int i = n - 1; i >= 0; i--) {
         Car *c = Car_Get(list[i]);
         g_car = c;
+        const int16_t me = list[i];
+        PROBE(115);
         Car_Controls(c);
         for (uint32_t o = 0x88c; o > 0x87f; o -= 4) {
             CW32(c, o - 0x10, 0);
@@ -190,7 +201,12 @@ void Sim_StepCars(const int16_t *list, int n)
     for (int i = n - 1; i >= 0; i--) {
         Car *c = Car_Get(list[i]);
         g_car = c;
-        PENDING_NOTE(0x469680, "Damage_Get");   /* the damage record's counters +0x469/+0x46c */
+        /* the damage record's chip count (+0x469) down by one each step without a scrape (+0x46c) */
+        uint8_t *d = Damage_Get(CI8(c, 0xb1a));
+        if (!(d[0x46c] | d[0x46d] | d[0x46e] | d[0x46f]) && d[0x469]) d[0x469]--;
+        d[0x46c] = d[0x46d] = d[0x46e] = d[0x46f] = 0;
+        const int16_t me = list[i];
+        PROBE(116);
         corner_velocities(c);
         for (uint32_t o = 0x5e8; o < 0x648; o += 4) CW32(c, o, 0);
         for (uint32_t o = 0x648; o < 0x6a8; o += 4) CW32(c, o, 0);
@@ -198,15 +214,24 @@ void Sim_StepCars(const int16_t *list, int n)
         int32_t g = fx_mul(gms32(0x53cadc), 0x8000);
         CW32(c, 0x6ac, -fx_mul(CI32(c, 0x75c), g));   /* gravity on the mass */
         CW32(c, 0x6b0, 0);
+        PROBE(117);
         Car_WheelLoad(c);
+        PROBE(118);
         Car_Suspension(c);
+        PROBE(119);
         tilt_factor(c);
+        PROBE(120);
         Car_GroundContact(c);
+        PROBE(121);
         Car_WheelHeading(c);
     }
+    if (g_sim_probe) g_sim_probe(102, list, n);
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); Car_Drivetrain(g_car); }
+    if (g_sim_probe) g_sim_probe(103, list, n);
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); Car_CornerImpulse(g_car); }
+    if (g_sim_probe) g_sim_probe(104, list, n);
     for (int i = n - 1; i >= 0; i--) { g_car = Car_Get(list[i]); Car_Integrate(g_car); }
+    if (g_sim_probe) g_sim_probe(105, list, n);
     for (int i = n - 1; i >= 0; i--) {
         Car *c = Car_Get(list[i]);
         g_car = c;

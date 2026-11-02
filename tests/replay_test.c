@@ -7,6 +7,7 @@
 #include "game/mem.h"
 #include "game/race.h"
 #include "game/replay.h"
+#include "game/weather.h"
 #include "game/select.h"
 #include "game/car_load.h"
 #include "game/stage_load.h"
@@ -65,6 +66,7 @@ static void input(int player, uint32_t *held, uint32_t *pressed)
 {
     (void)player;
     *held = 0, *pressed = 0;
+    if (getenv("RPL_REST_THR")) *held = ACT_THROTTLE;
     if (!script) return;
     int k = (Race_Clock() - go_clock) / 4;
     *held = ACT_THROTTLE;
@@ -118,8 +120,7 @@ int main(void)
         Replay *d0 = Replay_Load(dn0);
         const uint8_t *im = Replay_Image(d0, NULL) + 0x110 + 0x4d0;
         Car *c = Car_Get(0);
-        memcpy(c->s, im, 0x3c0);
-        memcpy(c->s + 0x3f0, im + 0x3f0, 0x71c - 0x3f0);
+        memcpy(c->s, im, 0x71c);
         memcpy(c->s + 0x754, im + 0x754, 0xb1a - 0x754);
         memcpy(c->s + 0xb1b, im + 0xb1b, CAR_SIZE - 0xb1b);
         int32_t c0 = Race_Clock(), last = -1;
@@ -130,6 +131,12 @@ int main(void)
                 last = k;
                 int nd = 0;
                 for (uint32_t o = 0; o < 0x400; o += 4) nd += CI32(c, o) != (int32_t)(im[o] | im[o + 1] << 8 | im[o + 2] << 16 | (uint32_t)im[o + 3] << 24);
+                if (getenv("RPL_REST_ALL") && (k == 1 || k == 2 || k == 10)) {
+                    for (uint32_t o = 0; o < CAR_SIZE; o += 4) {
+                        int32_t was = (int32_t)(im[o] | im[o + 1] << 8 | im[o + 2] << 16 | (uint32_t)im[o + 3] << 24);
+                        if (CI32(c, o) != was) printf("    step %d +0x%03x: snapshot %08x port %08x (%+d)\n", k, o, (unsigned)was, (unsigned)CI32(c, o), CI32(c, o) - was);
+                    }
+                }
                 printf("  rest step %3d: y %+.5f (snapshot %.5f) vel %d %d %d  spins %d %d  %d of 256 ints of 0-0x3ff changed\n", k,
                        (CI32(c, 0x2d4) - (int32_t)(im[0x2d4] | im[0x2d5] << 8 | im[0x2d6] << 16 | (uint32_t)im[0x2d7] << 24)) / 65536.0,
                        CI32(c, 0x2d4) / 65536.0, CI32(c, 0x408), CI32(c, 0x40c), CI32(c, 0x410), CI32(c, 0x860), CI32(c, 0x868), nd);
@@ -141,43 +148,47 @@ int main(void)
     CHECK(Race_State(0) == 8);
     /* the race's own replay records from the go: a scripted drive of 250 steps, then played back from
        its snapshot with no input, the car on the same path step for step */
-    Replay *own = Race_Replay(0);
-    CHECK(own && Replay_Recording(own));
-    enum { N = 250 };
-    static int32_t path[N + 1][3];
-    script = true, go_clock = Race_Clock();
-    int k = 0;
-    while (k < N) {
-        step();
-        for (int s = (Race_Clock() - go_clock) / 4; k < s && k < N; k++) memcpy(path[k], Car_Get(0)->s + 0x2d0, 12);
-    }
-    script = false;
-    CHECK(Replay_Stop(own));
-    printf("own run: %d frames for %d steps, the car at %.1f km/h\n", Replay_Frames(own, 0), (Race_Clock() - go_clock) / 4,
-           CI32(Car_Get(0), 0x778) / 65536.0 * 90);
-    if (getenv("RPL_OWN")) {
-        const uint8_t *im = Replay_Image(own, NULL) + 0x110 + 0x114c;
-        for (int f = 0; f < Replay_Frames(own, 0); f++)
-            printf("  frame %d: %02x %02x %02x %02x (x%d)\n", f, im[4 * f], im[4 * f + 1], im[4 * f + 2], im[4 * f + 3], im[4 * f + 2] & 0x3f);
-    }
-    CHECK(Replay_Play(own, 0, 0, 0));
-    go_clock = Race_Clock();
-    int same = 0;
-    k = 0;
-    while (k < N && Replay_Playing(own)) {
-        step();
-        for (int s = (Race_Clock() - go_clock) / 4; k < s && k < N; k++) {
-            bool eq = !memcmp(path[k], Car_Get(0)->s + 0x2d0, 12);
-            if (!eq && getenv("RPL_OWN") && same == k) {
-                const int32_t *q = (const int32_t *)(Car_Get(0)->s + 0x2d0);
-                printf("  step %d (frame %d, %d steps at once): recorded %d %d %d, played %d %d %d\n", k, frame, Race_Clock() / 4 - (go_clock / 4 + k), path[k][0], path[k][1], path[k][2], q[0], q[1], q[2]);
-            }
-            same += eq;
+    /* RPL_ONLY: the demo alone, from the go (without the own run's 250 steps first) */
+    if (!getenv("RPL_ONLY")) {
+        Replay *own = Race_Replay(0);
+        CHECK(own && Replay_Recording(own));
+        enum { N = 250 };
+        static int32_t path[N + 1][3];
+        script = true, go_clock = Race_Clock();
+        int k = 0;
+        while (k < N) {
+            step();
+            for (int s = (Race_Clock() - go_clock) / 4; k < s && k < N; k++) memcpy(path[k], Car_Get(0)->s + 0x2d0, 12);
         }
-    }
-    printf("own run played: %d of %d steps on the recorded path\n", same, N);
-    CHECK(same == N);
-    Replay_End(own);
+        script = false;
+        CHECK(Replay_Stop(own));
+        printf("own run: %d frames for %d steps, the car at %.1f km/h\n", Replay_Frames(own, 0), (Race_Clock() - go_clock) / 4,
+               CI32(Car_Get(0), 0x778) / 65536.0 * 90);
+        if (getenv("RPL_OWN")) {
+            const uint8_t *im = Replay_Image(own, NULL) + 0x110 + 0x114c;
+            for (int f = 0; f < Replay_Frames(own, 0); f++)
+                printf("  frame %d: %02x %02x %02x %02x (x%d)\n", f, im[4 * f], im[4 * f + 1], im[4 * f + 2], im[4 * f + 3], im[4 * f + 2] & 0x3f);
+        }
+        CHECK(Replay_Play(own, 0, 0, 0));
+        go_clock = Race_Clock();
+        int same = 0;
+        k = 0;
+        while (k < N && Replay_Playing(own)) {
+            step();
+            for (int s = (Race_Clock() - go_clock) / 4; k < s && k < N; k++) {
+                bool eq = !memcmp(path[k], Car_Get(0)->s + 0x2d0, 12);
+                if (!eq && getenv("RPL_OWN") && same == k) {
+                    const int32_t *q = (const int32_t *)(Car_Get(0)->s + 0x2d0);
+                    printf("  step %d (frame %d, %d steps at once): recorded %d %d %d, played %d %d %d\n", k, frame, Race_Clock() / 4 - (go_clock / 4 + k), path[k][0], path[k][1], path[k][2], q[0], q[1], q[2]);
+                }
+                same += eq;
+            }
+        }
+        printf("own run played: %d of %d steps on the recorded path\n", same, N);
+        CHECK(same == N);
+        Replay_End(own);
+    } else
+        Replay_End(Race_Replay(0));
     char dn[64];
     snprintf(dn, sizeof dn, "Game\\DemoRuns\\%c%c%c%c%cH.rpl", demo_stage()[0] - 32, demo_stage()[1], demo_stage()[2], demo_stage()[3], demo_stage()[4]);
     Replay *demo = Replay_Load(dn);
@@ -186,6 +197,11 @@ int main(void)
     uint32_t size;
     Replay_Image(demo, &size);
     printf("demo: %u bytes, %d frames\n", size, Replay_Frames(demo, 0));
+    if (getenv("RPL_DBG")) {
+        const int32_t *w = Tod_Weather(Tod_Stage());
+        printf("demo: rally %u stage %u, weather %d %d, times %d %d, wet %x\n", Tod_Rally(), Tod_Stage(), w[0], w[1], Tod_StartTime(), Tod_EndTime(),
+               Weather_CarWet(Car_Get(0)));
+    }
     CHECK(size == 34702 && Replay_Frames(demo, 0) == 725);
     if (getenv("RPL_SEC")) {
         int32_t p[3] = {0x7617569, 0x2a109c, 0x4a43ad8};
@@ -232,7 +248,7 @@ int main(void)
         }
         if (getenv("RPL_DBG") && frame % 120 == 0) {
             Car *c = Car_Get(0);
-            printf("  step %d: pos %.1f %.1f %.1f, %.1f km/h, %.1f%% of the stage, state %d\n", steps, CI32(c, 0x2d0) / 65536.0,
+            printf("  step %d: wet %x, pos %.1f %.1f %.1f, %.1f km/h, %.1f%% of the stage, state %d\n", steps, Weather_CarWet(Car_Get(0)), CI32(c, 0x2d0) / 65536.0,
                    CI32(c, 0x2d4) / 65536.0, CI32(c, 0x2d8) / 65536.0, CI32(c, 0x778) / 65536.0 * 90,
                    Car_StageShare(c) * 100.0 / 65536, Replay_State(demo));
         }

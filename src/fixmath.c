@@ -191,4 +191,18 @@ int32_t Fx_Atan2Deg(int32_t y, int32_t x)
     return (int32_t)nearbyint(atan2((double)y, (double)x) * (180.0 / 3.14159) * 65536.0);
 }
 
-int Fx_DegIndex(int32_t a) { return (int)((int64_t)nearbyint((double)a * (1.0 / 5760.0)) & 0xfff); }
+int Fx_DegIndex(int32_t a) { return (int)(X87_MulRound((double)a, 1.0 / 5760.0) & 0xfff); }
+
+int64_t X87_MulRound(double a, double b)
+{
+    double p = a * b, e = fma(a, b, -p);   /* the product exactly: p + e */
+    double f = floor(p);
+    if (e != 0 && p - f == 0.5) {
+        /* p a half: the 64-bit product keeps e when it is more than half its last place, and the
+           FISTP then rounds away from the half toward e */
+        int x;
+        frexp(p, &x);
+        if (fabs(e) > ldexp(1.0, x - 65)) return (int64_t)f + (e > 0);
+    }
+    return (int64_t)llrint(p);
+}

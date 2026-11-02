@@ -24,7 +24,7 @@ void Car_WheelHeading(Car *c)
             int32_t e = fx_mul(0x20000, (d % 0x401 - 0x200) << 6);
             if (CI32(c, 0x778) < 0x10000) e = fx_mul(e, CI32(c, 0x778));
             e = fx_mul(e, dmg);
-            ang = (int16_t)(ang + (int16_t)(int64_t)llrint((double)e * (1.0 / 5760.0)));
+            ang = (int16_t)(ang + (int16_t)X87_MulRound((double)e, 1.0 / 5760.0));
         }
     }
     int32_t fwd[3], up[3], h[3];

@@ -152,6 +152,14 @@ void Damage_ResetLogs(void)
     for (uint32_t a = 0x588a80; a < 0x588a90; a += 4) gw32(a, 0);
 }
 
+bool Damage_SlotData(int n, int s, uint8_t **mesh, uint8_t **v, int *nv, uint8_t **rest)
+{
+    const Dmg *d = &dmg[n >= 0 && n < CAR_MAX ? n : 0];
+    if (s < 0 || s >= SLOTS || !d->mesh[s]) return false;
+    *mesh = d->mesh[s], *v = verts(d, s), *nv = nverts(d, s), *rest = d->rest[s];
+    return true;
+}
+
 /* 0x466e90: a mesh object into the slot of its type (5-19); the count only for one with vertices.
    (The original writes outside the tables for other types; the port skips them.) */
 static void add_slot(Dmg *d, Obj *o)
@@ -364,12 +372,13 @@ static int32_t jitter(int32_t a, int32_t b)
     return j < 0x8000 ? j - 0x10000 : j;
 }
 
-/* the vertex moved to p (clamped), its normal moved by as much, as the original does */
+/* the vertex moved to p (clamped), its normal moved by three times as much (0x467d8a, 0x46840f), as
+   the original does */
 static void move_vertex(Dmg *d, int s, int k, int32_t p[3], const int32_t was[3])
 {
     clamp_vertex(p, d, s, k);
     uint8_t *v = verts(d, s) + (size_t)k * C3D_VERTEX;
-    for (uint32_t a = 0; a < 3; a++) vset(v, 0xc + 4 * a, vget(v, 0xc + 4 * a) + (p[a] - was[a]));
+    for (uint32_t a = 0; a < 3; a++) vset(v, 0xc + 4 * a, vget(v, 0xc + 4 * a) + fx_mul(p[a] - was[a], 0x30000));
 }
 
 static int32_t dot(const int32_t a[3], const int32_t b[3]) { return fx_mul(a[2], b[2]) + fx_mul(a[0], b[0]) + fx_mul(a[1], b[1]); }

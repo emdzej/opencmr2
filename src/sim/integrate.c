@@ -4,6 +4,7 @@
    1.0), and the position and the rows moved by v dt - dv dt / 2. The angle step is converted to
    4,096 units through a double, 4096 / (2 pi 65536) at 0x511380, rounded to nearest (FISTP). */
 #include "sim/integrate.h"
+#include "sim/sim.h"
 #include "sim/tilt.h"
 #include "sim/steer_body.h"
 #include "fixmath.h"
@@ -38,14 +39,18 @@ static int32_t damp(int32_t t, int32_t w, int32_t f)
     return fx_mul(t, fx_mul(0x10000 - s, f));
 }
 
-static int16_t to_units(int32_t v) { return (int16_t)(int64_t)llrint((double)v * (4096.0 / (2.0 * M_PI * 65536.0))); }
+static int16_t to_units(int32_t v) { return (int16_t)X87_MulRound((double)v, 4096.0 / (2.0 * M_PI * 65536.0)); }
 
 void Car_Integrate(Car *c)
 {
+    const int16_t me = CI8(c, 0xb1a);
     Car_SteerBody(c);
+    if (g_sim_probe) g_sim_probe(201, &me, 1);
     Car_Tilt(c);
+    if (g_sim_probe) g_sim_probe(202, &me, 1);
     if (!CI8(c, 0xb28) && CI32(c, 0xb74))   /* 0x437d70 */
         CW32(c, 0x5d8, CI32(c, 0x5d8) - fx_mul(CI32(c, 0x7a4) - CI32(c, 0x7a8), 0x1999));
+    if (g_sim_probe) g_sim_probe(203, &me, 1);
     int32_t t[3] = {0, 0, 0}, f[3];
     v3load(f, c, 0x6a8);
     v3scale(f, Gs_Option(1) ? 0x6666 : 0xcccc);
@@ -80,24 +85,25 @@ void Car_Integrate(Car *c)
             cross(o, r, arm);
             for (int q = 0; q < 3; q++) t[q] += o[q];
         }
-    }
-    if (CI32(c, 0xc00)) {
-        t[0] = damp(t[0], CI32(c, 0x420), 0xf333);
-        t[1] = damp(t[1], CI32(c, 0x424), 0xcccc);
-        t[2] = damp(t[2], CI32(c, 0x428), 0xf333);
-    }
-    /* the wheels on the ground (+0xbac-+0xbb8): their forces at +0x648 */
-    for (int j = 3; j >= 0; j--) {
-        uint32_t u = (uint32_t)j;
-        if (!CI32(c, 0xbac + 4 * u)) continue;
-        v3load(last, c, 0x648 + 12 * u);
-        for (int q = 0; q < 3; q++) f[q] += last[q];
-        if (CI32(c, 0xc00)) continue;
-        int32_t r[3], arm[3], o[3];
-        to_body(c, r, last);
-        v3load(arm, c, 0x210 + 12 * u);
-        cross(o, r, arm);
-        for (int q = 0; q < 3; q++) t[q] += o[q];
+        /* (with no corner touching, 0x43554b jumps past the damping and the wheels too) */
+        if (CI32(c, 0xc00)) {
+            t[0] = damp(t[0], CI32(c, 0x420), 0xf333);
+            t[1] = damp(t[1], CI32(c, 0x424), 0xcccc);
+            t[2] = damp(t[2], CI32(c, 0x428), 0xf333);
+        }
+        /* the wheels on the ground (+0xbac-+0xbb8): their forces at +0x648 */
+        for (int j = 3; j >= 0; j--) {
+            uint32_t u = (uint32_t)j;
+            if (!CI32(c, 0xbac + 4 * u)) continue;
+            v3load(last, c, 0x648 + 12 * u);
+            for (int q = 0; q < 3; q++) f[q] += last[q];
+            if (CI32(c, 0xc00)) continue;
+            int32_t r[3], arm[3], o[3];
+            to_body(c, r, last);
+            v3load(arm, c, 0x210 + 12 * u);
+            cross(o, r, arm);
+            for (int q = 0; q < 3; q++) t[q] += o[q];
+        }
     }
     /* a hard enough side or yaw push breaks the car loose (+0xc00), the ground normal noted in the
        car's frame */

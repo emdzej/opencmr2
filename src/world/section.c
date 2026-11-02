@@ -82,6 +82,8 @@ clamp:
         if (out[i] >= (int16_t)g_nsec || out[i] < -1) out[i] = -1;
 }
 
+void Section_Grid(int32_t out[5]) { out[0] = g_sec_size, out[1] = g_sec_half, out[2] = recip, out[3] = xmin, out[4] = zmax; }
+
 bool Section_Visible(int i)
 {
     if (all_visible || g_nvisible == 0) return true;

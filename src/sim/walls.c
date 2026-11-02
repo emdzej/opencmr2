@@ -266,7 +266,7 @@ static bool end_hit(const int32_t p[3], const int32_t q[3], int which, int type)
     int32_t imp[3], pt[3] = {p[0], CI32(c, 0x2d4), p[2]};
     uint8_t cap = W.wall->cap[which != 0];
     if (cap != 0xff) {
-        uint16_t ang = (uint16_t)llrint((double)fx_mul((int32_t)cap << 16, 0x1cccc) * (1.0 / 5760.0));
+        uint16_t ang = (uint16_t)X87_MulRound((double)fx_mul((int32_t)cap << 16, 0x1cccc), 1.0 / 5760.0);
         W.dir[0] = g_sin[ang & 0xfff], W.dir[1] = 0, W.dir[2] = g_sin[(ang + 0x400) & 0xfff];
         int32_t vn = fx_mul(W.dir[0], CI32(c, 0x408)) + fx_mul(W.dir[2], CI32(c, 0x410));
         if (vn >= 0) return true;

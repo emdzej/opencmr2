@@ -323,7 +323,7 @@ static int32_t lift(Rec *r, const int32_t p[3])
 /* the spin times the step as the three u16 angles of Rows_Turn3 (radians to 4,096ths, 0x511380) */
 static void angles(uint16_t a[3], const int32_t spin[3], int32_t dt)
 {
-    for (int i = 0; i < 3; i++) a[i] = (uint16_t)llrint((double)fx_mul(spin[i], dt) * 0.009947183943243459);
+    for (int i = 0; i < 3; i++) a[i] = (uint16_t)X87_MulRound((double)fx_mul(spin[i], dt), 0.009947183943243459);
 }
 
 static void unit_into(int32_t d[3], int32_t a, int32_t b, int32_t c)

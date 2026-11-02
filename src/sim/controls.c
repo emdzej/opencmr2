@@ -20,7 +20,7 @@ static int32_t s164(void) { return gms32(0x592164); }
 static int32_t deg_to_units(int32_t v, bool neg)
 {
     double k = neg ? -(1.0 / 5760.0) : 1.0 / 5760.0;   /* the doubles at 0x511308, 0x511300 */
-    return (int32_t)(int64_t)lrint((double)v * k);
+    return (int32_t)X87_MulRound((double)v, k);
 }
 
 static int32_t input(uint32_t o)   /* an input byte as a fraction, at most 1.0 */

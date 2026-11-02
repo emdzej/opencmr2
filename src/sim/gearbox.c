@@ -30,7 +30,7 @@ void Car_Revs(Car *c)
         } else if (a > 0) {
             int32_t k = 0x190000 - fx_mul(0x41, a << 16);
             k = fx_mul(fx_mul(k, 0xa3d), 0x8c0000);
-            int16_t ang = (int16_t)(int64_t)llrint((double)k * (1.0 / 5760.0));
+            int16_t ang = (int16_t)X87_MulRound((double)k, 1.0 / 5760.0);
             int32_t s = fx_mul(g_sin[ang & 0xfff], 0x10000);
             CW32(c, 0x7a4, fx_mul(s, CI32(c, 0x794)));
             int16_t na = (int16_t)(a - (int16_t)(fx_mul(gms32(0x519c8c), 0x3e80000) >> 16));

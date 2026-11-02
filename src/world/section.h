@@ -84,3 +84,6 @@ void Section_Unlink(Obj *o);   /* 0x4b8aa0 */
 void Section_Link(Obj *o);     /* 0x4b8b10 */
 /* Section_DrawObjects 0x49ce40: the listed cells' objects (those with +0x180 clear), z-buffer off. */
 void Section_DrawObjects(uint32_t pass);
+/* For the differential tests: the grid's cell size (0x72d24c), half (0x72d248), reciprocal (0x72d55c),
+   x minimum and z maximum (0x6ef5f0, 0x6ef5f4) */
+void Section_Grid(int32_t out[5]);

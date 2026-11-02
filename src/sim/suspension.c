@@ -140,7 +140,7 @@ void Car_Suspension(Car *c)
     if (c->s[0xb1d] && CI32(c, 0x7bc + 4 * (uint32_t)CI8(c, 0xb1e))) {
         static const int32_t z[3] = {0, 0, 0x10000};
         int32_t a = fx_mul(CI8(c, 0xb1d) << 16, 0x3333);
-        int16_t ang = (int16_t)(int64_t)llrint((double)a * (1.0 / 5760.0));
+        int16_t ang = (int16_t)X87_MulRound((double)a, 1.0 / 5760.0);
         int32_t rot[16], rows[3][3];
         for (int r = 0; r < 3; r++)
             for (int q = 0; q < 3; q++) rows[r][q] = mb[4 * r + q];

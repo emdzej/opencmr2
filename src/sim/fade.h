@@ -15,6 +15,9 @@ void Fade_Start(int ch, int32_t dur, FadeFn fn, int mode, int32_t a, int32_t b, 
 /* 0x4283e0: Fade_Start with 12.5 steps, mode 3 */
 void Fade_OutIn(int ch, FadeFn fn, int32_t a, int32_t b, int32_t c, bool force);
 bool Fade_Active(int ch);       /* 0x428740 */
+/* For the differential tests: a channel's duration, time, last time, whether it has a callback, mode,
+   level and its two arguments */
+void Fade_State(int ch, int32_t out[8]);
 bool Fade_Rising(int ch);       /* 0x428760: active and past 0 */
 void Fade_Tick(int ch, bool paused);                  /* 0x4284d0 */
 void Fade_Level(int ch, int32_t frac, bool paused);   /* 0x4285b0: between the last two steps */
