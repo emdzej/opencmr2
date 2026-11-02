@@ -13,7 +13,6 @@ int Car_IdByName(const char *name);   /* the port: the car table's index of a na
 const uint8_t *Car_Cin(int n);       /* 0x457e00: car n's .cin */
 /* Car_CinSection 0x457e10: section k of the .cin through its u16 offset directory */
 const uint8_t *Car_CinSection(int n, int k);
-void Car_Replace(int n);       /* the port: back on the start, for a restart */
 int Cars_Racing(void);           /* 0x420190 */
 int Cars_Count(void);          /* 0x456ca0 */
 void Cars_Grid(void);          /* 0x4584d0 */

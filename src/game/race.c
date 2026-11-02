@@ -551,21 +551,30 @@ static void s11_results(ProcGroup *g, uint32_t slot)
         /* the players' carried damage dropped (0x408290) in the modes the original's switch lists */
         if (m <= 5 || (m >= 8 && m <= 10)) memset(gm(0x52ebc0), 0, 0x148 * 4);
         if ((m == 2 || m == 3 || m == 9 || m == 10) && !service && R.kind != 4) {
-            /* 0x41e6b0: the cars back on the line, the co-driver, sectors and timers again, then
-               every process to the line (event 4) */
-            for (int i = 0; i < g_all.n; i++) Car_Replace(g_all.car[i]);
-            for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
+            /* 0x41e6b0: the co-driver and the start lights again, the grid in its modes, the cars
+               back on it (0x42b800), the sectors, records, HUD, skids, knocked scenery and the CPU
+               drivers again, then every process to the line (event 4). (The wheel's force tables
+               0x424ed0, the network and ghost records 0x409dd0/0x409ab0, the challenge records
+               0x4cf140 are not kept by the port.) */
             Codriver_Reset();   /* 0x416670 */
+            Lights_Reset();     /* 0x463d00 */
+            if (Gs_SelBit26() || Gs_SelBit25() || Gs_SelBit31()) Cars_Grid();   /* 0x4584d0 (mode 4's not ported) */
+            Cars_Reset(0, g_all.n, false);   /* 0x42b800 */
+            if (Gs_Mode() == 4)
+                for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
+            PENDING_NOTE(0x458480, "the grid's centre-line points (0x4213d0, with 0x538a84)");
+            Opp_Times(false);   /* 0x455470 */
+            Sectors_Start();    /* 0x458100 */
+            Hud_Init(gm8(0x53810c));   /* 0x411450 */
+            Skids_Reset();      /* 0x465530 */
+            Knock_Restore();    /* 0x4702a0 */
             if (Gs_SelBit26()) Ai_Go(true);   /* 0x47bdc0 */
             Times_Reset();      /* 0x447f70 */
-            Opp_Times(false);   /* 0x455470 */
-            Engine_Reset();
+            Engine_Reset();     /* (the port: the engines' voices, Race_Frame's rebuild in the original) */
             Times_Clear();
-            Hud_Init(gm8(0x53810c));   /* 0x411450 */
-            Skids_Reset();   /* 0x465530 */
-            Knock_Restore();   /* 0x4702a0 */
-            Lights_Reset();   /* 0x463d00 */
-            PENDING_NOTE(0x41e6b0, "Race_Restart's splits (0x4584d0, 0x42b800)");
+            Input_SetMenuMode(false);   /* 0x49ea90 */
+            if (Gs_Mode() != 4) gw8(0x537ef6, 0);   /* 0x41b360 */
+            gw32(0x53810c, gm32(0x53810c) & 0xffffff00u);
             /* the replays ended, for the championship and the CPU runs the first two */
             for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
                 Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));

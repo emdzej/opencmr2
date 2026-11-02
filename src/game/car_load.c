@@ -152,20 +152,6 @@ const uint8_t *Car_CinSection(int n, int k)
     return off < cin_size[n] ? c + off : NULL;
 }
 
-/* the port: car n back on the start (the placement at the end of Car_Load), for a restart (0x41e6b0
-   puts the cars back through 0x424ed0 and the line's set-up) */
-void Car_Replace(int n)
-{
-    CarSlot *s = Car_Slot(n);
-    if (!s->main) return;
-    int32_t sp[3];
-    uint16_t ang[3];
-    Csp_StartPos(n, sp);
-    Csp_Angles(ang);
-    Car_Place(s->main, s->second, n, s->model, ang, sp);
-    Damage_Reset(Car_Get(n));
-}
-
 /* 0x42b800: cars first to first + n - 1 put back on the grid. Their models, wheels, parts, the
    handling class (+0xb1b, 0 in mode 4) and the words +0x724, +0x728-+0x734, +0xc0c and +0xb58 are kept while the
    blocks (0x42b740) and their counters (0x42b5b0, 0x53a230) are cleared; each is placed at its start
