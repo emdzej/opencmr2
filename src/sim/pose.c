@@ -116,7 +116,10 @@ void Pose_Capture(const CarList *l)
         int32_t h = model == cls ? (int32_t)exe_u32(0x5199c8 + 4u * cls)
                                  : (int32_t)exe_u32(0x519a00 + 4u * model) + (int32_t)exe_u32(0x5199c8 + 4u * cls);
         int32_t up[3] = {fx_mul(CI32(c, 0x10), h), fx_mul(CI32(c, 0x14), h), fx_mul(CI32(c, 0x18), h)};
-        if (Gs_Option(6)) PENDING_NOTE(0x42af50, "Pose_Capture (option 6)");
+        if (Gs_Option(6) && c->main) {   /* 0x4063f0: and along the model's up row by half of +0xa8c */
+            int32_t k = fx_mul(CI32(c, 0xa8c), 0x8000);
+            for (int q = 0; q < 3; q++) up[q] += fx_mul(c->main->local.m[4 + q], k);
+        }
         for (int i = 0; i < 16; i++) {
             if (i % 4 == 3) continue;
             cur[n][P_MAIN + i] = CI32(c, 4 * (uint32_t)i);

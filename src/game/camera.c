@@ -666,7 +666,10 @@ static void cam_ref(int p)
     const Car *c = Car_Get(p);
     for (uint32_t i = 0; i < 12; i++) ref[p][i] = CI32(c, 4 * i);
     ref[p][12] = CI32(c, 0x30), ref[p][13] = CI32(c, 0x34), ref[p][14] = CI32(c, 0x38), ref[p][15] = 0x10000;
-    if (Gs_Option(6)) PENDING_NOTE(0x423b20, "Camera_Ref (option 6)");
+    if (Gs_Option(6)) {   /* 0x4063f0: the place raised along the car's up row by half of +0xa8c */
+        int32_t k = fx_mul(CI32(c, 0xa8c), 0x8000);
+        for (uint32_t q = 0; q < 3; q++) ref[p][12 + q] += fx_mul(CI32(c, 0x10 + 4 * q), k);
+    }
     if (!look[p]) return;
     int32_t d = set_dist[p];
     int32_t amp = (int32_t)((((int64_t)(d - 0x80000)) << 16) / 0x100000) * 0x5a + 0x140000;
