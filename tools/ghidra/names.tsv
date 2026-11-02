@@ -1130,3 +1130,18 @@
 004f2360	FeMode_Enter	fe	confirmed	The mode list's count and current
 004f23d0	FeMode_Frame	fe	confirmed	The ten shown follow the value
 004f2430	FeMode_Choose	fe	confirmed	The mode chosen, the display reset
+004e3230	FeScores_Draw	fe	confirmed	The High Scores list
+004f3a70	FeScores_Enter	fe	confirmed	Novice first; a driver's record codes made
+004f3a90	FeScores_Cycle	fe	confirmed	Return: the next difficulty
+004e3340	FeScores_RallyChamp	fe	confirmed	Rally - Championship's table
+004e4130	FeScores_SingleRally	fe	confirmed	Rally - Single Rally's table
+004e4fc0	FeScores_StageTimes	fe	confirmed	Rally - Stage Times' table
+004e5c90	FeScores_ArcadeChamp	fe	confirmed	Arcade - Championship's table
+004e6a80	FeScores_LapTimes	fe	confirmed	Arcade - Lap Times' table
+004f2d90	FeScores_RallyStrip	fe	confirmed	The rallies' strip measured (scroller 6)
+004f2e70	FeScores_StageStrip	fe	confirmed	The stages' strip measured (scroller 7)
+004f2f40	FeScores_ClassStrip	fe	confirmed	The classes' strip measured (scroller 8)
+004f3970	FeScores_RallyFrame	fe	confirmed	Scroller 6 updated
+004f3980	FeScores_StageFrame	fe	confirmed	Scroller 7 updated
+004f3990	FeScores_ClassFrame	fe	confirmed	The second class off for novice; scroller 8
+00405fe0	Records_Base	game	confirmed	The default leaderboards (0x52b044)
