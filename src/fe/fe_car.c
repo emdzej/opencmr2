@@ -647,3 +647,87 @@ void fe_4e1230(Menu *m)
     Rows_Draw(m, config_row, false, true, Rows_Top(m), Rows_ArrowDy());
     Fe_Hint(Text_Get(0x57), true);
 }
+
+/* ---- the arcade's class (0x826ba0): Class B or Class A ---- */
+
+/* 0x4faef0: the classes open at the difficulty (the unlocks word 0x52b03c bits 2-3, 4-5, 6-7; two with
+   the cheat option 13 above novice), the row at the class (0x52f2ac bits 10-11) */
+void fe_4faef0(Menu *m, bool back)
+{
+    (void)back;
+    uint32_t u = gm32(0x52b03c), n = 0;   /* the original's is unset at other difficulties */
+    switch (gm32(0x52afb4) >> 10 & 7) {   /* 0x405d90 */
+    case 0: n = u >> 2 & 3; break;
+    case 1: n = option(0xd) ? 2 : u >> 4 & 3; break;
+    case 2: n = option(0xd) ? 2 : u >> 6 & 3; break;
+    }
+    for (uint32_t i = 0; i < 2; i++) {
+        if (i < n) m->items[i].flags |= MIF_ENABLED;
+        else m->items[i].flags &= (uint8_t)~MIF_ENABLED;
+    }
+    m->sel = (int8_t)(gm32(0x52f2ac) >> 10 & 3);   /* 0x406940 */
+    if (m->n <= m->sel) m->sel = (int8_t)(m->n - 1);
+}
+
+static void set_class(int c) { gw32(0x52f2ac, ((uint32_t)c & 3u) << 10 | (gm32(0x52f2ac) & 0xfffff3ffu)); }   /* 0x40d600 */
+
+/* 0x4fafd0: the class from the row */
+void fe_4fafd0(Menu *m) { set_class(m->sel); }
+
+/* 0x4fafe0: the class, the first location (0x406960, then 0x408020), three laps (0x40d620), the start */
+void fe_4fafe0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_class(m->sel);
+    gw32(0x52f2ac, gm32(0x52f2ac) & 0xffffcfffu);
+    Sel_ModeFlags();
+    gw32(0x52f2ac, 3u << 0x10 | (gm32(0x52f2ac) & 0xfff0ffffu));
+    Menu_Goto(&pg_8214b8);   /* 0x4f8330 */
+}
+
+/* 0x4db850: the trail Arcade, Championship; the hint; the rows (each class with its four cars, the
+   disabled dimmed; a line between two disabled rows dimmer still) */
+void fe_4db850(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    const char *names[2] = {Text_Get(0x94), Text_Get(0xc)};
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 3, names, 2);
+    Fe_Hint(Text_Get(0x57), true);
+    int row = h * 0x24 / 0x1e0, top = (h * 0x38 / 0x1e0 + h * 0x176 / 0x1e0) / 2 - row * m->n / 2;
+    int16_t r[4] = {(int16_t)(w * 99 / 0x280), (int16_t)top, (int16_t)(w * 0x11a / 0x280), 1};
+    Rect_Fill(r, gm(m->sel == 0 ? 0x524974 : 0x524978), 1);
+    r[1]++;
+    Rect_Fill(r, gm(m->sel == 0 ? 0x524968 : 0x52496c), 1);
+    Tex *a = g_fe.arrow_a;
+    int16_t aw = a ? (int16_t)a->width : 0, ah = a ? (int16_t)a->height : 0;
+    for (int i = 0; i < m->n; i++) {
+        MenuItem *it = &m->items[i];
+        bool on = m->sel == i;
+        Tex *t = on ? g_fe.arrow_a : g_fe.arrow_d;
+        uint32_t c = on ? 0x524968 : (it->flags & MIF_ENABLED) ? 0x52496c : 0x524970;
+        if (t) {
+            Rect16 src = {0, 0, t->width, t->height};
+            Rect16 dst = {(int16_t)(w * 100 / 0x280), (int16_t)(h * 0x14 / 0x1e0 + top + row * i - ah / 2), aw, ah};
+            Sprite_Add(&src, &dst, t, 1, 0, NULL, NULL, gm(c), 8);
+        }
+        char s[256];
+        if (it->id == 0)
+            snprintf(s, sizeof s, exe_str(0x524d4c), Text_Get(0xe8), Text_Get(0x2b), Text_Get(0x27), Text_Get(0x29));
+        else if (it->id == 1)
+            snprintf(s, sizeof s, exe_str(0x524d4c), Text_Get(0xe9), Text_Get(0x2d), Text_Get(0x2a), Text_Get(0x28));
+        else
+            snprintf(s, sizeof s, "%s", Text_Get(it->text));
+        Font_Print(1, s, w * 0x7a / 0x280, h * 0x18 / 0x1e0 + r[1], gm(c), 0x11);
+        uint32_t hi, lo;
+        /* the next item's flags read past the last too, as the original does */
+        if (m->sel == i || m->sel == i + 1) hi = 0x524974, lo = 0x524968;
+        else if (!(it->flags & MIF_ENABLED) && !(m->items[i + 1].flags & MIF_ENABLED)) hi = 0x52497c, lo = 0x524970;
+        else hi = 0x524978, lo = 0x52496c;
+        r[1] = (int16_t)(row * (i + 1) + top);
+        Rect_Fill(r, gm(hi), 1);
+        r[1]++;
+        Rect_Fill(r, gm(lo), 1);
+    }
+}

@@ -111,7 +111,15 @@ void fe_4ef930(Menu *m, MenuItem *it)
 {
     (void)it;
     gw32(0x52afb4, (gm32(0x52afb4) & 0xffffe3ffu) | ((uint32_t)m->sel & 7) << 10);
-    if (mode() == 5) PENDING_NOTE(0x4fa970, "the arcade's difficulty");
+    if (mode() != 5) return;
+    /* 0x4fa970: an arcade championship: one player, five CPU cars, not alternate, the driver select
+       after the difficulty (0x826600) */
+    gw32(0x52afb4, (gm32(0x52afb4) & 0xfffe1fffu) | 1u << 13);   /* 0x4ea8c0 */
+    Sel_SetCpuCount(5);
+    to_set = 1;
+    gw32(0x52afb4, gm32(0x52afb4) & ~0x20000u);   /* 0x4ea950 */
+    Menu_SetParent(&pg_8241b8, &pg_826600);
+    players_page = &pg_826600;
 }
 
 /* 0x4d6290 */

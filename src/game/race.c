@@ -267,13 +267,56 @@ static void Race_Update(uint8_t state, bool flag)
         }
 }
 
+/* of 0x41bf80, for the first player: 0x4728c0 (a challenge's 0x58cf68); the championship's
+   standings by mode: a rally championship's 0x40cf00 at its first stage of the first rally and
+   0x40d100 at the first stage of any (a single rally too), an arcade championship's 0x40cc60 at its
+   first location, then 0x40ccb0 (the start order from the standings); 0x4cf0f0 (not in a challenge)
+   the stage's records' flags */
+static void race_resets(void)
+{
+    uint32_t sel = gm32(0x52f2ac), rally = sel & 0x1f, stage = sel >> 5 & 0x1f;   /* 0x406910, 0x406930 */
+    if (Gs_Mode() == 4) gw32(0x58cf68, 0);
+    switch (Gs_Mode()) {
+    case 0:
+        if (stage != 0) break;
+        if (rally == 0)
+            for (uint32_t i = 0; i < 0x10; i++) {   /* 0x40cf00 */
+                gw8(0x533538 + i, (uint8_t)i), gw8(0x533548 + i, (uint8_t)i);
+                gw32(0x533558 + 4 * i, 0), gw8(0x533598 + i, 0), gw8(0x5335a8 + i, 0);
+            }
+        /* fall through */
+    case 1:
+        if (Gs_Mode() == 1 && stage != 0) break;
+        for (uint32_t i = 0; i < 0x10; i++) gw32(0x533658 + 4 * i, 0), gw8(0x533638 + i, (uint8_t)i);   /* 0x40d100 */
+        break;
+    case 5:
+        if (!(sel >> 0xc & 3))   /* 0x406950 */
+            for (uint32_t i = 0; i < 8; i++) {   /* 0x40cc60 */
+                gw32(0x5335b8 + 4 * i, 0), gw32(0x5335f0 + 4 * i, 0), gw8(0x533628 + i, 0);
+                gw8(0x533610 + i, (uint8_t)i), gw8(0x533618 + i, (uint8_t)i), gw8(0x533620 + i, (uint8_t)i);
+                gw16(0x5335d8 + 3 * i, 0), gw8(0x5335da + 3 * i, 0);
+            }
+        for (uint32_t i = 0; i < 8; i++) gw8(0x533620 + (uint32_t)(int8_t)gm8(0x533610 + i), (uint8_t)i);   /* 0x40ccb0 */
+        break;
+    }
+    if (Gs_Mode() != 4) {   /* 0x4cf0f0 */
+        int n = (int)gm32(0x8173f0);
+        for (int i = 0; i < n; i++) gw8(0x817420 + 10u * (uint32_t)i, 0);
+        gw32(0x817410, 0);
+    }
+}
+
 /* state 0, 0x41bf80: the race's variables cleared; for the first player the stage's selection, the
    common archives, the car tables */
 static void s0_setup(ProcGroup *g, uint32_t slot)
 {
     R.loading = true;
     R.start_count = 0;
+    /* 0x409dd0: the seven ghost and network records at 0x531788 (0x80 bytes apart), their first
+       halfwords */
+    for (uint32_t a = 0x531788; a < 0x531b08; a += 0x80) gw16(a, 0);
     if (slot == 0) {
+        race_resets();
         Replay_FreeAll();   /* the last race's (the original's exit handlers, 0x41e670: 0x46c6d0) */
         /* 0x427c10: the engines and the surfaces at a third of the effects volume, the collisions at
            two thirds */

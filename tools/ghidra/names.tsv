@@ -1194,3 +1194,12 @@
 004f3530	FeChalPlayers_Enter	fe	confirmed	Eight rows, the players strip
 004eae40	Challenge_ResetPlayers	game	confirmed	The challenge player records
 004eae90	Player_SetName	game	confirmed	The name, a profile's random bits
+004fa970	FeArcade_ChampSetup	fe	confirmed	One player, five CPU cars, the driver select
+004db850	FeClass_Draw	fe	confirmed	Class B or A with their rallies
+004faef0	FeClass_Enter	fe	confirmed	The classes open at the difficulty
+004fafd0	FeClass_Frame	fe	confirmed	The class from the row
+004fafe0	FeClass_Choose	fe	confirmed	The class, first location, three laps
+0040cc60	ArcadeChamp_Reset	game	confirmed	The arcade standings cleared
+0040ccb0	ArcadeChamp_Order	game	confirmed	The start order from the standings
+0040cf00	Champ_Reset	game	confirmed	The rally championship standings cleared
+0040d100	Rally_Reset	game	confirmed	The single rally standings cleared
