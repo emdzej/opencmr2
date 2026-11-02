@@ -5,6 +5,7 @@
 #include "audio/crash.h"
 #include "game/camera.h"
 #include "game/gstate.h"
+#include "game/lamps.h"
 #include "game/mem.h"
 #include "game/effects.h"
 #include "game/timer.h"
@@ -847,7 +848,7 @@ static void restore(Car *c)
         W(d, 0x490 + 4 * (uint32_t)i, 0), W(d, 0x470 + 4 * (uint32_t)i, 0);
         glass_frames(c, 0, i);
     }
-    PENDING_NOTE(0x477c20, "Damage_Restore's 0x477c20 (car, 0, 0, 4)");
+    Lens_Set(idx(c), false, false, 4);   /* 0x477c20: the flashing lens group off */
 }
 
 /* Damage_Reset 0x469690: the loose parts and the meshes back, the engine, brake and drag factors back
