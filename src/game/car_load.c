@@ -1,5 +1,6 @@
 /* Car_Load 0x457000 (see car_load.h). */
 #include "game/car_load.h"
+#include "game/race.h"
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/select.h"
@@ -108,7 +109,9 @@ bool Car_Load(int n)
     Car_LodTable();
     bool cpu = (uint32_t)n >= Gs_SelBits14();   /* a car after the players */
     int id;
-    if (!cpu) id = mode == 4 ? gm8(0x52f3e8 + 0xc4u * (uint32_t)n) : (int)(gm32(0x531350 + 0x30u * (uint32_t)n) & 0x3f);
+    /* the player: in alternation (the race's kind 4) the one after the base, 0x41b370 */
+    uint32_t pl = (uint32_t)n + (Race_Kind() == 4 ? (uint32_t)Race_Base() : 0);
+    if (!cpu) id = mode == 4 ? gm8(0x52f3e8 + 0xc4u * (uint32_t)n) : (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
     else if (mode == 5 || mode == 6) id = Sel_CpuCar(n);   /* 0x408010: by the car's own slot */
     else {
         PENDING_NOTE(0x457000, "Car_Load (the CPU cars of the other modes)");

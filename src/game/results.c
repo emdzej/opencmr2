@@ -11,6 +11,8 @@
 #include "game/pause.h"
 #include "game/race.h"
 #include "game/hud.h"
+#include "game/camera.h"
+#include "game/profile.h"
 #include "game/sectors.h"
 #include "game/opponents.h"
 #include "game/car_load.h"
@@ -71,19 +73,45 @@ static int title(int16_t text)
     return x + 2 + w * 8 / 0x280;
 }
 
-/* 0x44b7b0: the replay's title and the driver followed (the one-player rally's path; the
-   championship's and the alternate players' names not ported) */
+static const char *cpu_name(int car);
+
+/* 0x4125a0: the name of the driver in Opp slot d: a player's if one has it, else a computer's */
+static const char *slot_name(int d)
+{
+    for (int i = 0; i < (int)Gs_Players(); i++)
+        if (Opp_PlayerSlot(i) == d) return player_name(i);
+    return cpu_name(d);
+}
+
+/* 0x44b7b0: "replay" and the driver the camera follows: in the shared replay (0x41f3a0) the second
+   camera's; one player with computer drivers (bit 26) the first camera's (a computer's when it has
+   a driver, 0x408500); a head to head outside the network game its pair's driver (0x455ac0: 0x541f78,
+   which the championship's pairs fill, not ported); else the first camera's car after the player
+   base, by its driver. Mode 4's names (0x4737d0-0x473810) are not ported. */
 static void draw_title(Menu *m)
 {
     (void)m;
     int w, h;
     screen(&w, &h);
     int x = title(0x47);
-    if (mode() == 4 || Gs_SelBit26() || Gs_SelBit27()) PENDING_NOTE(0x44b7b0, "the results title's other modes");
-    Font_Print(2, player_name(0), x, h * 0x43 / 0x1e0, C(0x519ecc), 0x11);
+    const char *name = "";
+    int c0 = Camera_Car(0);
+    if (Gs_SelBits14() > 1 && Race_State(0) == 10) {
+        if (mode() == 4) PENDING_NOTE(0x473810, "the challenge's names in the results' title");
+        else name = player_name(Camera_Car(1));
+    } else if (Gs_SelBit26() && Gs_SelBits14() == 1) {
+        name = Player_Driver(c0) == -1 ? player_name(c0) : cpu_name(c0);
+    } else if (mode() == 4) {
+        PENDING_NOTE(0x4737d0, "the challenge's names in the results' title");
+    } else if (Gs_SelBit27() && !Gs_ModeBit19()) {
+        name = slot_name((int8_t)gm8(0x541f78 + 2u * (uint32_t)Race_Base() + (uint32_t)c0));
+    } else {
+        int d = Player_Driver(c0 + Race_Base());
+        name = d == -1 ? player_name(c0 + Race_Base()) : cpu_name(d);
+    }
+    Font_Print(2, name, x, h * 0x43 / 0x1e0, C(0x519ecc), 0x11);
     Font_SetLayer(2);
 }
-
 
 /* 0x454df0: titles in a row in the big font, lower case, with separators */
 static void titles(int x, int y, const char *const *t, int n)

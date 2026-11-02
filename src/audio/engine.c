@@ -119,7 +119,8 @@ bool Engine_Load(int players)
     for (int n = 0; n < players && n < 4; n++) {
         /* the player's car (0x4086b0), its class (0x40ee90): the engine (0x51f044) and the names'
            suffix (0x51f15c), 20 bytes a class */
-        int car = (int)(gm32(0x531350 + 0x30u * (uint32_t)n) & 0x3f);
+        uint32_t pl = (uint32_t)n + (Race_Kind() == 4 ? (uint32_t)Race_Base() : 0);   /* 0x41b370 */
+        int car = (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
         uint32_t cls = exe_u32(0x516b40 + 4u * (uint32_t)car);
         const char *engine = exe_str(0x51f044 + cls * 20), *suffix = exe_str(0x51f15c + cls * 20);
         base[n] = (int16_t)Snd_Count();

@@ -1480,3 +1480,7 @@
 00405610	Pause_Crt	pause	high	the crtna640 texture (0x52af50)
 0044d260	Results_DrawAltTimes	results	high	the time trial's players in alternation: each in order with car, time, place
 0044b270	Results_SortAlt	results	high	the alternation's times sorted, the shortest first
+0044b7b0	Results_DrawTitle	results	high	the results title: "replay" and the driver the camera follows
+0041b340	Race_NextPlayer	race	high	the player base 0x537ef6 one on (alternation), with 1 also 0x537ef5
+00420100	Race_Unwind	race	high	the voices stopped, the at-exit handlers since 0x53896c run
+004125a0	Slot_Name	hud	high	the name of an Opp slot's driver into 0x663b60: a player's, else a computer's

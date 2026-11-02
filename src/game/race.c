@@ -318,6 +318,11 @@ static void race_resets(void)
     }
 }
 
+/* The port: the alternation's next player (0x41b340) keeps the player base through Play_End and the
+   rebuild, which take the place of 0x420100's unwinding of the race's at-exit handlers; the set-up
+   state then skips what the original's way back to state 3 does not do again. */
+static bool next_player;
+
 /* state 0, 0x41bf80: the race's variables cleared; for the first player the stage's selection, the
    common archives, the car tables */
 static void s0_setup(ProcGroup *g, uint32_t slot)
@@ -326,9 +331,12 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
     R.start_count = 0;
     /* 0x409dd0: the seven ghost and network records at 0x531788 (0x80 bytes apart), their first
        halfwords */
-    for (uint32_t a = 0x531788; a < 0x531b08; a += 0x80) gw16(a, 0);
+    if (!next_player)
+        for (uint32_t a = 0x531788; a < 0x531b08; a += 0x80) gw16(a, 0);
     if (slot == 0) {
-        race_resets();
+        /* (not for the alternation's next player, whose way in the original starts at state 3) */
+        if (!next_player) race_resets();
+        next_player = false;
         Replay_FreeAll();   /* the last race's (the original's exit handlers, 0x41e670: 0x46c6d0) */
         /* 0x427c10: the engines and the surfaces at a third of the effects volume, the collisions at
            two thirds */
@@ -446,7 +454,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
         for (int r = 0; r < 4; r++) Cockpit_Load(r, r >> 1);   /* 0x4760a0 */
         /* 0x422fe0 per player: the profile's camera (0x408800), the chase (4) when it cannot be had */
         for (uint32_t i = 0; i < players(); i++) {
-            uint32_t t = gm32(0x531350 + 0x30 * i) >> 0x12 & 0xf;
+            uint32_t t = gm32(0x531350 + 0x30 * (i + (uint32_t)Race_Base())) >> 0x12 & 0xf;   /* 0x408800(base + i) */
             int kind = Gs_Mode() == 4 ? gm8(0x52f3e4 + 0xc4 * i) : t != 0xf ? (int)gm32(0x52fa60 + t * 0x650) : 0;
             if (!(kind == 1 || kind == 2 || (kind == 3 && Cockpit_Ready((int)i)) || (kind >= 4 && kind <= 6) || kind == 10)) kind = 4;   /* 0x4232a0 */
             Camera_Reset((int)i);
@@ -659,6 +667,19 @@ static void race_exit(ProcGroup *g)
     R.built = false;
 }
 
+/* 0x41e8d0, kind 4 before the last player: 0x420100 (the race's resources freed, the voices
+   stopped), the surfaces' sounds reset (0x418f20), the next player (0x41b340(0)), back to the stage's
+   loading (state 3) */
+static void alternate(ProcGroup *g)
+{
+    Voices_StopAll();
+    Surface_Reset();
+    gw8(0x537ef6, (uint8_t)(gm8(0x537ef6) + 1));
+    if (Gs_SelBit28()) PENDING_NOTE(0x466080, "the ghosts' replays for the next player");
+    next_player = true;
+    race_exit(g);
+}
+
 /* state 11, 0x41e8d0: the results until the key; in a rally on to the next stage through the world
    mode (2: the service area and the loading screens) */
 static void s11_results(ProcGroup *g, uint32_t slot)
@@ -767,6 +788,28 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             race_exit(g);
             return;
         } else fe = false;
+        break;
+    case 4:
+        /* alternation: each player in turn; after the last as one player (a rally on to its next
+           stage) */
+        if (m > 3) {
+            fe = false;
+            break;
+        }
+        if (Race_Base() + 1 != (int)Gs_Players()) {
+            alternate(g);
+            return;
+        }
+        Proc_Event(g, 0, 0, 2);
+        if (m <= 1 && Sel_NextStage()) {
+            uint32_t st = Tod_Stage();
+            if (st != 0) {
+                if (st == 2 || st == 4 || st == 6 || st == 8 || st == 10) set_mode(2);
+                race_exit(g);
+                return;
+            }
+            gw8(0x52ea50, 1);
+        }
         break;
     default:
         fe = false;
@@ -956,7 +999,7 @@ int Race_Frame(void)
         Proc_Advance(&R.group);
         return 0;
     }
-    if (!R.built) gw8(0x537ef6, 0);   /* 0x41b360 */
+    if (!R.built && !next_player) gw8(0x537ef6, 0);   /* 0x41b360 */
     uint32_t n, kind = race_kind(&n);
     R.kind = kind;
     for (uint32_t i = 0; i < n; i++) Proc_InitSlot(&R.slots[i], R.restart ? 5 : 0, kind);
