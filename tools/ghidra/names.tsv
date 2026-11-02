@@ -1647,3 +1647,10 @@
 00447e00	Chase_RawAngle	game	high	The chase camera's angle as given
 00447ea0	Chase_Dist	game	high	The chase camera's distance
 00447ec0	Chase_SetDist	game	high	The chase camera's distance set
+00404000	Pause_BuildOsd	game	high	The pause display (HUD panels) page
+00404130	Pause_OsdDefault	game	high	The display page's defaults
+004041e0	Pause_DrawOsd	game	high	The display page's rows and values
+00404b80	Pause_OsdEnter	game	high	The display page's values from the profile's flags
+00404c50	Pause_OsdLeave	game	high	The display page's flags kept or restored
+00404d00	Pause_OsdFrame	game	high	The display page's values into the profile's flags
+00408990	Profile_SetHudFlags	game	high	The player's profile's HUD panel flags set

@@ -534,6 +534,119 @@ static void camera_live(void)
     }
 }
 
+/* the display page's flags (the profile's +0x574, the challenge record's +0xd): bits 0-1 the
+   co-driver's arrows (0x405f00), 2-5 four panels (0x405f40, 0x405f20, 0x405f60, 0x405f80); the page's
+   and as they were (0x5298f8, 0x52a850) */
+static uint8_t osd, keep_osd;
+
+/* Profile_HudFlags 0x408a00, 0 without a profile */
+static uint32_t osd_at(void)
+{
+    int n = Race_Base() + base;
+    if (mode() == 4) return 0x52f3ed + 0xc4u * (uint32_t)n;
+    uint32_t t = Player_Word(n) >> 0x12 & 0xf;
+    return t == 0xf ? 0 : 0x52ff90 + t * 0x650;
+}
+static void osd_put(uint8_t v) { uint32_t a = osd_at(); if (a) gw8(a, v); }   /* 0x408990 */
+
+/* the arrows' row (id 4, with the co-driver): with the screen split on (0) or off (1, from bits 0-1
+   2), else three values, 2 less the bits */
+static void osd_values(Menu *m)
+{
+    m->items[0].value = osd >> 2 & 1, m->items[1].value = osd >> 3 & 1;
+    m->items[2].value = osd >> 4 & 1, m->items[3].value = osd >> 5 & 1;
+}
+
+static void osd_enter(Menu *m, bool back)   /* 0x404b80 */
+{
+    (void)back;
+    uint32_t a = osd_at();
+    keep_osd = osd = a ? gm8(a) : 0;   /* (the original reads through 0 without a profile) */
+    osd_values(m);
+    if (!speech_on()) return;
+    int k = Menu_IndexOf(m, 4);
+    if (Hud_SplitScreen()) m->items[k].value = (osd & 3) == 2 ? 0 : 1;
+    else m->items[k].value = (uint8_t)(2 - (osd & 3));
+}
+
+/* 0x404d00: the rows into the flags, into the profile at once (the HUD shows them while here) */
+static void osd_frame(Menu *m)
+{
+    osd = (uint8_t)((m->items[3].value & 1) << 5 | (m->items[1].value & 1) << 3 | (m->items[0].value & 1) << 2 | (osd & 0xd3));
+    if (speech_on()) {
+        uint8_t v = m->items[Menu_IndexOf(m, 4)].value;
+        if (!Hud_SplitScreen()) osd = (uint8_t)((osd & 0xfc) | ((uint8_t)(-(int)v - 2) & 3));
+        else osd = v == 0 ? (uint8_t)((osd & 0xfe) | 2) : (uint8_t)(osd & 0xfc);
+    }
+    if (m->items[Menu_IndexOf(m, 2)].value) osd |= 0x10;
+    else osd &= 0xef;
+    osd_put(osd);
+}
+
+/* 0x404130: every panel on, the arrows' bits 0 */
+static void osd_default(Menu *m, MenuItem *it)
+{
+    (void)it;
+    osd = (uint8_t)((osd & 0xfc) | 0x3c);
+    osd_put(osd);
+    osd_values(m);
+    if (speech_on()) m->items[Menu_IndexOf(m, 4)].value = Hud_SplitScreen() ? 1 : 2;
+}
+
+/* 0x404c50: back, the old flags again; else kept, and the options' defaults too */
+static void osd_leave(Menu *m, bool back)
+{
+    (void)m;
+    if (back) {
+        osd_put(keep_osd);
+        return;
+    }
+    osd_put(osd);
+    uint32_t o = gm32(0x52afb8) & 0xc0ffffffu;
+    o |= (uint32_t)(osd & 3) << 0x18 | (uint32_t)(osd >> 2 & 1) << 0x1a | (uint32_t)(osd >> 3 & 1) << 0x1b |
+         (uint32_t)(osd >> 4 & 1) << 0x1c | (uint32_t)(osd >> 5 & 1) << 0x1d;
+    gw32(0x52afb8, o);
+    Player_Touch(Race_Base() + base);
+}
+
+/* 0x4041e0: over the view (the dim on layer 4, no header), 42 apart: each row's name and its values
+   after it (the chosen lit): 0x9c on; id 2 with more than two values 0x9c then from 0xf0; id 4 from
+   0xa4 down, with the screen split 0x9c up; the defaults row (lit while set) and back */
+static void draw_osd(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Font_SetLayer(2);
+    int16_t full[4] = {0, 0, (int16_t)w, (int16_t)h};
+    Rect_Fill(full, C(0x51608c), 4);
+    if (!arrow_on || !arrow_off) return;
+    for (int i = 0; i < m->n; i++) {
+        MenuItem *it = &m->items[i];
+        uint32_t c = m->sel == i ? 0x516074 : 0x516078;
+        int y = h * 0xaa / 0x1e0 + (h * 0x2a / 0x1e0) * i, x = w * 0x86 / 0x280;
+        if (it->id >= 0 && it->id <= 4) {
+            const char *prev = Text_Get(it->text);
+            Font_Print(1, prev, x, y, C(c), 0x11);
+            for (int k = 0; k < it->count; k++) {
+                int t = k + 0x9c;
+                if (it->id == 2 && it->count != 2) t = k == 0 ? 0x9c : k + 0xef;
+                if (it->id == 4) t = Hud_SplitScreen() ? k + 0x9c : 0xa4 - k;
+                x += w * 10 / 0x280 + Font_TextWidth(1, prev);
+                prev = Text_Get(t);
+                Font_Print(1, prev, x, y, C(it->value == k ? 0x516074 : 0x516078), 0x11);
+            }
+        } else if (it->id == 5)
+            Font_Print(1, Text_Get(0x62), x, y, C(it->value ? 0x51607c : c), 0x11);
+        else
+            Font_Print(1, Text_Get(it->text), x, y, C(c), 0x11);
+        Tex *t = m->sel == i ? arrow_on : arrow_off;
+        Rect16 src = {0, 0, t->width, t->height};
+        Rect16 d = {(int16_t)(w * 0x70 / 0x280), (int16_t)(y - h * 0xd / 0x1e0), arrow_on->width, arrow_on->height};
+        Sprite_Add(&src, &d, t, 2, 0, NULL, NULL, C(c), 8);
+    }
+    Font_SetLayer(2);
+}
+
 /* 0x4054b0: paused by player p (0x52af58's byte 1) on the on-screen display page (0x52aa70) */
 bool Pause_OsdPage(int p) { return Pause_Active() && base == (uint8_t)p && page == &pg_osd; }
 
@@ -639,9 +752,17 @@ void Pause_Build(void)
     Menu_AddPage(&pg_ctrl, NULL, 0x3b, &pg_main, NULL, -1);
     Menu_SetCallbacks(&pg_ctrl, NULL, NULL, stub_draw, NULL);
     Menu_Reset(&pg_ctrl);
+    /* 0x404000: the display: the four panels (the first named by a circuit's or bit 28's), the
+       co-driver's arrows (two values with the screen split, else three), the defaults, back */
     Menu_Init(&pg_osd, NULL, 0, &pg_gfx, false, NULL, 1, 0, 1);
+    Menu_AddList(&pg_osd, NULL, Gs_SelBit24() || Gs_SelBit28() ? 0x30 : 100, 2, 0, false, NULL, 0);
+    Menu_AddList(&pg_osd, NULL, 0x65, 2, 0, false, NULL, 1);
+    Menu_AddList(&pg_osd, NULL, 0x66, 2, 0, false, NULL, 2);
+    Menu_AddList(&pg_osd, NULL, 0x67, 2, 0, false, NULL, 3);
+    if (speech_on()) Menu_AddList(&pg_osd, NULL, 0x68, Hud_SplitScreen() ? 2 : 3, 0, false, NULL, 4);
+    Menu_AddAction(&pg_osd, NULL, 0x62, osd_default, 5);
     Menu_AddPage(&pg_osd, NULL, 0x3b, &pg_gfx, NULL, 6);
-    Menu_SetCallbacks(&pg_osd, NULL, NULL, stub_draw, NULL);
+    Menu_SetCallbacks(&pg_osd, osd_enter, osd_frame, draw_osd, osd_leave);
     Menu_Reset(&pg_osd);
 }
 
