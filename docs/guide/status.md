@@ -57,10 +57,13 @@
   times, points and unlocks kept and the rally's points, result and the championship's table at
   each rally's end; saved championships load from the front end. An arcade location runs its
   races one after the other, with the finish, the race's points, the location's standings and its
-  end page between them. The page of what a stage opened,
+  end page between them. Two or more players can take turns on a stage, each in their own run,
+  with the fastest times shown after the last. A challenge runs its knockout on the rally's super
+  special: the draw's screen between the matches, the computer drivers' matches, the player's
+  match against a computer driver and its result, and the rounds that follow. The page of what a stage opened,
   the movies and the network game are not done yet; the menu music plays.
 
-Next: the rest of the results (what a stage opened, alternation), the service area's car
+Next: the rest of the results (what a stage opened), the challenge's computer cars, the service area's car
 damage, the rest of the front end's pages, then the rest of the simulation and the network game.
 
 | Area | State |

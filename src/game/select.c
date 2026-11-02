@@ -253,3 +253,11 @@ void Sel_ChallengeDraw(void)
             if (x < players && y < players && y < x) gw32(a, (e & 0xfffffc00u) | y | x << 5);
         }
 }
+
+void Sel_ChallengeStage(void)
+{
+    uint32_t s = gm32(0x52f2ac), r = gm32(0x52f2b4) >> 0x10 & 0xf;
+    s = (s & ~0x1fu) | (r & 0x1f);          /* 0x4068b0 */
+    s = (s & 0xfffffc1fu) | 10u << 5;        /* 0x4068e0 */
+    gw32(0x52f2ac, s);
+}

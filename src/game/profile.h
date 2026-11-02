@@ -23,7 +23,7 @@ uint32_t Player_Word(int player);          /* the player record's first word (0x
 /* 0x408500: the computer driver a player record races as (bits 14-17), -1 for a guest (bit 13); in
    mode 4 -1 for the first eight with a name (0x52f3e0, 0xc4 apart) */
 int Player_Driver(int player);
-const char *Player_Name(int player);        /* 0x408400: the profile's name ("" without one) */
+const char *Player_Name(int player);        /* 0x408400: the profile's name ("" without one; in mode 4 the challenge record's) */
 bool Player_HasProfile(int player);
 uint32_t Player_Records(int player);                        /* 0x408cb0: 0 without a profile */
 char *Player_FullName(int player);                          /* 0x408470 */

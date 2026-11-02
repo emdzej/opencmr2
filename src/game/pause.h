@@ -20,8 +20,10 @@ bool Pause_RestartAsked(void);     /* DAT_0053810c */
 bool Pause_QuitAsked(void);        /* DAT_0053810d */
 bool Pause_ServiceAsked(void);     /* DAT_00537ffa */
 void Pause_ClearAsks(void);
+void Pause_ClearRestart(void);     /* 0x41e6b0's end: 0x53810c alone */
 void Pause_Ask(bool restart, bool service, bool quit);   /* 0x41f280, 0x41f290, 0x41f2a0 */
 typedef struct Tex Tex;
 Tex *Pause_ArrowOn(void);         /* 0x4055e0 */
 Tex *Pause_ArrowOff(void);        /* 0x4055f0 */
+Tex *Pause_Roc(void);             /* 0x405600 */
 Tex *Pause_Crt(void);             /* 0x405610 */

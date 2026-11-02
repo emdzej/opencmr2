@@ -9,6 +9,7 @@ the original function by function.
 | [Architecture](architecture.md) | Main loop, modes and the process framework, timing, files, rendering, sound, input, network |
 | [Inventory](inventory.md) | The function map by address range, with the anchor functions of each subsystem |
 | [Port plan](port-plan.md) | The order of the work, with the check that ends each step |
+| [Challenge](challenge.md) | Mode 4: the record, race state 6, the results' ways out |
 | [File formats](../formats/index.md) | The disc, the containers, models, stages, cars, media |
 
 ## Tools and set-up

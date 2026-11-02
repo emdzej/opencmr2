@@ -45,4 +45,10 @@ void View_Rect(int player, int16_t r[4]);   /* 0x464b10 */
 int Race_Base(void);           /* 0x41b370: the first player of the race (DAT_00537ef6) */
 void Race_EndReplay(void);   /* 0x41f2b0: every process on from the replay */
 bool Race_Exited(void);      /* torn down by the results for the next stage (0x41e670) */
+int Race_Winner(void);             /* 0x41f380: the head to head's winner by touching, -1 none */
+void Race_RequestRestart(void);    /* 0x41b310: the processes built again from state 5 */
+bool Race_Restarted(void);         /* 0x41b320 */
+void Race_ClearRestarted(void);    /* 0x41b330 */
+void Race_FadeOverlay(int player, bool paused);   /* 0x428680 */
+int Race_Reentry(void);        /* the port: 0 a new race, 1 the next player (state 3), 2 the next round's cars (state 4) */
 int Race_Kind(void);           /* 0x41b380: DAT_00537df0 */

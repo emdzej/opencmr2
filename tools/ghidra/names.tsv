@@ -1484,3 +1484,58 @@
 0041b340	Race_NextPlayer	race	high	the player base 0x537ef6 one on (alternation), with 1 also 0x537ef5
 00420100	Race_Unwind	race	high	the voices stopped, the at-exit handlers since 0x53896c run
 004125a0	Slot_Name	hud	high	the name of an Opp slot's driver into 0x663b60: a player's, else a computer's
+004bc0c0	Tween_Active	tween	high	a tween's handle names a running slot
+004bc110	Tween_Value	tween	high	a slot's value: its curve between from and to at its step
+004bc290	Tween_Start	tween	high	a tween in a free slot (curve, steps, delay, from, to, hold), its handle written
+004bc3e0	Tween_Sum	tween	high	the bounce table's sum over the steps
+004bc410	Tween_FreeSlot	tween	high	the first unused of the 32 slots at 0x521138
+004bc440	Tween_ClearAll	tween	high	every slot freed
+004bc470	Tween_Stop	tween	high	a handle's slot freed
+00407820	Challenge_Record	select	high	the challenge record 0x52f2b4
+00407830	Challenge_MatchDrivers	select	high	the drivers of the record's current match
+00407940	Challenge_SetTimes	challenge	high	the match's two times, the faster the winner
+00407b10	Challenge_Advance	challenge	high	the round's winners into the next round's matches
+004070c0	Sel_ChallengeStage	select	high	the challenge's rally (record bits 16-19), its super special
+00408400	Player_Name	profile	high	a player's name: the profile's, in mode 4 the challenge record's
+00455df0	Opp_PairTimes	opponents	high	two computer drivers' times at the last shown split
+0041b310	Race_RequestRestart	race	high	0x537ef8: the race rebuilt at the line
+0041b320	Race_Restarted	race	high	0x537efc
+0041b330	Race_ClearRestarted	race	high	0x537efc cleared
+0041e6b0	Race_RestartLine	race	high	the stage again from the line (co-driver, lights, cars, sectors, HUD, replays)
+0041f380	Race_Winner	race	high	the head to head's winner (0x5191a0)
+00405600	Pause_Roc	pause	high	RoCx_640 (0x52af4c), the challenge's box
+00472990	Challenge_PlayerWon	challenge	high	a player won the match
+004728b0	Challenge_KeepRestart	challenge	high	0x58cf68 set: the restart is the match's
+004728c0	Challenge_ClearKeep	challenge	high	0x58cf68 cleared
+004728d0	Challenge_KeptRestart	challenge	high	0x58cf68
+004728e0	Challenge_PlayersLeft	challenge	high	a player still to drive in the round, or through
+004729f0	Challenge_Over	challenge	high	given up or no player left: the record's flag cleared, to the front end
+00472a30	Challenge_MatchEnd	challenge	high	the match's times and winner, on to the next match
+00472ca0	Challenge_Reset	challenge	high	state 6 from its start
+00472cb0	Challenge_Players	challenge	high	the match's players into the race, their pads
+00472e00	Challenge_Step	challenge	high	race state 6: the bracket between the matches (sub-states 0-7)
+00473290	Challenge_Through	challenge	high	a player is through the round
+00473310	Challenge_Computers	challenge	high	both drivers of the match computers
+00473360	Challenge_Build	challenge	high	the go and quit pages
+00473470	Challenge_Input	challenge	high	the pages' input while no round tween runs
+004734f0	Challenge_QuitDone	challenge	high	the give-up fade's end: the challenge left through the results
+00473540	Challenge_RaceDone	challenge	high	the match's fade's end: to the countdown
+00473620	Challenge_Match	challenge	high	the record's current match (its address)
+00473680	Challenge_Bye	challenge	high	a match with a side without a driver
+004736b0	Challenge_Name	challenge	high	a side's driver's name
+00473790	Challenge_IsPlayer	challenge	high	a side is a player's
+004737d0	Challenge_Side	challenge	high	a car's side in the match
+00473810	Challenge_Tag	challenge	high	a side's three-letter tag (a player's name)
+004738f0	Challenge_DrawQuit	challenge	high	the give-up question's page
+00473d60	Challenge_DrawGo	challenge	high	the go page: the bracket and its items
+00474420	Challenge_TypeIn	challenge	high	text typed in by the lines' tween
+004744f0	Challenge_DrawRound	challenge	high	a round's matches in their boxes
+00474fe0	Challenge_MoveBox	challenge	high	a winner's box moving to the next round
+00475430	Challenge_SideBox	challenge	high	a side's box: name and time
+00475740	Challenge_Box	challenge	high	a box: fill, edges, RoCx_640
+004752f0	Challenge_Time	challenge	high	a side's time, counting up on the result
+00475970	Challenge_PartRect	challenge	high	a box's rectangle by the grow tween
+00475a50	Challenge_Header	challenge	high	the title and the round's name
+004759d0	Challenge_Draw	challenge	high	race state 6's draw
+0044cdb0	Results_ChallengeTimes	results	high	the match's two columns of times
+004529c0	Results_DrawChallenge	results	high	the match's result: qualified or out

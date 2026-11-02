@@ -18,3 +18,4 @@ void Sel_CpuCars(void);
 int Sel_CpuCar(int i);   /* 0x52ea98 + 4 i */
 /* 0x4069c0: the challenge's draw from its depth (0x52f2b4 bits 0-2) and the opponents' level */
 void Sel_ChallengeDraw(void);
+void Sel_ChallengeStage(void);   /* 0x4070c0: the challenge's rally (0x52f2b4 bits 16-19, 0x4070e0), its stage 11 */

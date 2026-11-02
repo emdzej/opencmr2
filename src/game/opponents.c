@@ -1,5 +1,6 @@
 /* The computer drivers' times (see opponents.h), ported from 0x455300-0x456960 (0x456710 from the
    disassembly) and 0x40d520. */
+#include "platform.h"
 #include "game/weather.h"
 #include "game/opponents.h"
 #include "game/standings.h"
@@ -54,7 +55,7 @@ void Stage_LoadTm(const char *stage)
 {
     loaded = false;
     if (!(gm32(0x52f2ac) >> 0x15 & 1)) return;
-    int d = Gs_Mode() == 4 ? (int)(gm32(0x52afb4) >> 23 & 0xf) : (int)Gs_Mode2();
+    int d = Gs_Mode() == 4 ? (int)(gm32(0x52afb4) >> 0x14 & 7) : (int)Gs_Mode2();   /* 0x405dd0, 0x405d90 */
     if (Gs_Mode() == 4 && d) d--;
     char p[32];
     snprintf(p, sizeof p, "%s.tm%d", stage, d);
@@ -339,4 +340,12 @@ int32_t Opp_TimeAt(int e, int s)                                                
 {
     if (s < 0 || s >= 16 || e < 0 || e >= N) return 0;
     return (int32_t)(((int64_t)(times[s][by_time[s][e]] + 0x147) << 16) / 0x28f5c28);
+}
+
+void Opp_PairTimes(int a, int b, int32_t *ta, int32_t *tb)
+{
+    int s = Sectors_Shown(), n = (int)Gs_Players();
+    int pa = a - n, pb = b - n;
+    *ta = Opp_TimeAt(s >= 0 && s < 16 && pa >= 0 && pa < N ? place[s][pa] : 0, s);
+    *tb = Opp_TimeAt(s >= 0 && s < 16 && pb >= 0 && pb < N ? place[s][pb] : 0, s);
 }

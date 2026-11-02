@@ -604,10 +604,7 @@ void fe_4f01c0(Menu *m, MenuItem *it)
     uint32_t r = m->items[2].value < 5 ? rally[m->items[2].value] : 8;
     gw32(0x52f2b4, (r & 0xf) << 0x10 | (gm32(0x52f2b4) & 0xfff0ffffu));   /* 0x40d6a0 */
     Sel_ChallengeDraw();
-    uint32_t s = gm32(0x52f2ac), rr = gm32(0x52f2b4) >> 0x10 & 0xf;
-    s = (s & ~0x1fu) | (rr & 0x1f);                     /* 0x4068b0 */
-    s = (s & 0xfffffc1fu) | 10u << 5;                    /* 0x4068e0 */
-    gw32(0x52f2ac, s);
+    Sel_ChallengeStage();   /* 0x4070c0 */
     Sel_ModeFlags();
     Menu_Goto(&pg_8214b8);
 }

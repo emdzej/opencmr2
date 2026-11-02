@@ -178,6 +178,7 @@ int Player_Driver(int n)
 
 const char *Player_Name(int n)
 {
+    if (Gs_Mode() == 4) return (const char *)gm(0x52f3e0 + 0xc4u * (uint8_t)n);   /* the challenge's record */
     uint32_t k = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
     return k == 0xf ? "" : (const char *)gm(0x52fa18 + k * 0x650);
 }

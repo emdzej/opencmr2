@@ -39,4 +39,5 @@ static inline bool Gs_CarsCollide(void)
     if (m == 11 || m == 12 || m > 3) return true;
     return Gs_SelBit27() != 0;
 }
-
+/* 0x407500: the race's players into the selection (bits 14-15) */
+static inline void Gs_SetRacePlayers(uint32_t n) { gw32(0x52f2ac, (n & 3) << 14 | (gm32(0x52f2ac) & 0xffff3fff)); }

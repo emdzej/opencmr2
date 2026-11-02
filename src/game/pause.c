@@ -32,6 +32,7 @@ static bool paused;                /* DAT_0052af40 */
 static int prev_sel;               /* DAT_0052af6c */
 static bool ask_restart, ask_quit, ask_service;   /* 0x53810c, 0x53810d, 0x537ffa */
 static Tex *arrow_on, *arrow_off;  /* DAT_0052aa60, DAT_0052aa68 */
+static Tex *roc;                   /* DAT_0052af4c: RoCx_640, the challenge's */
 static Tex *crt;                   /* DAT_0052af50: crtna640, on the results' times page */
 static int32_t keep_music, keep_effects, keep_speech;   /* 0x529ecc, 0x52a488, 0x52ad50 */
 
@@ -44,6 +45,7 @@ bool Pause_RestartAsked(void) { return ask_restart; }
 bool Pause_QuitAsked(void) { return ask_quit; }
 bool Pause_ServiceAsked(void) { return ask_service; }
 void Pause_ClearAsks(void) { ask_restart = ask_quit = ask_service = false; }
+void Pause_ClearRestart(void) { ask_restart = false; }
 void Pause_Ask(bool restart, bool service, bool quit)
 {
     if (restart) ask_restart = true;
@@ -52,6 +54,7 @@ void Pause_Ask(bool restart, bool service, bool quit)
 }
 Tex *Pause_ArrowOn(void) { return arrow_on; }    /* 0x4055e0 */
 Tex *Pause_ArrowOff(void) { return arrow_off; }  /* 0x4055f0 */
+Tex *Pause_Roc(void) { return roc; }             /* 0x405600 */
 Tex *Pause_Crt(void) { return crt; }             /* 0x405610 */
 
 /* 0x404e10: the pause key: on the keyboard (or the mouse) the bit 0x400 (Escape); on a game
@@ -312,14 +315,17 @@ void Pause_Build(void)
     gw8(0x52af40, 0);
     player = base = 0;
     ask_restart = ask_quit = ask_service = false;
-    /* 0x4054f0: the arrows and crtna640 from the race's Com archive (mode 4's RoCx_640 from the
-       challenge's, 0x52af4c, not ported) */
+    /* 0x4054f0: the arrows and crtna640 from the race's Com archive, in mode 4 RoCx_640 (the
+       challenge's screen's box) from the common one (0x455290) */
     char p[260];
     Path_Format(p, sizeof p, 0x5160f4, Path_Root());
     arrow_on = Bfl_FindTexture(Bfl_Com(), p, NULL, false, 0);
     Path_Format(p, sizeof p, 0x5160d8, Path_Root());
     arrow_off = Bfl_FindTexture(Bfl_Com(), p, NULL, false, 0);
-    if (Gs_Mode() == 4) PENDING_NOTE(0x4054f0, "the challenge's RoCx_640");
+    if (Gs_Mode() == 4) {
+        Path_Format(p, sizeof p, 0x5160bc, Path_Root());
+        roc = Bfl_FindTexture(Bfl_CommonArc(), p, NULL, false, 0);
+    }
     Path_Format(p, sizeof p, 0x5160a0, Path_Root());
     crt = Bfl_FindTexture(Bfl_Com(), p, NULL, false, 0);
     /* 0x403370: restart: the stage (the text by the mode, below), at the service area, cancel */

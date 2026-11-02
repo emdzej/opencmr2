@@ -17,6 +17,7 @@
 #include "game/opponents.h"
 #include "game/car_load.h"
 #include "game/standings.h"
+#include "game/challenge.h"
 #include "world/tod.h"
 #include "pending.h"
 #include "render/d3d7.h"
@@ -28,6 +29,8 @@
 
 static Menu pg_title, pg_times, pg_splits, pg_board, pg_end;   /* 0x53ea68, 0x541218, 0x53f5b0, 0x53e4b8, 0x541400 */
 static Menu pg_rally, pg_restart, pg_quit;   /* 0x53f008, 0x5402f8, 0x5418d8 */
+static Menu pg_chal;                         /* 0x53f1e8: the challenge's match */
+static uint32_t ch_match;                    /* 0x541cd0: the challenge's match of the results */
 static Menu pg_order, pg_points, pg_stand, pg_last;   /* 0x53fb70, 0x53ec48, 0x53e888, 0x53ee28: the arcade's */
 static Menu pg_alt;                /* 0x53f3c8: the time trial's players in alternation */
 static int32_t alt_time[4];        /* 0x541cdc: each player's time, by Race_Base */
@@ -54,9 +57,10 @@ static void dim(void)
     Rect_Fill(r, C(0x519ed4), 2);
 }
 
-/* 0x408400 */
+/* 0x408400 (in mode 4 the challenge record's) */
 static const char *player_name(int n)
 {
+    if (mode() == 4) return Player_Name(n);
     uint32_t p = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
     return p == 0xf ? "" : (const char *)gm(0x52fa18 + p * 0x650);
 }
@@ -87,7 +91,7 @@ static const char *slot_name(int d)
    camera's; one player with computer drivers (bit 26) the first camera's (a computer's when it has
    a driver, 0x408500); a head to head outside the network game its pair's driver (0x455ac0: 0x541f78,
    which the championship's pairs fill, not ported); else the first camera's car after the player
-   base, by its driver. Mode 4's names (0x4737d0-0x473810) are not ported. */
+   base, by its driver; in mode 4 the match's names (0x4737d0-0x473810). */
 static void draw_title(Menu *m)
 {
     (void)m;
@@ -97,12 +101,14 @@ static void draw_title(Menu *m)
     const char *name = "";
     int c0 = Camera_Car(0);
     if (Gs_SelBits14() > 1 && Race_State(0) == 10) {
-        if (mode() == 4) PENDING_NOTE(0x473810, "the challenge's names in the results' title");
+        if (mode() == 4) name = Challenge_Tag(ch_match, Camera_Car(1));
         else name = player_name(Camera_Car(1));
     } else if (Gs_SelBit26() && Gs_SelBits14() == 1) {
         name = Player_Driver(c0) == -1 ? player_name(c0) : cpu_name(c0);
     } else if (mode() == 4) {
-        PENDING_NOTE(0x4737d0, "the challenge's names in the results' title");
+        /* the first camera's side: a computer's full name, a player's (as the tag) */
+        int side = Challenge_Side(ch_match, c0);
+        name = !Challenge_IsPlayer(ch_match, side) ? Challenge_Name(ch_match, side) : Challenge_Tag(ch_match, side);
     } else if (Gs_SelBit27() && !Gs_ModeBit19()) {
         name = slot_name((int8_t)gm8(0x541f78 + 2u * (uint32_t)Race_Base() + (uint32_t)c0));
     } else {
@@ -136,8 +142,10 @@ static void print_time(char *b, size_t n, int32_t t) { snprintf(b, n, exe_str(0x
 static void arcade_title(Menu *m);
 static void draw_arcade_times(Menu *m);
 
-/* 0x44bcd0: crtna640 (0x405610) centred on (564, 48) of 640 x 480; mode 4's times (0x44cdb0, not
-   ported); the arcade's (modes 5-7 and 11); else a column for the player and one for the stage
+static void draw_ch_times(void);
+
+/* 0x44bcd0: crtna640 (0x405610) centred on (564, 48) of 640 x 480; mode 4's times (0x44cdb0); the
+   arcade's (modes 5-7 and 11); else a column for the player and one for the stage
    record (or the second player): the driver, each split's time and the total */
 static void draw_times(Menu *m)
 {
@@ -153,7 +161,7 @@ static void draw_times(Menu *m)
     if (mode() == 4) {
         const char *t[1] = {Text_Get(0x48)};
         titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 1);
-        PENDING_NOTE(0x44cdb0, "the challenge's times");
+        draw_ch_times();
         Font_SetLayer(2);
         return;
     }
@@ -491,6 +499,69 @@ static void row_place(int k, bool tie)
    moved down by ten less the laps): "laps" (0xac, not with ten), the driver, each lap's time
    (0x4481f0) and their total ("total", 0x8a). The network game's (the lap counter 0x539dcc and
    Times_Finish) is not ported. */
+/* 0x44cdb0: the match's two columns, as the stage's (the driver, each split's time and the total):
+   the two players' names, or the player's first and the computer's (0x407ec0) second */
+static void draw_ch_times(void)
+{
+    int w, h;
+    screen(&w, &h);
+    int a = (int)(gm32(ch_match) & 0x1f), b = (int)(gm32(ch_match) >> 5 & 0x1f), base = Race_Base();
+    char n[2][64], t[160];
+    if (Player_Driver(a) == -1 && Player_Driver(b) == -1) {
+        snprintf(n[0], sizeof n[0], "%s", player_name(base + a));
+        snprintf(n[1], sizeof n[1], "%s", player_name(base + b));
+    } else if (Player_Driver(a) == -1) {
+        snprintf(n[0], sizeof n[0], "%s", player_name(base + a));
+        snprintf(n[1], sizeof n[1], "%s", cpu_name(Player_Driver(b)));
+    } else {
+        snprintf(n[0], sizeof n[0], "%s", player_name(base + b));
+        snprintf(n[1], sizeof n[1], "%s", cpu_name(Player_Driver(a)));
+    }
+    int shown = Sectors_Shown(), y = h * 0xe6 / 0x1e0, line = h * 0x1e / 0x1e0;
+    for (int col = 0; col < 2; col++) {
+        int x = w * 0x1e / 0x280 + (w * 0x166 / 0x280) * col;
+        Font_Print(1, Text_Get(0x89), x, y, C(0x519ecc), 0x11);
+        snprintf(t, sizeof t, Text_Get(0x9b), n[col]);
+        Font_Print(1, t, x, y - line, C(0x519ecc), 0x11);
+        Font_Print(1, Text_Get(0x8a), x, h * 0x19 / 0x1e0 + y + shown * h * 0x1e / 0x1e0, C(0x519ecc), 0x11);
+        int tx = w * 0xb1 / 0x280 + (w * 0x166 / 0x280) * col, i = 0;
+        for (; i < shown; i++) {
+            print_time(t, sizeof t, Times_Split(col, i + 1) - Times_Split(col, i));
+            Font_Print(1, t, tx, y + line * i, C(0x519ecc), 0x11);
+        }
+        int32_t total = Times_Finish(col);
+        snprintf(t, sizeof t, exe_str(0x519f58), total / 6000, total / 100 % 60, total % 100);
+        Font_Print(1, t, tx, h * 0x19 / 0x1e0 + y + line * i, C(0x519ecc), 0x11);
+    }
+}
+
+/* 0x4529c0: the match's result: lost, "0x88 <the first side's name>" (whoever it is) and out of the
+   challenge (0x91 before the final unless the depth is 1, else 0x92); won, 0x49 and the faster side's
+   name in 0x7e (0x7d in the final) */
+static void draw_chal(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    int x = w * 0x1e / 0x280, y = h * 0xf2 / 0x1e0;
+    uint32_t r = gm32(0x52f2b4), mw = gm32(ch_match);
+    char nm[64], b[256];
+    dim();
+    if (!Challenge_PlayerWon(ch_match)) {
+        snprintf(nm, sizeof nm, "%s", player_name(Race_Base() + (int)(mw & 0x1f)));
+        snprintf(b, sizeof b, exe_str(0x516940), Text_Get(0x88), nm);
+        Font_Print(2, b, x, y, C(0x519ecc), 0x11);
+        snprintf(b, sizeof b, "%s", Text_Get((r & 0x38) < 0x20 && (r & 7) != 1 ? 0x91 : 0x92));
+    } else {
+        Font_Print(2, Text_Get(0x49), x, y, C(0x519ecc), 0x11);
+        uint32_t d = gm32(ch_match + 8) < gm32(ch_match + 4) ? mw >> 5 : mw;
+        snprintf(nm, sizeof nm, "%s", player_name(Race_Base() + (int)(d & 0x1f)));
+        snprintf(b, sizeof b, Text_Get((r & 0x38) < 0x20 ? 0x7e : 0x7d), nm);
+    }
+    Text_ToFontCase(b);
+    Font_Print(0, b, x, h * 5 / 0x1e0 + y + Font_Height(0), C(0x519ecc), 0x11);
+}
+
 static void draw_arcade_times(Menu *m)
 {
     int w, h;
@@ -1160,7 +1231,13 @@ void Results_Start(bool again)
     Menu_Init(&pg_alt, NULL, 0, &pg_title, false, NULL, 1, 0, 0);
     Menu_AddPage(&pg_alt, NULL, 0, &pg_end, NULL, 0);
     Menu_SetCallbacks(&pg_alt, NULL, NULL, draw_alt, NULL);
-    if (mode() == 4 || mode() >= 8) PENDING_NOTE(0x44a1b0, "the results' pages of the other modes");
+    if (mode() == 4) {
+        Menu_Init(&pg_chal, NULL, 0, &pg_times, false, NULL, 1, 0, 0);
+        Menu_AddPage(&pg_chal, NULL, 0, &pg_end, NULL, 0);
+        Menu_SetCallbacks(&pg_chal, NULL, NULL, draw_chal, NULL);
+        Menu_Reset(&pg_chal);
+    }
+    if (mode() >= 8) PENDING_NOTE(0x44a1b0, "the results' pages of the other modes");
     /* the stage record (not in a challenge, with the cheats' options, after a recovery's penalty, or
        for the "cmr" driver) */
     bool record = false;
@@ -1210,6 +1287,18 @@ void Results_Start(bool again)
         }
         if (arcade_opened()) insert_opened(&pg_stand);
         build_questions(text);
+    } else if (mode() == 4) {
+        /* the challenge: the match noted and ended (0x472a30), the title on to its times, then its
+           result, then the choices: on while a player is still in the round (0x4728e0), unless the
+           final's matches have all been run */
+        ch_match = Challenge_Match();
+        Challenge_MatchEnd();
+        pg_title.items[0].target = &pg_times;
+        pg_times.parent = &pg_title;
+        pg_times.items[0].target = &pg_chal;
+        uint32_t r = gm32(0x52f2b4);
+        build_end(!(r & 0x400000) || (r & 0x38) < 0x20 ? Challenge_PlayersLeft() : 0, &pg_chal, 0x27);
+        build_questions(0x27);
     } else if (mode() == 6 || mode() == 7) {
         build_end(0, &pg_order, 0x29);
         pg_order.items[0].target = &pg_end;

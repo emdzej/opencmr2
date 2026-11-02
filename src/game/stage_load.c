@@ -8,6 +8,7 @@
 #include "game/ai.h"
 #include "audio/codriver.h"
 #include "audio/surface.h"
+#include "game/race.h"
 #include "sim/progress.h"
 #include "sim/scenery.h"
 #include "world/fin.h"
@@ -65,7 +66,7 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     if (!gm8(0x52ea52) && Gs_Mode() == 3) Replay_Setup();   /* 0x41c260: mode 3's replays here */
     Weather_StageLoad();       /* 0x45ea70 */
     Stage_LoadTm(stage);       /* 0x455300 */
-    Opp_Times(true);           /* 0x455470 */
+    if (Race_Reentry() != 2) Opp_Times(true);   /* 0x455470 (state 3, not on the way to state 4) */
     Ai_LoadLines(stage);       /* 0x47c2f0 */
     /* 4: the trackside cameras' splines (0x48caa0), the sections */
     {

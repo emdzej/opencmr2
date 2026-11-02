@@ -47,6 +47,7 @@
 #include "game/unlocks.h"
 #include "world/tod.h"
 #include "world/frame.h"
+#include "game/challenge.h"
 #include "game/standings.h"
 #include "fixmath.h"
 #include "render/d3d7.h"
@@ -72,6 +73,7 @@ static struct {
     bool built;             /* DAT_00537ef4 */
     bool rebuild;           /* DAT_00537ef5 */
     bool restart;           /* DAT_00537ef8: rebuilt from state 5 */
+    bool restarted;         /* DAT_00537efc: so rebuilt (the challenge's match waits for it) */
     uint32_t kind;          /* DAT_00537df0: 0 one player, 1 split screen, 2 and 3 championship, 4 alternate */
     bool first;             /* DAT_00537f08: the countdown's first frame (set by the loads, 9 and 10) */
     int32_t clock;          /* DAT_00537f24: steps since the start */
@@ -318,10 +320,15 @@ static void race_resets(void)
     }
 }
 
-/* The port: the alternation's next player (0x41b340) keeps the player base through Play_End and the
-   rebuild, which take the place of 0x420100's unwinding of the race's at-exit handlers; the set-up
-   state then skips what the original's way back to state 3 does not do again. */
-static bool next_player;
+/* The port: the ways back into the loading that the original takes without the set-up state, through
+   Play_End and the rebuild (which take the place of 0x420100's unwinding of the race's at-exit
+   handlers): the alternation's next player (0x41b340, back to state 3) keeps the player base; the
+   challenge's next round (event 7, back to state 4) the stage's opponents' times too. The set-up
+   state skips what those ways do not do again. */
+enum { ENTER_NEW, ENTER_PLAYER, ENTER_CARS };
+static int reenter;
+
+int Race_Reentry(void) { return reenter; }
 
 /* state 0, 0x41bf80: the race's variables cleared; for the first player the stage's selection, the
    common archives, the car tables */
@@ -331,12 +338,11 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
     R.start_count = 0;
     /* 0x409dd0: the seven ghost and network records at 0x531788 (0x80 bytes apart), their first
        halfwords */
-    if (!next_player)
+    if (!reenter)
         for (uint32_t a = 0x531788; a < 0x531b08; a += 0x80) gw16(a, 0);
     if (slot == 0) {
         /* (not for the alternation's next player, whose way in the original starts at state 3) */
-        if (!next_player) race_resets();
-        next_player = false;
+        if (!reenter) race_resets();
         Replay_FreeAll();   /* the last race's (the original's exit handlers, 0x41e670: 0x46c6d0) */
         /* 0x427c10: the engines and the surfaces at a third of the effects volume, the collisions at
            two thirds */
@@ -414,6 +420,7 @@ static void s4_cars(ProcGroup *g, uint32_t slot)
         Engine_Reset();                /* 0x478dc0 */
     }
     R.place = 1;
+    if (slot == 0) reenter = ENTER_NEW;
     /* (the bar at 100% and the clear colour, sage or with 0x52afb4 bit 17 black, are the loading
        screen's: 0x40fec0, 0x49d940) */
     Render_SetClearColour(Gs_ModeBit17() ? 0 : 0x9c, Gs_ModeBit17() ? 0 : 0xb4, Gs_ModeBit17() ? 0 : 0xac);
@@ -463,7 +470,15 @@ static void s5_line(ProcGroup *g, uint32_t slot)
         R.place_count--;
         Race_Update(Proc_State(g, 0), false);
     }
-    if (R.place_count < 1) Proc_Event(g, slot, 0, 2);
+    if (R.place_count < 1) {
+        /* the challenge's screen first (state 6), with the menus' input */
+        if (Gs_Mode() == 4) {
+            Input_SetMenuMode(true);   /* 0x49ea90 */
+            Proc_Event(g, slot, 5, 2);
+            return;
+        }
+        Proc_Event(g, slot, 0, 2);
+    }
 }
 
 /* state 7, 0x41d2b0: the countdown: the stage clock restarted on its first frame, five seconds of steps
@@ -617,7 +632,8 @@ static void replay_again(int p)
 }
 
 /* 0x41f2b0: every process on to the results, the players' damage stored (0x469b50), their replays
-   ended (the ghost's and the championship's rest not ported) */
+   ended (the ghost's rest not ported); in the challenge the results' way out asked for at once: the
+   match's restart, or once the challenge is given up (0x52f2b4 bit 23) its quit */
 static void end_replay(ProcGroup *g)
 {
     for (int i = 0; i < (int)players(); i++) Damage_Store(i);
@@ -625,7 +641,13 @@ static void end_replay(ProcGroup *g)
         Proc_Event(g, i, 0, 2);
         Replay_End(Race_Replay((int)i));
     }
-    if ((Gs_SelBit28() && Gs_Bit30()) || Gs_Mode() == 4) PENDING_NOTE(0x41f2b0, "Race_EndReplay (the ghost, the championship)");
+    if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x41f2b0, "Race_EndReplay (the ghost)");
+    if (Gs_Mode() != 4) return;
+    if (!(gm32(0x52f2b4) & 0x800000)) {
+        Challenge_KeepRestart(true);      /* 0x4728b0 */
+        Pause_Ask(true, false, false);    /* 0x41f280 */
+    } else
+        Pause_Ask(false, false, true);    /* 0x41f2a0 */
 }
 
 /* state 10, 0x41e350: the replay with the results' pages over it (Results_Step in the steps): while no
@@ -676,8 +698,89 @@ static void alternate(ProcGroup *g)
     Surface_Reset();
     gw8(0x537ef6, (uint8_t)(gm8(0x537ef6) + 1));
     if (Gs_SelBit28()) PENDING_NOTE(0x466080, "the ghosts' replays for the next player");
-    next_player = true;
+    reenter = ENTER_PLAYER;
     race_exit(g);
+}
+
+/* 0x41e6b0 (its third argument set): the stage again from the line */
+static void restart_line(ProcGroup *g)
+{
+    /* the co-driver and the start lights again, the grid in its modes, the cars
+       back on it (0x42b800), the sectors, records, HUD, skids, knocked scenery and the CPU
+       drivers again, then every process to the line (event 4). (The wheel's force tables
+       0x424ed0, the network and ghost records 0x409dd0/0x409ab0, the challenge records
+       0x4cf140 are not kept by the port.) */
+    Codriver_Reset();   /* 0x416670 */
+    Lights_Reset();     /* 0x463d00 */
+    if (Gs_SelBit26() || Gs_SelBit25() || Gs_SelBit31()) Cars_Grid(Gs_Mode() != 4);   /* 0x4584d0 */
+    Cars_Reset(0, g_all.n, false);   /* 0x42b800 */
+    if (Gs_Mode() == 4)
+        for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
+    Cars_GridPoints();   /* 0x458480 */
+    Opp_Times(false);   /* 0x455470 */
+    Sectors_Start();    /* 0x458100 */
+    Hud_Init(1);       /* 0x411450 with 0x53810c, the restart asked */
+    Skids_Reset();      /* 0x465530 */
+    Knock_Restore();    /* 0x4702a0 */
+    if (Gs_SelBit26()) Ai_Go(true);   /* 0x47bdc0 */
+    Times_Reset();      /* 0x447f70 */
+    Engine_Reset();     /* (the port: the engines' voices, Race_Frame's rebuild in the original) */
+    Times_Clear();
+    Input_SetMenuMode(false);   /* 0x49ea90 */
+    if (Gs_Mode() != 4) gw8(0x537ef6, 0);   /* 0x41b360 */
+    /* the replays ended, for the championship and the CPU runs the first two */
+    for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
+        Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
+    R.nfinished = 0, R.done = 0;
+    memset(R.finished, 0, sizeof R.finished);
+    memset(R.shown, 0, sizeof R.shown);
+    R.place = 1;
+    R.first = true;
+    for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 4, 2);
+}
+
+/* 0x41e8d0 in the challenge (kinds 2 and 3): the pause's restart the challenge's again from its draw
+   (0x4069c0, 0x472ca0), unless the match's (kept by 0x41f2b0), which is the stage again from the line
+   and on as below; the quit, unless the challenge is over (0x4729f0, every process to the front end),
+   the next round's cars (event 7: state 4, the stage kept); else unless the restart was kept the next
+   match from the set-up (event 0) */
+static void challenge_out(ProcGroup *g)
+{
+    if (Pause_RestartAsked()) {
+        memset(gm(0x52ebc0), 0, 0x148 * 4);   /* 0x408290 */
+        if (!Challenge_KeptRestart()) {
+            Pause_ClearAsks();
+            for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 3);
+            race_exit(g);
+            Sel_ChallengeDraw();   /* 0x4069c0 */
+            Challenge_Reset();     /* 0x472ca0 */
+            return;
+        }
+        Pause_ClearRestart();   /* (0x41e6b0's end) */
+        restart_line(g);
+    }
+    if (Pause_QuitAsked()) {
+        Pause_ClearAsks();
+        for (int i = 0; i < (int)players(); i++) Damage_Store(i);   /* 0x469b50 */
+        Damage_Store(0);
+        if (!Challenge_Over()) {
+            Voices_StopAll();
+            Surface_Reset();   /* 0x418f20 */
+            for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 7, 2);
+            reenter = ENTER_CARS;
+            race_exit(g);
+            return;
+        }
+        for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+        set_mode(0);
+        race_exit(g);
+        return;
+    }
+    if (!Challenge_KeptRestart()) {
+        for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+        race_exit(g);
+    }
+    Challenge_KeepRestart(false);   /* 0x4728c0 */
 }
 
 /* state 11, 0x41e8d0: the results until the key; in a rally on to the next stage through the world
@@ -690,6 +793,10 @@ static void s11_results(ProcGroup *g, uint32_t slot)
     /* the players' replays ended (0x41e8d0 on each way out; nothing steps them here) */
     for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
         Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
+    if (Gs_Mode() == 4) {
+        challenge_out(g);
+        return;
+    }
     if (Pause_QuitAsked()) {
         /* the pause's exit: every process to state 0, back to the front end (0x41e670, 0x41b300) */
         Pause_ClearAsks();
@@ -707,39 +814,7 @@ static void s11_results(ProcGroup *g, uint32_t slot)
         /* the players' carried damage dropped (0x408290) in the modes the original's switch lists */
         if (m <= 5 || (m >= 8 && m <= 10)) memset(gm(0x52ebc0), 0, 0x148 * 4);
         if ((m == 2 || m == 3 || m == 9 || m == 10) && !service && R.kind != 4) {
-            /* 0x41e6b0: the co-driver and the start lights again, the grid in its modes, the cars
-               back on it (0x42b800), the sectors, records, HUD, skids, knocked scenery and the CPU
-               drivers again, then every process to the line (event 4). (The wheel's force tables
-               0x424ed0, the network and ghost records 0x409dd0/0x409ab0, the challenge records
-               0x4cf140 are not kept by the port.) */
-            Codriver_Reset();   /* 0x416670 */
-            Lights_Reset();     /* 0x463d00 */
-            if (Gs_SelBit26() || Gs_SelBit25() || Gs_SelBit31()) Cars_Grid(Gs_Mode() != 4);   /* 0x4584d0 */
-            Cars_Reset(0, g_all.n, false);   /* 0x42b800 */
-            if (Gs_Mode() == 4)
-                for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
-            Cars_GridPoints();   /* 0x458480 */
-            Opp_Times(false);   /* 0x455470 */
-            Sectors_Start();    /* 0x458100 */
-            Hud_Init(gm8(0x53810c));   /* 0x411450 */
-            Skids_Reset();      /* 0x465530 */
-            Knock_Restore();    /* 0x4702a0 */
-            if (Gs_SelBit26()) Ai_Go(true);   /* 0x47bdc0 */
-            Times_Reset();      /* 0x447f70 */
-            Engine_Reset();     /* (the port: the engines' voices, Race_Frame's rebuild in the original) */
-            Times_Clear();
-            Input_SetMenuMode(false);   /* 0x49ea90 */
-            if (Gs_Mode() != 4) gw8(0x537ef6, 0);   /* 0x41b360 */
-            gw32(0x53810c, gm32(0x53810c) & 0xffffff00u);
-            /* the replays ended, for the championship and the CPU runs the first two */
-            for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
-                Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
-            R.nfinished = 0, R.done = 0;
-            memset(R.finished, 0, sizeof R.finished);
-            memset(R.shown, 0, sizeof R.shown);
-            R.place = 1;
-            R.first = true;
-            for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 4, 2);
+            restart_line(g);
             return;
         }
         /* a rally's restart and the service area's go through mode 2; a championship's or single
@@ -838,7 +913,7 @@ static void s12_quit(ProcGroup *g, uint32_t slot)
 /* 0x428680 (in the overlays, 0x40f8d0): a player's fade as a rectangle over the view, its alpha the
    level (0x53a06c) of the fade of the car the camera follows, its colour the fade's (0x53a00c), on the
    fade's layer (0x53a20c: the recovery's 2) */
-static void fade_overlay(int p, bool paused)
+void Race_FadeOverlay(int p, bool paused)
 {
     int car = p;   /* 0x422fb0: the camera's car */
     if (paused && Fade_Hold(p)) return;
@@ -940,15 +1015,15 @@ void Race_DrawOverlays(int player)
     Dash_Draw(player);        /* 0x446210 */
     Hud_Draw(player);         /* 0x4125f0 */
     Codriver_Notes(player);   /* 0x4177d0 */
-    fade_overlay(player, gm8(0x52af40) != 0);
+    Race_FadeOverlay(player, gm8(0x52af40) != 0);
     split_labels(player);
     Intro_Draw(player, Race_State(player));   /* 0x40f8d0 */
 }
 
-/* The table at 0x5190b0 in its order; 6 (the intro camera, 0x472e00) and 13 (0x41e5c0) are not ported */
+/* The table at 0x5190b0 in its order; 13 (0x41e5c0) is not ported */
 static const ProcState states[14] = {
     {s0_setup, NULL}, {s1_loading, load_draw}, {s2_mount, load_draw}, {s3_stage, NULL}, {s4_cars, NULL},
-    {s5_line, draw}, {NULL, draw}, {s7_countdown, draw}, {s8_stage, draw}, {s9_finished, draw},
+    {s5_line, draw}, {Challenge_Step, Challenge_Draw}, {s7_countdown, draw}, {s8_stage, draw}, {s9_finished, draw},
     {s10_replay, draw}, {s11_results, draw}, {s12_quit, NULL}, {NULL, draw},
 };
 
@@ -959,15 +1034,16 @@ static uint32_t race_kind(uint32_t *np)
     uint32_t n = gm32(0x52afb4) >> 13 & 0xf;   /* 0x405d70: the players */
     uint32_t kind;
     if (Gs_Mode() == 4) {
-        PENDING_NOTE(0x408500, "Race_Frame (championship)");
-        kind = 2, n = 1;
+        /* the challenge: its two players' match on a split screen (kind 3), else one (kind 2) */
+        if (Challenge_TwoPlayers()) kind = 3, n = 2;
+        else kind = 2, n = 1;
     } else if (!(Gs_Mode() == 0 && (gm8(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160) && 1 < n) {
         /* (0x407270: rally 8 stage 11, the super special, races head to head) */
         if (Gs_Mode() != 3 && n < 3 && !Gs_ModeBit17()) kind = 1, n = 2;
         else kind = 4, n = 1;
     } else
         kind = 0, n = 1;
-    gw32(0x52f2ac, (n & 3) << 14 | (gm32(0x52f2ac) & 0xffff3fff));   /* 0x407500 */
+    Gs_SetRacePlayers(n);   /* 0x407500 */
     *np = n;
     return kind;
 }
@@ -999,9 +1075,10 @@ int Race_Frame(void)
         Proc_Advance(&R.group);
         return 0;
     }
-    if (!R.built && !next_player) gw8(0x537ef6, 0);   /* 0x41b360 */
+    if (!R.built && !reenter) gw8(0x537ef6, 0);   /* 0x41b360 */
     uint32_t n, kind = race_kind(&n);
     R.kind = kind;
+    if (R.restart && n) R.restarted = true;
     for (uint32_t i = 0; i < n; i++) Proc_InitSlot(&R.slots[i], R.restart ? 5 : 0, kind);
     Proc_Init(&R.group, (uint8_t)n, R.slots, states, exe_data(0x519120, 26 * 4));
     if (R.restart) {
@@ -1024,5 +1101,9 @@ int32_t Race_Frac(void) { return R.frac; }
 int Race_Base(void) { return gm8(0x537ef6); }   /* 0x41b370 */
 int Race_Kind(void) { return (int)R.kind; }   /* 0x41b380 */
 bool Race_Exited(void) { return R.exited; }
+int Race_Winner(void) { return R.winner; }                     /* 0x41f380 */
+void Race_RequestRestart(void) { R.restart = true; }           /* 0x41b310 */
+bool Race_Restarted(void) { return R.restarted; }              /* 0x41b320 */
+void Race_ClearRestarted(void) { R.restarted = false; }        /* 0x41b330 */
 void Race_EndReplay(void) { end_replay(&R.group); }   /* 0x41f2b0 */
 Obj *Race_Camera(int player) { return H && H->camera ? H->camera(player) : NULL; }

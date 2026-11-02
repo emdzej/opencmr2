@@ -21,3 +21,6 @@ int Opp_PlaceAt(int player, int split); /* 0x455c80 */
 int Opp_Entries(int split);             /* 0x455c70 */
 int Opp_DriverAt(int place, int split); /* 0x455cc0: -1 none */
 int32_t Opp_TimeAt(int place, int split);   /* 0x455d40: 1/100 s */
+/* 0x455df0: two computer drivers' times at the last split, by their places (0x54204c, the driver
+   less the players) */
+void Opp_PairTimes(int a, int b, int32_t *ta, int32_t *tb);
