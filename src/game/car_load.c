@@ -35,6 +35,8 @@ static C3d models[CAR_MAX];
 static uint8_t *cins[CAR_MAX];     /* 0x5428c4 region: the cars' .cin files */
 static uint32_t cin_size[CAR_MAX];
 static BflSlot textures[CAR_MAX];   /* the slots' texture archives (0x542634 + 0x24 n) */
+static C3d alt_models[CAR_MAX];     /* 0x54263c + 0x24 n's file: the wheels' other model */
+static uint8_t *alt_files[CAR_MAX];
 static C3d far_models[CAR_MAX];     /* 0x5428c4 + 4 n: the far models */
 static uint8_t *far_files[CAR_MAX];   /* 0x542944 + 4 n */
 static BflSlot far_tex[CAR_MAX];    /* 0x542af4 + 0x18 n */
@@ -232,7 +234,34 @@ bool Car_Load(int n)
     mesh_number(s->second, n), mesh_number(s->main, n);
     /* dents on for the rally modes (0x46b400), never turned off here */
     if (!(mode == 5 || mode == 6 || mode == 7 || mode == 11 || mode == 12) && !(Gs_SelBit28() && Gs_Bit30())) Damage_SetDents(1, n);
-    PENDING_NOTE(0x42cb50, "Car_Load (the wheels' other models)");
+    /* a kind A car's wheels from its S model on snow (0x42cae0 with 1), or its L one where the wheels
+       show as they are (0x42cb50; the S file is then left loaded): the model under the world root with
+       the car's textures (0x54263c), the wheels' meshes kept (+0x10-+0x1c, never read back) and the
+       main model's wheels given the other model's */
+    if (letter == 'A') {
+        uint8_t *alt = NULL;
+        uint32_t asize = 0;
+        if (Pose_Narrow(c, 1)) {
+            snprintf(path, sizeof path, "Game\\Cars\\%sA1S.c3d", name);
+            alt = File_Load(path, 0), asize = File_LastSize();
+        }
+        if (Car_PlainWheels(c)) {
+            snprintf(path, sizeof path, "Game\\Cars\\%sA1L.c3d", name);
+            alt = File_Load(path, 0), asize = File_LastSize();
+        }
+        free(alt_files[n]);
+        alt_files[n] = alt;
+        C3d *am = &alt_models[n];
+        if (alt && C3d_Load(am, alt, asize, g_tex_count)) {
+            C3d_Textures(am->data + am->slots, am->data + am->paths, am->ntex, am->kind, &textures[n], "");
+            C3d_Build(am);
+            Obj *ar = C3d_Objects(am, &g_world);
+            for (uint32_t t = 1; ar && t <= 4; t++) {
+                Obj *from = Obj_FindType(ar, t), *to = Obj_FindType(s->main, t);
+                if (from && to) to->mesh = from->mesh, to->model = from->model;
+            }
+        }
+    }
     return far_load(n, name, far, set, c);
 }
 
