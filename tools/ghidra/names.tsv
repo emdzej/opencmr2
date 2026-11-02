@@ -1630,3 +1630,20 @@
 004d0180	Rec_StageStart	game	high	The record's splits to race against, the session best reset
 004d0220	Rec_Split	game	high	A split of 0x817448
 004d0230	Rec_Context	game	high	The record context's rally, stage, location
+00402000	Pause_DrawOptions	game	high	The pause graphics page's rows with their values
+00402eb0	Pause_GfxEnter	game	high	The graphics page's values from the options
+00402f20	Pause_GfxBack	game	high	The graphics page's values kept
+00402f90	Pause_BuildGfx	game	high	The pause graphics page
+00403110	Pause_CamValues	game	high	The camera page's settings to values
+00403200	Pause_CamFrame	game	high	The camera page's values to settings
+004035e0	Pause_BuildCam	game	high	The pause camera page
+004036c0	Pause_CamDefault	game	high	The camera page's defaults
+00403700	Pause_CamEnter	game	high	The camera page's settings kept, live view on
+004037c0	Pause_CamLeave	game	high	The camera page's settings applied or restored
+00403890	Pause_DrawCam	game	high	The camera page's bars
+00403ef0	Rect_Outline	game	high	A box's outline
+00408930	Player_Camera	game	high	The player's chase camera record
+00447cf0	Chase_Raw	game	high	The chase camera's offset as given
+00447e00	Chase_RawAngle	game	high	The chase camera's angle as given
+00447ea0	Chase_Dist	game	high	The chase camera's distance
+00447ec0	Chase_SetDist	game	high	The chase camera's distance set

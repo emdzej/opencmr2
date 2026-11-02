@@ -47,4 +47,7 @@ void Challenge_ResetPlayers(void);         /* 0x4eae40 */
 int Profiles_Free(void);                   /* 0x4ec020: those in use and not a player's */
 const char *Profile_FreeName(int i);       /* 0x4ec110: the i-th of them's name (0x52fa18) */
 int Profile_FreeIndex(int i);              /* 0x4ec090 */
+uint32_t Player_Camera(int player);                          /* 0x408930 */
+void Player_SetCamera(int player, const uint32_t v[5]);     /* 0x4088a0 */
+void Player_SetCameraKind(int player, uint32_t kind);       /* 0x408760 */
 void Player_DefaultCamera(int player);     /* 0x4ec210 */

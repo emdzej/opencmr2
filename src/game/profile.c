@@ -322,14 +322,40 @@ void Player_DefaultCamera(int n)
     /* 0x4eaae0 the options' camera defaults (0x52b028-0x52b034), 0x4088a0 into the profile (or in
        mode 4 the challenge record 0x52f490) and 0x408d00 its changed flag */
     uint32_t v[5] = {0, gm32(0x52b028), gm32(0x52b02c), gm16(0x52b034), gm32(0x52b030)};
+    Player_SetCamera(n, v);
+}
+
+/* 0x408930: the player's chase camera record (x, y, z, the angle, the distance), 0 without */
+uint32_t Player_Camera(int n)
+{
+    if ((gm32(0x52afb4) >> 3 & 0x7f) == 4) return 0x52f490 + 0xc4u * (uint32_t)n;
+    uint32_t p = Player_Word(n) >> 0x12 & 0xf;
+    return p == 0xf ? 0 : 0x53003c + p * 0x650;
+}
+
+/* 0x4088a0 */
+void Player_SetCamera(int n, const uint32_t v[5])
+{
+    uint32_t a = Player_Camera(n);
+    if (!a) return;
+    for (int i = 0; i < 5; i++) gw32(a + 4u * (uint32_t)i, v[i]);
+    Player_Touch(n);   /* (0x408d00's two flags) */
+}
+
+/* 0x408760: the camera kind (+0x58 of the profile, the challenge record's +4); with the profile's
+   bit 21 (the challenge always) the options' too (0x405fd0) */
+void Player_SetCameraKind(int n, uint32_t kind)
+{
     if ((gm32(0x52afb4) >> 3 & 0x7f) == 4) {
-        for (int i = 0; i < 5; i++) gw32(0x52f490 + 0xc4u * (uint32_t)n + 4u * (uint32_t)i, v[i]);
+        gw32(0x52b038, kind);
+        gw32(0x52f3e4 + 0xc4u * (uint32_t)n, kind);
         gw8(0x52f3ec + 0xc4u * (uint32_t)n, gm8(0x52f3ec + 0xc4u * (uint32_t)n) | 2);
         return;
     }
     uint32_t p = Player_Word(n) >> 0x12 & 0xf;
     if (p == 0xf) return;
-    for (int i = 0; i < 5; i++) gw32(0x53003c + p * 0x650 + 4u * (uint32_t)i, v[i]);
+    if (gm32(0x52fa1c + p * 0x650) & 0x200000) gw32(0x52b038, kind);
+    gw32(0x52fa60 + p * 0x650, kind);
     gw8(0x52fa00 + p, 1);
 }
 

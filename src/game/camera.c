@@ -178,6 +178,13 @@ static void chase_settings(int p, const int32_t off[3])
     chase_set_angle(p, set_ang_raw[p]);
 }
 
+void Chase_SetOffset(int p, const int32_t off[3]) { chase_settings(p, off); }   /* 0x447d20 */
+void Chase_SetAngle(int p, int16_t a) { chase_set_angle(p, a); }               /* 0x447e20 */
+void Chase_Raw(int p, int32_t off[3]) { memcpy(off, set_raw[p], 12); }        /* 0x447cf0 */
+int16_t Chase_RawAngle(int p) { return set_ang_raw[p]; }                       /* 0x447e00 */
+int32_t Chase_Dist(int p) { return set_dist[p]; }                              /* 0x447ea0 */
+void Chase_SetDist(int p, int32_t d) { set_dist[p] = d; }                      /* 0x447ec0 */
+
 /* 0x447530: a chase camera's kind (0, 4 the player's, 3 the 45 degree view) and settings from the
    profile (0x408c20: its +0x5e0 position, angle and distance) */
 static void chase_init(Cam *k, const int32_t *r, uint8_t kind)

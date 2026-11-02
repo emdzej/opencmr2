@@ -1166,8 +1166,9 @@ int Race_Frame(void)
     for (uint32_t i = 0; i < n; i++) Proc_InitSlot(&R.slots[i], R.restart ? 5 : 0, kind);
     Proc_Init(&R.group, (uint8_t)n, R.slots, states, exe_data(0x519120, 26 * 4));
     if (R.restart) {
-        PENDING_NOTE(0x42b660, "Race_Restart");
-        Dash_Reset();   /* 0x445c80, after Sim_InitLists(2) */
+        /* (only the challenge asks, 0x41b310: its two cars) the cars' lists and poses again */
+        Sim_InitLists(2);   /* 0x42b660 */
+        Dash_Reset();       /* 0x445c80 */
     }
     R.built = true;
     R.rebuild = false;
@@ -1184,6 +1185,13 @@ int Race_Cars(void) { return g_all.n; }
 int32_t Race_Frac(void) { return R.frac; }
 int Race_Base(void) { return gm8(0x537ef6); }   /* 0x41b370 */
 int Race_Kind(void) { return (int)R.kind; }   /* 0x41b380 */
+
+/* 0x404f40's live view on the camera page: the player's camera stepped (0x421e20) and framed */
+void Race_PausedCamera(int p)
+{
+    Camera_Step(p);
+    if (H->camera) Camera_Frame(p, Race_Frac(), H->camera(p));
+}
 bool Race_Exited(void) { return R.exited; }
 int Race_Winner(void) { return R.winner; }                     /* 0x41f380 */
 void Race_RequestRestart(void) { R.restart = true; }           /* 0x41b310 */
