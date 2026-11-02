@@ -4,6 +4,7 @@
 #include "game/mem.h"
 #include "pending.h"
 #include "game/timer.h"
+#include "world/tod.h"
 
 static uint32_t player_profile(int n) { return gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf; }
 
@@ -229,6 +230,73 @@ void Player_DefaultCamera(int n)
     if (p == 0xf) return;
     for (int i = 0; i < 5; i++) gw32(0x53003c + p * 0x650 + 4u * (uint32_t)i, v[i]);
     gw32(0x52fa00 + 4 * p, 1);
+}
+
+/* 0x408d00: player n's record marked changed (mode 4: its challenge record's flag) */
+void Player_Touch(int n)
+{
+    if (Gs_Mode() == 4) {
+        gw8(0x52f3ec + 0xc4u * (uint32_t)n, gm8(0x52f3ec + 0xc4u * (uint32_t)n) | 2);
+        return;
+    }
+    uint32_t p = Player_Word(n) >> 0x12 & 0xf;
+    if (p != 0xf) gw32(0x52fa00 + 4 * p, 1);
+}
+
+/* 0x408a60: player n's tyre wear record (its profile's +0x57c, mode 4's challenge record +4); none on
+   a circuit (0x52afb4 bit 19), in modes 5-7 or on stage 10 for a player past the race's */
+uint32_t Player_Tyres(int n)
+{
+    uint32_t m = Gs_Mode();
+    if ((Gs_ModeBit19() || m == 5 || m == 6 || m == 7 || Tod_Stage() == 10) && (int)(Gs_Players() - 1) < n) return 0;
+    if (m == 4) return 0x52f3f0 + 0xc4u * (uint32_t)n;
+    uint32_t p = Player_Word(n) >> 0x12 & 0xf;
+    return p == 0xf ? 0 : 0x52ff94 + p * 0x650;
+}
+
+/* 0x45c750: wheel w's tally of spin (a) and slide (b) added to its counts (+0x80, +0x60, each to
+   1,000) and the most kept (+0x20, +0x00); the wheel's mark (+0x90) cleared, then each set from its
+   counts (3 a slide over 50, 1 a spin over 50, 2 over 300) */
+void Tyres_Tally(int n, int w, int a, int b)
+{
+    uint32_t r = Player_Tyres(Gs_Byte537ef6() + n);
+    if (!r) return;
+    uint32_t o = 4u * (uint32_t)w;
+    if (gms32(r + 0x80 + o) < 1000) gw32(r + 0x80 + o, (uint32_t)(gms32(r + 0x80 + o) + a));
+    if (gms32(r + 0x60 + o) < 1000) gw32(r + 0x60 + o, (uint32_t)(gms32(r + 0x60 + o) + b));
+    if (gms32(r + 0x20 + o) < gms32(r + 0x80 + o)) gw32(r + 0x20 + o, gm32(r + 0x80 + o));
+    if (gms32(r + o) < gms32(r + 0x60 + o)) gw32(r + o, gm32(r + 0x60 + o));
+    gw32(r + 0x90 + o, 0);
+    for (uint32_t i = 0; i < 4; i++) {
+        if (0x32 < gms32(r + 0x80 + 4 * i)) gw32(r + 0x90 + 4 * i, 3);
+        if (0x32 < gms32(r + 0x60 + 4 * i)) gw32(r + 0x90 + 4 * i, 1);
+        if (300 < gms32(r + 0x60 + 4 * i)) gw32(r + 0x90 + 4 * i, 2);
+    }
+    Player_Touch(Gs_Byte537ef6() + n);
+}
+
+/* 0x45c610: each player's wheels' wear at the start: unless again or kept, the counts taken from the
+   last (+0x40 into +0x50, the larger of +0x00 and +0x10 into +0x30, +0x40 cleared), then copied up
+   (+0x50 to +0x80, +0x40 to +0x60, +0x30 to +0x70) and tallied with nothing (the marks) */
+void Tyres_Start(bool again, bool keep, int players)
+{
+    for (int n = 0; n < players; n++) {
+        uint32_t r = Player_Tyres(Gs_Byte537ef6() + n);
+        if (!r) continue;
+        for (int w = 0; w < 4; w++) {
+            uint32_t a = r + 0x50 + 4u * (uint32_t)w;
+            if (!again && !keep) {
+                gw32(a, gm32(a - 0x30));
+                gw32(a - 0x20, gms32(a - 0x40) < gms32(a - 0x50) ? gm32(a - 0x50) : gm32(a - 0x40));
+                gw32(a - 0x10, 0);
+            }
+            gw32(a + 0x30, gm32(a));
+            gw32(a + 0x10, gm32(a - 0x10));
+            gw32(a + 0x20, gm32(a - 0x20));
+            Player_Touch(Gs_Byte537ef6() + n);
+            Tyres_Tally(n, w, 0, 0);
+        }
+    }
 }
 
 void Player_SetGuest(int n, bool guest)

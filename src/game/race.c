@@ -375,12 +375,12 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
         if (!R.countdown) R.countdown = 1;
         Race_Update(Proc_State(g, 0), false);
     }
-    PENDING_NOTE(0x44a120, "Countdown_Sounds");
+    gw32(0x5418d4, 0);   /* 0x44a120 (nothing reads it) */
     if (R.countdown >= 500 || R.skip) {
         Proc_Event(g, slot, 0, 2);
         Times_Clear();            /* 0x448100 */
         if (Gs_SelBit22() && !Gs_SelBit25() && !Gs_ModeBit19()) {
-            PENDING_NOTE(0x42b800, "the CPU cars' states");
+            Cars_Reset((int)Gs_SelBits14(), g_all.n - (int)Gs_SelBits14(), false);   /* 0x42b800: the CPU cars */
             if (Gs_SelBit26()) Ai_Go(false);   /* 0x47bdc0 */
         }
         /* the replay records from the go (the CPU runs' and the network game's not ported) */

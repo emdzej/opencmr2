@@ -45,3 +45,5 @@ void Car_Settle(Car *c);       /* 0x43e680 */
 void Damage_Reset(Car *c);     /* 0x469690 (sim/damage.c) */
 /* Car_Place 0x457e50: the start pose on both models, then Car_Init and Car_Settle. */
 void Car_Place(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3]);
+/* the same with Car_Place's last argument, the models kept (attached already) */
+void Car_PlaceKeep(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3], bool keep);

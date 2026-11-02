@@ -5,6 +5,7 @@
 #include "world/tre.h"
 #include "game/shadow.h"
 #include "game/effects.h"
+#include "game/profile.h"
 #include <stdbool.h>
 #include <math.h>
 #include <string.h>
@@ -886,7 +887,7 @@ static void Wheels_Dust(int car)
         if (Weather_Kind(car) == 1 && fx_mul(Weather_Level(car), 0xff0000) >> 16 > 1) {
             dust = false;   /* none in the rain */
         } else if (dust && iabs(Car_WheelSpeed(c, 0, 0)) > 0x1e0000 && car < (int)Gs_SelBits14()) {
-            PENDING_NOTE(0x45c750, "the player's wheel spin tally (0x45c750 car, w, 1, 0)");
+            Tyres_Tally(car, w, 1, 0);   /* 0x45c750 */
         }
         if (second) {
             dust = false;   /* (types 10 and 11 from the second axle never) */
@@ -1203,7 +1204,7 @@ static void Wheels_Stones(int car)
         if (gms8(cnt) > 0) continue;
         bool stone = gm32(0x52072c + 4 * kk) != 0;
         if (!stone && iabs(Car_WheelSpeed(c, w, 0)) > 0x1e0000)
-            PENDING_NOTE(0x45c750, "the player's wheel spin tally (0x45c750 player, w, 0, 1)");
+            Tyres_Tally(player, w, 0, 1);   /* 0x45c750 */
         int32_t lo = gms8(0x520794 + 2 * kk), hi = gms8(0x520795 + 2 * kk);
         gw8(cnt, (uint8_t)((fx_mul((hi - lo) * 0x10000, wet) >> 16) + lo));
         bool spin = CI32(c, 0xbe8 + 4 * u) != 0;

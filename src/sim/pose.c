@@ -59,6 +59,22 @@ static void car_box(int32_t o[8][3], const int32_t *m, const Car *c)
 
 void Pose_Snap(int car) { gw32(0x53acf0 + 4 * (uint32_t)car, 1); }   /* 0x42c870 */
 
+/* 0x43ecd0: the body's pose (Car_BodyPose), then the second model's local matrix from it (+0x754, the
+   block's +0x40) and the main model's from the car's own (+0x750, the block's +0x00): the three rows
+   and the position, as they are */
+void Car_PoseToObjects(Car *c)
+{
+    g_car = c;
+    Car_BodyPose(c);
+    Obj *o[2] = {c->second, c->main};
+    const uint32_t from[2] = {0x40, 0x00};
+    for (int k = 0; k < 2; k++) {
+        if (!o[k]) continue;
+        for (uint32_t r = 0; r < 4; r++)
+            for (uint32_t q = 0; q < 3; q++) o[k]->local.m[4 * r + q] = CI32(c, from[k] + 0x10 * r + 4 * q);
+    }
+}
+
 /* 0x42cae0: the wheels drawn narrow (and with mode 1 the hubs turned): a car on surface 6 at +0xb29
    but for models 8, 10, 11, 13, not with option 6; a car of kind A only with mode 1 */
 bool Pose_Narrow(const Car *c, int mode)

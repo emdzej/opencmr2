@@ -21,7 +21,11 @@ void Profile_Create(int player);
    its byte at +0x14 (0x52fa18) is set and bit 21 of its first word (0x52fa1c) clear. */
 uint32_t Player_Word(int player);          /* the player record's first word (0x531350 + 0x30 n) */
 const char *Player_Name(int player);        /* 0x408400: the profile's name ("" without one) */
-bool Player_HasProfile(int player);        /* 0x4085a0: one set (in mode 4 always), and bit 26 */
+bool Player_HasProfile(int player);
+void Player_Touch(int player);                /* 0x408d00 */
+uint32_t Player_Tyres(int player);            /* 0x408a60: the tyre wear record's address (0 none) */
+void Tyres_Tally(int n, int w, int spin, int slide);   /* 0x45c750 */
+void Tyres_Start(bool again, bool keep, int players);  /* 0x45c610 */        /* 0x4085a0: one set (in mode 4 always), and bit 26 */
 void Player_AssignProfile(int player, int profile);   /* 0x4eb860: -1 picks a free or the oldest one */
 void Player_SetGuest(int player, bool guest);         /* 0x4eb000 */
 void Player_DropProfile(int player);       /* 0x4ebe80 */

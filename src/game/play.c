@@ -39,6 +39,7 @@
 #include "render/tex.h"
 #include "world/tod.h"
 #include "sim/scenery.h"
+#include "game/profile.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -73,6 +74,10 @@ static bool load_cars(void)
     }
     Sim_InitLists(n);
     Damage_CarsLoaded();
+    Tyres_Start(false, false, (int)Gs_SelBits14());   /* 0x45c610 */
+    Skids_Reset();                                     /* 0x465530 */
+    for (int i = 0; i < n; i++) Pose_Snap(i);          /* 0x42c840 */
+    for (int i = 0; i < n; i++) Car_PoseToObjects(Car_Get(i));   /* 0x43ecd0 */
     Frame_SetRate(0x190000);   /* 25 frames a second, Cars_Load 0x466630 */
     int k = 0;
     for (int i = 0; i < n; i++) {

@@ -11,6 +11,10 @@
 #include "pending.h"
 #include "sim/car.h"
 #include "sim/damage.h"
+#include "sim/pose.h"
+#include "sim/sim.h"
+#include "game/profile.h"
+#include "game/skids.h"
 #include "world/obj.h"
 #include "world/stage.h"
 #include "render/tex.h"
@@ -160,6 +164,53 @@ void Car_Replace(int n)
     Csp_Angles(ang);
     Car_Place(s->main, s->second, n, s->model, ang, sp);
     Damage_Reset(Car_Get(n));
+}
+
+/* 0x42b800: cars first to first + n - 1 put back on the grid. Their models, wheels, parts, the
+   handling class (+0xb1b, 0 in mode 4) and the words +0x724, +0x728-+0x734, +0xc0c and +0xb58 are kept while the
+   blocks (0x42b740) and their counters (0x42b5b0, 0x53a230) are cleared; each is placed at its start
+   (Car_Place, its models kept), then the damage (0x4669b0, Damage_Setup again), the players' tyres
+   (0x45c610 again), the clouds' texture (0x46ef20, not ported), the skids, the poses snapped and
+   taken by the models, the progress started again outside selection bits 26 and 27, the poses
+   captured (0x42af50). */
+void Cars_Reset(int first, int n, bool keep)
+{
+    CarList l;
+    l.n = (int16_t)n;
+    for (int i = 0; i < n; i++) l.car[i] = (int16_t)(first + i);   /* 0x53a300 */
+    struct {
+        uint32_t w724, wc0c, wb58, hub[4];
+        uint8_t cls;
+    } k[CAR_MAX];
+    for (int i = first; i < first + n; i++) {
+        Car *c = Car_Get(i);
+        k[i].w724 = (uint32_t)CI32(c, 0x724), k[i].wc0c = (uint32_t)CI32(c, 0xc0c), k[i].wb58 = (uint32_t)CI32(c, 0xb58);
+        for (uint32_t q = 0; q < 4; q++) k[i].hub[q] = (uint32_t)CI32(c, 0x728 + 4 * q);
+        k[i].cls = Gs_Mode() == 4 ? 0 : (uint8_t)c->s[0xb1b];
+    }
+    for (int i = first; i < first + n; i++) {
+        Car *c = Car_Get(i);
+        memset(c->s, 0, CAR_SIZE);   /* 0x42b740 (the port's pointers beside the block stay) */
+        for (uint32_t q = 0; q < 4; q++) gw16(0x53a230 + 8u * (uint32_t)i + 2 * q, 0);   /* 0x42b5b0 */
+        CW32(c, 0x724, (int32_t)k[i].w724), CW32(c, 0xc0c, (int32_t)k[i].wc0c), CW32(c, 0xb58, (int32_t)k[i].wb58);
+        for (uint32_t q = 0; q < 4; q++) CW32(c, 0x728 + 4 * q, (int32_t)k[i].hub[q]);
+    }
+    for (int i = first; i < first + n; i++) {
+        int32_t sp[3];
+        uint16_t ang[3];
+        Csp_StartPos(i, sp);
+        Csp_Angles(ang);
+        Car_PlaceKeep(Car_Get(i)->main, Car_Get(i)->second, i, k[i].cls, ang, sp, true);
+    }
+    Damage_Clear(first, n);   /* 0x4669b0 */
+    Damage_Setup(true, keep, l.car, n);
+    Tyres_Start(true, keep, (int)Gs_SelBits14());   /* 0x45c610 */
+    Skids_Reset();
+    for (int i = first; i < first + n; i++) Pose_Snap(i);   /* 0x42c840 */
+    for (int i = first; i < first + n; i++) Car_PoseToObjects(Car_Get(i));   /* 0x43ecd0 */
+    if (!Gs_SelBit26() && !Gs_SelBit27())
+        for (int i = first; i < first + n; i++) Progress_Reset(i);   /* 0x4207a0 */
+    Pose_Capture(&l);
 }
 
 /* 0x420190: the cars racing: with selection bit 26 (not networked) the players and the CPU cars,

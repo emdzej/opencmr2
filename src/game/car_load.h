@@ -17,3 +17,4 @@ void Car_Replace(int n);       /* the port: back on the start, for a restart */
 int Cars_Racing(void);           /* 0x420190 */
 int Cars_Count(void);          /* 0x456ca0 */
 void Cars_Grid(void);          /* 0x4584d0 */
+void Cars_Reset(int first, int n, bool keep);   /* 0x42b800 */

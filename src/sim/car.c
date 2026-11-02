@@ -533,12 +533,17 @@ void Car_Settle(Car *c)
    bit 19, 0x424dc0 after it: not ported). */
 void Car_Place(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3])
 {
+    Car_PlaceKeep(main, second, n, cls, ang, pos, false);
+}
+
+void Car_PlaceKeep(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3], bool keep)
+{
     Obj_SetAngles(main, ang);
     Obj_SetAngles(second, ang);
     Obj_SetPosition(main, pos);
     Obj_SetPosition(second, pos);
     Car *c = Car_Get(n);
-    Car_Init(c, main, cls, pos, n, false);
+    Car_Init(c, main, cls, pos, n, keep);
     Car_Settle(c);
     if (Gs_ModeBit19()) PENDING_NOTE(0x424dc0, "Car_PlaceTwoPlayer");
 }
