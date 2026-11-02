@@ -4,6 +4,7 @@
 #include "game/shadow.h"
 #include "game/race.h"
 #include "sim/knock.h"
+#include "sim/aerials.h"
 #include "game/ai.h"
 #include "game/fireworks.h"
 #include "game/weather.h"
@@ -188,6 +189,7 @@ static void Race_Update(uint8_t state, bool flag)
     Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its other effects not ported) */
     if (Gs_Option(0)) Balls_Frame(R.frac);   /* 0x47e1e0, in 0x41d060 */
     Parts_Interp(R.frac);   /* 0x484d30 */
+    Aerials_Interp(R.frac);   /* 0x486500 */
     Particles_Interp(R.frac);   /* 0x4b06a0 */
     Weather_Interp(R.frac);     /* 0x461bb0 */
     if (Gs_SuperSpecial()) Fireworks_Interp(R.frac);   /* 0x480600 */

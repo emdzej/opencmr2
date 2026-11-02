@@ -47,6 +47,7 @@
 #include "sim/fade.h"
 #include "sim/scenery.h"
 #include "sim/knock.h"
+#include "sim/aerials.h"
 #include "sim/walls.h"
 #include "sim/contact.h"
 #include "game/balls.h"
@@ -223,6 +224,17 @@ int main(void)
                 for (int q = 0; q < 12; q++) diff += w->local.m[q] != last[q];
                 printf("wheel 0: %d of 12 terms changed over a step\n", diff);
                 CHECK(diff > 0);
+            }
+            /* the aerials (0x484e00): the 205 has its .cin's whips, swinging back in the air at speed */
+            {
+                int na = Aerials_Count(0);
+                int32_t sw[2] = {0, 0}, most = 0;
+                for (int k = 0; k < na; k++) {
+                    Aerials_Down(0, k, sw);
+                    int32_t m = (sw[0] < 0 ? -sw[0] : sw[0]) + (sw[1] < 0 ? -sw[1] : sw[1]);
+                    if (m > most) most = m;
+                }
+                CHECK(na == 0 || most > 0);
             }
             printf("HUD race time %d\n", Times_Race());
             /* the engine (0x47a710): its 13 sounds loaded (after the collisions' 21, the co-driver's 59 and

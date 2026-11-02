@@ -644,7 +644,7 @@ static void sky_step(WxSky *s, int n)
 
 /* 0x460a30: the wind's vector: its direction by the strength by the players' mean level (at least
    0.3), doubled when one has snow */
-static void wind_vec(int32_t out[3])
+void Wind_Vector(int32_t out[3])
 {
     int n = players();
     bool snow = false;
@@ -702,7 +702,7 @@ static void heading_step(WxSky *s, int n)
     s->heading_prev = s->heading;
     int a = cam_heading(n) & 0xffff;
     int32_t v[3] = {-g_sin[a & 0xfff], 0, g_sin[(a + 0x400) & 0xfff]}, w[3];
-    wind_vec(w);
+    Wind_Vector(w);
     int32_t d = fx_mul(w[2], v[2]) + fx_mul(w[0], v[0]) + fx_mul(w[1], v[1]);
     int32_t h = s->heading + fx_mul(d, 0xf5c);
     s->heading = h;

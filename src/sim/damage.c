@@ -1,5 +1,6 @@
 /* The car damage (see damage.h). */
 #include "sim/damage.h"
+#include "sim/aerials.h"
 #include "world/particles.h"
 #include "audio/crash.h"
 #include "game/camera.h"
@@ -840,8 +841,10 @@ void Damage_Reset(Car *c)
     memcpy(c->s + 0x5c4, keep, 0xc);
     memcpy(c->s + 0x5dc, keep + 0x18, 0xc);
     for (uint32_t j = 0; j < 34; j++) W(d, 0x350 + 4 * j, (int32_t)(((uint64_t)l[0x20c + j] << 32) / 0xff0000));
-    for (uint32_t j = 0; j < 3; j++) W(d, 0x4c0 + 4 * j, (int32_t)rd32(l + 0x240 + 4 * j));
-    PENDING_NOTE(0x486630, "Damage_Reset's carried part values (0x486630)");
+    for (uint32_t j = 0; j < 3; j++) {
+        W(d, 0x4c0 + 4 * j, (int32_t)rd32(l + 0x240 + 4 * j));
+        Aerials_Reset(CI8(c, 0xb1a), (int)j, (int32_t)rd32(l + 0x240 + 4 * j));   /* 0x486630: a carried aerial stays down */
+    }
     for (uint32_t j = 0; j < 4; j++) {
         W(d, 0x4b0 + 4 * j, (int32_t)rd32(l + 0x230 + 4 * j));
         Parts_Hide(c, (int)j, R(d, 0x4b0 + 4 * j));   /* 0x480ac0: a part carried as fallen off not drawn */

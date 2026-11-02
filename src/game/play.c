@@ -5,6 +5,7 @@
 #include "game/shadow.h"
 #include "game/play.h"
 #include "sim/knock.h"
+#include "sim/aerials.h"
 #include "game/fireworks.h"
 #include "game/lamps.h"
 #include "game/timer.h"
@@ -112,6 +113,8 @@ static void draw(int player, int state)
         } else if (Gs_SelBit27() || Gs_SelBit26()) Shadow_Draw(c, 1);
         else PENDING_NOTE(0x466570, "the cars' pass: Camera_Car(1)'s car in a shared replay");
     }
+    int32_t eye[3] = {camera.world.m[12], camera.world.m[13], camera.world.m[14]};
+    Aerials_Draw(g_all.car, g_all.n, player, eye);   /* 0x485690 */
     Weather_Draw(player);   /* 0x460330, at the end of the cars' pass 0x466570 */
     if (Fireworks_On()) Fireworks_Draw();   /* 0x47f740 */
     Race_DrawOverlays(player);

@@ -292,8 +292,10 @@ leaves them out). It writes each one's distance to the camera in x and z (the ta
 type 0x14, whichever side it is on. Within one unit, type 5 goes after type 0. The sort only runs when
 0x5207b4 is set, as for the billboards.
 
-The two line queues (2D 0x4bb2b0, 3D 0x4bb4c0, filled by 0x4bb430) are debugging aids. Nothing fills
-them in the release.
+The 2D line queue (0x4bb2b0) is a debugging aid nothing fills in the release. The 3D one (0x72d680,
+200 lines; 0x4bb430 adds, 0x4bb4c0 draws each as a two-vertex line list of model vertices, untextured,
+source-alpha blended, before the sprites) has one user: the cars' whip aerials (0x485860, see
+`src/sim/aerials.c`).
 
 ## Time of day
 

@@ -215,8 +215,8 @@
 004bcad0	Fog_SetEnabled	render	high	Sets the fog-enable state World_Render uses
 004bcae0	Fog_Enabled	render	high	Returns the fog-enable state
 004bb2b0	Line2d_Flush	render	med	Draws a 2D debug line layer (nothing fills it in the release)
-004bb430	Line3d_Add	render	med	Queues a 3D debug line
-004bb4c0	Line3d_Flush	render	med	Draws the 3D debug lines
+004bb430	Line3d_Add	render	confirmed	Queues a 3D line (the aerials)
+004bb4c0	Line3d_Flush	render	confirmed	Draws the 3D lines as line lists
 004b3c00	Section_Relight	world	high	Redoes a cell's vertex colours when the light colours change
 004b8540	Section_Free	world	med	Frees the sections, clears 0x72d56c
 004b5620	Tre_Load	render	high	Allocates the relighting state and parses .tre (tree shadows)
@@ -951,3 +951,12 @@
 004b8b10	Section_Link	world	confirmed	An object onto the list of the cell of its world position
 00484310	Part_Flap	sim	confirmed	Loose part type 2: a flap swung by the deceleration about z, stops and bounces
 00483570	Part_Hatch	sim	confirmed	Loose part type 3: a hatch on its hinge, spring, stop direction from the .cin, breaks off
+00484e00	Aerials_Step	sim	confirmed	Per car: aerials laid on the ground when upside down off its wheels, else swung by the air
+00484f40	Aerial_Lay	sim	confirmed	An aerial laid on the ground once (foot, tip flat to the ground), damage +0x4c0 flag
+004853c0	Aerials_Air	sim	confirmed	The air past the car in its frame: velocity less the gusting wind (0.7-1.0)
+004854a0	Aerial_Swing	sim	confirmed	A standing aerial's swing: air across its axis, spring 2, damping 0.2
+00485690	Aerials_Draw	sim	confirmed	Per car in the cars' pass: the light tint, each aerial drawn
+00485860	Aerial_Draw	sim	confirmed	An aerial as five bending 3D lines (standing) or one line (lying), faded by distance
+004863d0	Aerial_Fade	sim	confirmed	1.0 within 10 units, 0 at 50
+00486500	Aerials_Interp	sim	confirmed	The drawn swings between steps
+00486630	Aerial_Reset	sim	confirmed	An aerial's record cleared, its lying flag as carried

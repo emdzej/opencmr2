@@ -24,8 +24,9 @@ void Parts_Hide(const Car *c, int k, int32_t off);   /* 0x480ac0: a fallen-off p
 void Parts_Alloc(int n);                          /* 0x480900 */
 void Parts_CinLinks(const int16_t *cars, int n);  /* 0x4809e0: section 3 of each car's .cin */
 void Parts_Empty(void);                           /* 0x480980: the records and part objects cleared */
+const uint8_t *Parts_Cin3(int car);              /* 0x590b5c: car's .cin section 3 (NULL none) */
 
-/* Sim_Step 0x42baf0: per listed car the loose parts' check and step, then 0x484e00 (not ported). */
+/* Sim_Step 0x42baf0: per listed car the loose parts' check and step, then the aerials (0x484e00). */
 void Parts_Step(const CarList *l);                /* 0x480bb0 */
 /* Race_PoseInterp 0x41d060: every moving part's drawn matrix between its last two steps. */
 void Parts_Interp(int32_t frac);                  /* 0x484d30 */

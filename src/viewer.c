@@ -30,6 +30,7 @@
 #include "sim/damage.h"
 #include "sim/drive.h"
 #include "sim/knock.h"
+#include "sim/aerials.h"
 #include "sim/sim.h"
 #include "sim/pose.h"
 #include "game/race.h"
@@ -206,6 +207,7 @@ static void host_draw(int player, int state)
     Weather_Sky(player);              /* 0x461c30 */
     Sky_Follow(cp);
     Obj_Frame(&g_world, &V.camera);
+    Aerials_Draw(g_all.car, g_all.n, player, cp);   /* 0x485690, as play.c */
     Weather_Draw(player);   /* 0x460330, as play.c */
     title();
     Race_DrawOverlays(player);

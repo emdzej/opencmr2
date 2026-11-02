@@ -5,6 +5,7 @@
 #include "world/particles.h"
 #include "game/timer.h"
 #include "render/sprite3d.h"
+#include "render/line3d.h"
 #include "exe.h"
 #include "render/d3d7.h"
 #include "render/light.h"
@@ -104,8 +105,7 @@ static void flush_layer(int layer)
     Sprite_Flush(layer);
 }
 
-/* Not ported yet: FUN_004b6240 (pass) at the end of the 3D; of the frame statistics FUN_004b21e0 after the 2D only the frame rate. The 3D line queue (FUN_004bb4c0) is a
-   debugging aid nothing fills in the release. */
+/* Not ported yet: FUN_004b6240 (pass) at the end of the 3D; of the frame statistics FUN_004b21e0 after the 2D only the frame rate. */
 bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
 {
     g_polys_drawn = 0;
@@ -166,6 +166,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
                 D3d_SetRenderState(D3DRS_FOGENABLE, 0);
                 Light_SetMode(5);
                 Poly_Flush(0x10);
+                Line3d_Flush();       /* 0x4bb4c0 */
                 Sprite3d_Draw(cam);   /* 0x4b1530 */
                 Light_SetMode(1);
                 Section_QueueSorted(cam);
@@ -181,6 +182,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
         Light_SetMode(4);
         Poly_Flush(0x40);
         Light_SetMode(5);
+        Line3d_Flush();       /* 0x4bb4c0 */
         Sprite3d_Draw(cam);   /* 0x4b1530 */
     }
     Screen_ColourMeasure();   /* 0x4bc490 (0, 0, 0): the sun glow's test, over the 3D */

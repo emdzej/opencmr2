@@ -1,6 +1,7 @@
 /* The cars' loose parts (see parts.h). */
 #include "sim/parts.h"
 #include "sim/damage.h"
+#include "sim/aerials.h"
 #include "game/car_load.h"
 #include "game/mem.h"
 #include "game/effects.h"
@@ -151,8 +152,8 @@ void Parts_HideFallen(const Car *c)
     for (int k = 0; k < 4; k++) Parts_Hide(c, k, Damage_Flag(c, k));
 }
 
-/* Parts_Alloc 0x480900: four arrays of n records and n blocks of 0xb4 bytes (0x590c6c, for 0x484e00's
-   pieces, not ported); the port's records are static. Parts_Free 0x480870 is its clean-up. */
+/* Parts_Alloc 0x480900: four arrays of n records and n blocks of 0xb4 bytes (0x590c6c, the aerials of
+   sim/aerials.c); the port's records are static. Parts_Free 0x480870 is its clean-up. */
 void Parts_Alloc(int n)
 {
     nparts = n < CAR_MAX ? n : CAR_MAX;
@@ -167,6 +168,8 @@ void Parts_CinLinks(const int16_t *cars, int n)
         cin3[idx(c)] = Car_CinSection(cars[i], 3);
     }
 }
+
+const uint8_t *Parts_Cin3(int car) { return car >= 0 && car < CAR_MAX ? cin3[car] : NULL; }
 
 /* Parts_Empty 0x480980: every record zeroed, no part objects, every slot 0xff */
 void Parts_Empty(void)
@@ -792,7 +795,7 @@ void Parts_Step(const CarList *l)
         }
         Glass_Pieces(cur_car);   /* 0x49ab20 */
     }
-    PENDING_NOTE(0x484e00, "Parts_Pieces (the .cin section 3 pieces: 0x484f40, 0x4853c0, 0x4854a0)");
+    Aerials_Step(l);   /* 0x484e00 */
 }
 
 /* Frame_Blend 0x4224e0 with mode 0 (as in game/camera.c): forward by k, up by k made unit, side from

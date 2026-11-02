@@ -37,3 +37,6 @@ int32_t Weather_CarWet(const Car *c);
 bool Weather_Wet(int car);
 uint8_t Weather_Kind(int car);
 int32_t Weather_Level(int car);
+/* 0x460a30: the wind's vector, its direction by the strength by the players' mean level (at least
+   0.3), doubled when one has snow */
+void Wind_Vector(int32_t out[3]);
