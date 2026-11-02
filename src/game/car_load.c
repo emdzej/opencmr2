@@ -381,7 +381,8 @@ int Cars_Count(void)
    start (0x542d38 + 4 k) the last point (a whole number, which 0x458480 takes as 16.16: point 0).
    Case 1, the head to head (bit 27, two cars): the side (0x542cb0, kept in 0x542cd4 when `keep`)
    drawn, rand() <= 0x3fff after srand(the time); the car on it starts at point 0, the other at the
-   second split (Csp_StartPos gives its place). The other cases (bit 31, the network) are pending. */
+   second split (Csp_StartPos gives its place). The other cases are the network game's (bit 31 is set
+   only in modes 11 and 12, 0x408020) and pending. */
 void Cars_Grid(bool keep)
 {
     int n = Cars_Racing();
@@ -408,7 +409,7 @@ void Cars_Grid(bool keep)
         return;
     }
     if (kind != 0) {
-        PENDING_NOTE(0x4584d0, "Cars_Grid (bit 31 and the network grids)");
+        PENDING_NOTE(0x4584d0, "Cars_Grid (the network grids)");
         return;
     }
     int32_t a[3], b[3];
