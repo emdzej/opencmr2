@@ -1570,3 +1570,7 @@
 004660e0	Ghost_TakeFrom	ghost	high	the player whose run becomes the ghost
 004660f0	Ghost_Owner	ghost	high	the player whose car the ghost shows
 00466100	Ghost_Fade	ghost	high	the ghost's alpha by its size on the view
+004735a0	Challenge_Slot	challenge	high	the record slot on a side of the match being run
+00407f20	Cpu_Tag	select	high	a computer car's driver's three letters
+00407f80	Cpu_LevelSlot	select	high	an arcade slot moved by the level
+00415750	Hud_PlaceName	hud	high	the name at a place of a split: a player's or the driver's

@@ -176,6 +176,29 @@ int Player_Driver(int n)
     return (int)(w >> 0xe & 0xf);
 }
 
+static bool arcade(void) { return Gs_Mode() == 5 || Gs_Mode() == 6 || Gs_Mode() == 7; }
+
+/* 0x407f80: an arcade slot (0-5) moved by the level: the first from the first, the second from the
+   sixth, else from the eleventh */
+static int level_slot(int i)
+{
+    if (i < 0 || i > 5) i = 0;
+    return Gs_Mode2() == 2 ? i : Gs_Mode2() == 1 ? i + 5 : i + 10;
+}
+
+const char *Cpu_Name(int car)
+{
+    if (arcade()) return exe_str(0x5166b4 + 0x14u * (uint32_t)level_slot(car - (int)Gs_SelBits14()));
+    return exe_str(0x5166b4 + 0x14u * (uint32_t)(car < 0 || car > 15 ? 0 : car));
+}
+
+/* the arcade's slot is not moved past the players here (unlike 0x407ec0) */
+const char *Cpu_Tag(int car)
+{
+    if (arcade()) return exe_str(0x5167e0 + 4u * (uint32_t)level_slot(car));
+    return exe_str(0x5167e0 + 4u * (uint32_t)(car < 0 || car > 15 ? 0 : car));
+}
+
 const char *Player_Name(int n)
 {
     if (Gs_Mode() == 4) return (const char *)gm(0x52f3e0 + 0xc4u * (uint8_t)n);   /* the challenge's record */

@@ -15,6 +15,7 @@
 #include "game/proc.h"
 
 uint32_t Challenge_Match(void);         /* 0x473620: the match being run (its address), 0 outside */
+uint32_t Challenge_Slot(int side);      /* 0x4735a0: the record slot (0x52f3e0) on a side of the match */
 bool Challenge_TwoPlayers(void);        /* 0x472cb0's test: both drivers of the match players */
 void Challenge_Players(void);           /* 0x472cb0: the match's players into the race, their pads */
 void Challenge_MatchEnd(void);          /* 0x472a30: the match's times and winner, on to the next */

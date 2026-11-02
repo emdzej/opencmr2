@@ -25,6 +25,10 @@ uint32_t Player_Word(int player);          /* the player record's first word (0x
 int Player_Driver(int player);
 const char *Player_Name(int player);        /* 0x408400: the profile's name ("" without one; in mode 4 the challenge record's) */
 bool Player_HasProfile(int player);
+/* 0x407ec0: a computer car's driver (0x5166b4, 0x14 apart): in the arcade its slot after the players
+   moved by the level (0x407f80), else its own (0-15) */
+const char *Cpu_Name(int car);
+const char *Cpu_Tag(int car);               /* 0x407f20: the driver's three letters (0x5167e0) */
 uint32_t Player_Records(int player);                        /* 0x408cb0: 0 without a profile */
 char *Player_FullName(int player);                          /* 0x408470 */
 void Player_SetFullName(int player, const char *s);         /* 0x4eaf90 */

@@ -86,6 +86,13 @@ uint32_t Challenge_Match(void)
     return a && round_kind() != 4 ? a + 12 * match_no() : a;
 }
 
+uint32_t Challenge_Slot(int side)
+{
+    uint32_t m = Challenge_Match();
+    if (!m) return 0;   /* the original reads at the side's value as an address */
+    return side ? side_b(m) : side_a(m);
+}
+
 /* 0x473680: a bye (a side without a driver) */
 static bool bye(uint32_t m) { return side_a(m) == 0x1f || side_b(m) == 0x1f; }
 

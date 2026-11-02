@@ -13,6 +13,7 @@
 #include <string.h>
 #include "game/sectors.h"
 #include "game/gstate.h"
+#include "game/challenge.h"
 #include "game/mem.h"
 #include "game/race.h"
 #include "game/car_load.h"
@@ -710,16 +711,17 @@ static void draw_time(int32_t t, int font, int32_t fx, int32_t fy, const uint8_t
 static void place_name(char *b, size_t n, int e, int s, bool shrt)
 {
     b[0] = 0;
-    int drv = Opp_DriverAt(e, s);
+    int drv = Opp_DriverAt(e, s);   /* 0x455cc0 */
     if (drv == -1) return;
+    bool ch = Gs_Mode() == 4;
     const char *name = NULL;
-    for (int i = 0; i < (int)(gm32(0x52afb4) >> 13 & 0xf); i++)
-        if (Opp_PlaceAt(i, s) == e) {
-            uint32_t pr = gm32(0x531350 + 0x30u * (uint32_t)i) >> 0x12 & 0xf;
-            name = pr == 0xf ? "" : (const char *)gm(0x52fa18 + pr * 0x650);
-        }
-    if (!name) name = shrt ? exe_str(0x5167e0 + 4u * (uint32_t)(drv < 0 || drv > 15 ? 0 : drv)) : exe_str(0x5166b4 + 0x14u * (uint32_t)(drv < 0 || drv > 15 ? 0 : drv));
-    snprintf(b, n, "%s", name);
+    for (int i = 0; i < (int)Gs_Players() && !name; i++)
+        if (Opp_PlaceAt(i, s) == e) name = Player_Name(ch ? (int)Challenge_Slot(drv) : i);
+    if (!name) {
+        int d = ch ? (int)Challenge_Slot(drv) : drv;
+        name = shrt ? Cpu_Tag(d) : Cpu_Name(d);
+    }
+    snprintf(b, n, "%s", name);   /* the original prints the name as the format */
     Text_ToFontCase(b);
 }
 

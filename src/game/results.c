@@ -77,14 +77,13 @@ static int title(int16_t text)
     return x + 2 + w * 8 / 0x280;
 }
 
-static const char *cpu_name(int car);
 
 /* 0x4125a0: the name of the driver in Opp slot d: a player's if one has it, else a computer's */
 static const char *slot_name(int d)
 {
     for (int i = 0; i < (int)Gs_Players(); i++)
         if (Opp_PlayerSlot(i) == d) return player_name(i);
-    return cpu_name(d);
+    return Cpu_Name(d);
 }
 
 /* 0x44b7b0: "replay" and the driver the camera follows: in the shared replay (0x41f3a0) the second
@@ -104,7 +103,7 @@ static void draw_title(Menu *m)
         if (mode() == 4) name = Challenge_Tag(ch_match, Camera_Car(1));
         else name = player_name(Camera_Car(1));
     } else if (Gs_SelBit26() && Gs_SelBits14() == 1) {
-        name = Player_Driver(c0) == -1 ? player_name(c0) : cpu_name(c0);
+        name = Player_Driver(c0) == -1 ? player_name(c0) : Cpu_Name(c0);
     } else if (mode() == 4) {
         /* the first camera's side: a computer's full name, a player's (as the tag) */
         int side = Challenge_Side(ch_match, c0);
@@ -113,7 +112,7 @@ static void draw_title(Menu *m)
         name = slot_name(Opp_PairDriver(Race_Base(), c0));
     } else {
         int d = Player_Driver(c0 + Race_Base());
-        name = d == -1 ? player_name(c0 + Race_Base()) : cpu_name(d);
+        name = d == -1 ? player_name(c0 + Race_Base()) : Cpu_Name(d);
     }
     Font_Print(2, name, x, h * 0x43 / 0x1e0, C(0x519ecc), 0x11);
     Font_SetLayer(2);
@@ -389,20 +388,6 @@ static bool challenge_kinds(void) { return (gm32(0x52f2b0) >> 0xb & 1) && (ch_ki
 /* 0x448390: the car in place i of the finish (0x53e17c), -1 outside the eight */
 static int finisher(int i) { return i >= 0 && i < 8 ? (int8_t)gm8(0x53e17c + (uint32_t)i) : -1; }
 
-/* 0x407ec0: a computer car's driver (0x5166b4, 0x14 apart): in the arcade its slot after the players
-   (0-5) and the level (0x407f80: 2 from the first, 1 from the sixth, else from the eleventh), else its
-   own (0-15) */
-static const char *cpu_name(int car)
-{
-    int i = car;
-    if (arcade()) {
-        i = car - (int)Gs_SelBits14();
-        if (i < 0 || i > 5) i = 0;
-        i += Gs_Mode2() == 2 ? 0 : Gs_Mode2() == 1 ? 5 : 10;
-    } else if (i < 0 || i > 15) i = 0;
-    return exe_str(0x5166b4 + 0x14u * (uint32_t)i);
-}
-
 /* 0x407fc0: a computer car's model: in the arcade the loaded car's (0x456c00: 0x54260c, cars 0-5),
    else its driver's (0x51681c, 0-14) */
 static int cpu_car(int car)
@@ -512,10 +497,10 @@ static void draw_ch_times(void)
         snprintf(n[1], sizeof n[1], "%s", player_name(base + b));
     } else if (Player_Driver(a) == -1) {
         snprintf(n[0], sizeof n[0], "%s", player_name(base + a));
-        snprintf(n[1], sizeof n[1], "%s", cpu_name(Player_Driver(b)));
+        snprintf(n[1], sizeof n[1], "%s", Cpu_Name(Player_Driver(b)));
     } else {
         snprintf(n[0], sizeof n[0], "%s", player_name(base + b));
-        snprintf(n[1], sizeof n[1], "%s", cpu_name(Player_Driver(a)));
+        snprintf(n[1], sizeof n[1], "%s", Cpu_Name(Player_Driver(a)));
     }
     int shown = Sectors_Shown(), y = h * 0xe6 / 0x1e0, line = h * 0x1e / 0x1e0;
     for (int col = 0; col < 2; col++) {
@@ -616,7 +601,7 @@ static void draw_order(Menu *m)
         int k = finisher(i);
         int32_t t = Times_Finish(k);
         bool player = k < (int)Gs_SelBits14();
-        row_name(i, player ? player_name(k) : cpu_name(k));
+        row_name(i, player ? player_name(k) : Cpu_Name(k));
         char b[96];
         int flags = 9;
         if (page == &pg_points) snprintf(b, sizeof b, exe_str(0x517dd0), Stand_ArcadePoints(i));
@@ -659,7 +644,7 @@ static void draw_standings(Menu *m)
     for (int i = 0; i < n && i < 8; i++) {
         int k = (int8_t)gm8(0x533610 + (uint32_t)i);   /* 0x40cea0 */
         bool player = k < (int)Gs_SelBits14(), tie = false;
-        row_name(i, player ? player_name(k) : cpu_name(k));
+        row_name(i, player ? player_name(k) : Cpu_Name(k));
         char b[96];
         snprintf(b, sizeof b, exe_str(0x517dd0), gms32(0x5335b8 + 4u * (uint32_t)k) >> 16);   /* 0x40ced0 */
         row_value(i, b, 9);
