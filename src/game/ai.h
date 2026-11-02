@@ -14,3 +14,4 @@ void Ai_Go(bool restart);                 /* 0x47bdc0: the start's revs and laun
 void Ai_Drive(Car *c, int n, bool peek);
 int32_t Ai_EdgeDistance(int n);           /* 0x47c5b0: the car's distance to the nearer verge */
 bool Ai_Loaded(void);
+bool Ai_AutoDrive(int n, bool peek);      /* 0x47d330: a player's car after the finish */

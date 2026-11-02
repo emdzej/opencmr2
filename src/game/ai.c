@@ -548,3 +548,39 @@ void Ai_Drive(Car *c, int n, bool peek)
     if (out[3] > 0) c->s[0x1d3] = 0x3f;
     if (hb > 0) CW32(c, 0x1d8, 1);
 }
+
+/* 0x47d330: after the finish (selection bit 26) a player's car driven on: none within five points of
+   the end; from the state (bits 1, 6, 8, 9, no line) the throttle below 50, the brake above 70, the
+   steering toward point i + 2 beyond 5 degrees, and turned across (beyond 90) the brake with the
+   steering away (no throttle above 25) */
+bool Ai_AutoDrive(int n, bool peek)
+{
+    Car *c = Car_Get(n);
+    int i = Car_CatIndex16(c);
+    if ((uint32_t)Cat_Points() < (uint32_t)(i + 5)) return false;
+    int32_t s[42] = {0};
+    s[0x15] = i;
+    state(c, 0x342, s, 0);
+    int l = 0, r = 0, thr = 0, brk = 0;
+    if (s[0] < 0x320000) thr = 1;
+    if (s[0] > 0x460000) brk = 1;
+    if (s[7] > 0x50000) r = 1;
+    if (s[7] < -0x50000) l = 1;
+    int turn = 0;
+    if (s[0xe] > 0x5a0000) turn = 4;
+    if (s[0xe] < -0x5a0000) turn = 2;
+    if (turn) {
+        if (turn == 2) brk = 1, r = 1;
+        else l = 1, brk = 1;
+        if (s[0] > 0x18ffff) thr = 0;
+    }
+    if (!peek) {
+        c->s[0x1d0] = c->s[0x1d1] = c->s[0x1d2] = c->s[0x1d3] = 0;
+        CW32(c, 0x1d8, 0);
+        if (l) c->s[0x1d0] = 0x3f;
+        if (r) c->s[0x1d1] = 0x3f;
+        if (thr) c->s[0x1d2] = 0x3f;
+        if (brk) c->s[0x1d3] = 0x3f;
+    }
+    return true;
+}

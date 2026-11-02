@@ -106,8 +106,13 @@ static void Race_Update(uint8_t state, bool flag)
             if ((uint32_t)i < np) {
                 kind = Proc_State(&R.group, (uint32_t)i);
                 if (H->read_input) H->read_input(i, &held, &pressed);
-            } else
-                kind = Proc_State(&R.group, 0) < 8 ? 7 : 8;   /* CPU cars (0x407ea0, 0x407e90 cases open) */
+            } else {
+                /* a CPU car: on the line until player 0 races, then racing; head to head (bit 27, not
+                   networked) stopped once it has finished. (Bit 28's ghost, 0x466090, is open.) */
+                kind = Proc_State(&R.group, 0) < 8 ? 7 : 8;
+                if (kind == 8 && Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x466090, "the ghost's controls");
+                else if (kind == 8 && Gs_SelBit27() && !Gs_ModeBit19() && Race_Finished(i)) kind = 9;
+            }
             bool cpu = (uint32_t)i >= np;   /* no pad (0x42b710 -1) */
             switch (kind) {
             case 5: case 7:
@@ -118,9 +123,18 @@ static void Race_Update(uint8_t state, bool flag)
                 if (cpu) Car_RaceControlsCpu(c, i);
                 else Car_RaceControls(c, held, pressed);
                 break;
-            case 9: case 10:
-                /* after the finish: braking to a stop, the player's input read first once finished */
-                if (R.finished[i] && (uint32_t)i < np) Car_FinishedPlayerControls(c, held, pressed);
+            case 9:
+                /* after the finish: with the computer drivers (bit 26) a player's car driven on
+                   (0x47d330), a CPU car still racing; else braking to a stop, the player's input read
+                   first once finished */
+                if (Gs_SelBit26()) {
+                    if (!cpu) Ai_AutoDrive(i, false);
+                    else Car_RaceControlsCpu(c, i);
+                } else if (R.finished[i] && !cpu) Car_FinishedPlayerControls(c, held, pressed);
+                else Car_FinishedControls(c);
+                break;
+            case 10:
+                if (Gs_SelBit26() && !cpu) Ai_AutoDrive(i, false);
                 else Car_FinishedControls(c);
                 break;
             }

@@ -902,7 +902,7 @@
 0047cd00	Ai_Aimed	ai	high	Option 0's flag
 0047cd10	Ai_Overtake	ai	high	A slow car ahead: the side to pass
 0047d0e0	Ai_Alongside	ai	high	Option 3: a car alongside, the side to give way
-0047d330	Ai_AutoDrive	ai	med	Race_Update's simple driver (not ported)
+0047d330	Ai_AutoDrive	ai	high	After the finish: a player's car driven on
 00498590	Ai_LinesToWorld	ai	high	The racing lines' x and z by point 0
 00498620	Ai_State	ai	high	The car's state against the centre line and the racing line
 00498ca0	Ai_Inputs	ai	high	A net's inputs from the state by code
