@@ -14,6 +14,7 @@
 #include "game/race.h"
 #include "game/hud.h"
 #include "render/view.h"
+#include "world/hpc.h"
 #include <string.h>
 #include <math.h>
 
@@ -609,6 +610,7 @@ static void cam_init(Cam *k, int kind, int sub)
 static void cam_step(Cam *k)
 {
     const Car *c = Car_Get(k->car);
+    bool lift = k->f48 || k->f5c;   /* (taken before the step) */
     int flag = CI32(c, 0xc04) != 0 && !look[k->player];
     const int32_t *r = follow(k->car);
     switch (k->kind) {
@@ -621,7 +623,20 @@ static void cam_step(Cam *k)
     case 7: ts_step(k, r, flag || CI32(c, 0xb60)); break;   /* 0x48cc30 */
     default: break;
     }
-    PENDING_NOTE(0x4930b0, "Camera_GroundLift");
+    /* the ground lift (not with 0x445a20's free camera, kind 9 or 0x53cdb4): the camera at least one
+       unit over the ground under it (0x4930b0, from no triangle, the car's +0x8e4 as the height's
+       guess), easing down by 1 less 0.05 of the step's time a step */
+    if (Camera_Kind(0) != 9 && !gm32(0x53cdb4) && lift) {
+        int32_t pos[3] = {k->m[12], k->m[13], k->m[14]}, nrm[3];
+        int16_t tri = 0;
+        uint16_t surf;
+        int32_t g = Hpc_Ground(pos, nrm, &tri, &surf, CI32(c, 0x8e4));
+        int32_t v = g - pos[1] + 0x10000;
+        if (v < 0) v = 0;
+        if (v < k->f60) v += fx_mul(k->f60 - v, 0x10000 - fx_mul(gms32(0x519c8c), 0xccc));
+        k->f60 = v;
+        return;
+    }
     k->f60 = 0;
 }
 
@@ -878,7 +893,13 @@ void Camera_Frame(int p, int32_t frac, Obj *camera)
     near_f[p] = lerp(prev[p].f4c, out[p].f4c, frac);
     int32_t m[16];
     blend(m, prev[p].m, out[p].m, frac, frac, frac, 1);   /* 0x423de0 */
-    PENDING_NOTE(0x422140, "Camera_Frame (the ground lift's tilt)");
+    /* the frame's ground lift raises the camera (its tilt back towards the car, and the f48 share
+       added to the car's +0x71c and +0x720 objects' +0xcc, are not ported) */
+    int32_t lift = lerp(prev[p].f60, out[p].f60, frac);
+    if (lift) {
+        m[13] += lift;
+        PENDING_NOTE(0x422140, "Camera_Frame (the ground lift's tilt)");
+    }
     for (int i = 0; i < 12; i++) camera->local.m[i] = m[i];
     camera->local.m[12] = m[12], camera->local.m[13] = m[13], camera->local.m[14] = m[14];
     for (Obj *o = camera; o; o = o->parent) o->dirty = 1;
