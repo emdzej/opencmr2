@@ -128,6 +128,21 @@ static const int32_t *follow(uint8_t car)
     return tmp;
 }
 
+/* 0x423a30: the interior views' frame: the car's body frame (+0x754, the record's +0x40), with option
+   6 its place raised along the car's up row (+0x750's) by half of +0xa8c */
+static const int32_t *own_frame(uint8_t car)
+{
+    static int32_t f[16];
+    const Car *c = Car_Get(car);
+    for (uint32_t i = 0; i < 16; i++) f[i] = i % 4 == 3 ? 0 : CI32(c, 0x40 + 4 * i);
+    f[15] = 0x10000;
+    if (Gs_Option(6)) {   /* 0x4063f0 */
+        int32_t k = fx_mul(CI32(c, 0xa8c), 0x8000);
+        for (uint32_t q = 0; q < 3; q++) f[12 + q] += fx_mul(CI32(c, 0x10 + 4 * q), k);
+    }
+    return f;
+}
+
 /* 0x447ee0: the camera's offset from the car: the player's settings (kind 4), else the kinds' table
    at 0x519ea0 (12 bytes each); 0.2 lower and 0.6 nearer on a split screen one above the other */
 static void chase_offset(int32_t o[3], const Cam *k)
@@ -596,11 +611,11 @@ int Camera_TscIndex(int p) { return ts_idx[slots[cur[p] + 2 * p].slot]; }   /* 0
 static void cam_init(Cam *k, int kind, int sub)
 {
     k->kind = kind;
-    const int32_t *r = follow(k->car);
+    const int32_t *r = follow(k->car), *own = own_frame(k->car);   /* (Camera_Follow, 0x423a30) */
     switch (kind) {
-    case 1: interior_init(k, r, 1); break;
-    case 2: interior_init(k, r, 0); break;
-    case 10: interior_init(k, r, 2); break;
+    case 1: interior_init(k, own, 1); break;
+    case 2: interior_init(k, own, 0); break;
+    case 10: interior_init(k, own, 2); break;
     case 4: chase_init(k, r, 0); break;
     case 5: chase_init(k, r, 4); break;
     case 6: chase_init(k, r, 3); break;
@@ -621,7 +636,7 @@ static void cam_step(Cam *k)
     int flag = CI32(c, 0xc04) != 0 && !look[k->player];
     const int32_t *r = follow(k->car);
     switch (k->kind) {
-    case 1: case 2: case 10: interior_step(k, r, flag || CI32(c, 0xb60)); break;
+    case 1: case 2: case 10: interior_step(k, own_frame(k->car), flag || CI32(c, 0xb60)); break;   /* 0x423a30 */
     case 4: case 5: case 6: chase_step(k, r, flag); break;
     case 3:   /* 0x4765e0 */
         Cockpit_Step(k->car, r, k->m);
