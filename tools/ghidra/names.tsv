@@ -1702,3 +1702,4 @@
 0047ad20	Engine_Circuit	audio	high	Circuit modes 11 and 12: the two nearest network slots' cars on the first player's rt loop
 00445a20	Race_Held	race	high	The free camera (kind 9) or 0x53cdb4: the race's controls, world step and particles held
 00445a40	Race_StepOnce	race	high	0x53cdbc taken: one step of the held world
+0045c6b0	Tyres_Reset	game	high	A player's wheel's wear counts cleared (new tyres)

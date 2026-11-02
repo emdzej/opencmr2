@@ -38,6 +38,7 @@ bool Cheat_Match(int player, bool *on);                     /* 0x4eb290 */
 void Player_Touch(int player);                /* 0x408d00 */
 uint32_t Player_Tyres(int player);            /* 0x408a60: the tyre wear record's address (0 none) */
 void Tyres_Tally(int n, int w, int spin, int slide);   /* 0x45c750 */
+void Tyres_Reset(int n, int w);              /* 0x45c6b0 */
 void Tyres_Start(bool again, bool keep, int players);  /* 0x45c610 */        /* 0x4085a0: one set (in mode 4 always), and bit 26 */
 void Player_AssignProfile(int player, int profile);   /* 0x4eb860: -1 picks a free or the oldest one */
 void Player_SetGuest(int player, bool guest);         /* 0x4eb000 */

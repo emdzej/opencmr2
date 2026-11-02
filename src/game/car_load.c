@@ -24,6 +24,7 @@
 #include "game/skids.h"
 #include "world/obj.h"
 #include "world/stage.h"
+#include "world/tod.h"
 #include "render/tex.h"
 #include "render/mesh.h"
 #include <stdio.h>
@@ -257,6 +258,11 @@ bool Car_Load(int n)
     mesh_number(s->second, n), mesh_number(s->main, n);
     /* dents on for the rally modes (0x46b400), never turned off here */
     if (!(mode == 5 || mode == 6 || mode == 7 || mode == 11 || mode == 12) && !(Gs_SelBit28() && Gs_Bit30())) Damage_SetDents(1, n);
+    /* a player's tyres new outside the rally modes 0 and 1, and in those on the rally's first stage
+       and the stages after a service (4, 8, 10) */
+    if ((uint32_t)n < Gs_SelBits14() && ((mode != 0 && mode != 1) || Tod_Stage() == 0 || Tod_Stage() == 4 ||
+                                         Tod_Stage() == 8 || Tod_Stage() == 10))
+        for (int w = 0; w < 4; w++) Tyres_Reset(n, w);   /* 0x45c6b0 */
     /* a kind A car's wheels from its S model on snow (0x42cae0 with 1), or its L one where the wheels
        show as they are (0x42cb50; the S file is then left loaded): the model under the world root with
        the car's textures (0x54263c), the wheels' meshes kept (+0x10-+0x1c, never read back) and the

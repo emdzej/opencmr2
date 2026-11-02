@@ -402,6 +402,17 @@ void Tyres_Tally(int n, int w, int a, int b)
     Player_Touch(Gs_Byte537ef6() + n);
 }
 
+/* 0x45c6b0: wheel w's wear counts all cleared (the nine words at +0x00-+0x80), the profile touched and
+   tallied with nothing (the marks) */
+void Tyres_Reset(int n, int w)
+{
+    uint32_t r = Player_Tyres(Gs_Byte537ef6() + n);
+    if (!r) return;
+    for (uint32_t k = 0; k < 9; k++) gw32(r + 0x10 * k + 4u * (uint32_t)w, 0);
+    Player_Touch(Gs_Byte537ef6() + n);   /* 0x408d00 */
+    Tyres_Tally(n, w, 0, 0);
+}
+
 /* 0x45c610: each player's wheels' wear at the start: unless again or kept, the counts taken from the
    last (+0x40 into +0x50, the larger of +0x00 and +0x10 into +0x30, +0x40 cleared), then copied up
    (+0x50 to +0x80, +0x40 to +0x60, +0x30 to +0x70) and tallied with nothing (the marks) */
