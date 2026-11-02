@@ -1080,7 +1080,14 @@ static void build_rally_end(void)
     Menu_Reset(&pg_final);
     pg_rally.items[0].target = &pg_end;
     if (!last_stage || !last_player) {
-        build_end(1, &pg_rally, 0x25);
+        /* in alternation before the last player the times (or the record's page) go straight on to
+           the choices, without the board and the rally's times */
+        if (Gs_ModeBit17() && !last_player) {
+            Menu *after = pg_times.items[0].target == &pg_splits ? &pg_splits : &pg_times;
+            after->items[0].target = &pg_end;
+            build_end(1, after, 0x25);
+        } else
+            build_end(1, &pg_rally, 0x25);
         return;
     }
     int best = 99;
@@ -1183,7 +1190,6 @@ void Results_Start(bool again)
         uint32_t l = Gs_Mode2(), r = Tod_Rally();
         int lastst = (r & 1) ? 10 : l == 0 ? 3 : l == 1 ? 7 : l == 2 ? 9 : 0;   /* 0x4071c0 */
         last_stage = (int)Tod_Stage() == lastst;
-        if (Gs_ModeBit17() && !last_player) PENDING_NOTE(0x44a1b0, "the results' way in alternation before the last player");
         build_rally_end();
         build_questions(0x25);
     } else if (mode() == 5) {
