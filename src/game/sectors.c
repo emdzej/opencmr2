@@ -27,6 +27,7 @@ static int32_t split_at[64];      /* 0x542c7c: the split points, 16.16 */
 static int ncars;                 /* DAT_00542c68 */
 static int laps;                  /* DAT_00542c6c */
 static bool both_ways, laps_mode; /* DAT_00542cae, DAT_00542cad */
+static int16_t go_point[CAR_MAX], go_steps[CAR_MAX];   /* 0x542d58, 0x542d68: at the go (0x458b80) */
 
 int Sectors_Count(void) { return nsplits; }
 int Sectors_Cars(void) { return ncars; }
@@ -84,13 +85,14 @@ void Sectors_Init(void)
 static int before(int i);
 
 /* 0x458bd0: in a rally the car's point, the first split next, the finish the last split. Round a
-   circuit (bit 24; the port's starts are always 0x458100's 1, the point before the car's) the lap -1
+   circuit (bit 24) or head to head the point before the car's, or with `fresh` clear the go's (its
+   progress put there, 0x4213d0 at the point after it, and its steps then); the lap -1
    (the line ahead of the grid), split 1 next, the finish split 0 of the last lap (none in the laps
    mode: lap 1000). A head to head (bit 25) has two splits, the cars starting on opposite sides: the
    car on 0x542cb0's side (and every car in mode 3; in the network game those of side 0, 0x542cb4,
    and every car in mode 10) as round a circuit of one lap, the other a split ahead, lap 1 (split 1
    passed, split 0 next and the finish). */
-static void start(int n)
+static void start(int n, bool fresh)
 {
     Rec *r = &rec[n];
     memset(r, 0, sizeof *r);
@@ -98,7 +100,16 @@ static void start(int n)
         r->point = (int16_t)Car_CatIndex(Car_Get(n));
         r->next = 1;
         r->fin = (int16_t)(nsplits - 1);
-    } else if (r->point = (int16_t)before(Car_CatIndex(Car_Get(n))), Gs_SelBit24()) {
+        PENDING_NOTE(0x459250, "Camera_TracksideHint");
+        return;
+    }
+    if (fresh) r->point = (int16_t)before(Car_CatIndex(Car_Get(n)));
+    else {
+        r->point = go_point[n];
+        Progress_SetPoint(Car_Get(n), Sectors_After(r->point));
+        r->steps = go_steps[n];
+    }
+    if (Gs_SelBit24()) {
         r->lap_was = -1;
         if (laps_mode) r->next = 0, r->fin_lap = 1000;
         else r->next = 1, r->fin_lap = (int16_t)laps;
@@ -114,18 +125,27 @@ static void start(int n)
 
 /* 0x458100: every racing car's record; a head to head (bit 27) its two, the car on 0x542cb0's side
    first (the network game's by their sides, 0x542cb4, not ported) */
-void Sectors_Start(void)
+void Sectors_Start(bool fresh)
 {
     if (Gs_SelBit27()) {
         if (Gs_ModeBit19()) PENDING_NOTE(0x458100, "Sectors_Start (the network game's head to head)");
         else {
             int a = (int)gm32(0x542cb0);
-            start(a);
-            start(1 - a);
+            start(a, fresh);
+            start(1 - a, fresh);
         }
         return;
     }
-    for (int i = 0; i < race_cars(); i++) start(i);
+    for (int i = 0; i < race_cars(); i++) start(i, fresh);
+}
+
+/* 0x458b80: each car's point (the one before its centre-line point) and steps at the go */
+void Sectors_NoteStart(void)
+{
+    for (int i = 0; i < ncars && i < CAR_MAX; i++) {
+        go_point[i] = (int16_t)before(Car_CatIndex(Car_Get(i)));
+        go_steps[i] = rec[i].steps;
+    }
 }
 
 /* 0x459320: the point before i (round a circuit to its end, else 0) */

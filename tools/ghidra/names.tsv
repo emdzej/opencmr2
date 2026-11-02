@@ -1553,3 +1553,5 @@
 00456a30	Opp_RacerDone	opponents	high	0x542418[car] set
 00455610	Opp_ClearDone	opponents	high	0x542418 cleared
 00458b80	Sectors_NoteStart	sectors	high	each car's point and steps at the go (0x542d58, 0x542d68)
+004207f0	Progress_ResetAll	progress	high	every car's centre-line record started again at its +0x04 point
+00420820	Progress_ClearSearch	progress	high	the first two cars' search variables cleared

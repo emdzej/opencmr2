@@ -451,7 +451,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             else if (Gs_Mode() != 3) Replay_Setup();   /* 0x41c260 */
             if (Gs_SelBit26()) Ai_Init();   /* 0x48ca70 -> 0x47bda0 */
             Times_Reset();     /* 0x447f70 */
-            Sectors_Start();   /* 0x458100, in 0x424c50 */
+            Sectors_Start(true);   /* 0x458100, in 0x424c50 */
             Hud_Init(1);       /* 0x411450 */
             R.place_count = 1;
             R.place = 0;
@@ -513,9 +513,12 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
             if (Gs_SelBit26()) Ai_Go(false);   /* 0x47bdc0 */
         }
         /* with computer drivers or head to head (not networked) each car's point and steps at the go
-           (0x458b80, read only by the sectors' restart without the start, which the port does not
-           take); the challenge's match for the opponents' rates (0x456b00) */
-        if ((Gs_SelBit26() || Gs_SelBit27()) && !Gs_ModeBit19() && Gs_Mode() == 4) Opp_SetRace((int)(gm32(0x52f2b4) >> 0xc & 0xf));
+           (0x458b80, for the replays' start again, 0x46cce0); the challenge's match for the
+           opponents' rates (0x456b00) */
+        if ((Gs_SelBit26() || Gs_SelBit27()) && !Gs_ModeBit19()) {
+            Sectors_NoteStart();
+            if (Gs_Mode() == 4) Opp_SetRace((int)(gm32(0x52f2b4) >> 0xc & 0xf));
+        }
         /* the replays from the go: the player's records; with the CPU runs for one player the run of
            each car that is a computer driver's (0x408500; in mode 4 each without a pad, 0x42b710; with
            bit 17 car 1's) plays from its start (0x46d2a0, 0x46cce0), the others' record (0x46c750, as
@@ -722,7 +725,7 @@ static void restart_line(ProcGroup *g)
         for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
     Cars_GridPoints();   /* 0x458480 */
     Opp_Times(false);   /* 0x455470 */
-    Sectors_Start();    /* 0x458100 */
+    Sectors_Start(true);   /* 0x458100 */
     Hud_Init(1);       /* 0x411450 with 0x53810c, the restart asked */
     Skids_Reset();      /* 0x465530 */
     Knock_Restore();    /* 0x4702a0 */

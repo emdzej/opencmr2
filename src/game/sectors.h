@@ -9,7 +9,8 @@
 
 void Sectors_Init(void);     /* 0x458090 (Stage_Load): the split points */
 int Sectors_Cars(void);     /* DAT_00542c68: the cars racing at Sectors_Init */
-void Sectors_Start(void);    /* 0x458100 (the line, 0x424c50): every car's record */
+void Sectors_Start(bool fresh);   /* 0x458100 (the line, 0x424c50): every car's record; not fresh from the go's (0x458b80) */
+void Sectors_NoteStart(void);     /* 0x458b80 */
 void Sectors_Step(void);     /* 0x4581d0 (Race_Update) */
 bool Sectors_Finished(int car);   /* 0x4582b0 */
 bool Sectors_Split(int car);      /* 0x458250: a split passed this step */

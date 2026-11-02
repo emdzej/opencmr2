@@ -249,6 +249,13 @@ void Progress_Load(int n, const uint8_t in[0x18])
     r->dist = (uint32_t)rd32(in + 0xc), r->frac = rd32(in + 0x10), r->idx16 = (uint16_t)rd32(in + 0x14);
 }
 
+/* 0x4207f0: every record started again at its +0x04 point; 0x420820: the first two cars' search */
+void Progress_ResetAll(void)
+{
+    for (int i = 0; i < CAR_MAX; i++) rec[i].passed = 0, rec[i].idx = rec[i].x4, rec[i].idx16 = 0, rec[i].dist = 0;
+    for (int i = 0; i < 2; i++) cursor[i] = 0, best_idx[i] = 0, best_d[i] = 0, since[i] = 0;
+}
+
 /* 0x4207a0: car n's record started again at its +0x04 point; the original clears the +0x14 word of
    record 2n (its index scaled by 0x30), and for the two players the search's cursor and best */
 void Progress_Reset(int n)

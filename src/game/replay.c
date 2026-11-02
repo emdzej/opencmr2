@@ -10,6 +10,8 @@
 #include "game/weather.h"
 #include "game/car_load.h"
 #include "game/profile.h"
+#include "game/ai.h"
+#include "game/sectors.h"
 #include "sim/car.h"
 #include "sim/damage.h"
 #include "sim/drive.h"
@@ -325,8 +327,19 @@ bool Replay_Play(Replay *r, int seg, int pre, int car)
     /* 0x46ef20: the clouds' texture again (the clouds are not ported) */
     w32(r, 0x14, 0);
     r->b[0x10c] = kind(r) == 0 ? snap_of(r, seg)[CHG0 + 4] : snap_of(r, seg)[0x20];
-    if ((uint8_t)car == 0 && (Gs_SelBit26() || (Gs_SelBit27() && !Gs_ModeBit19())))
-        PENDING_NOTE(0x46cce0, "Replay_Play (the other cars' progress, splits and states with car 0's)");
+    /* car 0's run with computer drivers or head to head (not networked): the cars' progress again
+       (0x4207f0), the grid kept (0x4584d0(1)), the computer cars on it with their drivers going
+       (0x42b800, 0x47bdc0), the grid's points and the sectors from the go (0x458100(0)) */
+    if ((uint8_t)car == 0 && (Gs_SelBit26() || (Gs_SelBit27() && !Gs_ModeBit19()))) {
+        Progress_ResetAll();
+        Cars_Grid(true);
+        if (Gs_SelBit26()) {
+            Cars_Reset((int)Gs_SelBits14(), Race_Cars() - (int)Gs_SelBits14(), true);
+            Ai_Go(false);
+        }
+        Cars_GridPoints();
+        Sectors_Start(false);
+    }
     r->b[0xf8] = 0;
     if (kind(r) == 2) PENDING_NOTE(0x46de20, "Replay_Play (kind 2: the network game's poses)");
     return true;
