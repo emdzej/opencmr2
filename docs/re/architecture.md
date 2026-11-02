@@ -404,9 +404,8 @@ damage slots (0x590c24).
     own, it falls off (0x482f30): the damage record's part flag is set (0x469bf0) and the part is
     hidden when drawn (0x46b670).
 - **Drawing.** Each frame the drawn matrix is blended between the last two steps (0x484d30).
-- **Not ported:** types 2 and 3 (0x484310, 0x483570; their parts stay put), the .cin pieces
-  (0x484e00), the glass pieces (0x49a910, 0x49ab20), the relighting marks (0x4b4100) and the
-  restart's set-up (0x42b800).
+- Types 2 and 3 (0x484310, 0x483570), the .cin pieces (0x484e00), the glass pieces (0x49a910,
+  0x49ab20), the relighting marks (0x4b4100) and the restart's set-up (0x42b800) are ported too.
 
 ## Cameras
 
@@ -421,7 +420,11 @@ last step's camera is kept (0x538e38) and the current one steps (0x423460); each
 camera object's matrix.
 
 Kinds: 1, 2 and 10 the interior views (0x486740), 3 (0x476410), 4-6 the chase cameras (0x447530), 7 the
-trackside cameras along the `.tsc` splines (0x48cae0). State 5 takes the kind from the player's
+trackside cameras along the `.tsc` splines (0x48cae0). The interior views and the trackside cameras on the car keep a blend per
+record (0x590db0, the placing's +0x48). When a switch starts (0x423810, 0x423860, before the new
+record's set-up), the old record gets 1.0 if the new view is an interior one, else 0. The new record
+gets 1.0 if the old view was an interior one (and also from the roof to behind), else 0. When the
+switch ends (0x423900), the new record gets 1.0. State 5 takes the kind from the player's
 profile (+0x44, 0x408800), the chase when it cannot be had. The chase camera (ported) keeps per record a
 forward and an up axis, eased each step towards the car's (dt over the distance, times the car's
 +0xa74), and sits at the profile's offset in them (+0x5e0: 1.5 up, 6.5 back by default; the height and

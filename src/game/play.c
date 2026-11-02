@@ -131,6 +131,7 @@ static void draw(int player, int state)
     }
     for (int i = 0; i < g_all.n; i++) Car_GroundLight(i, player);   /* 0x462aa0 */
     Cars_Lod(player, view);   /* 0x428bf0 */
+    /* (0x46e440 hides the models of the cars a playing replay of kind 2 poses: the network game's) */
     Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */
     /* the cars' kinds per view (0x46bb40), then from the last car of the list to the first its masks
        (0x46b8f0); for the first (every car with option 16) first, with option 0x80, its cube from its

@@ -116,6 +116,7 @@ void Stage_LoadSkyGround(int cond0, int cond1, bool low)
         if (tbl[cond0 & 15]) level = tbl[cond0 & 15];
         if (level < tbl[cond1 & 15]) level = tbl[cond1 & 15];
     }
+    /* Clouds_Path 0x46ef50 */
     static const uint32_t names[3] = {0x51c694, 0x51c6a0, 0x51c6ac};   /* Cloud_Light, _Med, _Heavy */
     if (level <= 2) {
         char path[260], name[64], member[80];

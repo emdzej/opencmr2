@@ -320,7 +320,6 @@ static void interior_init(Cam *k, const int32_t *r, int mode)
 {
     in_mode[k->slot] = (uint8_t)mode;
     in_car[k->slot] = k->car;
-    in_fov[k->slot] = 0x10000;   /* 0x486b20: set for the interior kinds */
     Cockpit_InteriorObjs(k->car);
     int32_t t[16];
     interior_target(t, r, mode);
@@ -775,13 +774,35 @@ void Camera_Reset(int p)
 int Camera_Car(int p) { return slots[cur[p] + 2 * p].car; }   /* 0x422fb0 */
 int Camera_Kind(int p) { return out[p].kind != 8 ? slots[cur[p] + 2 * p].kind : 8; }   /* 0x422f50 */
 
+/* The interior blend (0x590db0, the interior placing's +0x48) of the interior views and the trackside
+   cameras on the car (0x48d7b0, 0x48d800, 0x48d850: a roll within 0x3f5-0x40a either way). The
+   trackside index tested is the record's as it stands: for the new record, before its set-up, the
+   one it last had. (0x4ae410, called on the way for the old car, is empty.) */
+static bool in_kind(int kind) { return kind == 1 || kind == 2 || kind == 10; }
+static bool in_like(const Cam *k) { return in_kind(k->kind) || (k->kind == 7 && tsc && on_car(ts_idx[k->slot])); }
+
+/* 0x423810 (0x486b20) for the record left: from the roof (1) to behind (2) the new one's blend 1.0;
+   its own 1.0 when the new view is an interior one, else 0 */
+static void leaving(const Cam *c, const Cam *o)
+{
+    if (!in_like(c)) return;
+    if (c->kind == 1 && o->kind == 2) in_fov[o->slot] = 0x10000;   /* 0x486be0 */
+    in_fov[c->slot] = in_kind(o->kind) ? 0x10000 : 0;
+}
+
+/* 0x423860's interior part (0x486b90) for the new record: 1.0 coming from an interior view, else 0 */
+static void arriving(const Cam *o, const Cam *c)
+{
+    if (in_like(o)) in_fov[o->slot] = in_kind(c->kind) ? 0x10000 : 0;
+}
+
 /* 0x4238e0, 0x423900 (a switch done): leaving the cockpit the world's mode 0 (0x4764c0), entering it 1
-   (0x476500). (Their interior and trackside parts, 0x486c00, 0x486be0, 0x48d850, set the interior's
-   field of view, which the port's interior keeps at 1.0.) */
+   (0x476500); the new interior view's blend 1.0 (0x486c00, 0x486be0, 0x48d850) */
 static void switched(const Cam *was, const Cam *now)
 {
     if (was->kind == 3) Cockpit_On(was->car, false);
     if (now->kind == 3) Cockpit_On(now->car, true);
+    else if (in_like(now)) in_fov[now->slot] = 0x10000;
 }
 
 /* 0x4232a0: whether a kind can be had: 7 with the stage's cameras (0x48ca90), 3 open */
@@ -820,6 +841,8 @@ void Camera_SelectAt(int p, int kind, int idx, int car, bool smooth)
         row(chase_up[o->slot], r, 1);
         row(chase_fwd[o->slot], r, 0);
     }
+    leaving(c, o);    /* 0x423810 */
+    arriving(o, c);   /* 0x423860 */
     if (kind == 3) Cockpit_Snap(o->car);   /* 0x423860 -> 0x4764e0 */
     cam_init(o, kind, idx);
     o->f60 = 0;
