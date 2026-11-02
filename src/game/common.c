@@ -16,6 +16,7 @@ BflSlot *Bfl_Speech(void) { return &speech; }
 BflSlot *Bfl_Text(void) { return &text; }
 BflSlot *Bfl_CommonArc(void) { return &common_arc; }
 BflSlot *Bfl_Surface(void) { return &surface; }
+BflSlot *Bfl_Firework(void) { return &firework; }
 
 static void mount(BflSlot *s, const char *path)
 {

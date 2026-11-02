@@ -4,6 +4,7 @@
 #include "game/gstate.h"
 #include "game/shadow.h"
 #include "game/play.h"
+#include "game/fireworks.h"
 #include "game/lamps.h"
 #include "game/timer.h"
 #include "game/camera.h"
@@ -110,6 +111,7 @@ static void draw(int player, int state)
         else PENDING_NOTE(0x466570, "the cars' pass: Camera_Car(1)'s car in a shared replay");
     }
     Weather_Draw(player);   /* 0x460330, at the end of the cars' pass 0x466570 */
+    if (Fireworks_On()) Fireworks_Draw();   /* 0x47f740 */
     Race_DrawOverlays(player);
     int16_t view[4] = {0, 0, (int16_t)w, (int16_t)h};
     World_Render(&camera, view, 0, true);

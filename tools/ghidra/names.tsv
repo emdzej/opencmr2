@@ -923,3 +923,13 @@
 00458270	Sectors_Lapped	race	high	The line crossed round a circuit this step
 00458310	Sectors_Steps	race	high	The points moved
 00458330	Sectors_LastLap	race	high	The lap of the last split
+0047e4d0	Fireworks_Setup	world	high	The super special's rockets, sprites, directions, pads and sounds
+0047ea20	Fireworks_Free	world	high	The rockets freed
+0047eab0	Fireworks_Step	world	high	Rockets rising with their trails, bursting, sparks falling
+0047f510	Fireworks_SparkColour	world	high	A spark's colour: the fade and the double burst's blend
+0047f740	Fireworks_Draw	world	high	Rockets, sparks four ways and trails as sprites
+0047fcb0	Fireworks_Spawn	world	high	A rocket in the first free slot
+00480220	Fireworks_Light	world	high	The flash in the low light colour
+00480380	Fireworks_Launch	world	high	A rocket from a random pad
+00480600	Fireworks_Interp	world	high	The drawn positions between steps
+004805f0	Fireworks_SetSounds	world	high	The first sound's id

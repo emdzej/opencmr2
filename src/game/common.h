@@ -12,6 +12,7 @@ BflSlot *Bfl_Speech(void);     /* 0x4552b0 */
 BflSlot *Bfl_Text(void);       /* 0x4552f0 */
 BflSlot *Bfl_CommonArc(void);  /* 0x455290 */
 BflSlot *Bfl_Surface(void);    /* 0x4552e0 */
+BflSlot *Bfl_Firework(void);   /* 0x4552d0 (0x541f48) */
 /* 0x478b50: seven font slots from the Com archive, the names at 0x51e994 (20 bytes apart):
    general\hel_13pt, hel_20pt, hel_36pt, lcd_14pt, lcd_640, ocr_12pt, ocr_60pt */
 void Race_LoadFonts(void);

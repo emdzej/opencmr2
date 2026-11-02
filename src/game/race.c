@@ -4,6 +4,7 @@
 #include "game/shadow.h"
 #include "game/race.h"
 #include "game/ai.h"
+#include "game/fireworks.h"
 #include "game/weather.h"
 #include "game/skids.h"
 #include "game/proc.h"
@@ -160,7 +161,7 @@ static void Race_Update(uint8_t state, bool flag)
             /* Stage_Step 0x466520 */
             Lights_Step();   /* 0x463bd0 */
             if (Balls_On()) Balls_Step();   /* 0x47dd70 */
-            PENDING_NOTE(0x466520, "Stage_Step's fireworks 0x47eab0/0x480220");
+            if (Fireworks_On()) Fireworks_Step(), Fireworks_Light();   /* 0x47eab0, 0x480220 */
         }
         for (int i = 0; i < g_all.n; i++)
             if (Car_Get(i)->s[0xb43]) Fade_Tick(i, false);
@@ -187,6 +188,7 @@ static void Race_Update(uint8_t state, bool flag)
     Parts_Interp(R.frac);   /* 0x484d30 */
     Particles_Interp(R.frac);   /* 0x4b06a0 */
     Weather_Interp(R.frac);     /* 0x461bb0 */
+    if (Gs_SuperSpecial()) Fireworks_Interp(R.frac);   /* 0x480600 */
     if (H->pose) H->pose(R.frac);
     for (uint32_t i = 0; i < np; i++)
         if (H->camera) Camera_Frame((int)i, CI32(Car_Get((int)i), 0xa90), H->camera((int)i));   /* 0x422140 */
@@ -301,6 +303,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Chips_Setup();     /* 0x498dd0, in 0x466360 */
             Lights_Setup();    /* 0x463410, in 0x466360 */
             Effects_Types();   /* 0x45a170, the end of 0x466360 */
+            if (Fireworks_On()) Fireworks_Setup(20);   /* 0x47e4d0, the end of 0x466360 */
             if (Gs_SelBit26()) Ai_Init();   /* 0x48ca70 -> 0x47bda0 */
             Times_Reset();     /* 0x447f70 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */
@@ -408,6 +411,9 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
     }
     if (slot != 0) return;
     PENDING_NOTE(0x46cce0, "Replay_Play");
+    /* the super special: a rocket each frame while the replay runs (its record 0x537f3c +4, taken as
+       clear) */
+    if (Gs_SuperSpecial()) Fireworks_Launch();   /* 0x480380 */
     Race_Update(Proc_State(g, 0), true);
     R.first = true;
 }

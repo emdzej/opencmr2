@@ -883,6 +883,23 @@ head, bit 31, the network) are pending.
 
 `Csp_StartPos` (0x4583d0's part) returns the grid entry when selection bit 26 or 31 is set.
 
+## Fireworks
+
+The super special (rally 8 stage 11 in mode 0, `DAT_0058896c`) sets up 20 rockets (0x47e4d0, the end
+of 0x466360), records of 0x938 bytes: the position and velocity, a ring of 20 trail points, 18 sparks
+(three rings of three directions at 15, 45 and 75 degrees, each with one mirrored in y), each drawn
+mirrored four ways in x and z; the last step's and the drawn copies of all three (0x480600 in
+Race_PoseInterp); timers, colours (six from 0x51f4ec, the flash's from 0x51f504), flags.
+
+Race_S10_Replay launches one each frame (0x480380: from one of four pads, 0x5909c8 plus 0x51f4e0, a unit
+vector up 4 and out up to 1), into the first free slot (0x47fcb0). A rocket rises against 0xa3d a step,
+dropping four scattered trail points a step, until its fuse (25 steps; a burst's rockets 5-15) runs
+out; then the flash (0x5909b8 = 1.0, decaying by 0.5 a step in 0x480220, its square root times the
+flash colour over the low light colour 0x5909c0) and either a burst of sparks (the bangs) or, for kind
+2, one to four smaller rockets, which always burst (their kind test is above 1.0). Sounds are the
+eleven of FireWork.bfl; the whistle's voice is kept in a byte, so it is never found to stop it early
+(the port keeps that).
+
 ## Skid marks
 
 The skid marks (0x464c60-0x465ea0, `src/game/skids.c`) are kept per car (8) and wheel in a ring of 200
