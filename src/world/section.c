@@ -187,7 +187,8 @@ void Section_Init(Obj *world)
     }
     link_objects(world);
     Fin_File();
-    PENDING_NOTE(0x4b8b90, "Section_EdgeHeights");
+    /* (Section_EdgeHeights 0x4b8b90 then gives each cell edge a height from the nearest mesh vertex,
+       +0x2c-+0x58; nothing in 1.11 reads them back, so the port leaves them out) */
     corners();
 }
 
