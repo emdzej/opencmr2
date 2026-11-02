@@ -1261,3 +1261,21 @@
 005004b0	Sv_SetShownTime	service	high	the service time shown, set
 00501200	Sv_TimeLimit	service	high	a player's service time limit in minutes
 005011f0	Sv_TimeLeft	service	high	a player's service time left in hundredths
+004ff5b0	Sv_SetupCount	service	high	the set-up page's value count and value by the list position
+004ff630	Sv_BackKey	service	high	Back on the main page: info page back, repair or set-up undone
+005000b0	Sv_SetupGo	service	high	Set Up chosen: its page with the time, else the warning
+00500270	Sv_RepairDo	service	high	a repair with the time for it, else the warning
+00500360	Sv_RepairUndoGo	service	high	a repair undone, back to the main page
+004fffe0	Sv_RepairGo	service	high	Repair chosen: undone when repaired, else repaired
+005003d0	Sv_SetupChoose	service	high	a set-up value chosen: undo, set or nothing
+005028a0	Sv_SetupValue	service	high	a part's edited set-up value
+00502a00	Sv_SetupIsOriginal	service	high	a set-up value as it came in
+00502990	Sv_SetupChanged	service	high	a set-up part changed this service
+00502670	Sv_SetupSet	service	high	a set-up value set, its time taken the first time
+00502790	Sv_SetupUndo	service	high	a set-up part back to the original, time given back
+00503010	Sv_Repair	service	high	a part's damage cleared and its time taken
+005034f0	Sv_Unrepair	service	high	a part's damage back as it came in, time given back
+00500500	Sv_BlinkOn	service	high	the warning blink on
+00501210	Sv_SetTimeLeft	service	high	a player's service time left, set
+00502d40	Sv_SetupTime	service	high	a set-up part's time
+00503930	Sv_RepairTime	service	high	a part's repair time

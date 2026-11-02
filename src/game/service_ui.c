@@ -63,7 +63,7 @@ static void setup_count(void)
     case 1: sv_setup.items[0].count = 5; break;
     case 2: case 3: case 4: case 5: case 6: sv_setup.items[0].count = 0xb; break;
     }
-    PENDING_NOTE(0x5028a0, "the set-up part's value");
+    sv_setup.items[0].value = (uint8_t)Sv_SetupValue(Sv_Player(), v);
 }
 
 /* 0x4ffa70: the saved games' count; the save list reset unless back from it */
@@ -76,6 +76,26 @@ void sv_main_enter(Menu *m, bool back)
         return;
     }
     S.save_back = false;
+}
+
+/* 0x4ff630: Back on the information item turns the page back; on a repaired part or a changed set-up
+   undoes it */
+static void back_key(Menu *m)
+{
+    int rec = Sv_Player() == 1 && !Gs_ModeBit17() ? 1 : 0;
+    if (!(Input_Record(rec)->pressed & MB_BACK)) return;
+    int p = Sv_Player();
+    if (m->sel == Menu_IndexOf(m, 0)) {
+        PENDING_NOTE(0x503960, "the information pages turned back");
+        return;
+    }
+    if (m->sel == Menu_IndexOf(m, 2)) {
+        int part = Sv_RepairView(item_value(m, 2));
+        if (Sv_Repaired(p, part)) Sv_Unrepair(p, part);
+    } else if (m->sel == Menu_IndexOf(m, 1)) {
+        int part = Sv_SetupPart(item_value(m, 1));
+        if (Sv_SetupChanged(p, part)) Sv_SetupUndo(p, part);
+    }
 }
 
 /* 0x4ffab0: the main page's frame: the race or quit due, the panels sliding as the selection moves, the
@@ -119,7 +139,7 @@ void sv_main_frame(Menu *m)
     bool car = m->sel == Menu_IndexOf(m, 2) || m->sel == Menu_IndexOf(m, 1);
     for (int p = 0; p < (int)Gs_Players(); p++) Sv_CarShow(p, car && p == Sv_Player());
     if (m->sel != Menu_IndexOf(m, 5)) set_item_value(&sv_main, 5, 1);
-    PENDING_NOTE(0x4ff630, "the main page's Escape on the information, set-up and repair items");
+    back_key(m);
     int v = item_value(&sv_main, 1);
     while (!Sv_ViewAllowed(Sv_SetupView(v), Sv_CarClass())) v += S.setup_last < v ? 1 : -1;
     set_item_value(&sv_main, 1, v);
@@ -143,10 +163,64 @@ void sv_main_frame(Menu *m)
 }
 
 void sv_info_go(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x503960, "the information pages"); }
-void sv_setup_go(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x5000b0, "the set-up item"); }
-void sv_repair_go(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4fffe0, "the repair item"); }
+
+/* 0x5000b0: Set Up: its page with the time for the part, else the warning */
+void sv_setup_go(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    setup_count();
+    int v = item_value(&sv_main, 1);
+    if (Sv_CanSet(Sv_Player(), v)) Menu_Goto(&sv_setup);
+    else Sv_BlinkOn();
+}
+
+/* 0x500270: a repair with the time for it (the warning when the part is damaged and there is not) */
+static void repair(Menu *m)
+{
+    int p = Sv_Player(), part = Sv_RepairView(item_value(&sv_main, 2));
+    if (S.time[p] - (int)gm32(0x5270b4 + 4u * (uint32_t)part) < 0 && !Sv_Repaired(p, part)) {
+        if (Sv_Damage(p, part, false) >= 1) Sv_BlinkOn();
+        return;
+    }
+    if (!Sv_Repaired(p, part)) Sv_Repair(p, part);
+    Menu_Goto(m->parent);
+}
+
+/* 0x500360: a repair undone */
+static void unrepair(Menu *m)
+{
+    int p = Sv_Player(), part = Sv_RepairView(item_value(&sv_main, 2));
+    if (Sv_Repaired(p, part)) Sv_Unrepair(p, part);
+    Menu_Goto(m->parent);
+}
+
+/* 0x4fffe0: Repair: undone when repaired, else repaired */
+void sv_repair_go(Menu *m, MenuItem *it)
+{
+    if (Sv_Repaired(Sv_Player(), Sv_RepairView(it->value))) unrepair(m);
+    else repair(m);
+}
+
 void sv_save_go(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4ffed0, "the save item"); }
-void sv_setup_choose(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x5003d0, "a set-up value"); }
+
+/* 0x5003d0: a set-up value chosen: back to the original undoes the change; another sets it if there is
+   the time or it was changed already (no warning otherwise) */
+void sv_setup_choose(Menu *m, MenuItem *it)
+{
+    (void)it;
+    int p = Sv_Player(), part = Sv_SetupPart(item_value(&sv_main, 1)), v = m->items[0].value;
+    if (Sv_SetupChanged(p, part) && Sv_SetupIsOriginal(p, part, v)) {
+        Sv_SetupUndo(p, part);
+        Menu_Goto(m->parent);
+        return;
+    }
+    if (!Sv_SetupIsOriginal(p, part, v)) {
+        if (S.time[p] - (int)gm32(0x527098 + 4u * (uint32_t)part) < 0 && !Sv_SetupChanged(p, part)) return;
+        Sv_SetupSet(p, part, v);
+    }
+    Menu_Goto(m->parent);
+}
+
 void sv_save_yes(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x500020, "the championship saved"); }
 
 void Sv_CarsInit(void) { PENDING_NOTE(0x50a3c0, "each player's car on its stand (0x5062d0)"); }
@@ -202,4 +276,104 @@ bool Sv_CanSet(int p, int part)
 {
     if ((int)gm32(0x527098 + 4u * (uint32_t)part) <= S.time[p]) return true;
     return gm8(0x82bf20 + 7u * (uint32_t)p + (uint32_t)part) != 0;
+}
+
+/* ---- the set-up's values (0x82bee8 the edited, 0x82bf04 the original, 7 bytes a player; the first two
+   choices, the others tenths) and the repairs ---- */
+
+static uint32_t edited(int p, int part) { return 0x82bee8 + 7u * (uint32_t)p + (uint32_t)part; }
+static uint32_t original(int p, int part) { return 0x82bf04 + 7u * (uint32_t)p + (uint32_t)part; }
+static uint32_t changed(int p, int part) { return 0x82bf20 + 7u * (uint32_t)p + (uint32_t)part; }
+
+/* 0x5028a0 */
+int Sv_SetupValue(int p, int part)
+{
+    if (part < 0 || part > 6) return 0;
+    return part < 2 ? gm8(edited(p, part)) : gms8(edited(p, part)) / 10;
+}
+
+/* 0x502a00 */
+bool Sv_SetupIsOriginal(int p, int part, int v)
+{
+    if (part < 0 || part > 6) return false;
+    return part < 2 ? gms8(original(p, part)) == v : gms8(original(p, part)) == v * 10;
+}
+
+bool Sv_SetupChanged(int p, int part) { return gm8(changed(p, part)) != 0; }   /* 0x502990 */
+
+/* 0x502670: a value set, its time taken the first time */
+void Sv_SetupSet(int p, int part, int v)
+{
+    if (part >= 0 && part <= 6) gw8(edited(p, part), (uint8_t)(part < 2 ? v : v * 10));
+    if (!gm8(changed(p, part))) {
+        S.time[p] -= (int)gm32(0x527098 + 4u * (uint32_t)part);
+        gw8(changed(p, part), 1);
+    }
+}
+
+/* 0x502790: the original back, the time given back */
+void Sv_SetupUndo(int p, int part)
+{
+    if (part >= 0 && part <= 6) gw8(edited(p, part), gm8(original(p, part)));
+    S.time[p] += (int)gm32(0x527098 + 4u * (uint32_t)part);
+    gw8(changed(p, part), 0);
+}
+
+/* a part's damage bytes in the set-up record (0x148 bytes; 0x82c070 the car as it will race, 0x52ebc0
+   as it came in); the body (6) has more */
+static const uint16_t dmg_at[12] = {0, 0x116, 0x117, 0x10e, 0x118, 0x112, 0x119, 0x10c, 0x11f, 0x120, 0x121, 0x108};
+static const uint8_t dmg_n[12] = {0, 1, 1, 4, 1, 4, 6, 2, 1, 1, 1, 4};
+
+static uint32_t kept(int p) { return 0x82c070 + 0x148u * (uint32_t)p; }
+static uint32_t came(int p) { return 0x52ebc0 + 0x148u * (uint32_t)p; }
+static uint32_t repaired_at(int p, int part) { return 0x82c040 + 12u * (uint32_t)p + (uint32_t)part; }
+
+/* 0x503010: part's damage cleared and its time taken, when it has any; the body also its panels (20
+   of 13 bytes, the last 0xff), the dents and 0x104 */
+void Sv_Repair(int p, int part)
+{
+    if (part < 1 || part > 11) return;
+    uint32_t b = kept(p);
+    bool any = false;
+    for (int k = 0; k < dmg_n[part]; k++) any |= gm8(b + dmg_at[part] + (uint32_t)k) != 0;
+    if (part == 6) {
+        for (uint32_t a = 0x122; a < 0x12a; a++) any |= gm8(b + a) != 0;
+        for (uint32_t a = 0x12c; a < 0x148; a += 4) any |= gm32(b + a) != 0;
+        any |= gm8(b + 0x104) != 0;
+    }
+    if (any) {
+        for (int k = 0; k < dmg_n[part]; k++) gw8(b + dmg_at[part] + (uint32_t)k, 0);
+        if (part == 6) {
+            for (uint32_t a = 0x122; a < 0x12a; a++) gw8(b + a, 0);
+            for (uint32_t a = 0x12c; a < 0x148; a += 4) gw32(b + a, 0);
+            gw8(b + 0x104, 0), gw8(b + 0x105, 0);
+            for (uint32_t k = 0; k < 20; k++) {
+                for (uint32_t j = 0; j < 12; j++) gw8(b + 13 * k + j, 0);
+                gw8(b + 13 * k + 12, 0xff);
+            }
+        }
+        S.time[p] -= (int)gm32(0x5270b4 + 4u * (uint32_t)part);
+        gw8(repaired_at(p, part), 1);
+        if (part == 3) PENDING_NOTE(0x509d00, "the stand's car: the suspension repaired");
+        if (part == 11) PENDING_NOTE(0x509d90, "the stand's car: the axles repaired");
+    }
+    if (part == 6) PENDING_NOTE(0x5074d0, "the stand's car: the body repaired");
+}
+
+/* 0x5034f0: part's damage as it came in, the time given back */
+void Sv_Unrepair(int p, int part)
+{
+    if (part < 1 || part > 11) return;
+    uint32_t b = kept(p), c = came(p);
+    for (int k = 0; k < dmg_n[part]; k++) gw8(b + dmg_at[part] + (uint32_t)k, gm8(c + dmg_at[part] + (uint32_t)k));
+    if (part == 6) {
+        for (uint32_t a = 0; a < 0x106; a++) gw8(b + a, gm8(c + a));
+        for (uint32_t a = 0x122; a < 0x12a; a++) gw8(b + a, gm8(c + a));
+        for (uint32_t a = 0x12c; a < 0x148; a++) gw8(b + a, gm8(c + a));
+    }
+    S.time[p] += (int)gm32(0x5270b4 + 4u * (uint32_t)part);
+    gw8(repaired_at(p, part), 0);
+    if (part == 3) PENDING_NOTE(0x509be0, "the stand's car: the suspension damaged again");
+    if (part == 6) PENDING_NOTE(0x507650, "the stand's car: the body damaged again");
+    if (part == 11) PENDING_NOTE(0x509d30, "the stand's car: the axles damaged again");
 }

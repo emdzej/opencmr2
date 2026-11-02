@@ -68,6 +68,13 @@ bool Sv_Repaired(int p, int part);        /* 0x503940 */
 bool Sv_CanRepair(int p, int part);       /* 0x502fc0 */
 bool Sv_SetupKept(int p, int i);          /* 0x502b10 */
 bool Sv_CanSet(int p, int part);          /* 0x502630 */
+int Sv_SetupValue(int p, int part);       /* 0x5028a0 */
+bool Sv_SetupIsOriginal(int p, int part, int v);   /* 0x502a00 */
+bool Sv_SetupChanged(int p, int part);    /* 0x502990 */
+void Sv_SetupSet(int p, int part, int v); /* 0x502670 */
+void Sv_SetupUndo(int p, int part);       /* 0x502790 */
+void Sv_Repair(int p, int part);          /* 0x503010 */
+void Sv_Unrepair(int p, int part);        /* 0x5034f0 */
 
 /* service_draw.c */
 void Sv_Textures(void);                   /* 0x50a080 */
