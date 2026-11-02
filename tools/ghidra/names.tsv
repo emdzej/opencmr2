@@ -908,3 +908,5 @@
 00498ca0	Ai_Inputs	ai	high	A net's inputs from the state by code
 00498d80	Fx_Atan2Deg	math	high	atan2 in 16.16 degrees
 00498db0	Fx_WrapDeg	math	high	An angle into -180..180
+00458f30	Sectors_LapStep	race	high	Round a circuit: a lap more past the last point, less back over it
+004590a0	Sectors_LapSplit	race	high	The laps mode: a new lap restarts the splits
