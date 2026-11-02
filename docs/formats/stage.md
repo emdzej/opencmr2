@@ -117,6 +117,7 @@ then, for all nodes in turn:
 | node | +0x04, +0x08 | i32: the cell's x and z (16.16), matched exactly against the section records |
 | node | +0x0c, +0x10 | the items and the block (pointers after the parse) |
 | item | +0x00, +0x04 | i32: the tree's x and z |
+| item | +0x08, +0x0c | i32: a second x and z close to the first (the ones 0x4b6ca0 measures from the light) |
 | item | +0x20 | 16.16 factor, set to 1.0 by the parser (lowered near a light by 0x4b6ca0) |
 | item | +0x28 | its vertex count in the node's mesh (used by the relighting) |
 | item | +0x2c | its scenery record (written by the parser) |

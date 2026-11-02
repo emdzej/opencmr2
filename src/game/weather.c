@@ -505,7 +505,7 @@ void Weather_RaceStart(void)
     sorted_shadow_direction();   /* Shadow_SortedDirFromSun 0x4b5760 */
 }
 
-/* 0x45e610 (the replays' restarts 0x46c2a0, 0x46c390, 0x46c410, not ported): the players' records at
+/* 0x45e610 (from the replays' restarts 0x46c2a0, 0x46c390): the players' records at
    the start level, full and in the open; their wet values at the start */
 void Weather_Restart(void)
 {

@@ -23,6 +23,7 @@ uint32_t g_shadow_rgb;
 int32_t g_shadow_alpha;
 static uint32_t ramp[50], shadow_ramp[50]; /* 0x6dfdc8, 0x6deacc (and the byte copy at 0x6e0b34) */
 static uint32_t *cache_low, *cache_high;   /* 0x6e019c, 0x6dfd90 */
+static uint32_t *lit;                      /* 0x6dfdfc: a cell near the headlight (Tre_LightFade) */
 
 static int32_t iabs(int32_t v) { return v < 0 ? -v : v; }
 static uint8_t hi8(int64_t v) { return (uint8_t)(v >> 32); }
@@ -144,13 +145,15 @@ void Relight_Alloc(void)
     Relight_Free();
     cache_low = calloc(SEC_MAX, 4);
     cache_high = calloc(SEC_MAX, 4);
+    lit = calloc(SEC_MAX, 4);
 }
 
 void Relight_Free(void)
 {
     free(cache_low);
     free(cache_high);
-    cache_low = cache_high = NULL;
+    free(lit);
+    cache_low = cache_high = NULL, lit = NULL;
 }
 
 static uint32_t rd32(const uint8_t *p) { return (uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24; }
@@ -166,9 +169,51 @@ static void per_vertex(const C3d *m, uint8_t *me, uint32_t (*f)(int32_t))
     for (uint32_t k = 0; v && c && k < n; k++) wr32(v + (size_t)k * C3D_VERTEX + 0x18, f((int32_t)rd32(c + 4 * k)));
 }
 
-/* Tre_LightFade 0x4b6ca0 needs the light object of 0x6dffa4[1] (a car's lights), not ported: none,
-   so it reports no change. */
-static bool light_fade(int cell) { (void)cell; return false; }
+/* Tre_LightFade 0x4b6ca0: the shadows of a cell's trees lifted near light `slot` (the first headlight).
+   The cell is lit when its centre is within half a cell + the range + 20 of the light in x and z
+   (0x6dfdfc); each tree's factor (item +0x20) is then (d2 * att2 + 2 * att0) / 256 from 0 to 1, d2 the
+   squared distance in x and z, or 1.0 when both its differences exceed the range (signed: a tree on the
+   far side of the light is always faded). The tree's x and z are the item's second pair (+0x08, +0x0c,
+   within a metre or so of +0x00, +0x04). By day the headlights' attenuation keeps every factor at 1.0
+   (Lamps_Lights, 0x547ff4). A cell no longer lit puts its factors back to 1.0. True when a factor
+   changed. */
+static int32_t fx16(float f) { return (int32_t)llrint((double)f * 65536.0); }
+
+static bool light_fade(int cell, int slot)
+{
+    const D3DLIGHT7 *l = Dlight_Get(slot);
+    if (!l) return false;
+    int32_t r = fx16(l->range), a0x2 = fx_mul(0x20000, fx16(l->attenuation0)), a2 = fx16(l->attenuation2);
+    int32_t lx = fx16(l->position.x), lz = fx16(l->position.z);
+    int32_t reach = g_sec_half + r + 0x140000;
+    uint32_t was = lit[cell];
+    lit[cell] = iabs(g_sec[cell].x - lx) <= reach && iabs(g_sec[cell].z - lz) <= reach;
+    int n;
+    uint8_t *items = (uint8_t *)Tre_NodeItems(g_tre_node[cell], &n);
+    bool changed = false;
+    if (!lit[cell]) {
+        if (!was || !items) return false;
+        for (int j = 0; j < n; j++) {
+            uint8_t *f = items + j * 0x30 + 0x20;
+            if ((int32_t)rd32(f) != 0x10000) changed = true;
+            wr32(f, 0x10000);
+        }
+        return changed;
+    }
+    for (int j = 0; items && j < n; j++) {
+        uint8_t *it = items + j * 0x30, *f = it + 0x20;
+        int32_t old = (int32_t)rd32(f), dx = lx - (int32_t)rd32(it + 8), dz = lz - (int32_t)rd32(it + 0x0c);
+        int32_t v = 0x10000;
+        if (dx <= r || dz <= r) {
+            int32_t d = fx_mul(fx_mul(dx, dx) + fx_mul(dz, dz), a2) + a0x2;
+            v = (int32_t)(((int64_t)d << 16) / 0x1000000);
+            v = v < 0 ? 0 : v > 0x10000 ? 0x10000 : v;
+        }
+        wr32(f, (uint32_t)v);
+        if (v != old) changed = true;
+    }
+    return changed;
+}
 
 void Section_Relight(int cell)
 {
@@ -202,9 +247,9 @@ void Section_Relight(int cell)
         if (g_tre_mesh[cell]) changed = true;
     }
     uint8_t *me = g_tre_mesh[cell];
-    bool fade = g_tre_have && me && exe_u32(0x5210c0) && light_fade(cell);
+    bool fade = g_tre_have && me && g_lights_keep && light_fade(cell, 1);
     if (!(fade || changed) || !me) return;
-    if (!exe_u32(0x5210c0)) {
+    if (!g_lights_keep) {
         per_vertex(&g_tre, me, Light_ShadowRamp);
     } else {
         /* per tree: its vertices (item +0x28) scaled by its factor (+0x20) */

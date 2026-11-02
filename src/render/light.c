@@ -2,7 +2,8 @@
 #include "render/light.h"
 #include "render/d3d7.h"
 
-uint32_t g_ambient_a, g_ambient_b, g_lights_keep;
+uint32_t g_ambient_a, g_ambient_b;
+uint32_t g_lights_keep = 1;   /* DAT_005210c0 starts at 1 */
 static uint32_t mode;   /* DAT_005210c4 */
 
 /* 0: lit, ambient A, vertex colour on, light 1 only; 1: the same with light 2 only; 2: lit, ambient B,

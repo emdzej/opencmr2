@@ -424,7 +424,7 @@ colours differ from the current ones gets the following, and its buffers are upl
 
 The race start moves every cell's cached red 10 away, so the first pass relights them all (0x4b3f20).
 Before each cell is relit there, its objects get their sun light (`Light_SunObjects` 0x4b50b0, see [The
-sky](#the-sky)). Not ported yet: the fade of shadows near a car's lights (0x4b6ca0).
+sky](#the-sky)). The shadows near the first headlight fade (Tre_LightFade 0x4b6ca0, in `world/relight.c`).
 
 ## Device lights
 

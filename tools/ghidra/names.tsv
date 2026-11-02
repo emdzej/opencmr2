@@ -228,7 +228,7 @@
 004b3b40	Light_TerrainRamp	world	med	A terrain ramp colour for a 16.16 intensity
 004b2020	Mesh_UploadVerts	render	med	Copies a mesh's vertices into its vertex buffer again
 004b2090	Mesh_SetColour	render	med	Sets every vertex colour of a mesh and uploads it
-004b6ca0	Tre_LightFade	world	low	Lowers the shadows of trees near a light source
+004b6ca0	Tre_LightFade	world	high	A cell's tree shadow factors lowered near a light (the cell flagged in 0x6dfdfc), 1.0 again when it leaves
 004bcc60	Overlay_Step	world	low	Steps two time-driven values nothing reads
 00461830	Hor_ForTime	world	high	The horizon record for a time and weather, blended from the 48 .hor files
 00461710	Hor_Blend	world	high	Blends two horizon records by a 16.16 factor
