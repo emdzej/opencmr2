@@ -70,6 +70,7 @@ bool app_frame(void)
         uint32_t ms = (uint32_t)((uint64_t)frame++ * 1000 / 60);
         Time_Set(ms);
         Timer_Sample(ms);
+        Voices_Update();   /* 0x4b7a40 */
         Game_Frame();
         D3d_Present();
         if (gm8(0x663db8)) return false;   /* the quit (0x4a9a40): the message loop ends */

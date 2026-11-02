@@ -12,6 +12,8 @@ typedef struct Dsb Dsb;
 /* CreateSoundBuffer: a buffer of size bytes in rate Hz, bits 8 or 16, channels 1 or 2 */
 Dsb *Dsb_Create(uint32_t rate, int bits, int channels, uint32_t size);
 Dsb *Dsb_Duplicate(Dsb *b);                 /* DuplicateSoundBuffer: the same data, its own voice */
+/* A new buffer of b's format holding its data from byte `at` on (CreateSoundBuffer, Lock, copy) */
+Dsb *Dsb_Tail(Dsb *b, uint32_t at);
 void Dsb_Release(Dsb *b);
 void Dsb_Write(Dsb *b, uint32_t at, const void *data, uint32_t n);   /* Lock, copy, Unlock */
 void Dsb_Play(Dsb *b, bool loop);

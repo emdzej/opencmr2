@@ -18,7 +18,9 @@ typedef struct {
     bool loop, three_d;
     uint32_t start;
     Dsb *buf;                 /* +0x1c */
+    Dsb *tail;                /* +0x24: the sound from `start` on, looped once buf has played */
     bool dup;                 /* +0x2c: a duplicate of the sound's buffer, freed with the voice */
+    bool looping;             /* +0x30: start != 0 (set even without loop) */
 } Voice;
 static Voice *voices[32];     /* 0x6e0d6c */
 static Voice pool[32];
@@ -78,12 +80,14 @@ static void apply_volume(Voice *v)
     int32_t l = a > 0 ? (int32_t)llrint(log((double)(int32_t)a) * -10.0) : 0;
     int32_t d = (int32_t)llrint(log(65536.0) * 10.0);
     Dsb_SetVolume(v->buf, -10000 - l * 10000 / d);
+    Dsb_SetVolume(v->tail, -10000 - l * 10000 / d);
 }
 
 static void apply_freq(Voice *v)   /* 0x4a2690: 100 to 100,000 (as the u16 holds it) */
 {
     if (v->freq < 100) v->freq = 100;
     Dsb_SetFrequency(v->buf, v->freq);
+    Dsb_SetFrequency(v->tail, v->freq);
 }
 
 /* 0x4a22c0: the sound's buffer, duplicated when another voice plays the same sound */
@@ -97,7 +101,7 @@ static bool start_voice(Voice *v)
     if (shared) v->buf = Dsb_Duplicate(s), v->dup = true;
     else v->buf = s, v->dup = false;
     if (!v->buf) return false;
-    if (v->loop && v->start) PENDING_NOTE(0x4a24a0, "Voice_LoopFrom (a loop from an offset)");
+    if (v->loop && v->start) v->tail = Dsb_Tail(v->buf, v->start);   /* 0x4a24a0 */
     apply_volume(v);
     apply_freq(v);
     Dsb_SetPosition(v->buf, 0);   /* 0x4a23f0 */
@@ -119,6 +123,7 @@ int32_t Voice_Play(int id, int32_t vol, uint32_t freq, uint32_t start, bool loop
     v->loop = loop;
     v->three_d = three_d;
     v->start = start;
+    v->looping = start != 0;
     v->vol = vol;
     v->freq = (uint16_t)freq;
     voices[s] = v;
@@ -131,15 +136,35 @@ int32_t Voice_Play(int id, int32_t vol, uint32_t freq, uint32_t start, bool loop
 bool Voice_Playing(int32_t h)
 {
     int s = find(h);
-    return s >= 0 && Dsb_Playing(voices[s]->buf);
+    /* 0x4a2430: a voice with a start counts as playing until it is stopped */
+    return s >= 0 && (Dsb_Playing(voices[s]->buf) || voices[s]->looping);
 }
 
 static void stop(int s)   /* 0x4a26f0 */
 {
     Voice *v = voices[s];
+    if (v->looping) Dsb_Stop(v->tail), Dsb_Release(v->tail), v->tail = NULL;
     Dsb_Stop(v->buf);
     if (v->dup) Dsb_Release(v->buf);
     voices[s] = NULL;
+}
+
+/* 0x4b7a40 (with 0x4a27c0 per voice), before each Game_Frame: a voice whose buffer has played either
+   goes on to its looped tail (Play every frame from then on, as the original does; a voice with a start
+   but no loop has no tail, where the original would call through a null buffer) or is freed */
+void Voices_Update(void)
+{
+    if (!on) return;
+    for (int i = 0; i < 32; i++) {
+        Voice *v = voices[i];
+        if (!v || !v->buf || Dsb_Playing(v->buf)) continue;
+        if (v->looping) {
+            Dsb_Play(v->tail, true);   /* 0x4a23f0 */
+            continue;
+        }
+        if (v->dup) Dsb_Release(v->buf);
+        voices[i] = NULL;   /* 0x4b7620 */
+    }
 }
 
 void Voice_Stop(int32_t h)

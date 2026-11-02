@@ -52,7 +52,7 @@
 004a28d0	Music_Open	audio	med	Opens arcadeN.adp, MS ADPCM ACM stream into a DirectSound streaming buffer
 004a2bd0	Music_Update	audio	med	Refills the music streaming buffer
 0049f0e0	Input_InitDefaults	input	high	Default keyboard bindings (DIK codes) for two keyboard players
-004b7a40	Input_Poll	input	low	Called once per idle loop iteration before Game_Frame
+004b7a40	Voices_Update	audio	high	Once per idle loop before Game_Frame: each voice whose buffer has played goes on to its looped tail or is freed
 004a8140	Window_Create	main	med	Registers the class and creates the window
 004aaaf0	Net_CreateDirectPlay	net	high	CoCreateInstance CLSID_DirectPlay / IID_IDirectPlay4A
 00410c80	Race_DrawStats	race	high	state 2's draw: the loading screen (colour, stage name and records, bar; frame rate with option bit 2), three passes
@@ -1695,3 +1695,6 @@
 004a3180	Music_Resume	audio	high	The arcade music resumed when the pause menu continues
 004a31a0	Music_StopBuf	audio	medium	Stops the music buffer and marks it to restart on the next poll
 004a2fe0	Music_Poll	audio	high	The music stream's refill, once a frame in the arcade race
+004a24a0	Voice_LoopFrom	audio	high	A voice's second buffer: the sound from its start offset on, looped after the first pass
+004a27c0	Voice_Update	audio	high	One voice once a frame: on to its tail, or freed when played
+004a2430	Voice_IsPlaying	audio	high	The buffer playing, or the voice has a start offset

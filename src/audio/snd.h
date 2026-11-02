@@ -21,3 +21,4 @@ void Snd_SetMaster(int32_t vol);                       /* 0x4b7950 */
 void Voice_SetVolume(int32_t h, int32_t vol);          /* 0x4b79a0 */
 void Voice_SetFrequency(int32_t h, uint32_t hz);       /* 0x4b79e0 */
 int32_t Voice_Volume(int32_t h);                       /* 0x4b7a10 */
+void Voices_Update(void);                              /* 0x4b7a40: finished voices freed or looped */

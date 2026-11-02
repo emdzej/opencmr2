@@ -62,6 +62,17 @@ Dsb *Dsb_Duplicate(Dsb *s)
     return b;
 }
 
+Dsb *Dsb_Tail(Dsb *s, uint32_t at)
+{
+    if (!s) return NULL;
+    uint32_t fb = (uint32_t)(s->bits / 8 * s->channels), from = at / fb;
+    if (from >= s->d->frames) return NULL;
+    uint32_t n = s->d->frames - from;
+    Dsb *b = Dsb_Create(s->rate, s->bits, s->channels, n * fb);
+    if (b) memcpy(b->d->pcm, s->d->pcm + (size_t)from * (size_t)s->channels, (size_t)n * (size_t)s->channels * sizeof(int16_t));
+    return b;
+}
+
 void Dsb_Release(Dsb *b)
 {
     if (!b || !b->used) return;
