@@ -46,6 +46,7 @@
 #include "game/select.h"
 #include "game/unlocks.h"
 #include "world/tod.h"
+#include "world/frame.h"
 #include "game/standings.h"
 #include "fixmath.h"
 #include "render/d3d7.h"
@@ -827,6 +828,26 @@ static void draw(ProcGroup *g, uint32_t slot)
     if (H->draw) H->draw((int)slot, Proc_State(g, slot));
 }
 
+/* States 1 and 2 draw the loading screen, not the race's view (the port's cars, cockpits and lamps
+   are still the last race's then, their textures freed): 0x411070 clears the target and the depth and
+   draws the loading screen's tree (0x536be0, with 0x41f4b0's fade); state 2's is Race_DrawStats
+   0x410c80 (Intro_Loading). Only the 2D queues are drawn. */
+static void load_draw(ProcGroup *g, uint32_t slot)
+{
+    if (Proc_State(g, slot) == 2) {
+        if (slot) return;
+        Intro_Loading();
+    } else {
+        Render_ClearTarget();
+        Render_ClearZ(false);
+        PENDING_NOTE(0x411070, "the loading screen's tree and fade (0x41f4b0, 0x475f70)");
+    }
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int16_t v[4] = {0, 0, (int16_t)w, (int16_t)h};
+    World_Render(Race_Camera((int)slot), v, slot, false);
+}
+
 /* 0x40f8d0's split screen part, per view: the finished player's half darkened (0x516ce0) with a
    message while the other still drives (its state 9 against 8, not paused, 100 steps after the
    finish): outside selection bit 26 "0x86 0x87 <the other's name>", or for the head to head's winner
@@ -883,7 +904,7 @@ void Race_DrawOverlays(int player)
 
 /* The table at 0x5190b0 in its order; 6 (the intro camera, 0x472e00) and 13 (0x41e5c0) are not ported */
 static const ProcState states[14] = {
-    {s0_setup, NULL}, {s1_loading, draw}, {s2_mount, draw}, {s3_stage, NULL}, {s4_cars, NULL},
+    {s0_setup, NULL}, {s1_loading, load_draw}, {s2_mount, load_draw}, {s3_stage, NULL}, {s4_cars, NULL},
     {s5_line, draw}, {NULL, draw}, {s7_countdown, draw}, {s8_stage, draw}, {s9_finished, draw},
     {s10_replay, draw}, {s11_results, draw}, {s12_quit, NULL}, {NULL, draw},
 };

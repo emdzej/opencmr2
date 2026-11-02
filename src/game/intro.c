@@ -5,6 +5,7 @@
 #include "game/profile.h"
 #include "game/timer.h"
 #include "render/d3d7.h"
+#include "render/rstate.h"
 #include "render/twod.h"
 #include "world/tod.h"
 #include "exe.h"
@@ -192,4 +193,18 @@ void Intro_Draw(int player, int state)
     Rect_Fill(r, c, 1);
     intro_info(a);
     LoadBar_Draw(100, a);
+}
+
+/* Race_DrawStats 0x410c80 (state 2's draw), the first slot only: unless 0x4100a0, the target cleared
+   to the loading screen's colour, the stage's name and records, the loading bar. The original draws it
+   three times over (filling the swap chain; the port once a frame) and with option bit 2 the frame
+   rate and the T&L kind (debugging, not ported). */
+void Intro_Loading(void)
+{
+    if (no_bar()) return;
+    Render_SetClearColour(0x9c, 0xb4, 0xac);
+    Render_ClearTarget();
+    Render_ClearZ(false);
+    intro_info(0xff);
+    LoadBar_Draw(0, 0xff);
 }

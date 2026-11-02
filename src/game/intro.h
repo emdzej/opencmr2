@@ -8,3 +8,4 @@ void Intro_Draw(int player, int state);
 /* 0x40fec0 without the world: the loading bar, eleven squares at the bottom right, those past pct
    lit, alpha a */
 void LoadBar_Draw(int pct, int alpha);
+void Intro_Loading(void);           /* Race_DrawStats 0x410c80: the loading screen (state 2) */
