@@ -1103,3 +1103,23 @@
 004eab40	Cheats_Set	fe	confirmed	One cheat on or off (0x52afc0 byte 1)
 004063d0	Cheats_On	game	confirmed	A cheat on (0x52afc0 byte 1)
 00406360	Cheats_Found	game	confirmed	A cheat found (0x52afc0 byte 0)
+004df410	FeGraphics_Draw	fe	confirmed	The Graphics page
+004f2c40	FeGraphics_Enter	fe	confirmed	The split, ghost, units and speedo into the rows
+004f2d20	FeGraphics_Ok	fe	confirmed	The rows into the settings
+004dfe20	FeAdvGfx_Draw	fe	confirmed	The Advanced Graphics page
+004f1c00	FeAdvGfx_Enter	fe	confirmed	The shadow map, mip map and draw distance into the rows
+004f1e40	FeAdvGfx_Ok	fe	confirmed	The rows into the settings and the display flags
+004f1f70	FeAdvGfx_Leave	fe	confirmed	Left other than by back: as OK
+004e0770	FeDetail_Draw	fe	confirmed	The Detail page
+004f1d00	FeDetail_Enter	fe	confirmed	The effects, track and car detail into the rows
+004f1d60	FeDetail_Frame	fe	confirmed	The car row fixed without big textures
+004f1db0	FeDetail_Ok	fe	confirmed	The rows into the detail settings
+004e1890	FeEnvMap_Draw	fe	confirmed	The Environment Map page
+004f1fa0	FeEnvMap_Enter	fe	confirmed	The choices by the caps, the current chosen
+004f2050	FeEnvMap_Choose	fe	confirmed	The environment map set
+004b7520	Caps_ShadowMap	render	confirmed	DAT_006e0c58 (always set)
+004b7530	Caps_Stages	render	confirmed	More than one texture stage
+004b7540	Caps_BumpEnv	render	confirmed	Bump environment mapping
+004b7550	Caps_CubeMap	render	confirmed	Cube maps
+004b7560	Caps_TexWidth	render	confirmed	A texture width within the caps
+004b7590	Caps_TexHeight	render	confirmed	A texture height within the caps
