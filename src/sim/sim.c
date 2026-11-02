@@ -133,21 +133,23 @@ void Sim_Step(void)
     if (g_sim_probe) g_sim_probe(0, g_stepped.car, g_stepped.n);
     Sim_StepCars(g_stepped.car, g_stepped.n);
     if (g_sim_probe) g_sim_probe(1, g_stepped.car, g_stepped.n);
-    if (g_second.n) PENDING_NOTE(0x43f630, "Sim_SecondCars");
-    if (g_simple.n) PENDING_NOTE(0x425950, "Sim_SimpleCars");
+    /* 0x43f630 and 0x443bf0 step a list (0x53a364) that Sim_BuildLists empties and nothing fills */
+    if (g_simple.n) PENDING_NOTE(0x425950, "Sim_SimpleCars (the network game's remote cars, +0xc18)");
     Sim_Collide(g_collide.car, g_collide.n);
     if (g_sim_probe) g_sim_probe(2, g_stepped.car, g_stepped.n);
     Knock_Step();   /* 0x470580 */
     if (g_sim_probe) g_sim_probe(3, g_stepped.car, g_stepped.n);
     Sim_CarsPost(g_stepped.car, g_stepped.n);
     if (g_sim_probe) g_sim_probe(4, g_stepped.car, g_stepped.n);
-    PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0 (the replays' poses), 0x444c10");
+    /* 0x426fc0, 0x46d5e0 and 0x444c10: the network game's remote cars (+0xc18) and its kind 2 replays */
+    if (g_simple.n) PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0, 0x444c10 (the network game's)");
     Pose_Spin(&g_listA);
     Pose_Spin(&g_simple);
     Pose_Capture(&g_listA);
     Pose_Capture(&g_simple);
     if (g_sim_probe) g_sim_probe(5, g_stepped.car, g_stepped.n);
-    PENDING_NOTE(0x46d510, "Sim_Step 0x46d510 (the replays' poses recorded)");
+    /* 0x46d510: the kind 2 replays' poses recorded (the network game's) */
+    if (Gs_ModeBit19()) PENDING_NOTE(0x46d510, "Sim_Step 0x46d510 (the network game's replay poses)");
     Parts_Step(&g_listA);   /* 0x480bb0 */
     if (g_sim_probe) g_sim_probe(6, g_stepped.car, g_stepped.n);
     Damage_Scrapes(g_stepped.car, g_stepped.n);   /* 0x469e40 */

@@ -296,7 +296,7 @@ void Drive_Step(const int16_t *list, int n)
     ncars = n > CAR_MAX ? CAR_MAX : n;
     for (int i = 0; i < ncars; i++) cars[i] = list[i];
     Sim_StepCars(list, n);
-    PENDING_NOTE(0x43f630, "Sim_Step entities 0x43f630, 0x425950");
+    /* (Sim_Step's 0x43f630 and 0x425950: an empty list and the network game's cars) */
     Sim_Collide(list, n);
     Knock_Step();   /* 0x470580 */
     Sim_CarsPost(list, n);
