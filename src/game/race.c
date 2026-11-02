@@ -3,6 +3,7 @@
 #include "game/balls.h"
 #include "game/shadow.h"
 #include "game/race.h"
+#include "audio/music.h"
 #include "game/records.h"
 #include "font.h"
 #include "game/paths.h"
@@ -226,6 +227,7 @@ static void Race_Update(uint8_t state, bool flag)
                 if ((kind == 8 || kind == 5 || (kind == 7 && !Gs_ModeBit19())) && Pause_Pressed((int)i) &&
                     !Replay_Playing(rp) && !Fade_Active((int)i) && !gm8(0x52ea52)) {
                     Pause_Begin((int)i);   /* 0x404ea0 */
+                    if (Gs_SelBit26()) Music_Pause();   /* 0x4a3160 */
                     Engine_Pause();       /* 0x478c40 */
                     Surface_Silence();    /* 0x418ee0 */
                     Crash_StopSounds();   /* 0x418780 */
@@ -308,6 +310,7 @@ static void Race_Update(uint8_t state, bool flag)
             Wheels_Track(i);   /* 0x45def0 */
             if (!Gs_SelBit26() && Gs_Mode() != 12 && Gs_Mode() != 11) Effects_Car(i);   /* 0x45af00 */
         }
+    if (Gs_SelBit26()) Music_Poll();   /* 0x4a2fe0 (the arcade's music) */
 }
 
 /* of 0x41bf80, for the first player: 0x4728c0 (a challenge's 0x58cf68); the championship's

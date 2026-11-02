@@ -217,7 +217,7 @@ static void main_frame(Menu *m)
 static void continue_fn(Menu *m, MenuItem *it)   /* 0x401850 */
 {
     (void)m, (void)it;
-    if (Gs_SelBit26()) PENDING_NOTE(0x4a3180, "the music's resume");
+    if (Gs_SelBit26()) Music_Resume();   /* 0x4a3180 */
     Pause_End();
 }
 

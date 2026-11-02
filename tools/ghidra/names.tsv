@@ -1691,3 +1691,7 @@
 004b2460	Env_Coords	render	high	The second coordinates from position plus normal through view x world
 004b2610	Env_Pass	render	high	The static reflection pass over a mesh part
 004b2970	Env_SetBoth	render	high	DAT_005210bc: the second stage bound in the reflection pass
+004a3160	Music_Pause	audio	high	The arcade music paused (with 0x4a31a0) at the pause menu
+004a3180	Music_Resume	audio	high	The arcade music resumed when the pause menu continues
+004a31a0	Music_StopBuf	audio	medium	Stops the music buffer and marks it to restart on the next poll
+004a2fe0	Music_Poll	audio	high	The music stream's refill, once a frame in the arcade race

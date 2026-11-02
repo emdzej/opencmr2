@@ -17,6 +17,8 @@ static int16_t *pcm;          /* a decoded block */
 static int pcm_frames, pcm_at;
 static int write_seg;         /* DAT_005a2714 */
 static bool opened;           /* DAT_005a2730 */
+static bool paused;           /* DAT_005a2724 */
+static bool stopped;          /* DAT_005a2720: stopped by the pause, to play again */
 static char name[260];        /* DAT_005a2738 */
 
 /* 0x4a2ac0 */
@@ -29,6 +31,7 @@ static void close_all(void)
     free(pcm);
     pcm = NULL;
     opened = false;
+    stopped = false;
 }
 
 void Music_Open(const char *path)
@@ -112,10 +115,27 @@ void Music_Update(void)
     Dsb_Play(buf, true);
 }
 
-/* 0x4a3050 with 0x4a2d30: the segments between the write segment and the one playing */
+/* 0x4a3160 with 0x4a31a0: paused, the buffer stopped when it plays */
+void Music_Pause(void)
+{
+    if (!opened) return;
+    paused = true;
+    if (buf && Dsb_Playing(buf)) Dsb_Stop(buf), stopped = true;
+}
+
+void Music_Resume(void) { if (opened) paused = false; }   /* 0x4a3180 */
+
+/* 0x4a2fe0: unless paused, the buffer played again after a pause, else (0x4a3050 with 0x4a2d30)
+   the segments between the write segment and the one playing */
 void Music_Poll(void)
 {
-    if (!opened || !Dsb_Playing(buf)) return;
+    if (paused || !opened) return;
+    if (stopped) {
+        Dsb_Play(buf, true);
+        stopped = false;
+        return;
+    }
+    if (!Dsb_Playing(buf)) return;
     int cur = (int)(Dsb_Position(buf) / SEG), n = cur - write_seg;
     int count = n > 0 ? n - 1 : n + 7;
     if (count > 0) fill_segments(count);
