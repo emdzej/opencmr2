@@ -1382,3 +1382,11 @@
 00449fe0	res_continue_done	game	high	Results: the continue fade's end
 00449b90	res_last_enter	game	high	A page entered at its last item
 00449ba0	res_list_enter	game	high	Results: a list page's start by the best player's place
+0044efa0	res_draw_rally_points	game	high	Results: the rally's points page (0x53e6a0)
+00450c10	res_draw_rally_result	game	high	Results: the rally's result, each player's place (0x540118)
+00450ef0	res_draw_champ	game	high	Results: the championship's points table (0x541ae0)
+00451690	res_draw_final	game	high	Results: the championship's final (0x53f790, 0x53f970)
+00449b80	res_final_enter	game	high	Results: the championship's end goes on at once
+0040d050	Stand_PointsOrder	game	high	The k-th of the points' order
+0040d390	Stand_TimesOrder	game	high	The k-th of the times' order
+0040d410	Stand_RallyPoints	game	high	A driver's points from the last rally

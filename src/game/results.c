@@ -290,32 +290,42 @@ static void place_line(int k)
 /* 0x40d480: a championship time (16.16 s) to 1/100 s */
 static int32_t champ_cs(int32_t t) { return (int32_t)(((int64_t)(t + 0x147) << 16) / 0x28f5c28); }
 
-/* 0x44fea0: the rally's times: the rally (with "final" at the last stage once every player has
-   driven), six places from the page's value by the championship's times (0x533638): the name (a
-   player's by the times' place of 15 down), the total time, the car, the place; the places after the
-   sixth shown 10 lower when the list starts in the first six, with a line after the sixth. (The
+enum { L_TIMES, L_POINTS, L_CHAMP };
+
+static int8_t sb(uint32_t va) { return (int8_t)gm8(va); }
+
+/* the six rows of the rally's lists from the page's value: 0x44fea0 (L_TIMES: the championship's
+   times, by their order 0x533638, a player found by the times' place of 15 down), 0x44efa0 (L_POINTS:
+   the rally's points 0x533598 by the times' order, a player by its slot's times place) and 0x450ef0
+   (L_CHAMP: the championship's points by their order 0x533538, a player by its slot, equal points
+   with the wins, 0xb9 or 0xb7, and "=" when the wins are equal too). Each row: the name, the value,
+   the car, the place; the first two with the places after the sixth shown 10 lower when the list
+   starts in the first six, the computers' first six places filled, a line after the sixth. (The
    scrolling offsets 0x540c60, 0x53f5a8, 0x5413f8 are 0: the list's tweens are not ported.) */
-static void draw_rally(Menu *m)
+static void list_rows(Menu *m, int kind)
 {
     int w, h;
     screen(&w, &h);
-    dim();
-    const char *t[3] = {Text_Get((int)Tod_Rally()), Text_Get(0x41), Text_Get(0xef)};
-    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, last_stage && last_player ? 3 : 2);
     int np = (int)Gs_Players();
+    uint8_t pts[16];   /* 0x5418c4: the points by their order */
+    for (uint32_t k = 0; k < 16; k++) pts[k] = (uint8_t)(gms32(0x533558 + 4u * (uint32_t)sb(0x533538 + k)) >> 16);
     for (int k = 0; k < 6; k++) {
         int idx = m->items[0].value + k;
-        int dy = idx < 6 || m->items[0].value > 5 ? 0 : h * 10 / 0x1e0;
-        int driver = (int8_t)gm8(0x533638 + (uint32_t)idx);   /* 0x40d390 */
-        int32_t tm = champ_cs(gms32(0x533658 + 4u * (uint32_t)driver));   /* 0x40d3b0 */
+        int dy = kind == L_CHAMP || idx < 6 || m->items[0].value > 5 ? 0 : h * 10 / 0x1e0;
+        int driver = kind == L_CHAMP ? sb(0x533538 + (uint32_t)idx) : sb(0x533638 + (uint32_t)idx);   /* 0x40d050, 0x40d390 */
         int who = -1;
-        for (int p = 0; p < np; p++)
-            if ((int8_t)gm8(0x533648 + (uint32_t)(0xf - p)) == idx) { who = p; break; }
+        for (int p = 0; p < np; p++) {
+            bool hit = kind == L_TIMES ? sb(0x533648 + (uint32_t)(0xf - p)) == idx
+                       : kind == L_POINTS ? sb(0x533648 + (uint32_t)Opp_PlayerSlot(p)) == idx : Opp_PlayerSlot(p) == driver;
+            if (hit) { who = p; break; }
+        }
         char b[96];
         int y = h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - h * 8 / 0x1e0 + dy;
         snprintf(b, sizeof b, "%s", who >= 0 ? player_name(who) : exe_str(0x5166b4 + 0x14u * (uint32_t)(driver < 0 || driver > 15 ? 0 : driver)));
         Font_Print(1, b, w * 0x5c / 0x280, y, C(0x519ecc), 9);
-        print_time(b, sizeof b, tm);
+        if (kind == L_TIMES) print_time(b, sizeof b, champ_cs(gms32(0x533658 + 4u * (uint32_t)driver)));   /* 0x40d3b0 */
+        else if (kind == L_POINTS) snprintf(b, sizeof b, exe_str(0x517dd0), sb(0x533598 + (uint32_t)driver));   /* 0x40d410 */
+        else snprintf(b, sizeof b, exe_str(0x517dd0), gms32(0x533558 + 4u * (uint32_t)driver) >> 16);   /* 0x40d070 */
         Font_Print(1, b, w * 0x21e / 0x280, y, C(0x519ecc), 9);
         if (who >= 0) {
             snprintf(b, sizeof b, "%s", car_name((int)(gm32(0x531350 + 0x30u * (uint32_t)who) & 0x3f)));
@@ -324,7 +334,7 @@ static void draw_rally(Menu *m)
                             (int16_t)(w * 0x41 / 0x280 - w * 0x20 / 0x280), (int16_t)(h * 0xa3 / 0x1e0 - h * 0x82 / 0x1e0 + 1)};
             Rect_Fill(r, C(0x519ed8), 2);
         } else {
-            if (idx < 6) place_fill(k, 0);
+            if (kind != L_CHAMP && idx < 6) place_fill(k, 0);
             int car = driver >= 0 && driver <= 0xe ? gm8(0x51681c + (uint32_t)driver) : 0;   /* 0x407fc0 */
             snprintf(b, sizeof b, "%s", car_name(car));
             Text_ToFontCase(b);
@@ -332,20 +342,129 @@ static void draw_rally(Menu *m)
         }
         Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k + dy, C(0x519ecc), 0x21);
         snprintf(b, sizeof b, exe_str(0x517dd0), idx + 1);
+        if (kind == L_CHAMP && pts[idx])
+            for (int j = 0; j < 16; j++) {
+                if (j == idx || pts[j] != pts[idx]) continue;
+                int wins = sb(0x5335a8 + (uint32_t)driver);   /* 0x40cfe0 */
+                char wb[64];
+                snprintf(wb, sizeof wb, Text_Get(wins == 1 ? 0xb9 : 0xb7), wins);
+                Font_Print(1, wb, w * 0x1fe / 0x280, y, C(0x519ecc), 0xc);
+                if (idx > 0 && sb(0x5335a8 + (uint32_t)sb(0x533538 + (uint32_t)(idx - 1))) == wins && pts[idx - 1] == pts[idx])
+                    snprintf(b, sizeof b, "%s", exe_str(0x519f70));
+                break;
+            }
         int x0 = w * 0x20 / 0x280, y0 = h * 0x82 / 0x1e0;
         Font_Print(1, b, (w * 0x41 / 0x280 - x0) / 2 + x0, h * 8 / 0x1e0 + (h * 0xa3 / 0x1e0 - y0) / 2 + (h * 0x34 / 0x1e0) * k + y0 + dy, C(0x519ecc), 0x12);
-        if (idx == 5 && m->items[0].value) place_line(k);
+        if (kind != L_CHAMP && idx == 5 && m->items[0].value) place_line(k);
     }
     Font_SetLayer(2);
 }
 
-/* 0x449ba0 for the rally's times: the list starts five above the best player's times place (15 down) */
+static void draw_rally(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    dim();
+    const char *t[3] = {Text_Get((int)Tod_Rally()), Text_Get(0x41), Text_Get(0xef)};
+    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, last_stage && last_player ? 3 : 2);
+    list_rows(m, L_TIMES);
+}
+
+static void draw_rally_points(Menu *m)   /* 0x44efa0 */
+{
+    int w, h;
+    screen(&w, &h);
+    dim();
+    const char *t[3] = {Text_Get((int)Tod_Rally()), Text_Get(0x41), Text_Get(0x8d)};
+    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 3);
+    list_rows(m, L_POINTS);
+}
+
+static void draw_champ(Menu *m)   /* 0x450ef0 */
+{
+    int w, h;
+    screen(&w, &h);
+    dim();
+    const char *t[3] = {Text_Get((int)Tod_Rally()), Text_Get(0x42), Text_Get(0x8d)};
+    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 3);
+    list_rows(m, L_CHAMP);
+}
+
+/* "<name> - <place>": 1st, 2nd, 3rd (0x51-0x53) or the place in 0x54's form */
+static void place_line_text(char *b, size_t n, int p, int place)
+{
+    char pl[64];
+    if (place >= 0 && place < 3) snprintf(pl, sizeof pl, "%s", Text_Get(0x51 + place));
+    else snprintf(pl, sizeof pl, Text_Get(0x54), place + 1);
+    snprintf(b, n, exe_str(0x517dd8), player_name(p), pl);
+    Text_ToFontCase(b);
+}
+
+/* 0x450c10: the rally's result: the rally, its "result" and well done (0x49) when a player is in the
+   first six by times, else 0x88; each player's times place; under six none: the message, the
+   championship's end (0xee) in the last rally, else 0xbb */
+static void draw_rally_result(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    dim();
+    int x = w * 0x1e / 0x280, y = h * 0xf2 / 0x1e0, best = 99, np = (int)Gs_Players();
+    for (int p = 0; p < np; p++)
+        if (sb(0x533648 + (uint32_t)(0xf - p)) < best) best = sb(0x533648 + (uint32_t)(0xf - p));
+    const char *t[3] = {Text_Get((int)Tod_Rally()), Text_Get(0x41), Text_Get(np && best < 6 ? 0x49 : 0x88)};
+    titles(x, y, t, 3);
+    char b[160];
+    int i = 0;
+    for (; i < np; i++) {
+        place_line_text(b, sizeof b, i, sb(0x533648 + (uint32_t)Opp_PlayerSlot(i)));
+        Font_Print(0, b, x, h * 10 / 0x1e0 + (h * 0x14 / 0x1e0) * i + y + Font_Height(0), C(0x519ecc), 0x11);
+    }
+    if (best > 5) {
+        snprintf(b, sizeof b, "%s", Text_Get(Tod_Rally() == 7 ? 0xee : 0xbb));
+        Text_ToFontCase(b);
+        Font_Print(0, b, x, h * 10 / 0x1e0 + (h * 0x14 / 0x1e0) * i + y + Font_Height(0), C(0x519ecc), 0x11);
+    }
+    Font_SetLayer(2);
+}
+
+static Menu pg_rpoints, pg_result, pg_champ, pg_final, pg_final2;   /* 0x53e6a0, 0x540118, 0x541ae0, 0x53f790, 0x53f970 */
+
+/* 0x451690: the championship's final: on 0x53f790 the level's championship (0x8e + level) and each
+   player's points place; on 0x53f970 only the screen dimmed (not in the super special) */
+static void draw_final(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    if (m != &pg_final) {
+        if (!Gs_SuperSpecial()) dim();
+        return;
+    }
+    dim();
+    int x = w * 0x1e / 0x280, y = h * 0xf2 / 0x1e0;
+    const char *t[2] = {Text_Get(0x42), Text_Get(0x8e + (int)Gs_Mode2())};
+    titles(x, y, t, 2);
+    char b[160];
+    for (int i = 0; i < (int)Gs_Players(); i++) {
+        place_line_text(b, sizeof b, i, sb(0x533548 + (uint32_t)Opp_PlayerSlot(i)));
+        Font_Print(0, b, x, y + (h * 10 / 0x1e0 + Font_Height(0)) * (i + 1), C(0x519ecc), 0x11);
+    }
+}
+
+/* 0x449ba0 for the rally's lists: the list starts five above the best player's times place (15
+   down); on the championship's table (0x541ae0) at the times place of the player with the most
+   points (as the original) */
 static void rally_enter(Menu *m, bool back)
 {
     (void)back;
-    int best = 0x10;
+    int best = 0x10, most = 0;
     for (int p = 0; p < (int)Gs_Players(); p++) {
-        int pl = (int8_t)gm8(0x533648 + (uint32_t)(0xf - p));
+        if (m == &pg_champ) {
+            int pt = gms32(0x533558 + 4u * (uint32_t)Opp_PlayerSlot(p)) >> 16;
+            if (most < pt) most = pt, best = sb(0x533648 + (uint32_t)Opp_PlayerSlot(p));
+            continue;
+        }
+        int pl = sb(0x533648 + (uint32_t)(0xf - p));
         if (pl < best) best = pl;
     }
     if (best > 5) m->items[0].value = (uint8_t)(best - 5);
@@ -433,6 +552,9 @@ static void continue_fn(Menu *m, MenuItem *it)
     for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : continue_done, 1, 0, (int32_t)gm32(0x519ec8), true);
 }
 
+/* 0x449b80: the championship's end goes on at once */
+static void final_enter(Menu *m, bool back) { (void)back; continue_fn(m, NULL); }
+
 /* 0x449b90: the last item first */
 static void last_enter(Menu *m, bool back) { (void)back; m->sel = (int8_t)(m->n - 1); }
 
@@ -476,6 +598,65 @@ static void build_questions(int16_t restart_text)
     Menu_AddBack(&pg_quit, NULL, 0xaa, NULL, -1);
     Menu_SetCallbacks(&pg_quit, last_enter, NULL, draw_end, NULL);
     Menu_Reset(&pg_quit);
+}
+
+/* 0x449100's end-of-rally pages and 0x44a1b0's way through them in a rally: at a stage before the
+   last the rally's times on to the choices; at the last (once every player has driven) in the
+   championship the rally's points, its result and the championship's table, the choices to go on
+   when a player was in the first six (else only restart or quit), after the last rally the
+   championship's final (0x53f790) on to its end (0x53f970, which goes on at once); in a single rally
+   the result when a player was in the first six, then restart or quit */
+static void build_rally_end(void)
+{
+    Menu_Init(&pg_rpoints, NULL, 0, &pg_rally, false, NULL, 1, 0, 0);
+    Menu_AddList(&pg_rpoints, NULL, 0, 0xb, 0, false, to_target, 0);
+    Menu_SetCallbacks(&pg_rpoints, rally_enter, NULL, draw_rally_points, NULL);
+    Menu_Reset(&pg_rpoints);
+    Menu_Init(&pg_result, NULL, 0, &pg_rpoints, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_result, NULL, 0, NULL, NULL, 0);
+    Menu_SetCallbacks(&pg_result, NULL, NULL, draw_rally_result, NULL);
+    Menu_Reset(&pg_result);
+    Menu_Init(&pg_champ, NULL, 0, &pg_result, false, NULL, 1, 0, 0);
+    Menu_AddList(&pg_champ, NULL, 0, 0xb, 0, false, to_target, 0);
+    Menu_SetCallbacks(&pg_champ, rally_enter, NULL, draw_champ, NULL);
+    Menu_Reset(&pg_champ);
+    Menu_Init(&pg_final2, NULL, 0, &pg_final, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_final2, NULL, 0, NULL, continue_fn, 0);
+    Menu_SetCallbacks(&pg_final2, final_enter, NULL, draw_final, NULL);
+    Menu_Reset(&pg_final2);
+    Menu_Init(&pg_final, NULL, 0, &pg_champ, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_final, NULL, 0, &pg_final2, NULL, 0);
+    Menu_SetCallbacks(&pg_final, NULL, NULL, draw_final, NULL);
+    Menu_Reset(&pg_final);
+    pg_rally.items[0].target = &pg_end;
+    if (!last_stage || !last_player) {
+        build_end(1, &pg_rally, 0x25);
+        return;
+    }
+    int best = 99;
+    for (int p = 0; p < (int)Gs_Players(); p++)
+        if (sb(0x533648 + (uint32_t)(0xf - p)) < best) best = sb(0x533648 + (uint32_t)(0xf - p));
+    if (mode() == 1) {
+        if (Gs_Players() && best <= 5) pg_rally.items[0].target = &pg_result, pg_result.parent = &pg_rally, pg_result.items[0].target = &pg_end;
+        build_end(0, &pg_rally, 0x25);
+        return;
+    }
+    pg_rally.items[0].target = &pg_rpoints;
+    pg_rpoints.items[0].target = &pg_result;
+    pg_result.items[0].target = &pg_champ;
+    if (Tod_Rally() == 7 && best < 6) {
+        gw8(0x541cf0, 0);
+        pg_champ.items[0].target = &pg_final;
+        build_end(0, &pg_final, 0x25);
+    } else if (best > 5) {
+        pg_result.items[0].target = &pg_end;
+        build_end(0, &pg_result, 0x25);
+    } else {
+        pg_champ.items[0].target = &pg_end;
+        build_end(1, &pg_champ, 0x25);
+    }
+    if (gm32(0x537f68) & 0x2080 || (Gs_Players() > 1 && gm32(0x537f6c) & 0x2080))
+        PENDING_NOTE(0x452be0, "the results' page of what the stage opened (0x540e50)");
 }
 
 void Results_Start(bool again)
@@ -523,12 +704,9 @@ void Results_Start(bool again)
         uint32_t l = Gs_Mode2(), r = Tod_Rally();
         int lastst = (r & 1) ? 10 : l == 0 ? 3 : l == 1 ? 7 : l == 2 ? 9 : 0;   /* 0x4071c0 */
         last_stage = (int)Tod_Stage() == lastst;
-        if (last_stage && last_player && mode() == 0)
-            PENDING_NOTE(0x44a1b0, "the championship's points pages at a rally's end (0x53e6a0, 0x540118, 0x541ae0, 0x53f790)");
         if (Gs_ModeBit17() && !last_player) PENDING_NOTE(0x44a1b0, "the results' way in alternation before the last player");
-        build_end(1, &pg_rally, 0x25);
+        build_rally_end();
         build_questions(0x25);
-        pg_rally.items[0].target = &pg_end;
     } else {
         /* single stage and time trial: the board on to the choices (0x53e4d8) */
         build_end(0, &pg_board, 0x23);

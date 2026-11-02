@@ -51,11 +51,15 @@
   stage and weather to the start. Leaving it chooses the rally's
   weather and set-ups and starts the race; after the stage it comes back to the menus. In the race,
   Escape opens the pause menu (sound volumes, restart, exit); after the finish the results show the
-  split and stage times and the stage record, and offer a restart or the way out. The set-up and
-  service screens between them (mode 2), the movies, the options and the saves are not done yet; the menu music plays.
+  split and stage times, the stage record, the board and, in a rally, the rally's times, and offer
+  the way on, a restart or the way out. A championship goes on from stage to stage, through the
+  service area (repairs, set-up, the stage information, saving) after every second stage, with its
+  times, points and unlocks kept and the rally's points, result and the championship's table at
+  each rally's end; saved championships load from the front end. The page of what a stage opened,
+  the movies and the network game are not done yet; the menu music plays.
 
-Next: mode 2's set-up and service screens and the race's results, the rest of the front end's pages,
-then the rest of the simulation (the other entities of the step) and the race's cameras and HUD.
+Next: the rest of the results (what a stage opened, alternation), the service area's car
+damage, the rest of the front end's pages, then the rest of the simulation and the network game.
 
 | Area | State |
 |---|---|
@@ -65,7 +69,7 @@ then the rest of the simulation (the other entities of the step) and the race's 
 | Renderer (Direct3D 7 to GLES 3) | Device, state layer, textures, meshes, 2D and text ported; reflections and 16-bit formats open |
 | World (objects, stage sections) | Object trees, terrain, scenery, sky, shadows, lights, the glows and camera-facing sprites, the start lights, the cars' lamps and lenses, the particle engine, its types and the wheels' grass, leaves, dust, snow, splashes and stones, the rain and snow, the device lights (the sun, the headlights), the skid marks, the cars' shadows, the super special's fireworks, the sky's colours, fog, sun and sun glow by the time of day and the frame function ported; the other particle emitters and the cars' own drawing open |
 | Race flow | Process framework, race states, Race_Update, Stage_Load, Car_Load, sectors and the race clock ported for one player in a rally, and the arcade's races (its stages, the computer drivers' cars on a grid, driven by their neural networks from the stage's `.ai` files); the chase, interior, cockpit and trackside cameras, the HUD's clock, split bar, split difference, standings, map, records, messages and gauges, the pace-note arrows, the race intro, the pause menu, the results and the replay (recorded from the go, played again in state 10; the disc's demo runs play, but the car does not yet keep to their path to the finish), the two players' split screen (each view with its own camera, projection and HUD; the second player on the second pad) and the computer drivers' far models; the other modes' replays (CPU runs, ghost, network) and the head to head's finish open |
-| Front end | The process, menu engine, every page's construction and the single-stage path's and the arcade's pages up to the race ported; the options, profiles, championship and network pages, the arcade's standings, the saves, mode 2's set-up and service screens open |
+| Front end | The process, menu engine, every page's construction, the single-stage, championship and arcade paths' pages up to the race, the options, high scores, driver profiles and the championship's saves (save in the service area, load from the menus) ported; mode 2's service area ported but for the car's body damage on its stand; the network pages, the controllers' set-up and the arcade's standings open |
 | Vehicle simulation | About 65 of 120 functions ported; a car drives on a stage, is held by its walls and stopped by the scenery (trees, posts, walls) and knocks the movable objects (signs, posts) over, rolls and is recovered; hits dent the car, wear its handling and break its glass, and are carried to the next stage; a broken engine misfires; the car-to-car contacts are ported; the loose parts' four kinds of motion and the whip aerials are ported; the step's other entities open |
 | Sound | A DirectSound emulation and mixer, the sound layer, the engine loops, backfires, idle and gearbox whine, the surface sounds, the co-driver's calls and the collision sounds (hits, rolls, glass) ported; the menus' sounds and music, and the replay's Doppler shift ported |
 | Movies (Bink 1) | Not started |
