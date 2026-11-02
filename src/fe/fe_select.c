@@ -19,6 +19,7 @@
 #include "pending.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
+#include "game/saves.h"
 #include "text.h"
 #include <stdio.h>
 #include <string.h>
@@ -282,7 +283,7 @@ void fe_4f07e0(Menu *m, bool back)
 static Menu *next_after_driver(void)
 {
     switch (mode()) {
-    case 4: return &pg_81bc98;   /* 0x4f8430 */
+    case 4: return &pg_822d18;   /* 0x4f8430 */
     case 5: return &pg_826f60;   /* 0x4fa300 */
     case 6: return &pg_828500;   /* 0x4fa310 */
     case 7: return &pg_827e60;   /* 0x4fa320 */
@@ -298,8 +299,7 @@ void fe_4f0ac0(Menu *m, MenuItem *it)
     tag_player = (int)players() - to_set;   /* 0x4f2bf0 */
     if (mode() == 4) {
         Menu_SetParent(&pg_824a38, m);
-        after_tag = &pg_81cf58;
-        PENDING_NOTE(0x4f8430, "the challenge's driver");
+        after_tag = &pg_81cf58;   /* 0x4f8400 */
     } else {
         Menu *next = next_after_driver();
         int p = (int)players() - to_set;
@@ -319,12 +319,19 @@ void fe_4f0ac0(Menu *m, MenuItem *it)
     Menu_Goto(&pg_824a38);
 }
 
+/* 0x4f0c40: the options page (0x8203d8, by 0x4f83b0) back to this one */
+void fe_4f0c40(Menu *m, MenuItem *it)
+{
+    (void)it;
+    pg_8203d8.parent = m;
+}
+
 /* 0x4f0c50: a saved driver's profile */
 void fe_4f0c50(Menu *m, MenuItem *it)
 {
     (void)it;
     int prof = Profile_FreeIndex(m->sel - 3);
-    Menu *next = mode() == 4 ? &pg_81bc98 : next_after_driver();
+    Menu *next = next_after_driver();
     Player_AssignProfile((int)players() - to_set, prof);
     Player_SetGuest((int)players() - to_set, false);
     to_set--;
@@ -335,6 +342,203 @@ void fe_4f0c50(Menu *m, MenuItem *it)
         Menu_SetParent(&pg_822598, m);
         Menu_Goto(&pg_822598);
     }
+}
+
+static void outline(const int16_t r[4], const uint8_t *c);
+
+/* ---- the Load Driver page (0x8203d8): the saved profiles in a row, the chosen one's details ---- */
+
+static int32_t lp_off, lp_from;   /* DAT_00819868, DAT_00819884: the row's slide */
+static int lp_last = -1;          /* DAT_00819044: the profile last shown */
+static uint32_t lp_t;             /* DAT_0081975c */
+
+/* 0x4f0580: the menus to the player being set up; the saved profiles found (0x4eb700), the list's
+   count and on/off by them; entering afresh the first chosen and one player fewer to set up */
+void fe_4f0580(Menu *m, bool back)
+{
+    Fe_SetPlayer((int)players() - to_set);
+    Profiles_Scan();
+    m->items[0].value = 0;
+    m->items[0].count = (uint8_t)Profiles_Count();
+    m->items[0].flags = (uint8_t)((m->items[0].flags & ~1) | (Profiles_Count() > 0));
+    lp_off = 0;
+    lp_last = -1;
+    if (!back) {
+        m->sel = 0;
+        m->items[0].value = 0;
+        to_set--;
+    }
+}
+
+/* 0x4f0600 */
+void fe_4f0600(Menu *m, bool back)
+{
+    (void)m, (void)back;
+    Fe_SetPlayer(0);
+    PENDING_NOTE(0x4a0c40, "the menus' input record reset (0x4a0c40(1))");
+}
+
+/* 0x4f0620: a new choice slides the row from where the old one was, by the shorter way round (80 of
+   640 a profile; one step by the last move's way when both are as short), back to rest in 250 */
+void fe_4f0620(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    int v = m->items[0].value, n = m->items[0].count;
+    if (v != lp_last) {
+        if (lp_last != -1) {
+            int fwd, bwd;
+            if (lp_last < v) fwd = v - lp_last, bwd = n - v + lp_last;
+            else bwd = lp_last - v, fwd = n - lp_last + v;
+            if (bwd < fwd) for (int i = 0; i < bwd; i++) lp_off += w * -0x50 / 0x280;
+            else if (fwd < bwd) for (int i = 0; i < fwd; i++) lp_off += w * 0x50 / 0x280;
+            else lp_off += ((m->dir & 2) ? w * -5 : w * 5) * 16 / 0x280;
+            lp_from = lp_off;
+        }
+        lp_t = Fe_Now();
+        lp_last = v;
+    }
+    if (lp_last != -1) {
+        uint32_t dt = Fe_Now() - lp_t;
+        if (dt > 0xfa) lp_off = 0;
+        else if (lp_from > 0) lp_off = lp_from - (int32_t)((dt * (uint32_t)lp_from) / 0xfa);
+        else lp_off = (int32_t)((uint32_t)-(int32_t)(dt * (uint32_t)lp_from) / 0xfa) + lp_from;
+    }
+}
+
+/* 0x4d6870: the profile k places from the chosen one (round the list) in the row, the big font: the
+   chosen lit, the others fading by 50 a place; one already a player's in the fourth colour with 50 a
+   place as its alpha (the chosen one so unseen); false once its place is off the screen */
+static bool lp_name(int sel, int k)
+{
+    int w, h;
+    screen(&w, &h);
+    int n = Profiles_Count(), a = k < 0 ? -k : k;
+    int i = (sel + k) % n;
+    if (i < 0) i += n;
+    const uint8_t *e = Profiles_Entry(i);
+    char t[8] = {0};
+    memcpy(t, e, 4);
+    const uint8_t *dim = gm(0x52496c), *used = gm(0x524978);
+    int fade = dim[3] - a * 0x32;
+    uint8_t c1[4] = {dim[0], dim[1], dim[2], (uint8_t)(fade < 0 ? 0 : fade)};
+    uint8_t c2[4] = {used[0], used[1], used[2], (uint8_t)(a * 0x32)};
+    const uint8_t *c;
+    int x;
+    if (!Profiles_InUse(i) && k == 0) c = gm(0x524968), x = w / 2 + lp_off;
+    else c = Profiles_InUse(i) ? c2 : c1, x = w / 2 + lp_off + w * 0x50 / 0x280 * k;
+    Font_Print(2, t, x, h * 0x118 / 0x1e0, c, 0x12);
+    int at = w * 0x50 / 0x280 * k + w / 2;
+    return 0 < at && at < w;
+}
+
+/* 0x4d65c0: the details' box (60 of 640 in, 76 down, 100 high) headed 0xe4, the labels, the values
+   lit and the line under them */
+static void lp_box(const char *labels, const char *values, const char *line)
+{
+    int w, h;
+    screen(&w, &h);
+    int16_t r[4] = {(int16_t)(w * 0x3c / 0x280), (int16_t)(h * 0x4c / 0x1e0), (int16_t)(w - 2 * (w * 0x3c / 0x280)),
+                    (int16_t)(h * 100 / 0x1e0)};
+    outline(r, gm(0x52496c));
+    Font_Print(0, Text_Get(0xe4), w * 0x3c / 0x280 + 2, h * 0x4c / 0x1e0 + 1, gm(0x52496c), 9);
+    int y = h * 0x23 / 0x1e0 + h * 0x4c / 0x1e0;
+    Font_Print(1, labels, w * 0xdc / 0x280 - w * 10 / 0x280, y, gm(0x52496c), 0x14);
+    Font_Print(1, values, w * 0xdc / 0x280, y, gm(0x524968), 0x11);
+    Font_Print(1, line, w - w * 0x3c / 0x280 - 6, h * 0x4c / 0x1e0 + h * 100 / 0x1e0 - 4, gm(0x524968), 0x24);
+}
+
+/* 0x4d6a60: the trail (mode, "Player n", Load Driver; from the drivers' page only 0xb); the row of
+   saved profiles about the chosen one (or 0x1be none); the back item under it; with the list chosen
+   its profile's name and date of birth (the year + 1850) and 0x13b, or 0xdf when a player has it;
+   the hint 0xf9 */
+void fe_4d6a60(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    if (gm8(0x818848)) {
+        const char *names[1] = {Text_Get(0xb)};
+        Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 2, names, 1);
+    } else {
+        char who[64];
+        snprintf(who, sizeof who, Text_Get(0xdc), shown_player);
+        const char *names[4] = {0, 0, who, Text_Get(0x17a)};
+        if (gm32(0x52afb4) >> 19 & 1) names[0] = Text_Get(0x12), names[1] = NULL, names[2] = NULL;
+        else mode_names(names, true);
+        Fe_TitleRow(w * 0x18 / 0x280, h * 0x26 / 0x1e0, names, 4);
+    }
+    if (Profiles_Count() < 1)
+        Font_Print(2, Text_Get(0x1be), w / 2, h * 0x118 / 0x1e0, gm(0x52496c), 0x12);
+    else {
+        int v = m->items[0].value;
+        lp_name(v, 0);
+        for (int k = 1; lp_name(v, k); k++) {}
+        for (int k = -1; lp_name(v, k); k--) {}
+    }
+    List_Draw(m, NULL, h * 0x184 / 0x1e0, -1, 1, true);
+    static char labels[96], values[96], line[96];
+    const char *none = (const char *)gm(0x52ea5c);
+    if (m->sel == 0 && Profiles_Count() > 0) {
+        const uint8_t *e = Profiles_Entry(m->items[0].value);
+        char nm[8] = {0};
+        memcpy(nm, e, 4);
+        uint32_t wd = (uint32_t)e[4] | e[5] << 8 | e[6] << 16 | (uint32_t)e[7] << 24;
+        snprintf(labels, sizeof labels, "%s:\n%s:\n%s:", Text_Get(0x139), Text_Get(0x7e), Text_Get(0x80));
+        snprintf(values, sizeof values, "%s\n%s\n%.2d.%.2d.%.4d", Text_Get(0x13a), nm, (int)(wd >> 0x10 & 0x1f), (int)(wd >> 8 & 0xf),
+                 (int)(wd & 0xff) + 0x73a);
+        /* 0x40bac0's key names in 0x13b: none (as Fe_Hint) */
+        snprintf(line, sizeof line, "%s", Text_Get(Profiles_InUse(m->items[0].value) ? 0xdf : 0x13b));
+    } else {
+        snprintf(labels, sizeof labels, "%s", none);
+        snprintf(values, sizeof values, "%s", none);
+        snprintf(line, sizeof line, "%s", none);
+    }
+    lp_box(labels, values, line);
+    Fe_Hint(Text_Get(0xf9), true);
+}
+
+/* 0x4f26f0 (from the drivers' page): the first player a fresh profile, then the chosen saved one into
+   it and on to 0x81c058; a choice past the list refused */
+static void lp_choose_first(Menu *m)
+{
+    tag_player = 0;   /* 0x4f2bf0 */
+    Player_AssignProfile(0, -1);
+    Profile_Create(0);
+    Player_SetGuest(0, false);
+    int v = m->items[0].value;
+    if (v < Profiles_Count()) {
+        if (Profile_LoadInto(0, v)) Menu_Goto(&pg_81c058);
+    } else
+        Menu_Sound(3);
+}
+
+/* 0x4f0820: the chosen saved profile, not a player's already, into the player being set up (a
+   non-guest), then the page after the drivers (with this page's parent the driver select) or, in a
+   network game, 0x822598; otherwise refused */
+void fe_4f0820(Menu *m, MenuItem *it)
+{
+    (void)it;
+    if (gm8(0x818848)) {
+        lp_choose_first(m);
+        return;
+    }
+    to_set++;
+    Menu *next = next_after_driver();
+    int v = m->items[0].value;
+    if (v < Profiles_Count() && !Profiles_InUse(v)) {
+        bool ok = Profile_LoadInto((int)players() - to_set, v);
+        Player_SetGuest((int)players() - to_set, false);
+        if (ok) {
+            if (!(gm32(0x52afb4) >> 19 & 1)) {
+                Menu_SetParent(next, &pg_8241b8);
+                Menu_Goto(next);
+            } else
+                Menu_Goto(&pg_822598);
+        }
+    } else
+        Menu_Sound(3);
+    to_set--;
 }
 
 /* 0x408400: the player's name (the profile's first bytes; in mode 4 the challenge record's) */
@@ -524,6 +728,268 @@ void fe_4d6f10(Menu *m)
     }
     Fe_Hint(Text_Get(0x57), true);
     if (gm32(0x52afb4) >> 19 & 1) Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+typedef void RowFn(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w);
+static void rows_draw(Menu *m, RowFn *row_fn, bool two, bool third);
+
+/* ---- a new driver (0x4f0960): the tag (0x824a38), the full name (0x81d8b8), the birth date
+   (0x81bc98), then the page after the drivers ---- */
+
+static Menu *after_date;         /* DAT_00819124 */
+static bool naming;              /* DAT_00819038: the name page takes typing */
+static char full_name[0x2c];     /* DAT_008190f4: the name as the page shows it */
+
+/* 0x4f0960: a fresh profile for the player being set up, then its tag */
+void fe_4f0960(Menu *m, MenuItem *it)
+{
+    (void)it;
+    from_tag = true;
+    Menu *next = next_after_driver();
+    int p = (int)players() - to_set;
+    tag_player = p;   /* 0x4f2bf0 */
+    Player_AssignProfile(p, -1);
+    Profile_Create(p);
+    Player_SetGuest(p, false);
+    Menu_SetParent(&pg_824a38, m);
+    after_tag = &pg_81d8b8;
+    after_date = gm32(0x52afb4) >> 19 & 1 ? &pg_822598 : next;
+    snprintf(player_title, sizeof player_title, Text_Get(0xdc), p + 1);   /* 0x4e7780 */
+    to_set--;
+    Menu_SetParent(next, m);
+    Menu_Goto(&pg_824a38);
+}
+
+/* 0x4f1160: typing on; the cursor ends on "end" whether back or not (the first-row start is
+   overwritten straight away) */
+void fe_4f1160(Menu *m, bool back)
+{
+    typed_at = Timer_Centis();
+    typed = true;
+    Menu_AllowDiagonal(true);
+    naming = true;
+    Fe_SetPlayer(tag_player);
+    if (!back) m->sel = 0, m->items[0].value = 0;
+    Input_FlushChars();
+    m->sel = 2;
+    m->items[2].value = (uint8_t)(m->items[2].count - 1);
+}
+
+/* 0x4f11d0: as the tag's 0x4f0e80 to 0x2b letters, without the cursor going to "end" at the last */
+void fe_4f11d0(Menu *m)
+{
+    if (!naming) return;
+    char name[0x2c] = "";
+    const char *p = Player_FullName(tag_player);
+    if (p) snprintf(name, sizeof name, "%s", p);
+    int c, snd = 0;
+    if (!Input_NextChar(&c)) {
+        if (!typed || Timer_Centis() - typed_at < 0xb) goto store;
+        typed_at = (uint32_t)-1;
+        m->sel = 2;
+        m->items[2].value = 9;
+        typed = false;
+    } else if (c == 8) {
+        if (name[0]) {
+            name[strlen(name) - 1] = 0;
+            Menu_Sound(2);
+        }
+        m->sel = 2;
+        m->items[2].value = 8;
+        typed_at = Timer_Centis();
+        typed = true;
+        goto store;
+    } else {
+        size_t l = strlen(name);
+        if (l > 0x2a || !strchr(exe_str(0x5253f4), c)) goto store;
+        if (strchr(exe_str(0x52542c), c)) c += 0x20;
+        name[l] = (char)c;
+        name[l + 1] = 0;
+        if (c > '`' && c < 'k') m->sel = 0, m->items[0].value = (uint8_t)(c - 'a');
+        if (c > 'j' && c < 'u') m->sel = 1, m->items[1].value = (uint8_t)(c - 'k');
+        if (c > 't' && c < '{') m->sel = 2, m->items[2].value = (uint8_t)(c - 'u');
+        if (c == '.') m->sel = 2, m->items[2].value = 7;
+        else if (c == ' ') m->sel = 2, m->items[2].value = 8;
+        typed_at = Timer_Centis();
+        typed = true;
+        snd = 1;
+    }
+    Menu_Sound(snd);
+store:
+    Player_SetFullName(tag_player, name);
+    snprintf(full_name, sizeof full_name, "%s", name);
+}
+
+/* 0x4f0e60 */
+void fe_4f0e60(Menu *m, bool back)
+{
+    (void)m, (void)back;
+    Fe_SetPlayer(0);
+    Menu_AllowDiagonal(false);
+}
+
+/* 0x4f13c0: a letter in (to 0x2b), '<' rubs out; '_' ends: a cheat code toggles its option (the on
+   sound or the refusal), the profile is dropped and the player set up again (to the network's
+   0x8212d8 or the driver select); else with a name to the birth date */
+void fe_4f13c0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    char name[0x2c] = "";
+    const char *p = Player_FullName(tag_player);
+    if (p) snprintf(name, sizeof name, "%s", p);
+    size_t l = strlen(name);
+    int16_t row = m->items[m->sel].id;
+    int snd;
+    const char *u = row_letters(2);
+    if (row == 2 && u[m->items[2].value] == '<') {
+        if (!name[0]) goto store;
+        name[l - 1] = 0;
+        snd = 2;
+    } else if (row == 2 && u[m->items[2].value] == '_') {
+        bool on;
+        if (!Cheat_Match(tag_player, &on)) {
+            if ((int)l < 1) return;
+            Menu_Goto(&pg_81bc98);   /* 0x4f83e0 */
+            naming = false;
+            return;
+        }
+        Menu_Sound(on ? 0 : 3);
+        if (Player_HasProfile(tag_player)) {   /* 0x4085a0 */
+            guests--;
+            Player_SetGuest(tag_player, false);
+        }
+        Profile_Create(tag_player);
+        Player_DropProfile(tag_player);
+        to_set++;
+        Menu_Goto(gm8(0x818848) ? &pg_8212d8 : &pg_8241b8);   /* 0x4f8480, 0x4f83a0 */
+        naming = false;
+        return;
+    } else if (l < 0x2b) {
+        name[l] = row_letters(row)[m->items[m->sel].value];
+        name[l + 1] = 0;
+        snd = 1;
+    } else
+        snd = 3;
+    Menu_Sound(snd);
+store:
+    Player_SetFullName(tag_player, name);
+    snprintf(full_name, sizeof full_name, "%s", name);
+}
+
+/* 0x4d7380: the trail, the letters as the tag's 0x4d6f10, the name (0x2b places, the rest random
+   letters, those typed lit) small across the top */
+void fe_4d7380(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    const char *names[2] = {player_title, Text_Get(0x17b)};
+    Fe_Titles(m, title_x(), title_y(), true, 3, names, 2);
+    Fe_Header();
+    for (int row = 0; row < 3; row++)
+        for (int i = 0; i < 10; i++) {
+            int font = 2;
+            char s[64];
+            char ch = exe_str(0x5249a8 + 0xcu * (uint32_t)row)[i];
+            if (row == 2 && ch == '<') font = 1, snprintf(s, sizeof s, "%s", Text_Get(0x13f));
+            else if (row == 2 && ch == '_') font = 1, snprintf(s, sizeof s, "%s", Text_Get(0x140));
+            else snprintf(s, sizeof s, "%c", ch);
+            MenuItem *it = &m->items[m->sel];
+            uint32_t c = it->value == i && it->id == row ? 0x524968 : 0x52496c;
+            if (row == 2 && ch == ' ') {
+                int th = Font_TextHeight(font, "");
+                int16_t r[4] = {(int16_t)((i + 2) * w / 0xe), (int16_t)(h * 6 / 8 - th / 2), (int16_t)(w / 0xe), (int16_t)(th / 2)};
+                outline(r, gm(c));
+            }
+            Font_Print(font, s, w / 0x1c + (i + 2) * w / 0xe, h * (row + 4) / 8, gm(c), 0x12);
+        }
+    char shown[0x2c];
+    snprintf(shown, sizeof shown, "%s", full_name);
+    while (strlen(shown) < 0x2b) {
+        size_t l = strlen(shown);
+        shown[l] = (char)(crt_rand() % 0x1a + 'a');
+        shown[l + 1] = 0;
+    }
+    int typed_n = (int)strlen(full_name);
+    for (int i = 0; i < 0x2b; i++) {
+        char s[2] = {shown[i], 0};
+        Font_Print(1, s, (i + 3) * w / 0x30, h * 2 / 8, gm(typed_n <= i ? 0x52496c : 0x524968), 0x12);
+    }
+    Fe_Hint(Text_Get(0x57), true);
+}
+
+/* the days in the month (0-11): with the year as 0x4f1640 counts it (from 1850), February 29 when
+   (year + 0x3a) is a multiple of 4 */
+static uint8_t month_days(int month, bool leap)
+{
+    switch (month) {
+    case 1: return leap ? 0x1d : 0x1c;
+    case 3: case 5: case 8: case 10: return 0x1e;
+    default: return 0x1f;
+    }
+}
+
+/* 0x4f16f0: the profile's year and month (0x45 each without one); the day always back to the 1st.
+   The leap year here is the year's value a multiple of 4 (not the year's: 0x4f1640 corrects it on
+   the next frame) */
+void fe_4f16f0(Menu *m, bool back)
+{
+    (void)back;
+    Fe_SetPlayer((int)players() - to_set - 1);
+    int day, month, year;
+    Player_BirthDate(tag_player, &day, &month, &year);
+    m->items[2].value = 0;
+    m->sel = 0;
+    m->items[0].value = (uint8_t)year;
+    m->items[1].value = (uint8_t)(month - 1);
+    if ((uint8_t)(month - 1) < 12) m->items[2].count = month_days((uint8_t)(month - 1), (year & 3) == 0);
+}
+
+/* 0x4f1640: the day's count by the month, the day kept within it (a month past December, none) */
+void fe_4f1640(Menu *m)
+{
+    if (m->items[1].value >= 12) return;
+    uint8_t n = month_days(m->items[1].value, ((m->items[0].value + 0x3a) & 3) == 0);
+    m->items[2].count = n;
+    if (n < m->items[2].value + 1) m->items[2].value = (uint8_t)(n - 1);
+}
+
+/* 0x4f15d0: the date into the profile and the profile saved now; when it saved, to the page after
+   the drivers (in a network game the profile then dropped) */
+void fe_4f15d0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    Player_SetBirthDate(tag_player, m->items[2].value + 1, m->items[1].value + 1, m->items[0].value);
+    if (!Profile_SavePlayer(tag_player)) return;
+    Menu_Goto(after_date);
+    from_tag = false;
+    if (gm8(0x818848)) {
+        Player_SetGuest(tag_player, false);
+        Player_DropProfile(tag_player);
+    }
+}
+
+/* the date's rows: the year (from 1850), the month's name, the day */
+static void date_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    (void)two, (void)w;
+    char b[256];
+    switch (it->id) {
+    case 0: snprintf(b, sizeof b, Text_Get(0xec), m->items[0].value + 0x73a); break;
+    case 1: snprintf(b, sizeof b, Text_Get(0xeb), Text_Get(m->items[1].value + 0xed)); break;
+    case 2: snprintf(b, sizeof b, Text_Get(0xea), m->items[2].value + 1); break;
+    default: snprintf(b, sizeof b, "%s", Text_Get(it->text)); break;
+    }
+    Font_Print(1, b, x, y, gm(c), 0x11);
+}
+
+/* 0x4d7750: the trail "Player n", Create New Driver; the date's rows; the hint */
+void fe_4d7750(Menu *m)
+{
+    const char *names[2] = {player_title, Text_Get(0x17b)};
+    Fe_Titles(m, title_x(), title_y(), true, 3, names, 2);
+    Fe_Header();
+    rows_draw(m, date_row, false, false);
+    Fe_Hint(Text_Get(0x57), true);
 }
 
 int Fe_ToSet(void) { return to_set; }
@@ -768,17 +1234,13 @@ static void setup_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c,
     Font_Print(1, b, x, y, gm(c), 0x11);
 }
 
-/* 0x4da710 / 0x4daf90: the single race's options as 0x4d8ed0's rows (the arrows Ar_640A lit, Ar_640D
-   or, when the item is off, the third colour), the labels by setup_row; the trail Arcade, Single
-   Race; the hint twice and the locations' strip (scroller 10) unlit */
-static void setup_draw(Menu *m, bool two)
+/* 0x4d8ed0's rows as 0x4da710, 0x4daf90 and 0x4d7750 draw them: the lines between (lit about the
+   chosen), the arrows Ar_640A lit, Ar_640D (or, when the item is off and `third`, the third colour),
+   each label by `row` */
+static void rows_draw(Menu *m, RowFn *row_fn, bool two, bool third)
 {
     int w, h;
     screen(&w, &h);
-    const char *names[2] = {Text_Get(0x94), Text_Get(0xe2)};
-    Fe_Header();
-    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 3, names, 2);
-    Fe_Hint(Text_Get(0x57), true);
     int row = h * 0x24 / 0x1e0;
     int16_t top = (int16_t)((h * 0x38 / 0x1e0 + h * 0x176 / 0x1e0) / 2 - row * m->n / 2);
     int16_t r[4] = {(int16_t)(w * 99 / 0x280), top, (int16_t)(w * 0x11a / 0x280), 1};
@@ -791,19 +1253,30 @@ static void setup_draw(Menu *m, bool two)
         MenuItem *it = &m->items[i];
         bool on = m->sel == i;
         Tex *t = on ? g_fe.arrow_a : g_fe.arrow_d;
-        uint32_t c = on ? 0x524968 : (it->flags & 1) ? 0x52496c : 0x524970;
+        uint32_t c = on ? 0x524968 : (!third || (it->flags & 1)) ? 0x52496c : 0x524970;
         if (t) {
             Rect16 src = {0, 0, t->width, t->height};
             Rect16 dst = {(int16_t)(w * 100 / 0x280), (int16_t)(h * 0x14 / 0x1e0 + top + row * i - ah / 2), aw, ah};
             Sprite_Add(&src, &dst, t, 1, 0, NULL, NULL, gm(c), 8);
         }
-        setup_row(m, it, two, w * 0x7a / 0x280, h * 0x18 / 0x1e0 + r[1], c, w);
+        row_fn(m, it, two, w * 0x7a / 0x280, h * 0x18 / 0x1e0 + r[1], c, w);
         bool lit = m->sel == i || m->sel == i + 1;
         r[1] = (int16_t)(row * (i + 1) + top);
         Rect_Fill(r, gm(lit ? 0x524974 : 0x524978), 1);
         r[1]++;
         Rect_Fill(r, gm(lit ? 0x524968 : 0x52496c), 1);
     }
+}
+
+/* 0x4da710 / 0x4daf90: the single race's options, the labels by setup_row; the trail Arcade, Single
+   Race; the hint twice and the locations' strip (scroller 10) unlit */
+static void setup_draw(Menu *m, bool two)
+{
+    const char *names[2] = {Text_Get(0x94), Text_Get(0xe2)};
+    Fe_Header();
+    Fe_Titles(m, title_x(), title_y(), true, 3, names, 2);
+    Fe_Hint(Text_Get(0x57), true);
+    rows_draw(m, setup_row, two, true);
     Fe_Hint(Text_Get(0x57), true);
     Strip_Draw(Fe_Scroll(10), false);
 }

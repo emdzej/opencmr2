@@ -3,6 +3,7 @@
    its key the path below that folder. */
 #include "game/saves.h"
 #include "game/mem.h"
+#include "game/profile.h"
 #include "exe.h"
 #include "platform.h"
 #include <stdio.h>
@@ -43,16 +44,23 @@ void GameInfo_Save(void)
     plat_save_user_file("Configuration\\GameInfo.rcf", b, sizeof b);
 }
 
-/* 0x4eb2e0: pps\<name><a><b><c><d>.pps, the four from the profile's word (+0x14): bits 16-20, 8-11,
+/* 0x4eb2e0: pps\<name><a><b><c><d>.pps for a name (4 bytes) and word: the word's bits 16-20, 8-11,
    0-7 and 12-15 (the date of birth's fields), two digits each */
-static void profile_path(char *dst, size_t cap, uint32_t prof)
+static void entry_path(char *dst, size_t cap, const uint8_t *e)
 {
-    uint32_t w = gm32(prof + 0x14);
-    char name[17];
-    for (int i = 0; i < 16; i++) name[i] = (char)gm8(prof + 0x10 + (uint32_t)i);
-    name[16] = 0;
+    uint32_t w = le32(e + 4);
+    char name[5];
+    memcpy(name, e, 4);
+    name[4] = 0;
     snprintf(dst, cap, "pps\\%s%.2d%.2d%.2d%.2d.pps", name, (int)(w >> 0x10 & 0x1f), (int)(w >> 8 & 0xf), (int)(w & 0xff),
              (int)(w >> 0xc & 0xf));
+}
+
+static void profile_path(char *dst, size_t cap, uint32_t prof)
+{
+    uint8_t e[8];
+    for (uint32_t i = 0; i < 8; i++) e[i] = gm8(prof + 0x10 + i);
+    entry_path(dst, cap, e);
 }
 
 /* 0x4eb340: a profile's 0x650 bytes to its file */
@@ -78,4 +86,115 @@ bool Profiles_Save(void)
         all = all && ok;
     }
     return all;
+}
+
+/* 0x4eb370: the player's profile saved now if in use and changed; true when saved or not needed */
+bool Profile_SavePlayer(int player)
+{
+    uint32_t k = gm32(0x531350 + 0x30u * (uint32_t)player) >> 0x12 & 0xf;
+    uint32_t prof = PROFILES + k * PROFILE_SIZE;
+    if ((gm32(prof + 0x14) & 0x200000) || !gm8(0x52fa00 + k)) return true;
+    if (!profile_save(prof)) return false;
+    gw8(0x52fa00 + k, 0);
+    return true;
+}
+
+/* The saved profiles found (0x531764, 12 bytes each: the name, the word and the next word of the
+   file's +0x10; their count 0x531650) */
+enum { LIST_MAX = 64 };
+static uint8_t list[LIST_MAX][12];
+static int nlist;
+
+/* 0x4eb700: every pps\*.pps file (0x4ebee0 each: its +0x10-+0x1b); the platform's file order */
+void Profiles_Scan(void)
+{
+    nlist = 0;
+    char name[160];
+    for (int i = 0; plat_user_file_name(i, name, sizeof name) && nlist < LIST_MAX; i++) {
+        size_t n = strlen(name);
+        if (strncmp(name, "pps\\", 4) || n < 8 || strcmp(name + n - 4, ".pps")) continue;
+        size_t sz = 0;
+        uint8_t *d = plat_load_user_file(name, &sz);
+        if (!d) continue;
+        if (sz >= 0x1c) memcpy(list[nlist++], d + 0x10, 12);
+        free(d);
+    }
+}
+
+int Profiles_Count(void) { return nlist; }                                       /* 0x4eb440 */
+const uint8_t *Profiles_Entry(int i) { return i >= 0 && i < nlist ? list[i] : NULL; }   /* 0x4eb450 */
+
+/* the date of birth's fields of two words the same (bits 0-7, 8-11, 12-15, 16-20, 22-27) */
+static bool same_birth(uint32_t a, uint32_t b)
+{
+    uint32_t x = a ^ b;
+    return !(x & 0x1f0f00) && !(x & 0xff) && !(x & 0xfc0f000);
+}
+
+static bool same_name(uint32_t prof, const uint8_t *name)
+{
+    for (uint32_t i = 0; i < 4; i++) {
+        uint8_t c = gm8(prof + 0x10 + i);
+        if (c != name[i]) return false;
+        if (!c) return true;
+    }
+    return true;
+}
+
+/* 0x4ebd60: a found profile already a player's (by its name and birth fields) */
+bool Profiles_InUse(int i)
+{
+    const uint8_t *e = Profiles_Entry(i);
+    if (!e) return false;
+    for (uint32_t p = 0; p < 16; p++) {
+        uint32_t t = gm32(0x531350 + 0x30 * p) >> 0x12 & 0xf;
+        if (t == 0xf) continue;
+        uint32_t prof = PROFILES + t * PROFILE_SIZE;
+        if (same_birth(gm32(prof + 0x14), le32(e + 4)) && same_name(prof, e)) return true;
+    }
+    return false;
+}
+
+/* 0x4eb4c0: found profile i into the player: its file (bits 7-14 of +0x54 cleared) over the profile
+   of the same name and birth fields, or a new one (0x4eb860, 0x4ebf20); its +0x18-+0x1a cleared; the
+   player's word: the car (+0x54 bits 0-4), bit 6 into bit 25, bit 13 set, bits 22-24 clear, the
+   second word 0 */
+bool Profile_LoadInto(int player, int i)
+{
+    const uint8_t *e = Profiles_Entry(i);
+    if (!e) return false;
+    char path[64];
+    entry_path(path, sizeof path, e);
+    size_t n = 0;
+    uint8_t *d = plat_load_user_file(path, &n);
+    if (!d) return false;
+    if (n < PROFILE_SIZE) {
+        free(d);
+        return false;
+    }
+    uint32_t w54 = le32(d + 0x54) & 0xffff807f;
+    d[0x54] = (uint8_t)w54, d[0x55] = (uint8_t)(w54 >> 8), d[0x56] = (uint8_t)(w54 >> 16), d[0x57] = (uint8_t)(w54 >> 24);
+    uint32_t pr = 0x531350 + 0x30u * (uint32_t)player, slot = 4;
+    for (uint32_t k = 0; k < 4; k++) {
+        uint32_t prof = PROFILES + k * PROFILE_SIZE;
+        if (same_name(prof, d + 0x10) && same_birth(le32(d + 0x14), gm32(prof + 0x14))) {
+            slot = k;
+            break;
+        }
+    }
+    if (slot < 4) gw32(pr, (gm32(pr) & 0xffc3ffff) | slot << 0x12);
+    else {
+        gw32(pr, gm32(pr) | 0x3c0000);
+        Player_AssignProfile(player, -1);
+        Profile_Create(player);
+    }
+    uint32_t t = gm32(pr) >> 0x12 & 0xf, prof = PROFILES + t * PROFILE_SIZE;
+    for (uint32_t k = 0; k < PROFILE_SIZE; k++) gw8(prof + k, d[k]);
+    gw8(prof + 0x1a, 0), gw8(prof + 0x19, 0), gw8(prof + 0x18, 0);
+    uint32_t w = gm32(pr), c54 = gm32(prof + 0x54);
+    gw32(pr, (c54 & 0x40) << 0x13 | (c54 & 0x1f) | (w & 0xfdffe000) | 0x2000);
+    gw32(pr + 4, 0);
+    gw32(pr, gm32(pr) & 0xfe3fffff);
+    free(d);
+    return true;
 }

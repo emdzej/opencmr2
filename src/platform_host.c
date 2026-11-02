@@ -53,3 +53,4 @@ void plat_display_size(int *w, int *h) { *w = 640; *h = 480; }
 bool plat_frame_shown(void) { return true; }
 uint8_t *plat_load_user_file(const char *name, size_t *size) { return NULL; }
 bool plat_save_user_file(const char *name, const void *data, size_t size) { return false; }
+bool plat_user_file_name(int i, char *name, size_t cap) { (void)i, (void)name, (void)cap; return false; }

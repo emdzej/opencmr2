@@ -5,6 +5,10 @@
 #include "pending.h"
 #include "game/timer.h"
 #include "world/tod.h"
+#include "exe.h"
+#include "text.h"
+#include <stdio.h>
+#include <string.h>
 
 static uint32_t player_profile(int n) { return gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf; }
 
@@ -166,6 +170,62 @@ const char *Player_Name(int n)
 {
     uint32_t k = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
     return k == 0xf ? "" : (const char *)gm(0x52fa18 + k * 0x650);
+}
+
+/* 0x408470: the profile's full name (0x52fa24), NULL without one */
+char *Player_FullName(int n)
+{
+    uint32_t k = player_profile(n);
+    return k == 0xf ? NULL : (char *)gm(0x52fa24 + k * 0x650);
+}
+
+/* 0x4eaf90: the full name set (no limit: the callers keep it to 0x2b) and the profile marked changed */
+void Player_SetFullName(int n, const char *s)
+{
+    uint32_t k = player_profile(n);
+    char *d = (char *)gm(0x52fa24 + k * 0x650);
+    memmove(d, s, strlen(s) + 1);
+    gw8(0x52fa00 + k, 1);
+}
+
+/* 0x408b10: the birth date from the profile's word (day bits 16-20, month 8-11, year 0-7, from
+   1850); 0x45 for each without a profile */
+void Player_BirthDate(int n, int *day, int *month, int *year)
+{
+    uint32_t k = player_profile(n);
+    uint32_t w = k == 0xf ? 0 : gm32(0x52fa1c + k * 0x650);
+    if (day) *day = k == 0xf ? 0x45 : (int)(w >> 0x10 & 0x1f);
+    if (month) *month = k == 0xf ? 0x45 : (int)(w >> 8 & 0xf);
+    if (year) *year = k == 0xf ? 0x45 : (int)(w & 0xff);
+}
+
+/* 0x4ebe10: the birth date into the word (not marked changed) */
+void Player_SetBirthDate(int n, int day, int month, int year)
+{
+    uint32_t a = 0x52fa1c + player_profile(n) * 0x650;
+    uint32_t w = gm32(a) & 0xffe0f000;
+    gw32(a, w | ((uint32_t)day & 0x1f) << 0x10 | ((uint32_t)month & 0xf) << 8 | ((uint32_t)year & 0xff));
+}
+
+/* 0x4eb290: the full name against the twenty codes (pointers at 0x5250fc, each lowered with
+   0x4aa090 first: the original does it in place); a match toggles that cheat option (0x4eac50) and
+   tells whether it is now on */
+bool Cheat_Match(int n, bool *on)
+{
+    const char *name = Player_FullName(n);
+    for (uint32_t i = 0; i < 20; i++) {
+        char code[64];
+        snprintf(code, sizeof code, "%s", exe_str(exe_u32(0x5250fc + 4 * i)));
+        Text_Lower(code);
+        if (name && strcmp(code, name) == 0) {   /* 0x4eb200 */
+            uint32_t bit = 1u << i;
+            bool was = gm32(0x52e890) & bit;
+            gw32(0x52e890, gm32(0x52e890) ^ bit);
+            *on = !was;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool Player_HasProfile(int n)

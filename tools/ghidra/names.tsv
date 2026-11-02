@@ -1051,3 +1051,32 @@
 004eb340	Profile_Save	fe	confirmed	A profile's 0x650 bytes to its file
 004eb3e0	Profiles_Save	fe	confirmed	The changed profiles in use saved
 004aa5a0	File_Save	file	confirmed	A file written under the save or game folder
+004f0960	FeDriver_CreateNew	fe	confirmed	A fresh profile for the player being set up, then the tag entry
+004f1160	FeName_Enter	fe	confirmed	The full name page: typing on, the cursor on end
+004f11d0	FeName_Frame	fe	confirmed	The full name's typed letters, to 0x2b
+004d7380	FeName_Draw	fe	confirmed	The full name page: the letters and the name across the top
+004f0e60	FeName_Leave	fe	confirmed	Typing off
+004f13c0	FeName_Choose	fe	confirmed	A letter in, rub out, or end (a cheat code toggles its option)
+004f16f0	FeDate_Enter	fe	confirmed	The birth date page from the profile's date
+004f1640	FeDate_Frame	fe	confirmed	The day count by the month and year
+004d7750	FeDate_Draw	fe	confirmed	The birth date page's rows
+004f15d0	FeDate_Choose	fe	confirmed	The date into the profile, the profile saved
+00408470	Player_FullName	fe	confirmed	The profile's full name (0x52fa24)
+004eaf90	Player_SetFullName	fe	confirmed	The full name set, the profile marked changed
+00408b10	Player_BirthDate	fe	confirmed	The birth date from the profile's word
+004ebe10	Player_SetBirthDate	fe	confirmed	The birth date into the profile's word
+004eb370	Profile_SavePlayer	fe	confirmed	The player's profile saved now if changed
+004f0c40	FeOptions_SetParent	fe	confirmed	The options page back to the calling page
+004eb700	Profiles_Scan	fe	confirmed	The saved profiles' list
+004eb440	Profiles_Count	fe	confirmed	The saved profiles' count
+004eb450	Profiles_Entry	fe	confirmed	A saved profile's list entry
+004ebd60	Profiles_InUse	fe	confirmed	A saved profile already a player's
+004eb4c0	Profile_LoadInto	fe	confirmed	A saved profile loaded into a player's
+004f0580	FeLoad_Enter	fe	confirmed	The Load Driver page: the list scanned
+004f0600	FeLoad_Frame	fe	confirmed	The Load Driver page's scroll
+004f0620	FeLoad_Leave	fe	confirmed	The Load Driver page left
+004d6870	FeLoad_Name	fe	confirmed	One saved profile's tag in the scroller
+004d65c0	FeLoad_Box	fe	confirmed	The information box
+004d6a60	FeLoad_Draw	fe	confirmed	The Load Driver page
+004f26f0	FeLoad_ChooseFirst	fe	confirmed	The network's load for the first player
+004f0820	FeLoad_Choose	fe	confirmed	The chosen saved profile into the player

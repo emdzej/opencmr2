@@ -34,3 +34,5 @@ bool plat_frame_shown(void);
 /* Persistent user files (saves, settings). */
 uint8_t *plat_load_user_file(const char *name, size_t *size);
 bool plat_save_user_file(const char *name, const void *data, size_t size);
+/* The user files' names in a stable (sorted) order: false past the last */
+bool plat_user_file_name(int i, char *name, size_t cap);

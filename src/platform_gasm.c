@@ -165,6 +165,33 @@ bool plat_save_user_file(const char *name, const void *data, size_t size)
     return k && gasm_storage_set(key, k, data, (uint32_t)size) == 0;
 }
 
+/* storage_key's reverse */
+bool plat_user_file_name(int i, char *name, size_t cap)
+{
+    char key[129];
+    if (i < 0 || (uint32_t)i >= gasm_storage_count()) return false;
+    int32_t n = gasm_storage_key((uint32_t)i, key, sizeof key - 1);
+    if (n < 0 || n >= (int32_t)sizeof key) return false;
+    key[n] = 0;
+    size_t o = 0;
+    for (int32_t k = 0; k < n && o + 1 < cap; k++) {
+        char c = key[k];
+        if (c == '_') name[o++] = '\\';
+        else if (c == '-' && k + 2 < n) {
+            int v = 0;
+            for (int d = 1; d <= 2; d++) {
+                char h = key[k + d];
+                v = v * 16 + (h >= 'A' ? h - 'A' + 10 : h - '0');
+            }
+            name[o++] = (char)v;
+            k += 2;
+        } else
+            name[o++] = c;
+    }
+    name[o] = 0;
+    return true;
+}
+
 /* ---- data: the game's files as assets ---- */
 
 typedef struct { int64_t size; char name[]; } FileAsset;

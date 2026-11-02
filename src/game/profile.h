@@ -22,6 +22,11 @@ void Profile_Create(int player);
 uint32_t Player_Word(int player);          /* the player record's first word (0x531350 + 0x30 n) */
 const char *Player_Name(int player);        /* 0x408400: the profile's name ("" without one) */
 bool Player_HasProfile(int player);
+char *Player_FullName(int player);                          /* 0x408470 */
+void Player_SetFullName(int player, const char *s);         /* 0x4eaf90 */
+void Player_BirthDate(int player, int *day, int *month, int *year);   /* 0x408b10 */
+void Player_SetBirthDate(int player, int day, int month, int year);   /* 0x4ebe10 */
+bool Cheat_Match(int player, bool *on);                     /* 0x4eb290 */
 void Player_Touch(int player);                /* 0x408d00 */
 uint32_t Player_Tyres(int player);            /* 0x408a60: the tyre wear record's address (0 none) */
 void Tyres_Tally(int n, int w, int spin, int slide);   /* 0x45c750 */
