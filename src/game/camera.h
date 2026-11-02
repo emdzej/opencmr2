@@ -2,7 +2,7 @@
    records (0x539018, 0x64 bytes) of which one is current, switched at once or blended over 12.5 steps;
    each step the current one follows its car (Camera_Step 0x4219b0) and each frame the drawn camera is
    blended between the last two steps' (Camera_Frame 0x422140). Kinds: 1, 2 and 10 the interior views,
-   3, 4-6 the chase cameras (4 the profile's settings, 5 a far one, 6 the 45 degree view), 7 the
+   3 the cockpit, 4-6 the chase cameras (4 the profile's settings, 5 a far one, 6 the 45 degree view), 7 the
    trackside cameras, 8 a switch's blend. Ported: the chase cameras, the interior views and the trackside
    cameras. */
 #pragma once
@@ -17,6 +17,9 @@ void Camera_SelectAt(int player, int kind, int idx, int car, bool smooth);   /* 
 bool Camera_LoadTsc(const uint8_t *tsc, uint32_t size);   /* 0x48caa0: the stage's trackside cameras */
 void Camera_Trackside(int player);                        /* 0x421930: the nearest trackside camera */
 int Camera_TscIndex(int player);                          /* 0x421980 */
+void Frame_Pitch(int32_t *m, uint32_t ang);                /* 0x422e70: m pitched about its first row */
+/* 0x4224e0: a blend of two frames (forward by k0; mode 0 up by k1, mode 1 side by k1; position by kp) */
+void Frame_Blend(int32_t *o, const int32_t *a, const int32_t *b, int32_t k0, int32_t k1, int32_t kp, int mode);
 int Camera_Car(int player);                               /* 0x422fb0: the car the current camera follows */
 int Camera_Kind(int player);                              /* 0x422f50 */
 void Camera_Step(int player);                             /* 0x4219b0 */

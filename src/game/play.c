@@ -40,11 +40,14 @@
 #include "world/tod.h"
 #include "sim/scenery.h"
 #include "game/profile.h"
+#include "game/carpass.h"
+#include "game/cockpit.h"
 #include <stdio.h>
 #include <string.h>
 
 static Obj camera;
-static Obj *cars[2 * CAR_MAX];
+static Obj *cars[2 * CAR_MAX + 2];
+static int ncars;   /* the cars' objects (the cockpits after them, each frame) */
 
 static char st_name[16], st_path[128], st_tex[128];
 
@@ -84,6 +87,7 @@ static bool load_cars(void)
         cars[k++] = Car_Slot(i)->main;
         if (Car_Slot(i)->second) cars[k++] = Car_Slot(i)->second;
     }
+    ncars = k;
     World_SetCars(cars, k);
     return true;
 }
@@ -115,8 +119,18 @@ static void draw(int player, int state)
     Sky_Follow(cp);
     for (int i = 0; i < g_all.n; i++) Car_GroundLight(i, player);   /* 0x462aa0 */
     Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */
-    /* per car the passes (0x46b8f0, not ported), then the fallen-off parts hidden (0x46b670) */
-    for (int i = 0; i < g_all.n; i++) Parts_HideFallen(Car_Get(g_all.car[i]));
+    /* the cars' kinds per view (0x46bb40), per car its masks (0x46b8f0) and the fallen-off parts
+       hidden (0x46b670) */
+    Cars_ViewKinds();
+    for (int i = g_all.n - 1; i >= 0; i--) {
+        Car_Masks(Car_Get(g_all.car[i]));
+        Parts_HideFallen(Car_Get(g_all.car[i]));
+    }
+    /* the cockpits drawn with the cars (the original puts them in their stage section, 0x476410) */
+    int k = ncars;
+    for (int i = 0; i < 2 && k < (int)(sizeof cars / sizeof *cars); i++)
+        if (Cockpit_Model(i)) cars[k++] = Cockpit_Model(i);
+    World_SetCars(cars, k);
     Obj_Frame(&g_world, &camera);
     /* the cars' pass 0x466570: each car's shadow but those the view hides (0x46bd20's 7) */
     bool multi = Gs_SelBits14() > 1 && Race_State(0) == 10;   /* 0x41f3a0, as weather.c */

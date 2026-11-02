@@ -1014,3 +1014,22 @@
 00421930	Camera_Trackside	camera	confirmed	The nearest trackside camera taken when it is another
 0041d0c0	Race_PlayerStep	race	confirmed	In the replay F1 between trackside and chase, F2 the next car
 004bae10	Vec_Normalize	math	confirmed	A vector made unit, over 512 first beyond 100 units an axis
+00475f80	Cockpit_Reset	camera	confirmed	The cockpits unloaded, heads and hands at rest
+004760a0	Cockpit_Load	camera	confirmed	A car's interior model (a5/c5.c3d) under its second model, its objects found
+00476410	Cockpit_Init	camera	confirmed	The cockpit camera made: the record's class, the camera placed
+004764c0	Cockpit_Off	camera	confirmed	Leaving the cockpit: the world's mode 0
+004764e0	Cockpit_Snap	camera	confirmed	The next step takes the head's pose at once
+00476500	Cockpit_On	camera	confirmed	Entering the cockpit: the world's mode 1
+00476520	Cockpit_Ready	camera	confirmed	Whether the car's cockpit is loaded
+00476540	Cockpit_Cin	camera	confirmed	The left-hand drive classes and the .cin's section 5
+004765e0	Cockpit_Step	camera	confirmed	The cockpit's step: head, wheel and hand, wipers, dash, camera
+00476640	Cockpit_Wheel	camera	confirmed	The wheel turned by the steering, the hand blended to the lever
+00476850	Cockpit_HandShare	camera	confirmed	The hand's share between the wheel and the gear lever
+00476a40	Cockpit_Wipers	camera	confirmed	The wipers turned by their sweep
+00476c70	Cockpit_WiperStep	camera	confirmed	The wipers' sweep by the rain
+00476e00	Cockpit_Head	camera	confirmed	The head turned and moved by the car's acceleration
+00477340	Cockpit_Textures	camera	confirmed	The model's REVCT and DIGIT textures
+004778b0	Cockpit_Place	camera	confirmed	The camera at the head, through the second model's pose
+0046b8f0	Car_Masks	race	confirmed	A car's objects' pass masks from its views' kinds
+0046bb40	Cars_ViewKinds	race	confirmed	Per car and view the kind of drawing by the view's camera
+0046b790	Car_AddView	race	confirmed	A view's bit into the groups its kind draws

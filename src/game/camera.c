@@ -9,6 +9,7 @@
 #include "game/car_load.h"
 #include "pending.h"
 #include "crt.h"
+#include "game/cockpit.h"
 #include <string.h>
 #include <math.h>
 
@@ -101,6 +102,9 @@ static void pitch(int32_t *m, uint32_t ang)
     memcpy(m, o.m, sizeof o.m);
     m[12] = p[0], m[13] = p[1], m[14] = p[2];
 }
+
+void Frame_Pitch(int32_t *m, uint32_t ang) { pitch(m, ang); }   /* 0x422e70 */
+void Frame_Blend(int32_t *o, const int32_t *a, const int32_t *b, int32_t k0, int32_t k1, int32_t kp, int mode) { blend(o, a, b, k0, k1, kp, mode); }   /* 0x4224e0 */
 
 /* 0x423d70: the frame a camera follows: a player's (0x538ca0), another car's orientation */
 static const int32_t *follow(uint8_t car)
@@ -576,8 +580,12 @@ static void cam_init(Cam *k, int kind, int sub)
     case 4: chase_init(k, r, 0); break;
     case 5: chase_init(k, r, 4); break;
     case 6: chase_init(k, r, 3); break;
+    case 3:   /* 0x476410 */
+        Cockpit_Init(k->slot, k->car, CI8(Car_Get(k->car), 0xb1b), k->m);
+        k->f58 = 0, k->f50 = 0, k->f48 = 0x10000, k->f54 = 0xa000, k->f4c = 0x1999, k->f5c = 0x10000;   /* 0x4778b0 */
+        break;
     case 7: ts_init(k, r, sub); break;   /* 0x48cae0 */
-    default: PENDING_NOTE(0x423300, "Camera_Init (kind 3)"); chase_init(k, r, 0); break;
+    default: break;
     }
 }
 
@@ -590,8 +598,12 @@ static void cam_step(Cam *k)
     switch (k->kind) {
     case 1: case 2: case 10: interior_step(k, r, flag || CI32(c, 0xb60)); break;
     case 4: case 5: case 6: chase_step(k, r, flag); break;
+    case 3:   /* 0x4765e0 */
+        Cockpit_Step(k->car, r, k->m);
+        k->f58 = 0, k->f50 = 0, k->f48 = 0x10000, k->f54 = 0xa000, k->f4c = 0x1999, k->f5c = 0x10000;
+        break;
     case 7: ts_step(k, r, flag || CI32(c, 0xb60)); break;   /* 0x48cc30 */
-    default: PENDING_NOTE(0x423460, "Camera_Step (kind 3)"); break;
+    default: break;
     }
     PENDING_NOTE(0x4930b0, "Camera_GroundLift");
     k->f60 = 0;
@@ -629,12 +641,21 @@ void Camera_Reset(int p)
 int Camera_Car(int p) { return slots[cur[p] + 2 * p].car; }   /* 0x422fb0 */
 int Camera_Kind(int p) { return out[p].kind != 8 ? slots[cur[p] + 2 * p].kind : 8; }   /* 0x422f50 */
 
+/* 0x4238e0, 0x423900 (a switch done): leaving the cockpit the world's mode 0 (0x4764c0), entering it 1
+   (0x476500). (Their interior and trackside parts, 0x486c00, 0x486be0, 0x48d850, set the interior's
+   field of view, which the port's interior keeps at 1.0.) */
+static void switched(const Cam *was, const Cam *now)
+{
+    if (was->kind == 3) Cockpit_On(was->car, false);
+    if (now->kind == 3) Cockpit_On(now->car, true);
+}
+
 /* 0x4232a0: whether a kind can be had: 7 with the stage's cameras (0x48ca90), 3 open */
-static bool allowed(int kind)
+static bool allowed(int p, int kind)
 {
     switch (kind) {
     case 1: case 2: case 4: case 5: case 6: case 10: return true;
-    case 3: PENDING_NOTE(0x476520, "Camera_Allowed (kind 3)"); return false;
+    case 3: return Cockpit_Ready(p);   /* 0x476520 */
     case 7: return ntsc != 0;
     default: return false;
     }
@@ -644,7 +665,7 @@ static bool allowed(int kind)
    the player's car), switched at once or, with smooth and neither kind 3, blended */
 void Camera_SelectAt(int p, int kind, int idx, int car, bool smooth)
 {
-    bool ok = Camera_Kind(p) != 8 && allowed(kind);
+    bool ok = Camera_Kind(p) != 8 && allowed(p, kind);
     cam_ref(p);
     if (!ok) return;
     Cam *c = &slots[cur[p] + 2 * p], *o = &slots[2 * p + 1 - cur[p]];
@@ -665,12 +686,14 @@ void Camera_SelectAt(int p, int kind, int idx, int car, bool smooth)
         row(chase_up[o->slot], r, 1);
         row(chase_fwd[o->slot], r, 0);
     }
+    if (kind == 3) Cockpit_Snap(o->car);   /* 0x423860 -> 0x4764e0 */
     cam_init(o, kind, idx);
     o->f60 = 0;
     if (b) {
         sw[p] = 0xc8000;
         return;
     }
+    switched(c, o);
     snap[p] = 1;
     cur[p] = (uint8_t)(1 - cur[p]);
 }
@@ -693,10 +716,9 @@ static bool cyclable(int p, int kind, int state)
     switch (kind) {
     case 2: if (state == 10) return false; /* fall through */
     case 1: case 4: case 5: return true;
-    case 3: PENDING_NOTE(0x476520, "Camera_Allowed (kind 3)"); return false;
+    case 3: return Cockpit_Ready(p);   /* 0x476520 */
     default: return false;
     }
-    (void)p;
 }
 
 int Camera_Next(int p, int state)
@@ -751,6 +773,7 @@ void Camera_Step(int p)
         sw[p] -= dt;
         return;
     }
+    switched(c, o);   /* 0x4238e0, 0x423900, 0x4239e0 */
     cam_copy(&out[p], o);
     cur[p] = (uint8_t)(1 - cur[p]);
     sw[p] -= dt;

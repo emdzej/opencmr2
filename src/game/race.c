@@ -15,6 +15,7 @@
 #include "game/common.h"
 #include "game/hud.h"
 #include "game/dash.h"
+#include "game/cockpit.h"
 #include "game/sectors.h"
 #include "audio/crash.h"
 #include "audio/engine.h"
@@ -381,11 +382,14 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             R.place_count = 1;
             R.place = 0;
         }
+        /* 0x421610 (in 0x424c50): the cockpits for the four camera records (two a player) */
+        Cockpit_Reset();   /* 0x475f80 */
+        for (int r = 0; r < 4; r++) Cockpit_Load(r, r >> 1);   /* 0x4760a0 */
         /* 0x422fe0 per player: the profile's camera (0x408800), the chase (4) when it cannot be had */
         for (uint32_t i = 0; i < players(); i++) {
             uint32_t t = gm32(0x531350 + 0x30 * i) >> 0x12 & 0xf;
             int kind = Gs_Mode() == 4 ? gm8(0x52f3e4 + 0xc4 * i) : t != 0xf ? (int)gm32(0x52fa60 + t * 0x650) : 0;
-            if (!(kind == 1 || kind == 2 || (kind >= 4 && kind <= 6) || kind == 10)) kind = 4;   /* 0x4232a0 */
+            if (!(kind == 1 || kind == 2 || (kind == 3 && Cockpit_Ready((int)i)) || (kind >= 4 && kind <= 6) || kind == 10)) kind = 4;   /* 0x4232a0 */
             Camera_Reset((int)i);
             Camera_Select((int)i, kind, false);
         }
