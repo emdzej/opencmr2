@@ -9,6 +9,8 @@
 #include <stdbool.h>
 
 void Cars_Collide(const int16_t *list, int n);   /* 0x48a1f0 */
+/* 0x487130: the last pair of cars whose boxes were tested (in any step since) touched (0x591390) */
+bool Cars_Touching(void);
 /* 0x48c870: car n moved by v, and through the contact lists every car touching it, once each (not
    n and not other, -1 none); with corners the touching cars' flat boxes too */
 void Cars_PushGroup(int n, int other, const int32_t v[3], bool corners);

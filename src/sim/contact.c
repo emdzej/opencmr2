@@ -13,6 +13,8 @@
 
 static uint8_t ncont[CAR_MAX];             /* 0x5913dc: the cars each car touches this step */
 static uint8_t cont[CAR_MAX][8];           /* 0x5913f8 */
+static bool touching;                      /* DAT_00591390: the last pair whose boxes were tested touched */
+bool Cars_Touching(void) { return touching; }   /* 0x487130 */
 static struct {
     int32_t v[3];                          /* 0x5914c8 */
     bool corners;                          /* DAT_005913d8 */
@@ -276,7 +278,10 @@ void Cars_Collide(const int16_t *list, int n)
             if (CI32(a, 0xc18) && CI32(b, 0xc18)) continue;
             int32_t *ba = Walls_CarBox(a), *bb = Walls_CarBox(b), nrm[3];
             CollBoxes w;
-            if (!contact(a, ba, b, bb, &w, nrm)) continue;
+            bool hit = contact(a, ba, b, bb, &w, nrm);
+            touching = false;
+            if (!hit) continue;
+            touching = true;
             if (ncont[ia] < 8) cont[ia][ncont[ia]++] = (uint8_t)ib;
             if (ncont[ib] < 8) cont[ib][ncont[ib]++] = (uint8_t)ia;
             respond(a, b, ba, bb, &w, nrm);

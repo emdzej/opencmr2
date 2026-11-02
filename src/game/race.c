@@ -17,6 +17,7 @@
 #include "game/dash.h"
 #include "game/cockpit.h"
 #include "game/sectors.h"
+#include "sim/contact.h"
 #include "audio/crash.h"
 #include "audio/engine.h"
 #include "audio/codriver.h"
@@ -59,6 +60,7 @@
 #include "game/car_load.h"
 #include "game/replay.h"
 #include "audio/codriver.h"
+#include <stdlib.h>
 #include <string.h>
 
 static const RaceHost *H;
@@ -462,6 +464,7 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
     R.winner = -1;
     R.finished[slot] = 0;
     R.shown[slot] = 0;
+    if (Gs_SelBit27() && !Gs_ModeBit19()) gw8(0x537fbc, 0), gw8(0x537fbd, 0);   /* the head to head's winners */
     timer_run((int)slot);
     int32_t t = Race_StageTime((int)slot);
     if (R.first) {
@@ -512,7 +515,18 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
 {
     timer_run((int)slot);
     bool fin = Race_Finished((int)slot);
-    if (Gs_SelBit25() && !Gs_ModeBit19()) PENDING_NOTE(0x41d7a0, "the head to head's finish and winner (0x487130, 0x4481c0)");
+    if ((gm32(0x52f2b0) >> 0xb & 1) && gm8(0x53d1a7)) fin = true;   /* 0x4082e0, 0x448ca0 */
+    /* the head to head (bit 27, not networked): once the cars touch (0x487130) within three points
+       of each other (0x4582f0), the winner (0x5191a0) is car 1 when car 0's place (0x4481c0) is ahead
+       of car 1's, else car 0, and is through (0x448630, 0x537fbc) */
+    if (Gs_SelBit27() && !Gs_ModeBit19() && Cars_Touching() && abs(Sectors_CarPoint(0) - Sectors_CarPoint(1)) < 3) {
+        R.winner = (int8_t)(Times_Place(0) < Times_Place(1));
+        if ((int)slot == R.winner) {
+            Times_Won((int)slot);
+            gw8(0x537fbc + slot, 1);
+            fin = true;
+        }
+    }
     if (fin) {
         R.nfinished++;
         R.finished[slot] = 1;

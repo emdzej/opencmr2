@@ -1465,3 +1465,5 @@
 004213d0	Progress_SetPoint	sim	high	A car's centre-line point set (with a centre line)
 00458480	Cars_GridPoints	race	high	Each racing car's progress at its grid point (0x542d38, 16.16)
 004584c0	Sectors_Side	race	high	The head to head's side (0x542cb0)
+00448630	Times_Won	race	high	The head to head won: finished now, its last split, its finish time 180 s more
+00487130	Cars_Touching	sim	high	The last pair of cars whose boxes were tested touched (0x591390)

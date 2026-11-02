@@ -318,6 +318,17 @@ static void finished(int k)
     gw8(0x53e18c, (uint8_t)(f + 1));
 }
 
+/* 0x448630: the head to head won by k (the cars touching near each other): finished at the time
+   shown, its time at the last split that, its finish time 18000 more (the winner's 180 s), a finisher
+   more */
+void Times_Won(int k)
+{
+    done[k] = 1;
+    splits[k][Sectors_Shown()] = shown;
+    finish[k] = shown + 18000;
+    gw8(0x53e18c, (uint8_t)(gm8(0x53e18c) + 1));
+}
+
 /* 0x4487a0: at a split, a player's time (in a rally only that); round a circuit the car's time in
    the lap's table (bit 25: by split), a player's (or bit 27's two) from the lap's start, and its
    place through the split, the car before it told it was passed */
