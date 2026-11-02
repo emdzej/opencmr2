@@ -488,7 +488,7 @@
 00459180	Sectors_CheckFinish	race	high	The finish split reached: the car's finished flag
 00459320	Cat_Before	race	high	The point before (round a both-ways course, else 0)
 004213a0	Car_CatIndex16	sim	high	The car's progress record +0x14
-00459250	Camera_TracksideHint	camera	med	The trackside camera's hints from the centre line's records (+0x1c-+0x28)
+00459250	Camera_FarHint	camera	high	The draw distance from the centre line's hints (+0x1c-+0x28)
 00486740	Interior_Init	camera	high	An interior view's mode and car, the cockpit objects, placed
 00486810	Interior_Step	camera	high	An interior view: forward at once, up eased by 0.3 dt, placed
 00486910	Interior_Place0	camera	high	An interior view's frame from the car's, pitched for the bonnet
@@ -1666,3 +1666,6 @@
 0045c720	Tyres_Mark	game	high	A race car's wheel wear mark (+0x90 of its tyre record via 0x408a60)
 0040a3e0	Trial_BestLap	game	high	The time trial's best lap (0x5320a8)
 0040a330	Lap_Best	game	high	A lap against the lap records; in the time trial its record and name
+00423f30	Draw_Distance	camera	high	The hint base scaled by the draw distance option
+00422f90	Camera_SetFar	camera	high	A player's far plane (0x538e04)
+00428a00	Car_OutOfView	sim	high	In the arcade, the car out of each player's view (+0xb68) and all (+0xb70)

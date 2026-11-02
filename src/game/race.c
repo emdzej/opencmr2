@@ -806,7 +806,8 @@ static void end_replay(ProcGroup *g)
    and launches a rocket each frame once it has ended. */
 static void s10_replay(ProcGroup *g, uint32_t slot)
 {
-    if (Gs_Mode() == 10) PENDING_NOTE(0x41e350, "the arcade replay's time-out");
+    /* (mode 10's time-out, the network time trial's clock 0x406710 against 0x40af30, needs a network
+       session, 0x4a15a0; without one the original goes on as here) */
     if (R.skip || gm8(0x817574)) {
         R.skip = false;
         end_replay(g);

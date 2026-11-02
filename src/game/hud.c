@@ -1159,8 +1159,13 @@ static void time_panel(int p)
     else if (p < 2) split_bar(p, false);   /* 0x4143f0 */
     int16_t r[4] = {(int16_t)((w * 0xab9b) >> 16), (int16_t)((h * 0x1aac) >> 16), (int16_t)(((w * 0x4865) >> 16) + 1),
                     (int16_t)((h * 0x1554) >> 16)};
-    if (gm32(0x543098)) PENDING_NOTE(0x459390, "Hud_TimePanel (laps)");
+    if (m == 8 || m == 9 || m == 11) r[1] = (int16_t)((h << 0xc) >> 16), r[3] = (int16_t)((h << 0xd) >> 16);
+    /* taller by a line or two (by the language) while the network's clock shows (0x459390) */
+    uint32_t lang = gm32(0x52afb4) & 7;   /* 0x4057f0 */
+    int extra = (lang == 1 || lang == 3 || lang == 2 ? 2 : 1) * (h * 0x18 / 0x1e0);
+    if (gm32(0x543098)) r[3] = (int16_t)(r[3] + extra);
     Rect_Fill(r, colour(0x5170bc), 2);
+    if (gm32(0x543098)) r[3] = (int16_t)(r[3] - extra);
     /* the viewport's corner (0, 0 for one player) over the screen, plus the offsets */
     draw_time(hud_time[p], 4, 0xaf30, 0x2e66, colour(0x5170f4), 0x21, NULL, false);
 }

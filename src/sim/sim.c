@@ -9,12 +9,16 @@
 #include "sim/road_follow.h"
 #include "game/ctlcfg.h"
 #include "game/gstate.h"
+#include "game/race.h"
+#include "game/camera.h"
+#include "fixmath.h"
 #include "game/replay.h"
 #include "game/mem.h"
 #include "game/timer.h"
 #include "pending.h"
 #include "exe.h"
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 CarList g_all, g_stepped, g_listA, g_simple, g_second, g_collide;
@@ -97,6 +101,35 @@ void Sim_StepDone(const CarList *l)
     }
 }
 
+/* 0x428a00: in the arcade (0x407e70) while the race is not in states 9, 10 or 13, the car marked
+   out of each player's view (+0xb68 + 4 p) more than 60 units from its step camera on an axis or
+   in all, or behind it; out of every view, +0xb70 (a third player's mark is +0xb70 itself, as the
+   original's) */
+static void out_of_view(Car *c)
+{
+    CW32(c, 0xb70, 0), CW32(c, 0xb6c, 0), CW32(c, 0xb68, 0);
+    int st = Race_State(0);
+    if (!Gs_SelBit26() || st == 10 || st == 9 || st == 13) return;
+    uint32_t np = Gs_SelBits14(), out = 0;
+    for (uint32_t p = 0; p < np; p++) {
+        uint32_t o = 0xb68 + 4 * p;
+        if (!CI32(c, o)) {
+            int32_t cam[3], f[3], d[3];
+            Camera_Position((int)p, cam);
+            Camera_Forward((int)p, f);
+            for (int q = 0; q < 3; q++) d[q] = CI32(c, 0x2d0 + 4 * (uint32_t)q) - cam[q];
+            if (abs(d[0]) > 0x3c0000 || abs(d[1]) > 0x3c0000 || abs(d[2]) > 0x3c0000 ||
+                fx_mul(d[2], d[2]) + fx_mul(d[0], d[0]) + fx_mul(d[1], d[1]) > 0xe100000)
+                CW32(c, o, 1);
+            else if (fx_mul(f[2], d[2]) + fx_mul(f[0], d[0]) + fx_mul(f[1], d[1]) < 0)
+                CW32(c, o, 1);
+            if (!CI32(c, o)) continue;
+        }
+        out++;
+    }
+    if (out == np) CW32(c, 0xb70, 1);
+}
+
 /* 0x428810: the step's lists from each car's steps due; the network modes' list of the players (8, 9,
    11, 12) is not ported */
 static void build_lists(void)
@@ -119,8 +152,7 @@ static void build_lists(void)
             g_collide.car[g_collide.n++] = k;
         if (CI32(c, 0xc18) && c->s[0xb43]) g_simple.car[g_simple.n++] = k;
     }
-    /* 0x428a00 per stepped car: +0xb68.. from the players' views, arcade only (0x407e70) */
-    if (Gs_SelBit26()) PENDING_NOTE(0x428a00, "Car_OutOfView");
+    for (int k = 0; k < g_stepped.n; k++) out_of_view(Car_Get(g_stepped.car[k]));
 }
 
 void Sim_Step(void)

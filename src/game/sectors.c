@@ -1,5 +1,6 @@
 /* The sectors (see sectors.h). */
 #include "game/sectors.h"
+#include "game/camera.h"
 #include "game/gstate.h"
 #include "game/car_load.h"
 #include "sim/car.h"
@@ -100,7 +101,7 @@ static void start(int n, bool fresh)
         r->point = (int16_t)Car_CatIndex(Car_Get(n));
         r->next = 1;
         r->fin = (int16_t)(nsplits - 1);
-        PENDING_NOTE(0x459250, "Camera_TracksideHint");
+        Camera_FarHint(n, r->point, 1);   /* 0x459250 */
         return;
     }
     if (fresh) r->point = (int16_t)before(Car_CatIndex(Car_Get(n)));
@@ -120,7 +121,7 @@ static void start(int n, bool fresh)
     } else {
         r->lap_was = -1, r->next = 1, r->fin_lap = 1;
     }
-    PENDING_NOTE(0x459250, "Camera_TracksideHint");
+    Camera_FarHint(n, r->point, 1);   /* 0x459250 */
 }
 
 /* 0x458100: every racing car's record; a head to head (bit 27) its two, the car on 0x542cb0's side
@@ -223,7 +224,7 @@ static void move(int n, int p)
             uint32_t w = gm32(0x52f2b0);
             r->finished = !((w >> 0xb & 1) && (w & 7) == 1);
         }
-        PENDING_NOTE(0x459250, "Camera_TracksideHint");
+        Camera_FarHint(n, nx, dir);   /* 0x459250 */
         cur = nx;
     }
     r->point = (int16_t)p;

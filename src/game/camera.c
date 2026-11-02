@@ -2,6 +2,7 @@
 #include "game/camera.h"
 #include "sim/car.h"
 #include "sim/walls.h"
+#include "sim/progress.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "game/mem.h"
@@ -737,6 +738,7 @@ void Camera_Reset(int p)
     }
     memset(&out[p], 0, sizeof out[p]);
     memset(&prev[p], 0, sizeof prev[p]);
+    Camera_FarHint(0, 0, 1);   /* (player 0's, for every camera) */
 }
 
 int Camera_Car(int p) { return slots[cur[p] + 2 * p].car; }   /* 0x422fb0 */
@@ -928,10 +930,47 @@ void Camera_Frame(int p, int32_t frac, Obj *camera)
     for (Obj *o = camera; o; o = o->parent) o->dirty = 1;
 }
 
+/* The draw distance: the centre line's hints (each point's +0x1c/+0x20 going back, +0x24/+0x28 going
+   on: a base and a far, 0 to keep the last) kept at 0x660bf4/0x660bf8 (the display record's +0x3c4,
+   +0x3c8), and per player the far plane they give (0x538e04) */
+static int32_t hint_base, hint_far, draw_far[4];
+static int32_t rd32(const uint8_t *p) { return (int32_t)((uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24); }
+
+/* 0x423f30: the base scaled by the draw distance option (0x52afd0 bits 21-24: 1 less a half to 5
+   times), in single precision as the original */
+static int32_t draw_distance(void)
+{
+    static const float t[10] = {-0.5f, 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f};
+    float b = (float)((double)hint_base * (1.0 / 65536.0));
+    uint32_t d = gm32(0x52afd0) >> 0x15 & 0xf;
+    return (int32_t)llrint(((double)b * (double)t[d < 10 ? d : 9] + (double)b) * 65536.0);
+}
+
+/* 0x459250: the hints of the point the car (a player's) has stepped onto: going back the next
+   point's first pair (to the finish point less one); each set hint makes player p's far plane
+   (0x422f90) the scaled base, at most the far hint */
+void Camera_FarHint(int p, int point, int dir)
+{
+    if (p >= (int)Gs_SelBits14()) return;
+    if (dir < 0 && Cat_FinishPoint() <= ++point) point = Cat_FinishPoint() - 1;
+    const uint8_t *r = Cat_Record(point);
+    if (!r) return;   /* (the original reads it regardless) */
+    int32_t base = rd32(r + (dir < 0 ? 0x1c : 0x24)), far = rd32(r + (dir < 0 ? 0x20 : 0x28));
+    if (far > 0) {
+        hint_far = far;
+        int32_t v = draw_distance();
+        draw_far[p] = hint_far < v ? hint_far : v;
+    }
+    if (base > 0) {
+        hint_base = base;
+        int32_t v = draw_distance();
+        draw_far[p] = hint_far < v ? hint_far : v;
+    }
+}
+
 /* 0x422d40: the projection's scales from the frame's zoom (by 2.46, the screen's aspect and 1.14 across,
    2.08 up), one of them doubled on a split screen (across when it is split left and right); with
-   option 2 mirrored; the super special's far plane at least 150. The far plane is the port's (the
-   draw distance's, 0x423f30 by 0x422f90, not ported). */
+   option 2 mirrored; the far plane the draw distance's (0x538e04), the super special's at least 150. */
 void Camera_Projection(int p)
 {
     int w, h;
@@ -943,7 +982,7 @@ void Camera_Projection(int p)
         if (!Gs_ModeBit18()) xs *= 2;
         else ys *= 2;
     }
-    int32_t far = Proj_Far();
+    int32_t far = draw_far[p];
     if (Gs_Option(2)) Proj_Set(-xs, ys, far, near_f[p]);
     else if (Gs_SuperSpecial() && far < 0x960000) Proj_Set(xs, ys, 0x960000, near_f[p]);
     else Proj_Set(xs, ys, far, near_f[p]);

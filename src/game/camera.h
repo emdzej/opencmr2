@@ -46,3 +46,4 @@ void Camera_Forward(int player, int32_t f[3]);             /* the step camera's 
    wheels' force feedback (0x423ff0-0x424c00, DirectInput effects; gasm has none, not ported) */
 void Camera_Shake(const Car *c, const int32_t imp[3], bool along);
 int32_t Camera_ShakeLevel(int player, int k);              /* the port: int k of the player's record at 0x539200 */
+void Camera_FarHint(int player, int point, int dir);   /* 0x459250: the draw distance from the centre line */
