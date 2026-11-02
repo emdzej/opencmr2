@@ -6,6 +6,7 @@
 #include "game/race.h"
 #include "game/effects.h"
 #include "game/timer.h"
+#include "game/replay.h"
 #include "crt.h"
 #include "game/mem.h"
 #include "fixmath.h"
@@ -148,6 +149,73 @@ static void ease_throttle(int t, int car)
 
 static int32_t shift_at[4], shift_end[4], whine_lvl[4];   /* 0x58dd88, 0x58de10, 0x58dd78 */
 
+/* Car_RecordFlag 0x41f3d0: the car's replay (0x537f3c) playing */
+static bool replaying(int car)
+{
+    const Replay *r = Race_Replay(car);
+    return r && Replay_Playing(r);
+}
+
+static uint32_t norm_len(int32_t v[3])
+{
+    return Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2]));
+}
+
+/* the inline normalising: by 2^32 over the length, zero when it is 0 */
+static void normalise(int32_t v[3])
+{
+    uint32_t len = norm_len(v);
+    if (!len) {
+        v[0] = v[1] = v[2] = 0;
+        return;
+    }
+    int32_t inv = (int32_t)(0x100000000LL / (int32_t)len);
+    for (int k = 0; k < 3; k++) v[k] = fx_mul(v[k], inv);
+}
+
+/* Engine_Doppler 0x427e20: a replayed car's frequency f shifted by its closing speed on the camera
+   (the first player's view, the second's when two players watch the replay, 0x41f3a0). Only within 100
+   units: the camera's step move less the car's velocity (+0x408), at most 50 long, taken along the
+   line from the car (+0x2d0) to the camera; its length over 13.24 makes the factor 1 + v (coming
+   closer) or 1 - v (going away), f divided by it unless that is half or less (coming closer the
+   frequency is then kept, going away divided only above half). Halved and doubled around the
+   division, so the result is even. */
+static uint32_t Engine_Doppler(int p, int car, uint16_t f)
+{
+    int v = Gs_SelBits14() > 1 && Race_State(0) == 10 ? 1 : p;
+    const Car *c = Car_Get(car);
+    int32_t cp[3], d[3], rel[3], u[3];
+    Camera_Position(v, cp);
+    for (int k = 0; k < 3; k++) d[k] = cp[k] - CI32(c, 0x2d0 + 4u * (uint32_t)k);
+    if (Vec_Length(d) >= 0x640000) return f;
+    Camera_Velocity(p, rel);
+    for (int k = 0; k < 3; k++) rel[k] -= CI32(c, 0x408 + 4u * (uint32_t)k);
+    if (Vec_Length(rel) > 0x320000) {
+        normalise(rel);
+        for (int k = 0; k < 3; k++) rel[k] = fx_mul(rel[k], 0x320000);
+    }
+    for (int k = 0; k < 3; k++) u[k] = rel[k];
+    normalise(d);
+    normalise(u);
+    int32_t dot = fx_mul(d[2], u[2]) + fx_mul(d[0], u[0]) + fx_mul(d[1], u[1]);
+    for (int k = 0; k < 3; k++) rel[k] = fx_mul(rel[k], dot);
+    int32_t h = (int32_t)(f >> 1) << 16;
+    if (dot > 0) {
+        int32_t q = (int32_t)(((int64_t)Vec_Length(rel) << 16) / 0xd3d70) + 0x10000;
+        if (q <= 0x8000) return (uint32_t)(h >> 16) << 1;
+        return (uint32_t)((int32_t)(((int64_t)h << 16) / q) >> 16) << 1;
+    }
+    if (dot < 0) {
+        int32_t q = 0x10000 - (int32_t)(((int64_t)Vec_Length(rel) << 16) / 0xd3d70);
+        if (0x8000 < q) h = (int32_t)(((int64_t)h << 16) / q);
+        return (uint32_t)(h >> 16) << 1;
+    }
+    return f;
+}
+
+/* a band frequency for car, shifted while its replay plays */
+static uint32_t shifted(int car, uint32_t f) { return replaying(car) ? Engine_Doppler(car, car, (uint16_t)f) & 0xffff : f; }
+
 /* 0x47a3d0: the gearbox whine by the speed (the band 0x51ede8: 193 steps over 0-160). A gear up
    stops the fast loops (ft, rt) and dips the whine for one second of stage time, from a moment
    now or (one time in four, by rand) a second later, by the curve 0x51f310 (23 steps); the whine
@@ -178,8 +246,7 @@ static void whine(int car, int player, int speed, int gear, int throttle)
             whine_lvl[car] = 0;
         if (!gm8(0x539ed8) && in_band(speed, &b)) {   /* 0x427aa0 */
             if (!Voice_Playing(v_whine[car])) return;
-            PENDING_NOTE(0x41f3d0, "the cars' records (0x537f3c): the whine's Doppler 0x427e20");
-            Voice_SetFrequency(v_whine[car], band_freq(speed, &b));
+            Voice_SetFrequency(v_whine[car], shifted(car, band_freq(speed, &b)));
             int v = band_vol(speed, &b);
             if (0 < gear && gear < 4) v -= dip;
             if (v < 0) v = 10;
@@ -329,8 +396,7 @@ static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int
     } else {
         int32_t b = pct(band_vol(rpm2, &mid));
         int32_t off = 0x10000 - (int32_t)(((int64_t)CI32(c, 0x79c) << 16) / CI32(c, 0x788));
-        uint32_t f = band_freq(rpm2, &mid);
-        PENDING_NOTE(0x427e20, "Engine_Doppler (the replay)");
+        uint32_t f = shifted(car, band_freq(rpm2, &mid));
         if (Voice_Playing(v_fm[car])) {
             Voice_SetFrequency(v_fm[car], f);
             Voice_SetVolume(v_fm[car], fx_mul(off, fx_mul(fade, fx_mul(master, fx_mul(b, k_fm)))));
@@ -357,7 +423,7 @@ static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int
         int b = band_vol(rpm2, &fast);
         chattered[car] = 0;
         uint32_t cls = exe_u32(0x516b40 + 4u * (gm32(0x531350 + 0x30u * (uint32_t)car) & 0x3f));
-        uint32_t f = band_freq(rpm2, &fast);
+        uint32_t f = shifted(car, band_freq(rpm2, &fast));
         int32_t v = (thr[car] * b / 100 << 16) / 100;
         Voice_SetFrequency(loop_voice(&v_ft[car], car, FT, exe_u32(0x51f2a0 + 4 * cls)), f);
         Voice_SetVolume(v_ft[car], fx_mul(fade, fx_mul(master, fx_mul(v, k_ft))));

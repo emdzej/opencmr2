@@ -27,6 +27,7 @@ void Camera_Step(int player);                             /* 0x4219b0 */
 int Camera_Next(int player, int state);
 void Camera_Frame(int player, int32_t frac, Obj *camera); /* 0x422140 */
 void Camera_Projection(int player);                       /* 0x422d40 */
+void Camera_Velocity(int player, int32_t v[3]);          /* 0x4220d0 */
 void Camera_Position(int player, int32_t pos[3]);          /* the step's camera (0x538d28 + 0x38) */
 int32_t Camera_Zoom(int player);                           /* its +0x54 (0x538d7c), read by the weather */
 void Camera_Forward(int player, int32_t f[3]);             /* the step camera's forward axis (0x538d28 + 0x28) */

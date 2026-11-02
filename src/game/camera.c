@@ -820,6 +820,11 @@ void Camera_Projection(int p)
 
 void Camera_Position(int p, int32_t pos[3]) { pos[0] = out[p].m[12], pos[1] = out[p].m[13], pos[2] = out[p].m[14]; }
 int32_t Camera_Zoom(int p) { return out[p].f54; }
+/* 0x4220d0: the step camera's move since the last step (0x538d30 less 0x538e40, 100 n on) */
+void Camera_Velocity(int p, int32_t v[3])
+{
+    for (int k = 0; k < 3; k++) v[k] = p >= 0 && p < 4 ? out[p].m[12 + k] - prev[p].m[12 + k] : 0;
+}
 /* 0x4baca0 on 0x538d30 + 100 n: the third row of the step camera's matrix (the original indexes the
    records by any car's number, past the players'; the port gives zero there) */
 void Camera_Forward(int p, int32_t f[3])

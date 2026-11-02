@@ -510,7 +510,7 @@
 00427ad0	Band_Volume	audio	high	A band's volume (percent) between its two nearest steps
 00427b70	Band_Frequency	audio	high	A band's frequency between its two nearest steps
 00427d50	Engine_DistanceFade	audio	high	Full within 2 units of the camera, silent beyond 100
-00427e20	Engine_Doppler	audio	med	The replay's Doppler shift of an engine's frequency
+00427e20	Engine_Doppler	audio	confirmed	The replay's Doppler shift of an engine's frequency
 00427c10	Race_SoundSetup	race	high	The engines at a third of the effects volume and the other volumes
 0047aa60	Engine_SetMaster	audio	high	The engines' master volume (0x58dda8)
 004bb0a0	Vec_Length	math	high	A vector's length, over 512 first beyond 100 units an axis
@@ -678,7 +678,7 @@
 00463270	Fx_WheelLight	world	high	The light colour under a car's wheel (0x543f28)
 0045b580	Wheels_Dust	world	high	The wheels' dust and snow particles (types 4, 6, 8; 7/11 for a flagged car)
 00465d70	Wheel_Slip	world	high	A wheel's slip as 0..1 from +0x880 and +0x870
-0041f3d0	Car_RecordFlag	race	medium	The +4 word of a car's record in the table at 0x537f3c
+0041f3d0	Car_RecordFlag	race	confirmed	The car's replay (0x537f3c) playing: its +4 word
 0041b390	Race_Procs	race	high	The race's process group (0x537dd0)
 0045c750	Stats_WheelSpin	game	medium	A player's per-wheel spin tallies in its profile record (via 0x408a60)
 004b2f80	Dlight_Add	render	high	A Direct3D light record (point, spot, directional) set and on, with an object under a parent
@@ -1040,3 +1040,4 @@
 004f0110	Fe_DuelStart	fe	confirmed	The two players' single race options kept, the start
 00428bf0	Cars_Lod	car	confirmed	Which cars get their full models: the nearest three on the screen within 60 units
 0046b760	Car_SetNear	car	confirmed	A car near (full models) or far (0x588bb4)
+004220d0	Camera_Velocity	camera	confirmed	The step camera's move since the last step

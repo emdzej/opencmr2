@@ -5,6 +5,7 @@
 #include "world/tre.h"
 #include "game/shadow.h"
 #include "game/effects.h"
+#include "game/replay.h"
 #include "game/profile.h"
 #include <stdbool.h>
 #include <math.h>
@@ -839,13 +840,11 @@ int32_t Wheel_Slip(int car, int w)
     return a < 0x10000 ? a : 0x10000;
 }
 
-/* Car_RecordFlag 0x41f3d0: the +4 word of the car's record in the table at 0x537f3c (a heap pointer
-   per car, set up by the race's loads); that table is not ported: clear, as for a player's car */
+/* Car_RecordFlag 0x41f3d0: the +4 word of the car's replay (0x537f3c): playing */
 static int32_t Car_RecordFlag(int car)
 {
-    (void)car;
-    PENDING_NOTE(0x41f3d0, "the cars' records (0x537f3c)");
-    return 0;
+    const Replay *r = Race_Replay(car);
+    return r && Replay_Playing(r);
 }
 
 /* Wheels_Dust 0x45b580: what each touching wheel throws up: dust (type 8) or snow (type 4) from

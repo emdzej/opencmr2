@@ -1,5 +1,6 @@
 /* The race times and the HUD (see hud.h). */
 #include "game/hud.h"
+#include "game/replay.h"
 #include "game/profile.h"
 #include "crt.h"
 #include "text.h"
@@ -456,11 +457,11 @@ void Hud_LoadSounds(void)
 }
 
 /* 0x411ab0: at a split, "up" at 22,050 Hz when ahead of the reference, else "down" at 11,025, at
-   half the speech volume; not with 0x52ea52 set, nor for a car whose type record (0x537f3c, 0x41f3d0)
-   has +4 set (that table is not ported; a player's car is taken as clear) */
-static void split_beep(bool ahead)
+   half the speech volume; not with 0x52ea52 set, nor while the car's replay plays (0x41f3d0) */
+static void split_beep(int car, bool ahead)
 {
-    if (Gs_Byte52ea52()) return;
+    const Replay *r = Race_Replay(car);
+    if (Gs_Byte52ea52() || (r && Replay_Playing(r))) return;
     int32_t v = Codriver_Level() / 2;
     if (ahead) Voice_Play((int)gm32(0x536ecc), v, 0x5622, 0, false, false);
     else Voice_Play((int)gm32(0x537060), v, 0x2b11, 0, false, false);
@@ -488,7 +489,7 @@ static void lap_sounds(int p)
     if (k == 1) {
         if (Sectors_LapFirst(p)) {
             if (Times_Place(p) == 0) Voice_Play(blip + 1, lvl, 0xac44, 0, false, false);
-            else split_beep(true);   /* 0x411ab0 */
+            else split_beep(p, true);   /* 0x411ab0 */
             gw32(0x536fec, (uint32_t)((int)(w >> 3 & 0xf) - (int16_t)gm16(0x53d1a2) / 100));   /* 0x4082d0, 0x448c70 */
         }
         if (gm8(0x53d1a6) && (int8_t)gm8(0x53d1a8) != p) {   /* 0x448c90, 0x448c80 */
@@ -525,7 +526,7 @@ static void rally_split(int p)
         int32_t mine = idx < 12 ? my_split[p][idx] : 0, prev = idx == 0 ? hud_time[p] : my_split[p][idx - 1 < 12 ? idx - 1 : 11];
         int32_t rp = idx == 0 ? gms32(0x536e90) : ref_split[idx - 1];
         gw32(BAR_COL(p, idx) - 4, gm32(mine - prev < ref_split[idx < 12 ? idx : 11] - rp ? 0x51709c : 0x5170a0));
-        if (idx != 0) split_beep(mine < ref_time[p]);   /* 0x411ab0 */
+        if (idx != 0) split_beep(p, mine < ref_time[p]);   /* 0x411ab0 */
     }
     split_idx[p] = idx;
     uint32_t m = Gs_Mode();
