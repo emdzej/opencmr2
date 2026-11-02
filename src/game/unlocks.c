@@ -239,3 +239,32 @@ void Unlocks_AfterStage(void)
             break;
         }
 }
+
+/* 0x406580: the stages' "new" marks (bit 1 of 0x52e898, eight rows of eleven: a rally's stages, the
+   last its super special) taken off what the progress has opened: by the progress's three counts
+   (0x52b03c bits 8-11, 12-15, 16-19, the last with its bit 0) the first four, next four and last two
+   stages of the rallies before each count, and the first stage of the first four rows always. An even
+   row's last byte is set to 4; an odd row's super special loses its mark once any of 0x52b040's three
+   five-bit fields has its rally's bit. */
+void Unlocks_ClearNew(void)
+{
+    uint32_t prog = gm32(PROG), prog2 = gm32(PROG2);
+    for (uint32_t u = 0; u < 8; u++) {
+        uint32_t row = 0x52e898 + 0xb * u;
+        if (row < 0x52e8c4) gw8(row, gm8(row) & 0xfd);
+        if (u < (prog >> 8 & 0xf)) {
+            for (uint32_t i = 0; i < 4; i++) gw8(row + i, gm8(row + i) & 0xfd);
+            if (u < (prog >> 0xc & 0xf)) {
+                for (uint32_t i = 4; i < 8; i++) gw8(row + i, gm8(row + i) & 0xfd);
+                if (u < (prog >> 0x10 & 0xf) && (prog & 1))
+                    for (uint32_t i = 8; i < 10; i++) gw8(row + i, gm8(row + i) & 0xfd);
+            }
+        }
+        if ((u & 1) == 0) gw8(row + 10, 4);
+        else {
+            uint32_t bit = 1u << (((u + 1) / 2 - 1) & 0x1f);
+            if (((bit & prog2 & 0x1f) || (bit & (prog2 >> 5) & 0x1f) || (bit & (prog2 >> 10) & 0x1f)) && (gm8(row + 10) & 2))
+                gw8(row + 10, gm8(row + 10) & 0xfd);
+        }
+    }
+}

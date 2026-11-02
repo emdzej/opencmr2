@@ -8,3 +8,4 @@
 bool Player_CarDriven(int player, uint32_t car);       /* 0x409010: true when newly marked */
 bool Player_HasDriven(int player, int car, bool cheat);   /* 0x408e30 */
 void Unlocks_AfterStage(void);                         /* 0x41b460 */
+void Unlocks_ClearNew(void);                           /* 0x406580 */

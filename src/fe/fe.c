@@ -6,6 +6,7 @@
 #include "fe/fe_page.h"
 #include "fe/movie.h"
 #include "game/gstate.h"
+#include "game/unlocks.h"
 #include "world/tod.h"
 #include "audio/snd.h"
 #include "audio/music.h"
@@ -222,7 +223,7 @@ static void st_startup(ProcGroup *g, uint32_t s)
         Paths_Init();
         Options_Defaults();
         for (int i = 0; i < 0x16; i++) gw32(0x52e898 + 4 * (uint32_t)i, 0x03030303);   /* 0x406560 */
-        PENDING_NOTE(0x406580, "the unlocks' new marks");
+        Unlocks_ClearNew();   /* 0x406580 */
         /* the input devices (0x49eaf0(2)); GameInfo.rcf (0x4ea5e0); the network leaderboards
            (0x40e3c0, 0x40e3f0) are not kept by the port yet; Controller.rcf (0x40bf70) */
         Input_Init();
@@ -271,7 +272,7 @@ static void st_startup(ProcGroup *g, uint32_t s)
         Fe_DemoRestore();   /* 0x4ead10 */
         gw8(0x52ea52, 0);
     }
-    PENDING_NOTE(0x406580, "the unlocks' new marks");
+    Unlocks_ClearNew();   /* 0x406580 */
     GameInfo_Save();   /* 0x4ea840 (the leaderboards 0x40e470 not kept yet) */
     Ctl_Save();        /* 0x40bff0 */
     Input_SetMenuMode(true);
@@ -466,7 +467,7 @@ static void st_leave(ProcGroup *g, uint32_t s)
         if (m < 8 || m > 12) Weather_Choose();   /* 0x40dc30 */
         Fe_CarSetups();     /* 0x406820 */
         gw8(0x52f2a8, 0xff);   /* 0x4068d0 */
-        PENDING_NOTE(0x406580, "the unlocks' new marks");
+        Unlocks_ClearNew();   /* 0x406580 */
         if (!gm8(0x52ea52)) {
             if (to_game || to_stage || to_race) {
                 uint32_t sel = gm32(0x52f2ac);   /* 0x4ea9c0: rally and stage into bits 23-30 */
