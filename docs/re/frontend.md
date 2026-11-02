@@ -157,6 +157,15 @@ state 9 once every player has finished (0x44a1b0). For one player on a single st
 5. The choices (0x44af70, 0x453c50): restart, restart at the service area, quit. Each fades out and posts
    the race's event 1, as the pause menu does.
 
+The board and the rally's lists (0x53f008, 0x53e4b8, 0x53e6a0, 0x541ae0) let only the keys 0x3c through
+(0x448e70). Up (4) or down (8) that is not at that end of the list starts the tween 0x5418c0 (curve 2,
+7 steps): down from 0 to 1 (0x53f5a8), up from 1 to 0 (0x5413f8). While it moves, 0x540c60 holds the
+value times a row's height (52 of 480), and the draws take it off every y. Only five rows are drawn,
+one place lower than normal: down starts them at the old top, up at the old second. So the row that
+comes into view appears only when the tween ends (confirmed headless: after up, places 11-15 slide
+down and place 10 appears at the end). The box around a list row's place also takes the row's
+10-pixel drop (0x53e698).
+
 The computer drivers' times come from the stage's `.tm` file for the difficulty (Stage_LoadTm 0x455300,
 `src/game/opponents.c`). The file holds sixteen drivers, each with a base, a random range and dry and
 wet adjustments, and each split's dry and wet times. From these, 0x455470-0x456960 work out:

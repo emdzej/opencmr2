@@ -40,6 +40,13 @@ static int32_t alt_time[4];        /* 0x541cdc: each player's time, by Race_Base
 static uint8_t alt_who[4];         /* 0x541cec: and whose it is */
 static bool last_stage, last_player;   /* DAT_00541210, DAT_00540898 */
 static Menu *page, *next;          /* DAT_00541cc8, DAT_00541ccc */
+/* the list pages' scroll (0x448e70): a row's height times 0x5418c0's tween, taken off every row's y
+   (0x540c60); moving down or up (0x53f5a8, 0x5413f8) the rows are a place lower and one fewer */
+static int scroll_off, scroll_dn, scroll_up;
+
+static int row_count(void) { return 6 - (scroll_dn || scroll_up); }
+static int row_pos(int i) { return i + (scroll_dn || scroll_up); }
+static int row_idx(const Menu *m, int k) { return (scroll_dn ? m->items[0].value - 1 : m->items[0].value) + k; }
 static Menu *shown;                /* DAT_00541dfc */
 static int settle;                 /* DAT_00541e00 */
 static bool active;
@@ -234,13 +241,14 @@ static void draw_record(Menu *m)
     Font_SetLayer(2);
 }
 
-/* 0x44ec30: a box around row k's place, dy lower (the list's scroll, 0x540c60 and 0x53e698, is not
-   ported; nothing passes the closer rows of its third argument) */
+/* 0x44ec30: a box around row k's place, dy lower (the row's drop 0x53e698 and the caller's), less
+   the scroll (nothing passes the closer rows of its third argument) */
 static void place_box(int k, int dy)
 {
     int w, h;
     screen(&w, &h);
-    int x0 = w * 0x20 / 0x280, x1 = w * 0x41 / 0x280, y0 = h * 0x82 / 0x1e0 + k * (h * 0x34 / 0x1e0) + dy, y1 = h * 0xa3 / 0x1e0 + k * (h * 0x34 / 0x1e0) + dy;
+    int x0 = w * 0x20 / 0x280, x1 = w * 0x41 / 0x280, y0 = h * 0x82 / 0x1e0 + k * (h * 0x34 / 0x1e0) + dy - scroll_off,
+        y1 = h * 0xa3 / 0x1e0 + k * (h * 0x34 / 0x1e0) + dy - scroll_off;
     int16_t a[4] = {(int16_t)(x0 + 2), (int16_t)y0, (int16_t)(x1 - x0 - 4), 2};
     Rect_Fill(a, C(0x519ecc), 2);
     int16_t b[4] = {(int16_t)(x0 + 2), (int16_t)(y1 - 2), (int16_t)(x1 - x0 - 4), 2};
@@ -254,8 +262,8 @@ static void place_box(int k, int dy)
 /* 0x40ede0: a car's name in the race's text */
 static const char *car_name(int car) { return Text_Get(car + 0xc2); }
 
-/* 0x44d960: the rally and stage, then six places from the page's value: the name (a player's
-   highlighted), the car, the time and the place (or "=" for a tie) */
+/* 0x44d960: the rally and stage, then six places from the page's value (scrolled as the lists): the
+   name (a player's highlighted), the car, the time and the place (or "=" for a tie) */
 static void draw_board(Menu *m)
 {
     int w, h;
@@ -275,14 +283,14 @@ static void draw_board(Menu *m)
         const char *t[2] = {Text_Get((int)Tod_Rally()), stage};
         titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 2);
     }
-    for (int k = 0; k < 6; k++) {
-        int idx = m->items[0].value + k, driver = Opp_Order(idx);
+    for (int i = 0, n = row_count(); i < n; i++) {
+        int k = row_pos(i), idx = row_idx(m, k), driver = Opp_Order(idx);
         int32_t tm = Opp_Time(idx);
         int who = -1;
         for (int p = 0; p < (int)(gm32(0x52afb4) >> 13 & 0xf); p++)
             if (Opp_Place(p) == idx) { who = p; break; }
         char b[96];
-        int y = h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - h * 8 / 0x1e0;
+        int y = h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - h * 8 / 0x1e0 - scroll_off;
         snprintf(b, sizeof b, "%s", who >= 0 ? player_name(who) : exe_str(0x5166b4 + 0x14u * (uint32_t)(driver < 0 || driver > 15 ? 0 : driver)));
         Font_Print(1, b, w * 0x5c / 0x280, y, C(0x519ecc), 9);
         print_time(b, sizeof b, tm);
@@ -290,7 +298,7 @@ static void draw_board(Menu *m)
         if (who >= 0) {
             snprintf(b, sizeof b, "%s", car_name((int)(gm32(0x531350 + 0x30u * (uint32_t)who) & 0x3f)));
             Text_ToFontCase(b);
-            int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - 1),
+            int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - 1 - scroll_off),
                             (int16_t)(w * 0x41 / 0x280 - w * 0x20 / 0x280), (int16_t)(h * 0xa3 / 0x1e0 - h * 0x82 / 0x1e0 + 1)};
             Rect_Fill(r, C(0x519ed8), 2);
         } else {
@@ -299,11 +307,11 @@ static void draw_board(Menu *m)
             Text_ToFontCase(b);
             place_box(k, 0);
         }
-        Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k, C(0x519ecc), 0x21);
+        Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k - scroll_off, C(0x519ecc), 0x21);
         if (Opp_Time(idx - 1) == tm) snprintf(b, sizeof b, "%s", exe_str(0x519f70));
         else snprintf(b, sizeof b, exe_str(0x517dd0), idx + 1);
         int x0 = w * 0x20 / 0x280, y0 = h * 0x82 / 0x1e0;
-        Font_Print(1, b, (w * 0x41 / 0x280 - x0) / 2 + x0, h * 8 / 0x1e0 + (h * 0xa3 / 0x1e0 - y0) / 2 + (h * 0x34 / 0x1e0) * k + y0, C(0x519ecc), 0x12);
+        Font_Print(1, b, (w * 0x41 / 0x280 - x0) / 2 + x0, h * 8 / 0x1e0 + (h * 0xa3 / 0x1e0 - y0) / 2 + (h * 0x34 / 0x1e0) * k - scroll_off + y0, C(0x519ecc), 0x12);
     }
     Font_SetLayer(2);
 }
@@ -707,7 +715,7 @@ static void place_fill(int k, int dy)
     uint8_t c[4];
     memcpy(c, C(0x519ed4), 4);
     c[3] = 0xff;
-    int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - 1 + dy),
+    int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - 1 + dy - scroll_off),
                     (int16_t)(w * 0x41 / 0x280 - w * 0x20 / 0x280), (int16_t)(h * 0xa3 / 0x1e0 - h * 0x82 / 0x1e0 + 1)};
     Rect_Fill(r, c, 2);
 }
@@ -717,7 +725,7 @@ static void place_line(int k)
 {
     int w, h;
     screen(&w, &h);
-    int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k + h * 0x2f / 0x1e0), (int16_t)(w * 0x240 / 0x280), 1};
+    int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k + h * 0x2f / 0x1e0 - scroll_off), (int16_t)(w * 0x240 / 0x280), 1};
     Rect_Fill(r, C(0x519ecc), 2);
 }
 
@@ -734,8 +742,8 @@ static int8_t sb(uint32_t va) { return (int8_t)gm8(va); }
    (L_CHAMP: the championship's points by their order 0x533538, a player by its slot, equal points
    with the wins, 0xb9 or 0xb7, and "=" when the wins are equal too). Each row: the name, the value,
    the car, the place; the first two with the places after the sixth shown 10 lower when the list
-   starts in the first six, the computers' first six places filled, a line after the sixth. (The
-   scrolling offsets 0x540c60, 0x53f5a8, 0x5413f8 are 0: the list's tweens are not ported.) */
+   starts in the first six (0x53e698, the place box lowered too), the computers' first six places
+   filled, a line after the sixth; all less the scroll. */
 static void list_rows(Menu *m, int kind)
 {
     int w, h;
@@ -743,8 +751,8 @@ static void list_rows(Menu *m, int kind)
     int np = (int)Gs_Players();
     uint8_t pts[16];   /* 0x5418c4: the points by their order */
     for (uint32_t k = 0; k < 16; k++) pts[k] = (uint8_t)(gms32(0x533558 + 4u * (uint32_t)sb(0x533538 + k)) >> 16);
-    for (int k = 0; k < 6; k++) {
-        int idx = m->items[0].value + k;
+    for (int i = 0, n = row_count(); i < n; i++) {
+        int k = row_pos(i), idx = row_idx(m, k);
         int dy = kind == L_CHAMP || idx < 6 || m->items[0].value > 5 ? 0 : h * 10 / 0x1e0;
         int driver = kind == L_CHAMP ? sb(0x533538 + (uint32_t)idx) : sb(0x533638 + (uint32_t)idx);   /* 0x40d050, 0x40d390 */
         int who = -1;
@@ -754,7 +762,7 @@ static void list_rows(Menu *m, int kind)
             if (hit) { who = p; break; }
         }
         char b[96];
-        int y = h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - h * 8 / 0x1e0 + dy;
+        int y = h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - h * 8 / 0x1e0 + dy - scroll_off;
         snprintf(b, sizeof b, "%s", who >= 0 ? player_name(who) : exe_str(0x5166b4 + 0x14u * (uint32_t)(driver < 0 || driver > 15 ? 0 : driver)));
         Font_Print(1, b, w * 0x5c / 0x280, y, C(0x519ecc), 9);
         if (kind == L_TIMES) print_time(b, sizeof b, champ_cs(gms32(0x533658 + 4u * (uint32_t)driver)));   /* 0x40d3b0 */
@@ -764,7 +772,7 @@ static void list_rows(Menu *m, int kind)
         if (who >= 0) {
             snprintf(b, sizeof b, "%s", car_name((int)(gm32(0x531350 + 0x30u * (uint32_t)who) & 0x3f)));
             Text_ToFontCase(b);
-            int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - 1 + dy),
+            int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - 1 + dy - scroll_off),
                             (int16_t)(w * 0x41 / 0x280 - w * 0x20 / 0x280), (int16_t)(h * 0xa3 / 0x1e0 - h * 0x82 / 0x1e0 + 1)};
             Rect_Fill(r, C(0x519ed8), 2);
         } else {
@@ -772,9 +780,9 @@ static void list_rows(Menu *m, int kind)
             int car = driver >= 0 && driver <= 0xe ? gm8(0x51681c + (uint32_t)driver) : 0;   /* 0x407fc0 */
             snprintf(b, sizeof b, "%s", car_name(car));
             Text_ToFontCase(b);
-            place_box(k, 0);
+            place_box(k, dy);
         }
-        Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k + dy, C(0x519ecc), 0x21);
+        Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k + dy - scroll_off, C(0x519ecc), 0x21);
         snprintf(b, sizeof b, exe_str(0x517dd0), idx + 1);
         if (kind == L_CHAMP && pts[idx])
             for (int j = 0; j < 16; j++) {
@@ -788,7 +796,7 @@ static void list_rows(Menu *m, int kind)
                 break;
             }
         int x0 = w * 0x20 / 0x280, y0 = h * 0x82 / 0x1e0;
-        Font_Print(1, b, (w * 0x41 / 0x280 - x0) / 2 + x0, h * 8 / 0x1e0 + (h * 0xa3 / 0x1e0 - y0) / 2 + (h * 0x34 / 0x1e0) * k + y0 + dy, C(0x519ecc), 0x12);
+        Font_Print(1, b, (w * 0x41 / 0x280 - x0) / 2 + x0, h * 8 / 0x1e0 + (h * 0xa3 / 0x1e0 - y0) / 2 + (h * 0x34 / 0x1e0) * k - scroll_off + y0 + dy, C(0x519ecc), 0x12);
         if (kind != L_CHAMP && idx == 5 && m->items[0].value) place_line(k);
     }
     Font_SetLayer(2);
@@ -1394,7 +1402,29 @@ void Results_Step(void)
     uint32_t b = Input_Record(0)->pressed;
     if (Gs_Mode() == 0 && (gm8(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160) b &= 0x10;   /* 0x407270 */
     if (page == &pg_title) b &= 0xffdf;
-    /* the list pages' scrolling (0x4bc290's tweens) not ported */
+    /* the list pages: only the keys 0x3c pass; up (4) or down (8) not at that end of the list starts
+       the scroll (curve 2 over 7 steps), its value (0x541cf4) the share of a row. (0x448e70 also
+       notes the time of a page change in 0x53fd50, never read.) */
+    if (page == &pg_rally || page == &pg_board || page == &pg_rpoints || page == &pg_champ) {
+        uint32_t keys = b;
+        b &= 0x3c;
+        MenuItem *it = &page->items[0];
+        if ((keys & 4) && it->value) {
+            Tween_Start(0x5418c0, 2, 7, 0, 0x10000, 0, false);   /* 0x4bc290 */
+            scroll_up = 1;
+        } else if ((keys & 8) && it->value < it->count - 1) {
+            Tween_Start(0x5418c0, 2, 7, 0, 0, 0x10000, false);
+            scroll_dn = 1;
+        }
+        if (!Tween_Active(0x5418c0)) scroll_dn = scroll_up = scroll_off = 0;   /* 0x4bc0c0 */
+        else {
+            int32_t v = Tween_Value(gm8(0x5418c0));   /* 0x4bc110 */
+            int sw, sh;
+            screen(&sw, &sh);
+            scroll_off = (int32_t)(((int64_t)((sh * 0x34 / 0x1e0) * 0x10000) * v) >> 16) >> 16;
+        }
+    } else
+        scroll_dn = scroll_up = scroll_off = 0;
     Menu *to = Menu_Input(page, b);
     if (to) next = to;
 }
