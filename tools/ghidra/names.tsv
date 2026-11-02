@@ -880,8 +880,8 @@
 004f0090	Fe_RaceOptions	fe	high	Single race options kept, the start
 00420190	Cars_Racing	game	high	The cars racing: players and CPU cars (bit 26), two (bit 27), else the players
 00456ca0	Cars_Count	game	high	The cars loaded: Cars_Racing, plus the ghost, 1..8
-004584d0	Cars_Grid	game	high	The start grid at 0x542cd8 (case 0 the arcade)
-004583d0	Csp_GridStart	game	medium	A car start: the grid with bits 26/31
+004584d0	Cars_Grid	game	high	The start grid at 0x542cd8 (case 0 the arcade, case 1 the head to head's sides)
+004583d0	Csp_GridStart	game	high	A car start: the grid with bits 26/31, the head to head's second start for the car off 0x542cb0's side
 0047b620	Car_CpuControls	ai	high	A car without a pad: the computer driver with selection bit 26
 0047bda0	Ai_Init	ai	high	The bias inputs, the start revs, the car counts
 0047bdc0	Ai_Go	ai	high	The start revs and the CPU cars launched
@@ -980,7 +980,7 @@
 0046d3f0	Replay_Save	replay	high	The replay's image written to a file
 0046d470	Replay_Layout	replay	confirmed	The block's pointers from its counts and kind
 0041c260	Replay_Setup	race	confirmed	The race's replays: one per player, the CPU runs, the ghost, champend
-0041c1b0	Replay_LoadCpuRun	race	high	A CPU run's .rpl by the stage and time of day
+0041c1b0	Replay_LoadCpuRun	race	high	A CPU run's .rpl: <stage dir>\\CPU_Runs\\<rally><stage><side><n|i|e>.rpl
 0041e220	Replay_Again	race	confirmed	A player's replay fade's call: the replays from the start
 004207a0	Progress_Reset	sim	confirmed	A car's progress record started again (the +0x14 of record 2n cleared)
 00421510	Progress_Record	sim	confirmed	Car n's progress record (6 ints at 0x538aa8)
@@ -1459,3 +1459,9 @@
 004fe240	Ctlpg_DrawDevice	frontend	high	The device's Configuration page
 004ff060	Ctlpg_ItemGauge	frontend	high	An axis row's gauge by its state
 004ff0f0	Ctlpg_Gauge	frontend	high	An axis gauge: dead zone, saturation and position marks
+0046c320	Replay_Snap1Save	replay	high	Kind 1 snapshot: +0x7a4, the car reset on its start and launched, its progress
+0046c390	Replay_Snap1Restore	replay	high	Kind 1 snapshot into the car: reset, launched, progress, weather, knocked scenery
+00408500	Player_Driver	player	high	The computer driver a player record races as (bits 14-17), -1 for a guest
+004213d0	Progress_SetPoint	sim	high	A car's centre-line point set (with a centre line)
+00458480	Cars_GridPoints	race	high	Each racing car's progress at its grid point (0x542d38, 16.16)
+004584c0	Sectors_Side	race	high	The head to head's side (0x542cb0)

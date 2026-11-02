@@ -67,7 +67,7 @@ static bool load_stage(void)
 static bool load_cars(void)
 {
     int n = Cars_Count();
-    if (Gs_SelBit22() || Gs_SelBit31()) Cars_Grid();   /* 0x4584d0 */
+    if (Gs_SelBit22() || Gs_SelBit31()) Cars_Grid(false);   /* 0x4584d0 */
     for (int i = 0; i < n; i++) {
         if (!Car_Load(i)) {
             plat_log("play: a car could not be loaded");
@@ -75,6 +75,7 @@ static bool load_cars(void)
         }
         Car_ProgressStart(Car_Get(i));
     }
+    if (Gs_SelBit22()) Cars_GridPoints();   /* 0x458480 */
     Sim_InitLists(n);
     Damage_CarsLoaded();
     Tyres_Start(false, false, (int)Gs_SelBits14());   /* 0x45c610 */
@@ -172,6 +173,9 @@ bool Play_Begin(void)
         plat_log("play: no such stage");
         return false;
     }
+    /* the stage's directory (Race_Setup 0x41f560's 0x53823c, "Game\\Tracks\\<country>"; 0x41f8e0 gives it) */
+    const char *slash = strrchr(st_path, '\\');
+    snprintf((char *)gm(0x53823c), 0x104, "%.*s", slash ? (int)(slash - st_path) : 0, st_path);
     memset(cameras, 0, sizeof cameras);
     for (int i = 0; i < 2; i++) {
         cameras[i].kind = 3;

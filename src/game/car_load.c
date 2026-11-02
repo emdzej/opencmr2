@@ -3,6 +3,9 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/select.h"
+#include "game/sectors.h"
+#include "game/timer.h"
+#include "crt.h"
 #include "sim/progress.h"
 #include "fixmath.h"
 #include "bfl.h"
@@ -253,13 +256,16 @@ int Cars_Count(void)
     return n < 1 ? 1 : n > CAR_MAX ? CAR_MAX : n;
 }
 
-/* 0x4584d0 (in Cars_Load with selection bit 22 or 31): the start grid at 0x542cd8 for the
-   Cars_Racing cars. Case 0, the arcade: along the centre line's first step (from its last point before
-   the finish to point 0), slot k of car i (the championship's order 0x533620 in mode 5 with more
-   than two; two players swapped) 5 k - 5 n units along it (-10 for two cars), 4 to the right for even
-   k and the left for odd; the car's progress start (0x542d38 + 4 k) at the last point. The other
-   cases (bit 31, the network, two cars) are pending. */
-void Cars_Grid(void)
+/* 0x4584d0 (in Cars_Load with selection bit 22 or 31, again on a restart and a car 0 replay's
+   start): the start grid at 0x542cd8 for the Cars_Racing cars. Case 0, the arcade: along the centre
+   line's first step (from its last point before the finish to point 0), slot k of car i (the
+   championship's order 0x533620 in mode 5 with more than two; two players swapped) 5 k - 5 n units
+   along it (-10 for two cars), 4 to the right for even k and the left for odd; the car's progress
+   start (0x542d38 + 4 k) the last point (a whole number, which 0x458480 takes as 16.16: point 0).
+   Case 1, the head to head (bit 27, two cars): the side (0x542cb0, kept in 0x542cd4 when `keep`)
+   drawn, rand() <= 0x3fff after srand(the time); the car on it starts at point 0, the other at the
+   second split (Csp_StartPos gives its place). The other cases (bit 31, the network) are pending. */
+void Cars_Grid(bool keep)
 {
     int n = Cars_Racing();
     int kind = 0;
@@ -272,8 +278,20 @@ void Cars_Grid(void)
             kind = 1;
         }
     }
+    if (kind == 1) {
+        uint32_t side;
+        if (keep) side = gm32(0x542cd4);
+        else {
+            crt_srand(Timer_Now());
+            side = crt_rand() <= 0x3fff;
+        }
+        gw32(0x542cd4, side);
+        gw32(0x542cb0, side);
+        for (uint32_t k = 0; k < 2; k++) gw32(0x542d38 + 4 * k, (side + k) & 1 ? (uint32_t)Sectors_Point(1) : 0);
+        return;
+    }
     if (kind != 0) {
-        PENDING_NOTE(0x4584d0, "Cars_Grid (the head to head, bit 31 and network grids)");
+        PENDING_NOTE(0x4584d0, "Cars_Grid (bit 31 and the network grids)");
         return;
     }
     int32_t a[3], b[3];
@@ -292,4 +310,10 @@ void Cars_Grid(void)
         else dx -= s, dz += c;
         Csp_SetGrid(i, b[0] + dx, b[2] + dz);
     }
+}
+
+/* 0x458480: each racing car's progress (0x4213d0) at its grid point (0x542d38, 16.16) */
+void Cars_GridPoints(void)
+{
+    for (int i = 0; i < Sectors_Cars(); i++) Progress_SetPoint(Car_Get(i), (int)gm32(0x542d38 + 4u * (uint32_t)i) >> 16);
 }

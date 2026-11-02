@@ -12,6 +12,7 @@ int Car_CatIndex(const Car *c);          /* 0x421370: the point the car is at (r
 int Car_CatIndex16(const Car *c);        /* 0x4213a0: the record's +0x14 */
 const uint8_t *Cat_Record(int i);        /* 0x421440: the 0x2c-byte record, NULL without points */
 int Cat_FinishPoint(void);                /* DAT_00538a84: the last flagged point + 1 */
+void Progress_SetPoint(Car *c, int p);    /* 0x4213d0 */
 bool Cat_Circuit(void);                   /* 0x421500 */
 void Cat_Tangent(int32_t out[3], int i);  /* 0x4201d0 */
 /* 0x420850: a car's progress started at the nearest point (on circuits) */

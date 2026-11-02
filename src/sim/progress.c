@@ -59,6 +59,17 @@ bool Stage_LoadCat(const char *stage)
 
 int Cat_Points(void) { return npoints; }
 int Cat_FinishPoint(void) { return finish; }
+
+/* 0x4213d0: the car's point (with a centre line): its index and short copy, the first two cars' count
+   (0x538c8c) cleared */
+void Progress_SetPoint(Car *c, int p)
+{
+    if (!finish) return;
+    int n = CI8(c, 0xb1a);
+    rec[n].idx = (uint32_t)p;
+    rec[n].idx16 = (uint16_t)p;
+    if (n < 2) since[n] = 0;
+}
 bool Cat_Circuit(void) { return circuit; }
 
 static void unit2(int32_t v[3])

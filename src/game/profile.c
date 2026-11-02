@@ -166,6 +166,16 @@ static void set_word(int n, uint32_t v) { gw32(0x531350 + 0x30u * (uint32_t)n, v
 static uint32_t prof_word(uint32_t p, uint32_t off) { return gm32(0x52fa1c + p * 0x650 + off); }
 static bool prof_used(uint32_t p) { return gm8(0x52fa18 + p * 0x650) && !(prof_word(p, 0) & 0x200000); }
 
+int Player_Driver(int n)
+{
+    uint32_t w = Player_Word(n);
+    if (Gs_Mode() == 4) {
+        if (strcmp((const char *)gm(0x52f3e0 + 0xc4u * (uint8_t)n), (const char *)gm(0x52ea5c)) && (uint8_t)n < 8) return -1;
+    } else if (w & 0x2000)
+        return -1;
+    return (int)(w >> 0xe & 0xf);
+}
+
 const char *Player_Name(int n)
 {
     uint32_t k = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;

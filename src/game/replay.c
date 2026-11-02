@@ -7,13 +7,19 @@
 #include "game/mem.h"
 #include "game/input.h"
 #include "game/weather.h"
+#include "game/car_load.h"
+#include "game/profile.h"
 #include "sim/car.h"
 #include "sim/damage.h"
+#include "sim/drive.h"
 #include "sim/knock.h"
 #include "sim/progress.h"
 #include "world/stage.h"
+#include "world/tod.h"
 #include "bfl.h"
+#include "exe.h"
 #include "pending.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -212,6 +218,36 @@ static void snap_restore(const uint8_t *s, int car)
     Knock_Restore();
 }
 
+/* 0x46c320: a kind 1 snapshot: the car's +0x7a4, then the car reset on its start (0x42b800) with that
+   word kept, launched and racing, its progress record (0x46c220) and the progress started again */
+static void snap1_save(uint8_t *s, int car)
+{
+    Car *c = Car_Get(car);
+    memcpy(s, c->s + 0x7a4, 4);
+    Cars_Reset(car, 1, true);
+    memcpy(c->s + 0x7a4, s, 4);
+    if (CI32(c, 0xb48) != 1) Car_Launch(c);
+    CW32(c, 0xb9c, 1);
+    Progress_Save(car, s + 4);
+    Progress_Reset(car);
+}
+
+/* 0x46c390: a kind 1 snapshot into car: the car reset on its start with the word put back, launched,
+   the progress record, the weather's records (0x45e610) and the knocked scenery (0x4702a0); 0x4083f0
+   after them is empty */
+static void snap1_restore(const uint8_t *s, int car)
+{
+    Car *c = Car_Get(car);
+    Cars_Reset(car, 1, true);
+    memcpy(c->s + 0x7a4, s, 4);
+    if (CI32(c, 0xb48) != 1) Car_Launch(c);
+    CW32(c, 0xb9c, 1);
+    Progress_Load(car, s + 4);
+    Progress_Reset(car);
+    Weather_Restart();
+    Knock_Restore();
+}
+
 /* 0x40be60: the player's profile word the playing's +0xb88 is told from */
 static int32_t profile_word(int p) { return gms32(0x532374 + gm16(0x5168f4 + 2 * (uint32_t)(p & 0xffff)) * 0x2f0); }
 
@@ -233,7 +269,12 @@ bool Replay_Start(Replay *r, int car)
         s[NCHG0] = 1;
         snap_save(s, (uint8_t)car);
     } else if (kind(r) == 1) {
-        PENDING_NOTE(0x46c320, "Replay_Start (kind 1: the CPU runs' records)");
+        uint8_t *s = snap_of(r, 0);
+        /* (kinds 1 and 2: the network game's from car 0's word) */
+        s[CHG1 + 4] = (uint8_t)(Race_ProcWord(Gs_ModeBit19() ? 0 : (uint8_t)car) >> 16);
+        w16(s + CHG1, 0), w16(s + CHG1 + 2, 0);
+        s[NCHG1] = 1;
+        snap1_save(s, (uint8_t)car);
     } else {
         PENDING_NOTE(0x46c750, "Replay_Start (kind 2: the network game's poses)");
     }
@@ -274,7 +315,8 @@ bool Replay_Play(Replay *r, int seg, int pre, int car)
     w16(r->b + 0x10a, pre ? -pre : 0);
     r->b[0x21] = 0;
     if (kind(r) == 0) snap_restore(snap_of(r, seg), (uint8_t)car);
-    else PENDING_NOTE(0x46c390, "Replay_Play (kinds 1 and 2: the car reset through 0x42b800)");
+    else if (kind(r) == 1) snap1_restore(snap_of(r, seg), (uint8_t)car);
+    else PENDING_NOTE(0x46c390, "Replay_Play (kind 2: the network game's poses)");
     /* 0x46ef20: the clouds' texture again (the clouds are not ported) */
     w32(r, 0x14, 0);
     r->b[0x10c] = kind(r) == 0 ? snap_of(r, seg)[CHG0 + 4] : snap_of(r, seg)[0x20];
@@ -364,7 +406,7 @@ static void play(Replay *r)
     }
     if (h16(r->b + 0x10a) < 0) {
         if (kind(r) == 0) snap_restore(snap_of(r, seg), r->b[0x20]);
-        else PENDING_NOTE(0x46c390, "the replay's kind 1 restore");
+        else snap1_restore(snap_of(r, seg), r->b[0x20]);
         if (h16(r->b + 0x10a) != -1) CW32(c, 0x860, 0), CW32(c, 0x864, 0), CW32(c, 0x868, 0), CW32(c, 0x86c, 0);
         w16(r->b + 0x10a, h16(r->b + 0x10a) + 1);
     }
@@ -410,9 +452,35 @@ int Replay_Frames(const Replay *r, int seg) { return r ? h16(count_of(r, seg)) :
 Replay *Race_Replay(int p) { return p >= 0 && p < 8 ? race[p] : NULL; }
 void Race_SetReplay(int p, Replay *r) { if (p >= 0 && p < 8) race[p] = r; }
 
-/* 0x41c260: the race's replays. One per player, 7,500 frames for one player alone (6,250 with two, in
-   the championship or with the CPU runs; with the ghost, bit 28, 7,500 for one). The network game's,
-   the super special's run (champend.rpl), the CPU runs (bit 25) and the ghost's .grp are not ported. */
+/* 0x41c1b0's name: <the stage's directory (0x41f8e0: 0x53823c)>\\CPU_Runs\\<rally><stage from 1><side>
+   <difficulty>.rpl (0x519294), the rally from 0x5191c8 and the difficulty n, i or e (0x5191ec) by the
+   level (mode 4, 0x405dd0, from 1) or the mode's (0x405d90). The run's member is in the stage's
+   archive (jap111n.rpl). */
+static Replay *cpu_run(uint32_t side)
+{
+    uint32_t d = Gs_Mode() == 4 ? (gm32(0x52afb4) >> 0x14 & 7) - 1 : Gs_Mode2();
+    char path[0x104];
+    snprintf(path, sizeof path, exe_str(0x519294), (const char *)gm(0x53823c), exe_str(exe_u32(0x5191c8 + 4 * Tod_Rally())),
+             (int)Tod_Stage() + 1, (int)side, exe_str(exe_u32(0x5191ec + 4 * d)));
+    return Replay_Load(path);
+}
+
+/* 0x41c1b0: car p's CPU run, the side (0x537f90) 0x4584c0's head-to-head start side (0x542cb0) for
+   car 0, the other for car 1 */
+static bool load_cpu_run(int p)
+{
+    uint32_t side = p == 0 ? gm32(0x542cb0) != 0 : gm32(0x542cb0) == 0;
+    gw32(0x537f90, side);
+    race[p] = cpu_run(side);
+    return race[p] != NULL;
+}
+
+/* 0x41c260: the race's replays. With the CPU runs (bit 25, not networked) and bit 17 of the mode
+   word: car 0's recording and car 1's run (as 0x41c1b0's, the side not noted) and nothing else. Else
+   the CPU runs for the cars that are a computer driver's (0x408500; in mode 4 those without a pad) and
+   a recording for each other player: 7,500 frames for one player alone (6,250 with two, in the
+   championship or with the CPU runs; with the ghost, bit 28, 7,500 for one). The super special plays
+   its own run (champend.rpl). The network game's (kind 2) and the ghost's .grp are not ported. */
 void Replay_Setup(void)
 {
     memset(race, 0, sizeof race);
@@ -421,13 +489,27 @@ void Replay_Setup(void)
         return;
     }
     if (Gs_SuperSpecial()) {
-        PENDING_NOTE(0x41c260, "Replay_Setup (the super special's champend.rpl, kind 1)");
+        char path[0x104];
+        snprintf(path, sizeof path, exe_str(0x5192b8), (const char *)gm(0x53823c));
+        race[0] = Replay_Load(path);
         return;
     }
     int np = (int)Gs_SelBits14();
     bool cpu_runs = Gs_Mode() == 4 || Gs_SelBit25();
-    if (!Gs_SelBit28() && Gs_SelBit25()) PENDING_NOTE(0x41c1b0, "Replay_Setup (the CPU runs' .rpl)");
+    bool run[2] = {false, false};
+    if (!Gs_SelBit28()) {
+        if (Gs_SelBit25() && Gs_ModeBit17()) {
+            race[0] = Replay_New(1, 0x186a, 0);
+            race[1] = cpu_run(gm32(0x542cb0) == 0);
+            return;
+        }
+        for (int i = 0; i < 2; i++)
+            if (((Gs_Mode() == 4 && (int8_t)gm8(0x53acc8 + (uint32_t)i) == -1) || (Gs_SelBit25() && Player_Driver(i) != -1)) &&
+                load_cpu_run(i))
+                run[i] = true;
+    }
     for (int i = 0; i < np; i++) {
+        if (run[i]) continue;
         int f = Gs_SelBit28() ? (np == 1 ? 0x1d4c : 0x186a) : (np != 1 || cpu_runs) ? 0x186a : 0x1d4c;
         race[i] = Replay_New(1, f, 0);
     }

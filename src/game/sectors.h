@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 void Sectors_Init(void);     /* 0x458090 (Stage_Load): the split points */
+int Sectors_Cars(void);     /* DAT_00542c68: the cars racing at Sectors_Init */
 void Sectors_Start(void);    /* 0x458100 (the line, 0x424c50): every car's record */
 void Sectors_Step(void);     /* 0x4581d0 (Race_Update) */
 bool Sectors_Finished(int car);   /* 0x4582b0 */

@@ -485,9 +485,22 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
             Cars_Reset((int)Gs_SelBits14(), g_all.n - (int)Gs_SelBits14(), false);   /* 0x42b800: the CPU cars */
             if (Gs_SelBit26()) Ai_Go(false);   /* 0x47bdc0 */
         }
-        /* the replay records from the go (the CPU runs' and the network game's not ported) */
-        if (Gs_ModeBit19() || (players() == 1 && Gs_SelBit25())) PENDING_NOTE(0x41d2b0, "the replays' start (CPU runs, network)");
-        else Replay_Start(Race_Replay((int)slot), (int)slot);   /* 0x46c750 */
+        /* the replays from the go: the player's records; with the CPU runs for one player the run of
+           each car that is a computer driver's (0x408500; in mode 4 each without a pad, 0x42b710; with
+           bit 17 car 1's) plays from its start (0x46d2a0, 0x46cce0), the others' record (0x46c750, as
+           the original, into the slot's car). The network game's are not ported. */
+        if (Gs_ModeBit19()) PENDING_NOTE(0x41d2b0, "the replays' start (network)");
+        else if (players() == 1 && Gs_SelBit25()) {
+            int n = Gs_Mode() == 4 ? 2 : 2 - (int)Gs_SelBit28();
+            for (int i = 0; i < n; i++) {
+                bool run = Gs_Mode() == 4 ? (int8_t)gm8(0x53acc8 + (uint32_t)i) == -1
+                         : Gs_ModeBit17() ? i != 0 : Player_Driver(i) != -1;
+                if (run) {
+                    Replay_End(Race_Replay(i));
+                    Replay_Play(Race_Replay(i), 0, 0, i);
+                } else Replay_Start(Race_Replay(i), (int)slot);
+            }
+        } else Replay_Start(Race_Replay((int)slot), (int)slot);   /* 0x46c750 */
         if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x466030, "the ghost's run");
         timer_start((int)slot);   /* the stage time runs from the go */
     }
@@ -657,11 +670,11 @@ static void s11_results(ProcGroup *g, uint32_t slot)
                0x4cf140 are not kept by the port.) */
             Codriver_Reset();   /* 0x416670 */
             Lights_Reset();     /* 0x463d00 */
-            if (Gs_SelBit26() || Gs_SelBit25() || Gs_SelBit31()) Cars_Grid();   /* 0x4584d0 (mode 4's not ported) */
+            if (Gs_SelBit26() || Gs_SelBit25() || Gs_SelBit31()) Cars_Grid(Gs_Mode() != 4);   /* 0x4584d0 */
             Cars_Reset(0, g_all.n, false);   /* 0x42b800 */
             if (Gs_Mode() == 4)
                 for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
-            PENDING_NOTE(0x458480, "the grid's centre-line points (0x4213d0, with 0x538a84)");
+            Cars_GridPoints();   /* 0x458480 */
             Opp_Times(false);   /* 0x455470 */
             Sectors_Start();    /* 0x458100 */
             Hud_Init(gm8(0x53810c));   /* 0x411450 */

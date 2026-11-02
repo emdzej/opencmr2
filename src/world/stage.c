@@ -213,10 +213,13 @@ void Csp_StartPos(int car, int32_t pos[3])
         for (int i = 0; i < 3; i++) pos[i] = held[i];
         return;
     }
-    if ((sel >> 0x1b & 1)) PENDING_NOTE(0x4583d0, "Csp_StartPos (bit 27's two starts)");
+    /* bit 27, the head to head: the car not on 0x542cb0's side at the second start (+0x0c; the network
+       game's by the car's side, 0x542cb4) */
+    uint32_t at = 0;
+    if (sel >> 0x1b & 1) at = gm32(0x52afb4) >> 0x13 & 1 ? 0xc * gm32(0x542cb4 + 4u * (uint32_t)car) : (uint32_t)car != gm32(0x542cb0) ? 0xc : 0;
     if (csp) {
-        held[0] = rd32s(csp);
-        held[2] = rd32s(csp + 8);
+        held[0] = rd32s(csp + at);
+        held[2] = rd32s(csp + at + 8);
     }
     for (int i = 0; i < 3; i++) pos[i] = held[i];
 }

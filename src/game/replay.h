@@ -5,9 +5,9 @@
    run-length coded controls, kind 2: 16-byte poses) and the frames used per segment. Recording packs
    the car's controls each step it is due; playing restores the snapshot and unpacks the frames into
    the controls before the cars are stepped, so the simulation runs the recorded drive again. Slots:
-   eight made (0x588e80) and eight loaded (0x588ea0), stepped in that order. Kind 1 (the CPU runs'
-   records, which reset the car through 0x42b800) and kind 2 (the network game's poses, 0x46de20,
-   0x46e340, 0x46d510, 0x46d610) are not ported. */
+   eight made (0x588e80) and eight loaded (0x588ea0), stepped in that order. Kind 1's snapshot (the
+   car reset through 0x42b800, 0x46c320 and 0x46c390) is ported; kind 2 (the network game's poses,
+   0x46de20, 0x46e340, 0x46d510, 0x46d610) is not. The CPU runs on the disc are kind 0. */
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>

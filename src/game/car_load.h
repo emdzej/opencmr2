@@ -15,5 +15,6 @@ const uint8_t *Car_Cin(int n);       /* 0x457e00: car n's .cin */
 const uint8_t *Car_CinSection(int n, int k);
 int Cars_Racing(void);           /* 0x420190 */
 int Cars_Count(void);          /* 0x456ca0 */
-void Cars_Grid(void);          /* 0x4584d0 */
+void Cars_Grid(bool keep);     /* 0x4584d0 (keep: the head to head's side as it was) */
+void Cars_GridPoints(void);    /* 0x458480 */
 void Cars_Reset(int first, int n, bool keep);   /* 0x42b800 */
