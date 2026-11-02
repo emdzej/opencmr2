@@ -52,7 +52,10 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
         }
         Env_Load(g_track_tex.loaded ? &g_track_tex : NULL, n);
     }
-    PENDING_NOTE(0x40fec0, "LoadBar_Step");
+    /* (the original draws the load bar here and between the later steps, at 15, 25, 40, 60, 70, 85
+       and 100, each time presenting a frame of the empty loading tree, 0x40fec0 with its second
+       argument set; the port loads within one frame, which never blocks, so the bar is only drawn
+       by the loading screen, LoadBar_Draw) */
     /* 2: the horizons for the selection's time of day, the BSP (0x420020), TEMP.C3D */
     Stage_LoadHorizons();
     {

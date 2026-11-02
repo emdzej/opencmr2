@@ -398,7 +398,9 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
         Codriver_Volume((int32_t)(gm32(0x52afb8) >> 0xe & 0x7f));   /* 0x418560 */
         Crash_Volume(fx_mul((int32_t)(gm32(0x52afb8) >> 7 & 0x7f) * 0x10000 / 100, 0xaaaa));   /* 0x418d20 */
         /* (Race_Setup's names, 0x41f560: Race_Names, from play.c once the stage's archive is found) */
-        PENDING_NOTE(0x41f260, "Race_Setup's 0x41f260 (0x537f5c), 0x475f00 (the page at 0x58cf80)");
+        /* (0x41f260 marks the exit handlers' stack, 0x593ba0 into 0x537f5c, for 0x41e670 to unwind
+           to: the port frees the race's parts by name instead. 0x475f00 builds the network game's
+           waiting page, 0x58cf80) */
         Bfl_MountCommon();
         Race_LoadText();   /* 0x478a20 */
         Race_LoadFonts();
@@ -423,7 +425,8 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
 /* state 1, 0x41f420: the loading screen until it is up (0x41f410) */
 static void s1_loading(ProcGroup *g, uint32_t slot)
 {
-    PENDING_NOTE(0x41f410, "LoadScreen_Ready");
+    /* 0x538108 is set by Race_Start; only the network game clears it, for its waiting page
+       (0x58cf80). 0x41f410 is always ready in 1.11. */
     Proc_Event(g, slot, 0, 2);
 }
 
@@ -1130,7 +1133,8 @@ static void draw(ProcGroup *g, uint32_t slot)
 
 /* States 1 and 2 draw the loading screen, not the race's view (the port's cars, cockpits and lamps
    are still the last race's then, their textures freed): 0x411070 clears the target and the depth and
-   draws the loading screen's tree (0x536be0, with 0x41f4b0's fade); state 2's is Race_DrawStats
+   draws the loading screen's tree (0x536be0 from 0x40ef10: a root and a camera, nothing to draw) and,
+   while 0x538108 is clear (the network game's wait), its page 0x58cf80; state 2's is Race_DrawStats
    0x410c80 (Intro_Loading). Only the 2D queues are drawn. */
 static void load_draw(ProcGroup *g, uint32_t slot)
 {
@@ -1140,7 +1144,6 @@ static void load_draw(ProcGroup *g, uint32_t slot)
     } else {
         Render_ClearTarget();
         Render_ClearZ(false);
-        PENDING_NOTE(0x411070, "the loading screen's tree and fade (0x41f4b0, 0x475f70)");
     }
     int w, h;
     D3d_ScreenSize(&w, &h);
