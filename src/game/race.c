@@ -832,7 +832,7 @@ static void end_replay(ProcGroup *g)
 /* state 10, 0x41e350: the replay with the results' pages over it (Results_Step in the steps): while no
    player's replay plays each player's fade (from the finish's shown flag a fade in at once, then out
    and in) starts it again from the start; the skip key (0x4d0580) ends it (0x41f2b0), the results'
-   choices go on through their fades. The super special plays its CPU run (champend.rpl) again and
+   choices go on through their fades. The championship's final stage plays car 0's run again and
    launches a rocket each frame once it has ended. */
 static void s10_replay(ProcGroup *g, uint32_t slot)
 {
@@ -853,9 +853,10 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
                 Fade_Start((int)i, 0xc8000, replay_again, mode, 2, 0, 0, false);   /* 0x428410 */
             }
     } else {
-        /* the super special: once its run (champend.rpl) has stopped, it plays again from the start on
-           the trackside camera nearest car 0 (0x538118, cleared by 0x41f390); once that has ended too,
-           a rocket a frame */
+        /* the final night stage (Gs_SuperSpecial): once car 0's replay has stopped it plays again from
+           the start on the trackside camera nearest car 0 (0x538118, cleared by 0x41f390); once that has
+           ended too, a rocket a frame. (The replay is champend.rpl's block, which the go's recording
+           has filled with the player's run.) */
         Replay *r = Race_Replay(0);
         bool go = true;
         if (!gm32(0x538118)) {

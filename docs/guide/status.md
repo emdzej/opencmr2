@@ -64,8 +64,7 @@
   rally's movie play (the port's own Bink decoder), and the page of what a stage opened shows. The network
   game is not done yet; the menu music plays.
 
-Next: the network game, and checks of the paths not yet seen running headless (the two-player challenge
-match, the super special at a championship's end).
+Next: the network game, and a check of the two-player challenge match, not yet seen running headless.
 
 | Area | State |
 |---|---|
