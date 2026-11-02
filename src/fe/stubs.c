@@ -3,8 +3,6 @@
 #include "pending.h"
 
 void fe_4d43e0(Menu *m) { (void)m; PENDING_NOTE(0x4d43e0, "front-end callback"); }
-void fe_4d63e0(Menu *m) { (void)m; PENDING_NOTE(0x4d63e0, "front-end callback"); }
-void fe_4d6460(Menu *m) { (void)m; PENDING_NOTE(0x4d6460, "front-end callback"); }
 void fe_4d9450(Menu *m) { (void)m; PENDING_NOTE(0x4d9450, "front-end callback"); }
 void fe_4db850(Menu *m) { (void)m; PENDING_NOTE(0x4db850, "front-end callback"); }
 void fe_4dc7b0(Menu *m) { (void)m; PENDING_NOTE(0x4dc7b0, "front-end callback"); }
@@ -64,13 +62,9 @@ void fe_4eefb0(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4eefb0
 void fe_4eefe0(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4eefe0, "front-end callback"); }
 void fe_4ef000(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4ef000, "front-end callback"); }
 void fe_4ef030(Menu *m) { (void)m; PENDING_NOTE(0x4ef030, "front-end callback"); }
-void fe_4ef410(Menu *m) { (void)m; PENDING_NOTE(0x4ef410, "front-end callback"); }
 void fe_4ef4c0(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4ef4c0, "front-end callback"); }
 void fe_4ef4e0(Menu *m) { (void)m; PENDING_NOTE(0x4ef4e0, "front-end callback"); }
-void fe_4ef950(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4ef950, "front-end callback"); }
-void fe_4ef960(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4ef960, "front-end callback"); }
 void fe_4ef970(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4ef970, "front-end callback"); }
-void fe_4efb20(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4efb20, "front-end callback"); }
 void fe_4f01c0(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4f01c0, "front-end callback"); }
 void fe_4f0250(Menu *m) { (void)m; PENDING_NOTE(0x4f0250, "front-end callback"); }
 void fe_4f19d0(Menu *m, bool back) { (void)m, (void)back; PENDING_NOTE(0x4f19d0, "front-end callback"); }

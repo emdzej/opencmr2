@@ -1173,3 +1173,12 @@
 004eba60	Profile_ChampTrophy	game	confirmed	Two bits of +0x62c per difficulty
 004ebad0	Profile_RallyTrophy	game	confirmed	A rally trophy by difficulty
 004ebcd0	Profile_ArcadeTrophy	game	confirmed	An arcade trophy by class and difficulty
+004d63e0	FeLevel_Draw	fe	confirmed	The opponents level page (unreached)
+004ef950	FeLevel_Enter	fe	confirmed	The row from 0x52afb4 bits 20-22
+004ef960	FeLevel_Choose	fe	confirmed	The row as the level
+004d6460	FeSplit_Draw	fe	confirmed	Split screen or alternate
+004ef410	FeSplit_Frame	fe	confirmed	The first row kept enabled
+004efb20	FeSplit_Choose	fe	confirmed	Alternate bit, then the driver select
+004ea950	Opts_SetAlternate	game	confirmed	0x52afb4 bit 17
+004ea970	Opts_SetLevel	game	confirmed	0x52afb4 bits 20-22
+00405dd0	Opts_Level	game	confirmed	0x52afb4 bits 20-22

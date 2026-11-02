@@ -1516,3 +1516,30 @@ void fe_4d50a0(Menu *m)
         }
     }
 }
+
+/* ---- two players: split screen or alternate (0x8230d8, 0x824858, 0x8251b8) ---- */
+
+/* 0x4ef410: the first row kept enabled */
+void fe_4ef410(Menu *m) { m->items[0].flags |= MIF_ENABLED; }
+
+/* 0x4efb20: the row as alternate (0x4ea950, bit 17), then the driver select for each player */
+void fe_4efb20(Menu *m, MenuItem *it)
+{
+    (void)it;
+    gw32(0x52afb4, ((uint32_t)m->sel & 1u) << 17 | (gm32(0x52afb4) & 0xfffdffffu));
+    players_page = m;
+    Menu_SetParent(&pg_8241b8, m);   /* 0x4f83a0 */
+    to_set = (uint8_t)players();
+}
+
+/* 0x4d6460: the trail by mode, the rows, the strip unlit and the hint */
+void fe_4d6460(Menu *m)
+{
+    const char *names[2] = {NULL, NULL};
+    bool ok = mode_names(names, false);
+    Fe_Header();
+    Fe_Titles(m, title_x(), title_y(), true, 3, names, ok ? 2 : 0);
+    List_Draw(m, NULL, -1, -1, 0, true);
+    Strip_Draw(Fe_Scroll(4), false);
+    Fe_Hint(Text_Get(0x57), true);
+}

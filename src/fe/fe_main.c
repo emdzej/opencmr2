@@ -422,3 +422,30 @@ void fe_4dec30(Menu *m)
     }
     if (done) fe_4f1bd0(m, false);
 }
+
+/* ---- the opponents' level (0x81ed58; built, and nothing leads to it) ---- */
+
+/* 0x4ef950: the row from the level (0x405dd0: 0x52afb4 bits 20-22) */
+void fe_4ef950(Menu *m, bool back)
+{
+    (void)back;
+    m->sel = (int8_t)(gm32(0x52afb4) >> 0x14 & 7);
+}
+
+/* 0x4ef960: the row as the level (0x4ea970) */
+void fe_4ef960(Menu *m, MenuItem *it)
+{
+    (void)it;
+    gw32(0x52afb4, ((uint32_t)m->sel & 7u) << 0x14 | (gm32(0x52afb4) & 0xff8fffffu));
+}
+
+/* 0x4d63e0: the trail, the rows, the main menu's strip unlit */
+void fe_4d63e0(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, -1, NULL, -1);
+    List_Draw(m, NULL, -1, -1, 0, true);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);   /* 0x4f8410 */
+}
