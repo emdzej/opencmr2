@@ -121,12 +121,23 @@ static void on_code(uc_engine *u, uint64_t addr, uint32_t size, void *user)
     /* the original's calls out of the simulation, returned at once: Voice_Play (stdcall, 6 arguments:
        no voice, -1, as the port's without a device) */
     static const struct { uint32_t fn, pop, eax; } stubs[] = {{0x4b7790, 0x18, 0xffffffff}};
+    if (addr == 0x4a9b80) {   /* Timer_Centis: the port's clock */
+        uint32_t sp, ret, v = Timer_Centis();
+        uc_reg_read(u, UC_X86_REG_ESP, &sp);
+        uc_mem_read(u, sp, &ret, 4);
+        sp += 4;
+        uc_reg_write(u, UC_X86_REG_ESP, &sp);
+        uc_reg_write(u, UC_X86_REG_EAX, &v);
+        uc_reg_write(u, UC_X86_REG_EIP, &ret);
+        return;
+    }
     if (addr == 0x4c6676) {
         uint32_t sp, ret, v;
         emu_seed = emu_seed * 214013u + 2531011u;
         v = emu_seed >> 16 & 0x7fff;
         uc_reg_read(u, UC_X86_REG_ESP, &sp);
         uc_mem_read(u, sp, &ret, 4);
+        if (getenv("TRACE_STEP") && atoi(getenv("TRACE_STEP")) == step_no) fprintf(stderr, "    rand from %06x\n", ret);
         sp += 4;
         uc_reg_write(u, UC_X86_REG_ESP, &sp);
         uc_reg_write(u, UC_X86_REG_EAX, &v);
@@ -722,6 +733,15 @@ static void compare(const char *after, const int16_t *list, int n)
     }
     if (emu_seed != crt_seed() && !strstr(after, "not run")) {
         printf("  step %d: rand's state after %s: original %08x port %08x\n", step_no, after, emu_seed, crt_seed());
+        {
+            /* how many draws apart: the port's state stepped on to the original's, or back */
+            uint32_t a = crt_seed(), b = emu_seed;
+            int k;
+            for (k = 1; k < 100000; k++) { a = a * 214013u + 2531011u; if (a == emu_seed) break; }
+            int j;
+            for (j = 1; j < 100000; j++) { b = b * 214013u + 2531011u; if (b == crt_seed()) break; }
+            printf("    the original drew %d more (or the port %d more)\n", k < 100000 ? k : -1, j < 100000 ? j : -1);
+        }
         count("rand");
     }
     /* the slots' vertices */
