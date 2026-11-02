@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+void Camera_Replace(int p);   /* 0x421d80: the camera put back at its car */
 void Camera_Reset(int player);                            /* the port: both records cleared */
 void Camera_Select(int player, int kind, bool smooth);    /* 0x422fe0 / 0x421720 (the car's own, the nearest trackside) */
 void Camera_SelectAt(int player, int kind, int idx, int car, bool smooth);   /* 0x421720 */

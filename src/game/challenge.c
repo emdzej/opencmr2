@@ -384,7 +384,7 @@ static void draw_round(void)
     int w, h;
     screen(&w, &h);
     char b[128];
-    snprintf(b, sizeof b, "%s", Text_Get((int)(gm32(0x531350) & 0x3f) + 0xc2));   /* 0x40ede0(Player_Car(0)) */
+    snprintf(b, sizeof b, "%s", Text_Get((int)gm8(0x52f3e8) + 0xc2));   /* 0x40ede0(Player_Car(0)): mode 4's, the record's */
     Text_Lower(b);
     Font_Print(0, b, w * 0x1e / 0x280, h * 5 / 0x1e0 + h * 0x39 / 0x1e0 + Font_Height(0), C(0x51c990), 0x11);
     uint32_t k = round_kind(), sub = gm32(V_SUB);

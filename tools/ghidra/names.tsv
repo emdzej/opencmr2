@@ -381,7 +381,7 @@
 0046bd50	Gs_CarsCollide	game	high	The cars collide with each other in this game mode
 00417780	Codriver_Rewind	audio	med	The co-driver's pace-note position set back to the car's point
 004aff80	Particles_KillAll	world	high	Every live particle killed (not skid marks)
-00421d80	Split_Reset	race	low	Split timing state for a car reset
+00421d80	Camera_Replace	camera	high	a player's camera put back at its car (both while blending), the next step at once
 0049c1c0	Proc_Event	proc	high	An event for a process slot: the first matching transition, by priority
 0041bf80	Race_S0_Setup	race	high	Race state 0: variables cleared, the selection and common archives (first player)
 0041f420	Race_S1_Loading	race	high	Race state 1: the loading screen until it is up
@@ -1555,3 +1555,5 @@
 00458b80	Sectors_NoteStart	sectors	high	each car's point and steps at the go (0x542d58, 0x542d68)
 004207f0	Progress_ResetAll	progress	high	every car's centre-line record started again at its +0x04 point
 00420820	Progress_ClearSearch	progress	high	the first two cars' search variables cleared
+004236b0	Camera_Place	camera	high	a camera put back at its car by its kind
+00477850	Cockpit_Place	cockpit	high	the cockpit camera's frame along the car, pitched, then at the head

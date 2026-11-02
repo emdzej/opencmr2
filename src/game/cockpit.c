@@ -428,6 +428,13 @@ void Cockpit_Step(int car, const int32_t *r, int32_t m[16])
     place(m, k, c);
 }
 
+/* 0x477850 with 0x4778b0: the camera put back at the head */
+void Cockpit_Place(int car, int32_t m[16])
+{
+    if (car < 0 || car >= 2 || !ck[car].head) return;
+    place(m, &ck[car], Car_Get(car));
+}
+
 /* 0x4764e0: the next step's head pose at once (a switch to the view) */
 void Cockpit_Snap(int car) { if (car >= 0 && car < 2) ck[car].snap = true; }
 

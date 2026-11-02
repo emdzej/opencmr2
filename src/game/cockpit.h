@@ -18,5 +18,6 @@ Obj *Cockpit_Model(int car);                   /* 0x58d49c */
 void Cockpit_Masks(int car, uint8_t model, uint8_t objs);   /* 0x46b8f0's part */
 void Cockpit_Init(int slot, int car, int cls, int32_t m[16]);   /* 0x476410 */
 void Cockpit_Step(int car, const int32_t *r, int32_t m[16]);    /* 0x4765e0 */
+void Cockpit_Place(int car, int32_t m[16]);   /* 0x477850 */
 void Cockpit_Snap(int car);                    /* 0x4764e0 */
 void Cockpit_On(int car, bool on);             /* 0x4764c0 / 0x476500 */

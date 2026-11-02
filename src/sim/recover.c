@@ -9,6 +9,7 @@
 #include "sim/progress.h"
 #include "fixmath.h"
 #include "game/gstate.h"
+#include "game/camera.h"
 #include "game/mem.h"
 #include "pending.h"
 
@@ -164,7 +165,7 @@ static void recover(int ch)
     reset_at(c, pos, dir);
     PENDING_NOTE(0x417780, "Codriver_Rewind");
     Particles_KillAll();   /* 0x4aff80 */
-    if ((uint32_t)(ch & 0xff) < Gs_SelBits14()) PENDING_NOTE(0x421d80, "Split_Reset");
+    if ((uint32_t)(ch & 0xff) < Gs_SelBits14()) Camera_Replace(ch & 0xff);   /* 0x421d80 */
     CW32(c, 0xbf8, 0);
     CW32(c, 0xa7c, 0);
     CW32(c, 0xa80, 0);

@@ -629,6 +629,47 @@ static void cam_copy(Cam *d, const Cam *s)   /* 0x423ee0: all but the indices */
     d->f48 = s->f48, d->f4c = s->f4c, d->f54 = s->f54, d->f58 = s->f58, d->f5c = s->f5c, d->f50 = s->f50, d->f60 = s->f60;
 }
 
+/* 0x4236b0: a camera put back at its car by its kind: interior (0x486910), cockpit (0x477850),
+   chase (0x447a00: its axes the car's), trackside (0x48ce80) */
+static void cam_place(Cam *k)
+{
+    const int32_t *r = follow(k->car);
+    switch (k->kind) {
+    case 1: case 2: case 10: {
+        int32_t t[16];
+        interior_target(t, r, in_mode[k->slot]);
+        memcpy(k->m, t, sizeof t);
+        interior_place(k, r);
+        break;
+    }
+    case 3: Cockpit_Place(k->car, k->m); break;
+    case 4: case 5: case 6:
+        row(chase_up[k->slot], r, 1);
+        row(chase_fwd[k->slot], r, 0);
+        chase_place(k, r);
+        break;
+    case 7: ts_start(k, r); break;
+    default: break;
+    }
+}
+
+/* 0x421d80: player p's camera put back at its car (both while blending), its ground lift cleared,
+   the next step taken at once */
+void Camera_Replace(int p)
+{
+    uint8_t c = cur[p];
+    cam_ref(p);   /* 0x423b20 */
+    Cam *k = &slots[(uint8_t)(c + 2 * p) & 7];
+    cam_place(k);
+    k->f60 = 0;
+    if (Camera_Kind(p) == 8) {
+        Cam *o = &slots[(uint8_t)(2 * p - c + 1) & 7];
+        cam_place(o);
+        o->f60 = 0;
+    }
+    snap[p] = 1;
+}
+
 void Camera_Reset(int p)
 {
     cur[p] = 0;

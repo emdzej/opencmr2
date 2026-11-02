@@ -630,12 +630,29 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
 }
 
 
-/* 0x41e220, a player's replay fade's call: the replay from its start (the network game's others, the
-   championship's and the CPU runs' replays of the other cars not ported) */
+/* 0x41e220, a player's replay fade's call: the replay from its start; the challenge's cars without a
+   pad, or with the CPU runs (not networked) the computer drivers' cars (with bit 17 car 1), theirs
+   again; the camera put back at the car (0x421d80). The network game's others and the ghost's
+   (0x466080, 0x466030) are not ported. */
 static void replay_again(int p)
 {
     Replay_Play(Race_Replay(p), 0, 0, p);   /* 0x46cce0 */
-    if (Gs_ModeBit19() || Gs_Mode() == 4 || Gs_SelBit25()) PENDING_NOTE(0x41e220, "the other cars' replays");
+    if (Gs_ModeBit19()) PENDING_NOTE(0x41e220, "the network game's other cars' replays");
+    if (Gs_Mode() == 4) {
+        for (int i = 0; i < 2; i++)
+            if ((int8_t)gm8(0x53acc8 + (uint32_t)i) == -1) {   /* 0x42b710 */
+                Replay_End(Race_Replay(i));
+                Replay_Play(Race_Replay(i), 0, 0, i);
+            }
+    } else if (Gs_SelBit25() && !Gs_ModeBit19()) {
+        for (int i = 0; i < 2 - (int)Gs_SelBit28(); i++)
+            if (Player_Driver(i) != -1 || (Gs_ModeBit17() && i == 1)) {
+                Replay_End(Race_Replay(i));
+                Replay_Play(Race_Replay(i), 0, 0, i);
+            }
+    }
+    Camera_Replace(p);   /* 0x421d80 */
+    if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x466080, "the ghost's replay again (0x466080, 0x466030)");
 }
 
 /* 0x41f2b0: every process on to the results, the players' damage stored (0x469b50), their replays
