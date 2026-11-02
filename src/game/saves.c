@@ -10,6 +10,7 @@
 #include "exe.h"
 #include "platform.h"
 #include <stdio.h>
+#include "render/tex.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -18,10 +19,12 @@ enum { GAMEINFO = 0x52afa0, GAMEINFO_SIZE = 0x399c, PROFILES = 0x52fa08, PROFILE
 static uint32_t le32(const uint8_t *p) { return (uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24; }
 
 /* 0x4ea5e0: the file taken when it is 0x399c bytes with the version 0x11 at +0x10. The original then
-   puts its screen settings (+0x24-+0x30: size, depth, the display flags) into the device, which the
-   port's runner owns (0x405830's check of the saved device, which resets the graphics to 640 x 480
-   when it differs, is moot with the port's one device); option 17 is turned off if set (0x4eac50),
-   and 0x817574 cleared (0x4d0590) */
+   puts its screen settings (+0x24-+0x30: size, depth) into the device, which the port's runner owns
+   (0x405830's check of the saved device, which resets the graphics to 640 x 480 when it differs, is
+   moot with the port's one device), and the display flags from 0x52afd0: the environment map (bits
+   1-2: 8 standard, 8 | 0x10 bump, 8 | 0x80 cubic), 0x20 and 0x40 from bits 3 and 4, the mip filter
+   (bits 18-19: 1 or 2), 4 from bit 29 (and +0x3c0, never read, from 0x405ca0); option 17 is turned off
+   if set (0x4eac50), and 0x817574 cleared (0x4d0590) */
 bool GameInfo_Load(void)
 {
     size_t n = 0;
@@ -33,6 +36,18 @@ bool GameInfo_Load(void)
     }
     for (uint32_t i = 0; i < GAMEINFO_SIZE; i++) gw8(GAMEINFO + i, d[i]);
     free(d);
+    uint32_t f = gm32(0x52afd0), o = g_render_opts & ~(0x08u | 0x10u | 0x80u | 0x20u | 0x40u | 1u | 2u | 4u);
+    switch (f & 6) {
+    case 2: o |= 8; break;
+    case 4: o |= 8 | 0x10; break;
+    case 6: o |= 8 | 0x80; break;
+    default: break;
+    }
+    o |= (f & 8) << 2 | (f & 0x10) << 2;
+    if ((f & 0xc0000) == 0x40000) o |= 1;
+    else if ((f & 0xc0000) == 0x80000) o |= 2;
+    o |= f >> 0x1b & 4;
+    g_render_opts = o;
     if (gm32(0x52e890) >> 0x11 & 1) gw32(0x52e890, gm32(0x52e890) ^ 0x20000);
     gw8(0x817574, 0);
     return true;

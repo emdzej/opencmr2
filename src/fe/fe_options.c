@@ -53,7 +53,7 @@ static void choices(const MenuItem *it, int base, int step, int x, int y, uint32
    1024, no bump environment mapping and no cube maps (the GLES back end has neither) */
 static bool caps_stages(void) { return true; }     /* 0x4b7530: DAT_006e0c48 */
 static bool caps_bump(void) { return false; }      /* 0x4b7540: DAT_006e0c4c */
-static bool caps_cube(void) { return false; }      /* 0x4b7550: DAT_006e0c54 */
+static bool caps_cube(void) { return true; }       /* 0x4b7550: DAT_006e0c54 (the port's device has cube maps) */
 static bool caps_tex1024(void) { return true; }    /* 0x4b7560 and 0x4b7590 (0x400) */
 
 /* ---- Graphics (0x81ef38): the split screen's way, the ghost car, the units, the speedo ---- */
