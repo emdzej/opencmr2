@@ -45,7 +45,18 @@
 static Obj camera;
 static Obj *cars[2 * CAR_MAX];
 
-static bool load_stage(void) { return true; }
+static char st_name[16], st_path[128], st_tex[128];
+
+/* state 3 (0x401000): Stage_Load 0x41f930, after the set-up has mounted the common archives */
+static bool load_stage(void)
+{
+    if (!Stage_Load(st_name, st_path, st_tex)) {
+        plat_log("play: no such stage");
+        return false;
+    }
+    Tod_StartLights();
+    return true;
+}
 
 /* Cars_Load 0x456d90's part: the grid, every car of the race (0x456ca0), Car_Load, the progress start, the
    lists */
@@ -138,18 +149,16 @@ static const RaceHost host = {load_stage, load_cars, NULL, input, pose, draw, ca
 
 bool Play_Begin(void)
 {
-    char stage[16], path[128], tex[128];
     Race_SetPlayers();
-    bool found = Stage_Arcade(stage, sizeof stage, path, tex, sizeof path);
+    bool found = Stage_Arcade(st_name, sizeof st_name, st_path, st_tex, sizeof st_path);
     if (!found) {
-        Stage_Name(stage, sizeof stage);
-        found = Stage_Find(stage, path, tex, sizeof path);
+        Stage_Name(st_name, sizeof st_name);
+        found = Stage_Find(st_name, st_path, st_tex, sizeof st_path);
     }
-    if (!found || !Stage_Load(stage, path, tex)) {
+    if (!found) {
         plat_log("play: no such stage");
         return false;
     }
-    Tod_StartLights();
     memset(&camera, 0, sizeof camera);
     camera.kind = 3;
     camera.mask = 0xff;

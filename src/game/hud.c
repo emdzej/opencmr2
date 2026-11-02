@@ -4,6 +4,8 @@
 #include "crt.h"
 #include "text.h"
 #include "world/tod.h"
+#include "world/stage.h"
+#include "game/paths.h"
 #include "exe.h"
 #include "game/pause.h"
 #include "game/opponents.h"
@@ -754,6 +756,142 @@ static void records(int p)
     }
 }
 
+/* 0x411280's textures: the network's blobs (0x537070, 0x537074), the map's dot (0x537078) and the
+   map (0x53707c) */
+static Tex *t_net, *t_netr, *t_blob, *t_map;   /* (the blobs are for the network game, not ported) */
+
+static Tex *common_tex(uint32_t name)
+{
+    char b[260];
+    snprintf(b, sizeof b, "%s%s", exe_str(0x516a50), exe_str(name));   /* "%s%s" 0x517d98 of 0x40ed50 */
+    uint8_t found;
+    return Bfl_FindTexture(Bfl_Com()   /* 0x4552a0 */, b, &found, false, 0);
+}
+
+/* 0x411280 (Stage_Load, after the archives): the blobs in modes 8 and 9; in modes 4-7, 11, 12 or a
+   circuit (selection bit 25) the map's dot and the map from the track's textures: in mode 4 or on a
+   circuit the stage's name (0x538340, 0x41f560) with its last two letters (the detail, hi or lo)
+   turned into .DDS, else Tracks\chall\cha<nn>.tga by the location and its stage */
+void Hud_LoadMap(void)
+{
+    uint32_t m = Gs_Mode();
+    t_net = t_netr = t_blob = t_map = NULL;
+    (void)t_net, (void)t_netr;
+    if (m == 8 || m == 9) t_net = common_tex(0x517da0), t_netr = common_tex(0x517d74);
+    if (m != 5 && m != 6 && m != 7 && m != 4 && m != 11 && m != 12 && !Gs_SelBit25()) return;
+    t_blob = common_tex(0x517d50);
+    char b[260];
+    const char *detail = exe_str((gm32(0x52afd0) >> 0x1b & 3) == 0 ? 0x519468 : 0x519464);
+    if (m == 4 || Gs_SelBit25()) {
+        if (m == 5 || m == 6 || m == 7 || m == 11 || m == 12) {
+            uint32_t sel = gm32(0x52f2ac);
+            int idx = (int)(sel >> 10 & 3) * 3 + (int)(sel >> 12 & 3);
+            if (idx > 7) idx = 7;
+            snprintf(b, sizeof b, "%s\\chall\\cha%02d%s", Path_Tracks(), idx + 1, detail);
+        } else {
+            uint32_t r = Tod_Rally();
+            snprintf(b, sizeof b, "%s\\%s\\%s%02u%s", Path_Tracks(), exe_str(exe_u32(0x5192f8 + 4 * r)),
+                     exe_str(exe_u32(0x51931c + 4 * r)), Tod_Stage() + 1, detail);
+        }
+        size_t n = strlen(b);
+        snprintf(b + (n >= 2 ? n - 2 : 0), 8, ".DDS");
+    } else
+        snprintf(b, sizeof b, exe_str(0x517d38), Path_Tracks(),
+                 (int)(gm32(0x52f2ac) >> 10 & 3) * 3 + (int)(gm32(0x52f2ac) >> 12 & 3) + 1);
+    uint8_t found;
+    t_map = Bfl_FindTexture(g_track_tex.loaded ? &g_track_tex : NULL, b, &found, false, 0);   /* 0x41f500 */
+}
+
+/* 0x40b0a0: a ghost's colour by its car (0x531cc0's eight, the colours 0x5168b0), else three of rand
+   into 0x5168d0 (its alpha 0xff) */
+static const uint8_t *ghost_colour(uint32_t car)
+{
+    static uint8_t c[4];
+    for (uint32_t i = 0; i < 8; i++)
+        if (gm32(0x531cc0 + 4 * i) == car) return colour(0x5168b0 + 4 * i);
+    memcpy(c, colour(0x5168d0), 4);
+    c[0] = (uint8_t)crt_rand(), c[1] = (uint8_t)crt_rand(), c[2] = (uint8_t)crt_rand();
+    return c;
+}
+
+/* the map's 16.16 screen position of point i: its offset from the middle over the scale (0x53705c),
+   a fraction about one half of the map's box (x, y, w, h) */
+static void map_at(int i, const int16_t box[4], int32_t *x, int32_t *y)
+{
+    int32_t q[3];
+    Cat_Point(i, q);
+    int32_t s = gms32(0x53705c);
+    int32_t fx = (int32_t)(((int64_t)(q[0] - gms32(0x536bf0)) * s) >> 16) + 0x8000;
+    int32_t fy = (int32_t)(((int64_t)-(q[2] - gms32(0x536bf8)) * s) >> 16) + 0x8000;
+    *x = (int32_t)(((int64_t)fx * ((int32_t)box[2] << 16)) >> 16) + ((int32_t)box[0] << 16);
+    *y = (int32_t)(((int64_t)fy * ((int32_t)box[3] << 16)) >> 16) + ((int32_t)box[1] << 16);
+}
+
+/* 0x415f50 for one view: the map at the bottom left (its texture's size at 640 by 480, not drawn on a
+   split screen with 0x52afb4 bit 18), a dot on it for each ghost (modes 11, 12, or a circuit in
+   0x52afb4 bit 19 outside mode 10: 0x531bb8's eight, -2 the own run, each at its car's point 0x531bbc,
+   10/640 wide) or else for each car (0x5170fc's colours, 12/640, the last car first), and on a split
+   screen each player's number by its car */
+static void map(int p)
+{
+    (void)p;
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int ox = 0;   /* 0x464b10: the view's corner */
+    static const uint8_t white[4] = {0xff, 0xff, 0xff, 0xff};
+    Rect16 src = {0, 0, 0, 0}, dot = {0, 0, 0, 0}, dst = {0, 0, 0, 0};
+    int16_t box[4] = {0, 0, 0, 0};   /* (the original leaves the box unset without a map) */
+    if (t_map) {
+        Rect16 ms = {0, 0, (int16_t)(t_map->width - 1), (int16_t)(t_map->height - 1)};
+        src = ms;
+        if (t_blob) dot.w = (int16_t)(t_blob->width - 1), dot.h = (int16_t)(t_blob->height - 1);
+        if (split_screen() && Gs_ModeBit18()) return;
+        box[0] = (int16_t)(((w * 0x731) >> 16) + ox);
+        box[2] = (int16_t)(src.w * w / 640);
+        box[3] = (int16_t)(src.h * h / 480);
+        box[1] = (int16_t)(((h * 0xea3d) >> 16) - box[3]);
+        Rect16 d = {box[0], box[1], box[2], box[3]};
+        Sprite_Add(&src, &d, t_map, 2, 0, NULL, NULL, white, 8);
+    }
+    uint32_t m = Gs_Mode();
+    if (m == 11 || m == 12 || (Gs_ModeBit19() && Gs_SelBit25() && m != 10)) {
+        for (uint32_t i = 0; i < 8; i++) {
+            int32_t k = gms32(0x531bb8 + 0x1c * i);   /* 0x40a700 */
+            if (k == -1) continue;
+            int pt;
+            const uint8_t *c;
+            if (k == -2) pt = Sectors_CarPoint(0), c = ghost_colour(gm32(0x5a1ea0));   /* 0x4a1a00 */
+            else {
+                uint32_t car = gm32(0x531778 + 0x80u * (uint32_t)k);   /* 0x409d20 */
+                pt = 0;   /* 0x40a720: the record of that car */
+                for (uint32_t j = 0; j < 8; j++)
+                    if (gm32(0x531bc8 + 0x1c * j) == car) { pt = gms32(0x531bbc + 0x1c * j); break; }
+                c = ghost_colour(car);
+            }
+            int32_t x, y;
+            map_at(Sectors_After(pt), box, &x, &y);
+            dst.x = (int16_t)((x >> 16) - w * 5 / 640), dst.y = (int16_t)((y >> 16) - h * 5 / 480);
+            dst.w = (int16_t)(w * 10 / 640), dst.h = (int16_t)(h * 10 / 480);
+            Sprite_Add(&dot, &dst, t_blob, 2, 0, NULL, NULL, c, 8);
+        }
+    } else {
+        for (int i = Race_Cars() - 1; i >= 0; i--) {
+            int32_t x, y;
+            map_at(Car_CatIndex(Car_Get(i)), box, &x, &y);
+            dst.x = (int16_t)((x >> 16) - w * 6 / 640), dst.y = (int16_t)((y >> 16) - h * 6 / 480);
+            dst.w = (int16_t)(w * 12 / 640), dst.h = (int16_t)(h * 12 / 480);
+            Sprite_Add(&dot, &dst, t_blob, 2, 0, NULL, NULL, colour(0x5170fc + 4u * (uint32_t)i), 8);
+        }
+    }
+    for (int i = 0; i < (int)Gs_SelBits14(); i++) {
+        char b[8];
+        snprintf(b, sizeof b, exe_str(0x517e1c), i + 1);
+        int32_t x, y;
+        map_at(Sectors_After(Sectors_CarPoint(i)), box, &x, &y);
+        Font_Print(0, b, x >> 16, (y >> 16) + 7, colour(0x5170f4), 0x12);
+    }
+}
+
 /* 0x415bd0: a time as <prefix>mm:ss.cc (or --:--.--) in a font at a fraction of the screen, in white,
    on a box of its own colour when asked */
 static void draw_time(int32_t t, int font, int32_t fx, int32_t fy, const uint8_t *box_rgba, uint32_t flags, const char *prefix, bool box)
@@ -840,7 +978,7 @@ void Hud_Draw(int p)
     }
     if (flags & 8) time_panel(p);
     if (flags & 0x20) {
-        if (m == 5 || m == 6 || m == 7 || m == 11 || m == 12 || Gs_SelBit25()) PENDING_NOTE(0x415f50, "Hud_SplitDelta (the arcade's)");
+        if (m == 5 || m == 6 || m == 7 || m == 11 || m == 12 || Gs_SelBit25()) map(p);   /* 0x415f50 */
         split_delta(p);   /* 0x4137e0 */
     }
 }

@@ -29,6 +29,7 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
 {
     /* 1: the country's textures and the stage archive; the loading bar (0x40fec0) */
     if (!Stage_Mount(path, tex)) return false;
+    Hud_LoadMap();   /* 0x411280 */
     PENDING_NOTE(0x40fec0, "LoadBar_Step");
     /* 2: the horizons for the selection's time of day, the BSP (0x420020), TEMP.C3D */
     Stage_LoadHorizons();

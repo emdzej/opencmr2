@@ -7,6 +7,7 @@
 static inline uint32_t Gs_Mode(void) { return gm32(0x52afb4) >> 3 & 0x7f; }         /* 0x405d80 */
 static inline uint32_t Gs_Mode2(void) { return gm32(0x52afb4) >> 10 & 7; }          /* 0x405d90 */
 static inline uint32_t Gs_ModeBit17(void) { return gm32(0x52afb4) >> 0x11 & 1; }    /* 0x405da0 */
+static inline uint32_t Gs_ModeBit18(void) { return gm32(0x52afb4) >> 0x12 & 1; }    /* 0x405dc0 */
 static inline uint32_t Gs_ModeBit19(void) { return gm32(0x52afb4) >> 0x13 & 1; }    /* 0x405e00 */
 static inline uint32_t Gs_Bit30(void) { return gm32(0x52afb8) >> 0x1e & 1; }        /* 0x406310 */
 static inline uint8_t Gs_Byte52ea52(void) { return gm8(0x52ea52); }                 /* 0x406320 */

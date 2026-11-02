@@ -22,4 +22,6 @@ bool Sectors_LapFirst(int car);       /* 0x458290 */
 int Sectors_Most(int car);            /* 0x4589e0: the furthest point reached (+0x10) */
 bool Sectors_Lapped(int car);         /* 0x458270: the line crossed round a circuit this step (+0x18) */
 int Sectors_LastLap(int car);         /* 0x458330: the lap of the last split (+0x04) */
+int Sectors_CarPoint(int car);        /* 0x4582f0: the record's point (+0x00) */
+int Sectors_After(int point);         /* 0x459350: the next point (0 after the last with 0x542cae) */
 int Sectors_Steps(int car);           /* 0x458310: the points moved, back ones less (+0x12) */

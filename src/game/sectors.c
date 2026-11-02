@@ -40,6 +40,8 @@ bool Sectors_LapFirst(int car) { return car >= 0 && car < CAR_MAX && rec[car].fi
 bool Sectors_Lapped(int car) { return car >= 0 && car < CAR_MAX && rec[car].f18; }
 int Sectors_LastLap(int car) { return car >= 0 && car < CAR_MAX ? rec[car].last_lap : 0; }
 int Sectors_Steps(int car) { return car >= 0 && car < CAR_MAX ? rec[car].steps : 0; }
+int Sectors_CarPoint(int car) { return car >= 0 && car < CAR_MAX ? rec[car].point : 0; }
+int Sectors_After(int point) { return ++point == npoints && both_ways ? 0 : point; }
 int32_t Sectors_Point(int i) { return i >= 0 && i < 64 ? split_at[i] : 0; }
 int Sectors_Shown(void) { return Gs_SelBit24() || Gs_SelBit25() ? nsplits : nsplits - 1; }
 
