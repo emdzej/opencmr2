@@ -46,6 +46,11 @@ static int hud_place[4];               /* 0x536dfc + 0x48 n */
 static int rows[4][3];                 /* 0x536c94: the standings' three places */
 static int32_t my_split[4][12];        /* 0x536e10 + 0x48 n */
 static uint8_t show_for[4];            /* DAT_00536c20 */
+/* the arcade's and the head to head's split (0x413200): the gap shown (0x536fe4), its flag (0x537054),
+   led at the last split (0x536c18), the delta shown as dashes (0x536c0c) */
+static int32_t gap[4];
+static bool gap_on[4];
+static int led[4], dashes[4];
 static int32_t last_time[4], ref_time[4];   /* 0x536e04, 0x536e08 + 0x48 n: the time at the last split, the reference */
 
 void Times_Clear(void) { shown = clock_ = 0; }
@@ -219,6 +224,9 @@ void Hud_Init(int again)
     gw32(0x536c40, 0), gw32(0x536c3c, 0), gw32(0x537050, 0);
     gw32(0x536c30, 0), gw32(0x536c34, 0), gw32(0x536c38, 0);
     memset(show_for, 0, sizeof show_for);
+    /* (0x4111a0 clears the first two players' arcade splits and the flags' word) */
+    for (int i = 0; i < 2; i++) dashes[i] = led[i] = 0, gap[i] = 0;
+    memset(gap_on, 0, sizeof gap_on);
     for (int i = 0; i < 4; i++) {
         rows[i][0] = rows[i][1] = rows[i][2] = -1;
         last_time[i] = -1, split_idx[i] = 0, hud_time[i] = 0, hud_place[i] = 0, ref_time[i] = 0;
@@ -599,6 +607,61 @@ static void lap_sounds(int p)
     }
 }
 
+/* 0x448260: the time the first car through p's last split passed it (round a circuit of selection
+   bit 24 by the lap's table) */
+static int32_t leader_time(int p)
+{
+    if (Gs_SelBit24()) {
+        int lap = Sectors_LastLap(p), s = Sectors_Last(p);
+        int lead = (int8_t)gm8(ORDER_AT(lap * 9 + s, 0));
+        return gms32(LAPSP(lead, lap, s));
+    }
+    int k = Sectors_SplitIndex(p), lead = (int8_t)gm8(ORDER_AT(k, 0));
+    return gms32(AR(lead, 4 + 4u * (uint32_t)k));
+}
+
+/* 0x4482d0: car p's time at car's last split */
+static int32_t time_at(int car, int p)
+{
+    if (Gs_SelBit24()) {
+        int lap = Sectors_LastLap(car), s = Sectors_Last(car);
+        return gms32(LAPSP(p, lap, s));
+    }
+    return gms32(AR(p, 4 + 4u * (uint32_t)Sectors_SplitIndex(car)));
+}
+
+/* 0x413200, the arcade's and the head to head's split: at a split the gap to the first car through
+   it, the beep (faster when first) and the gap shown unless first (then dashes until the next car
+   comes through, 0x448370: the gap to it); split index 1 */
+static void arcade_split(int p)
+{
+    if (Sectors_Split(p)) {
+        gap_on[p] = true;
+        gap[p] = Times_Race() - leader_time(p);
+        if ((int8_t)gm8(AR(p, 0x82)) < 1) {   /* 0x448330: first at the split */
+            split_beep(p, true);   /* 0x411ab0 */
+            led[p] = 1, dashes[p] = 1;
+        } else {
+            split_beep(p, false);
+            gw8(0x5170e3 + 4u * (uint32_t)p, 0xff);
+            show_for[p] = 0x4b;
+            dashes[p] = 0, led[p] = 0;
+        }
+        split_idx[p] = 1;
+    }
+    if (gm8(AR(p, 0x83))) {
+        if (!led[p]) return;
+        gap_on[p] = true;
+        dashes[p] = 0;
+        gap[p] = time_at((int8_t)gm8(AR(p, 0x80)), p) - Times_Race();   /* 0x448350: the next car */
+        gw8(0x5170e3 + 4u * (uint32_t)p, 0xff);
+        show_for[p] = 0x4b;
+        split_idx[p] = 1;
+        led[p] = 0;
+    }
+    if (led[p] && gap_on[p]) gw8(0x5170e3 + 4u * (uint32_t)p, 0xff), show_for[p] = 0x4b;
+}
+
 /* 0x413330's rally part: at a split its index, the time there, the place at it */
 static void rally_split(int p)
 {
@@ -751,7 +814,13 @@ void Hud_Update(int p, bool on_line)
         int16_t a[4] = {r[0], r[1], done_w, r[3]}, z[4] = {(int16_t)(r[0] + done_w), r[1], (int16_t)(r[2] - done_w), r[3]};
         for (int i = 0; i < 4; i++) gw16(BAR_DONE(p) + 2u * (uint32_t)i, (uint16_t)a[i]), gw16(BAR_REST(p) + 2u * (uint32_t)i, (uint16_t)z[i]);
     }
-    rally_split(p);   /* 0x413160 */
+    /* 0x413160: out of the network game the rally's split, or the arcade's in modes 5 and 6 and the
+       head to head; the network game's (modes 8-12: 0x413520, 0x413610) not yet */
+    if (!Gs_ModeBit19()) {
+        uint32_t ms = Gs_Mode();
+        if (ms == 5 || ms == 6 || Gs_SelBit27()) arcade_split(p);
+        else rally_split(p);   /* 0x413330 */
+    }
     if (Gs_SelBit26() && (gm32(0x52f2b0) >> 0xb & 1)) lap_sounds(p);   /* 0x4118b0 */
     uint32_t m = Gs_Mode();
     if (m == 5 || m == 6 || m == 7 || Gs_SelBit25()) arcade_rows(p);   /* 0x415870 */
@@ -1070,18 +1139,41 @@ static void draw_time(int32_t t, int font, int32_t fx, int32_t fy, const uint8_t
     Font_Print(font, s, (int)(((int64_t)w * fx) >> 16), (int)(((int64_t)h * fy) >> 16), colour(0x5170f4), flags);
 }
 
-/* 0x4137e0's rally part: for 75 frames after a split, the difference to the reference time there
-   (the leader's), "-" and green when faster, "+" and red when slower, on its box under the
-   standings */
+/* 0x4137e0: for 75 frames after a split, the difference to the reference time there (the leader's;
+   in the arcade and the head to head the gap, dashes while first), "-" and green when faster, "+"
+   and red when slower, on its box under the standings, in the player's half of a split screen. In
+   modes 3 and 7 nothing without a record (0 or the cap) unless the pause's display page is up; on
+   that page with no split yet a sample (72.30 s against 71.00: +1.30 in red), and with a split
+   the delta shown whether or not its 75 frames have run. */
 static void split_delta(int p)
 {
-    int32_t last = last_time[p], ref = ref_time[p];
-    if (last == -1 || !show_for[p] || (split_idx[p] == 0 && Gs_Mode() != 12)) return;
+    uint32_t m = Gs_Mode();
+    bool arc = m == 6 || m == 5 || (Gs_SelBit27() && !Gs_ModeBit19());
+    int idx = split_idx[p];
+    int32_t last, ref;
+    if (arc) ref = 0, last = gap[p];
+    else {
+        dashes[p] = 0;
+        last = last_time[p], ref = ref_time[p];
+        if ((m == 3 || m == 7) && !Pause_OsdPage(p) && (gm32(0x536c40) == gm32(0x537068) || !gm32(0x536c40))) return;
+    }
+    bool show = show_for[p] != 0;
+    if (!Pause_OsdPage(p) || (last != -1 && show && idx != 0) || (show = true, 0 < idx)) {   /* 0x4054b0 */
+        if (last == -1 || !show || (idx == 0 && m != 12)) return;
+    } else last = 0x1c3e, ref = 0x1bbc;
     int w, h;
     D3d_ScreenSize(&w, &h);
-    int x = (w * 0xc00) >> 16, y = ((h * 0xd668) >> 16) + ((h * 0xccc) >> 16) - 1;
+    int sx = 0, sy = 0;
+    if (Hud_SplitScreen()) {
+        bool stacked = gm32(0x52afb4) >> 0x12 & 1;   /* 0x405dc0 */
+        if (p == 0) { if (stacked) sy = -(h / 2); }
+        else if (p == 1 && !stacked) sx = w / 2;
+    }
+    int16_t x = (int16_t)(((w * 0xc00) >> 16) + sx), y = (int16_t)(((h * 0xd668) >> 16) + sy + ((h * 0xccc) >> 16) - 1);
     int32_t fx = (int32_t)(((int64_t)(x + 4) << 16) / w), fy = (int32_t)(((int64_t)(y + 1) << 16) / h);
-    if (ref < last) draw_time(last - ref, 4, fx, fy, colour(0x5170a0), 9, exe_str(0x517e14), true);
+    bool dash = m >= 8 && m <= 12 ? gm32(0x536e90) != 0 : dashes[p] != 0;
+    if (dash) draw_time(-1, 4, fx, fy, colour(0x51709c), 9, exe_str(0x517e18), true);
+    else if (ref < last) draw_time(last - ref, 4, fx, fy, colour(0x5170a0), 9, exe_str(0x517e14), true);
     else draw_time(ref - last, 4, fx, fy, colour(0x51709c), 9, exe_str(0x517e18), true);
 }
 

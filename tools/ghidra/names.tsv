@@ -463,7 +463,7 @@
 00478b50	Race_LoadFonts	race	high	Seven font slots from the Com archive (general\hel_13pt ... ocr_60pt)
 004552a0	Bfl_ComSlot	file	high	The Com<res> archive's slot (0x541f18)
 004125f0	Hud_Draw	hud	high	A player's HUD panels by the profile's display flags and the mode
-004137e0	Hud_SplitDelta	hud	med	The split time's difference to the reference (+/-)
+004137e0	Hud_SplitDelta	hud	high	The split time's difference to the reference, or the arcade's gap (+/-, dashes)
 00414ed0	Hud_Standings	hud	med	The drivers around the player and their times (rally)
 00413fe0	Hud_TimePanel	hud	med	The stage time panel (rally)
 00415bd0	Hud_Time	hud	high	A time as MM:SS:cc in a font, optionally on a box
@@ -1720,3 +1720,7 @@
 004a56c0	Tex_Unlock	render	high	A locked texture unlocked
 00471bf0	Scenery_ViewFor	sim	high	Split screen: the movable objects shown or put down as the view's player knocked them
 00423a30	Camera_OwnFrame	camera	high	The interior views' frame: the car's body frame (+0x754), lifted with option 6
+00413160	Hud_Split	hud	high	The split's dispatch: the arcade's or the rally's (the network's apart)
+00413200	Hud_ArcadeSplit	hud	high	The arcade's and head to head's split: the gap to the first car through it, dashes when first
+00448260	Split_LeaderTime	hud	high	The time the first car through a player's last split passed it
+004482d0	Split_TimeAt	hud	high	A car's time at another car's last split
