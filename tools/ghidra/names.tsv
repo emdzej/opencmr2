@@ -985,3 +985,18 @@
 0041e220	Replay_Again	race	confirmed	A player's replay fade's call: the replays from the start
 004207a0	Progress_Reset	sim	confirmed	A car's progress record started again (the +0x14 of record 2n cleared)
 00421510	Progress_Record	sim	confirmed	Car n's progress record (6 ints at 0x538aa8)
+00445a60	Dash_Load	race	confirmed	The gauges' textures: the units, the digital counter, the dial
+00445c80	Dash_Reset	race	confirmed	The gauges' state cleared, the kinds and the lit part's widths
+00445d30	Dash_Kinds	race	confirmed	Each player's gauge: digital on a split screen, else by the option or the car's class
+00445db0	Dash_ResetBox	race	confirmed	The dial's gear box placed again
+00445dd0	Dash_Revs	race	confirmed	A player's interpolated revs for the gauges
+00445df0	Dash_Interp	race	confirmed	The gauges' speed and revs between the last two steps
+00445ea0	Dash_Update	race	confirmed	The gauges' speed and revs eased, the gear box slid and flashed
+00446210	Dash_Draw	race	confirmed	The first two players' gauges, with the display flag 0x10
+00446270	Dash_Digital	race	confirmed	The digital rev counter (a plain bar on a split screen), gear and speed
+00446bf0	Dash_Analog	race	confirmed	The dial, needle, speed, unit and the gears' column
+00447100	Dash_Dial	race	confirmed	The dial's sprite at a screen fraction
+004471b0	Dash_Needle	race	confirmed	The dial's needle as three triangles
+00478c40	Engine_Pause	audio	confirmed	Every engine voice of the players' cars at volume 0
+004792c0	Engine_StopIdle	audio	confirmed	The detonations' voice stopped if it plays the idle
+00479310	Engine_StopDet	audio	confirmed	The detonations' voice stopped if it plays a detonation

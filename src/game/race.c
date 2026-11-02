@@ -13,6 +13,7 @@
 #include "game/camera.h"
 #include "game/common.h"
 #include "game/hud.h"
+#include "game/dash.h"
 #include "game/sectors.h"
 #include "audio/crash.h"
 #include "audio/engine.h"
@@ -156,7 +157,7 @@ static void Race_Update(uint8_t state, bool flag)
                 break;
             }
             if ((uint32_t)i < np) {
-                PENDING_NOTE(0x445ea0, "the players' gauge smoothing (0x53ce44, 0x53cfa0)");
+                Dash_Update((int)i);   /* 0x445ea0 */
                 if (kind == 5 || kind == 7) Hud_Update(i, true);   /* 0x411f70 */
                 else if (kind == 8 || kind == 9) Hud_Update(i, false);
                 if (state == 8 || state == 9) Codriver_Step(i);   /* 0x417090 */
@@ -202,6 +203,7 @@ static void Race_Update(uint8_t state, bool flag)
     }
     Knock_Interp(R.frac);   /* 0x471950, first in Race_PoseInterp */
     Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its other effects not ported) */
+    Dash_Interp(R.frac);   /* 0x445df0 */
     if (Gs_Option(0)) Balls_Frame(R.frac);   /* 0x47e1e0, in 0x41d060 */
     Parts_Interp(R.frac);   /* 0x484d30 */
     Aerials_Interp(R.frac);   /* 0x486500 */
@@ -247,11 +249,13 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
         Sprite3d_Init();
         Particles_Alloc(0x20, 400);
         Glow_Alloc(Gs_Option(0) ? 4 : 0xa0);
+        Dash_Reset();    /* 0x445c80 */
         Lamps_Load();    /* 0x463d60 */
         Lights_Load();
         Weather_Load();
         Effects_LoadTextures();
         Codriver_LoadArrows();   /* 0x4165e0 */
+        Dash_Load();     /* 0x445a60 */
         Pause_Build();   /* 0x403500 */
     }
     Proc_Event(g, slot, 0, 2);
@@ -580,6 +584,7 @@ static void draw(ProcGroup *g, uint32_t slot)
 void Race_DrawOverlays(int player)
 {
     Hud_MessageReset();       /* 0x417e60, in the view 0x40f0c0 */
+    Dash_Draw(player);        /* 0x446210 */
     Hud_Draw(player);         /* 0x4125f0 */
     Codriver_Notes(player);   /* 0x4177d0 */
     fade_overlay(player, gm8(0x52af40) != 0);
@@ -644,7 +649,10 @@ int Race_Frame(void)
     R.kind = kind;
     for (uint32_t i = 0; i < n; i++) Proc_InitSlot(&R.slots[i], R.restart ? 5 : 0, kind);
     Proc_Init(&R.group, (uint8_t)n, R.slots, states, exe_data(0x519120, 26 * 4));
-    if (R.restart) PENDING_NOTE(0x42b660, "Race_Restart");
+    if (R.restart) {
+        PENDING_NOTE(0x42b660, "Race_Restart");
+        Dash_Reset();   /* 0x445c80, after Sim_InitLists(2) */
+    }
     R.built = true;
     R.rebuild = false;
     R.restart = false;
