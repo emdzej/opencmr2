@@ -1033,3 +1033,5 @@
 0046b8f0	Car_Masks	race	confirmed	A car's objects' pass masks from its views' kinds
 0046bb40	Cars_ViewKinds	race	confirmed	Per car and view the kind of drawing by the view's camera
 0046b790	Car_AddView	race	confirmed	A view's bit into the groups its kind draws
+00477460	Cockpit_Dash	camera	confirmed	The dash rev counter bands and gear digit keyed in their textures
+004775f0	Cockpit_Digit	camera	confirmed	The gear digit on the DIGIT texture's seven segments

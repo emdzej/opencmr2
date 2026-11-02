@@ -5,6 +5,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/weather.h"
+#include "game/dash.h"
 #include "sim/car.h"
 #include "sim/car_internal.h"
 #include "sim/sim.h"
@@ -48,6 +49,9 @@ typedef struct {
     int wstate, wdir;
     int16_t wang, wspeed;
     Tex *revct, *digit;            /* 0x58d4c0, 0x58d4c4 */
+    /* the rev counter's twelve bands and the gear's seven segments, now and as last drawn (0x58d310 /
+       0x58d2a0 + 0x18 n, 0x58d2d4 / 0x58d6b0 + 0xe n; the last ones start unset) */
+    uint16_t bands[12], bands_was[12], segs[7], segs_was[7];
 } Cockpit;
 
 static Cockpit ck[2];
@@ -70,6 +74,8 @@ void Cockpit_Reset(void)
         k->hcount = 3;
         k->wdir = 1;
         k->snap = true;
+        memset(k->bands_was, 0xff, sizeof k->bands_was);
+        memset(k->segs_was, 0xff, sizeof k->segs_was);
     }
 }
 
@@ -325,6 +331,48 @@ static void wipers(Cockpit *k, int car)
     wiper_step(k, car);
 }
 
+/* 0x4775f0: the gear's digit on the DIGIT texture's seven segments (alpha 0x80, 0xe0, 0xd0, 0xc0, 0xb0,
+   0xa0, 0x90 in it), 0 to 9, anything else the top segment only; drawn again from its copy (16 + car)
+   when they change */
+static void digit(Cockpit *k, int car, int gear)
+{
+    static const uint8_t on[11][7] = {
+        {0, 1, 1, 1, 1, 1, 1}, {0, 0, 1, 1, 0, 0, 0}, {1, 1, 1, 0, 1, 1, 0}, {1, 1, 1, 1, 1, 0, 0},
+        {1, 0, 1, 1, 0, 0, 1}, {1, 1, 0, 1, 1, 0, 1}, {1, 1, 0, 1, 1, 1, 1}, {1, 0, 0, 0, 0, 1, 0},
+        {1, 1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0},
+    };
+    const uint8_t *o = on[gear >= 0 && gear <= 9 ? gear : 10];
+    for (int i = 0; i < 7; i++) k->segs[i] = o[i] ? 0xff : 0;
+    if (!memcmp(k->segs, k->segs_was, sizeof k->segs)) return;
+    int n = car + 2 * 8;
+    Tex_RestoreCopy(k->digit, n);
+    Tex_KeyAlpha(k->digit, 0x80, (uint8_t)k->segs[0], 0xe0, (uint8_t)k->segs[1], 0xd0, (uint8_t)k->segs[2], n);
+    Tex_KeyAlpha(k->digit, 0xc0, (uint8_t)k->segs[3], 0xb0, (uint8_t)k->segs[4], 0xa0, (uint8_t)k->segs[5], n);
+    Tex_KeyAlpha(k->digit, 0x90, (uint8_t)k->segs[6], 0x90, (uint8_t)k->segs[6], 0x90, (uint8_t)k->segs[6], n);
+    memcpy(k->segs_was, k->segs, sizeof k->segs);
+}
+
+/* 0x477460: the rev counter: of the REVCT texture's bands (alpha 0xe0 down to 0x30 in it) the first
+   always lit, then one for each eleventh of the shown revs (0x445dd0), the last at 0x6c; the gear's
+   digit; drawn again from the copy (8 + car) when they change */
+static void dash(Cockpit *k, int car)
+{
+    int32_t lit = fx_mul(Dash_Revs(car), 0xb0000) >> 16;
+    for (int i = 0; i < 11; i++) k->bands[i] = lit <= i ? 0 : 0xff;
+    if (k->digit) digit(k, car, CI8(Car_Get(car), 0xb1e));
+    if (!k->revct) return;
+    k->bands[11] = 0x6c;
+    if (!memcmp(k->bands, k->bands_was, sizeof k->bands)) return;
+    int n = car + 8;
+    const uint16_t *b = k->bands;
+    Tex_RestoreCopy(k->revct, n);
+    Tex_KeyAlpha(k->revct, 0xe0, 0xff, 0xd0, (uint8_t)b[1], 0xc0, (uint8_t)b[2], n);
+    Tex_KeyAlpha(k->revct, 0xb0, (uint8_t)b[3], 0xa0, (uint8_t)b[4], 0x90, (uint8_t)b[5], n);
+    Tex_KeyAlpha(k->revct, 0x80, (uint8_t)b[6], 0x70, (uint8_t)b[7], 0x60, (uint8_t)b[8], n);
+    Tex_KeyAlpha(k->revct, 0x50, (uint8_t)b[9], 0x40, (uint8_t)b[10], 0x30, (uint8_t)b[11], n);
+    memcpy(k->bands_was, k->bands, sizeof k->bands);
+}
+
 /* 0x4778b0: the camera at the head: the eye (0, 0.2, 0) in a frame looking along the car, pitched by
    0x51c9b0, through the head into the second model's pose (the car's +0x40) */
 static void place(int32_t m[16], Cockpit *k, const Car *c)
@@ -360,7 +408,7 @@ void Cockpit_Step(int car, const int32_t *r, int32_t m[16])
     head(k, c, r);
     wheel(k, c);
     wipers(k, car);
-    PENDING_NOTE(0x477460, "Cockpit_Dash (the rev counter's needle into REVCT)");
+    dash(k, car);   /* 0x477460 */
     place(m, k, c);
 }
 

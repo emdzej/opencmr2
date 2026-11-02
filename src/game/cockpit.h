@@ -3,8 +3,8 @@
    view the head turns and moves with the car's acceleration (0x476e00), the wheel turns with the
    steering and the hand moves between it and the gear lever on a change (0x476640, 0x476850), the
    wipers sweep in the rain (0x476a40, 0x476c70), and the camera sits at the head (0x4778b0). The
-   model is drawn only in this view (the cars' masks, 0x46b8f0). Not yet: the rev counter's needle drawn
-   into the REVCT texture (0x477460, 0x4775f0). */
+   model is drawn only in this view (the cars' masks, 0x46b8f0); its rev counter and gear digit are its
+   textures' alpha bands keyed on and off (0x477460, 0x4775f0). */
 #pragma once
 #include "world/obj.h"
 #include <stdbool.h>
