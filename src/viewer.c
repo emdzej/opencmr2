@@ -7,6 +7,7 @@
    mesh (Game/Tracks/<Country>/<stage>Hi.bfl's temp.c3d with the country's textures; prelit: the vertex
    colour is the emissive source). */
 #include "viewer.h"
+#include "game/ctlcfg.h"
 #include "bfl.h"
 #include "c3d.h"
 #include "image.h"
@@ -373,6 +374,14 @@ void viewer_frame(void)
     if (V.race) {
         /* the clock from the frame count (60 Hz), Return as the key that skips the replay and results */
         Timer_Sample((uint32_t)((uint64_t)V.frame++ * 1000 / 60));
+        /* --param pad=1: after the first frames (a runner's controller is there from its first input),
+           the first player on the first game controller, as the controller pages would leave it */
+        char pad[8];
+        if (V.frame == 10 && plat_param("pad", pad, sizeof pad)) {
+            Input_Reinit();
+            Ctl_Configure();
+            if (Input_Record(2)->device == DEV_PAD) Ctl_SetDevice(0, 2), gw8(0x53acc8, 2);
+        }
         uint8_t k[KEY_COUNT];
         bool skip = plat_keys(k) && k[0x1c];
         if (skip && !V.skip_was) Race_Skip();

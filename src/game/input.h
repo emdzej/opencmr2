@@ -61,6 +61,9 @@ void Input_SetSat(int n, int axis, int32_t sat);        /* 0x49ef10 */
 int Input_KeyDown(void);             /* 0x49edd0: the first key held (below 0xdd), -1 none */
 bool Input_ShiftDown(void);          /* 0x49edf0: either shift key */
 int Input_ButtonIndex(uint32_t bit); /* 0x49fd00: the button of a bit (0x520808), -1 none */
+/* 0x49ed80: a key's name (Windows' GetKeyNameText for the key last pressed; the port's names are
+   Windows' for a US keyboard, by DIK code) */
+void Input_KeyName(int code, char *dst, int cap);
 
 /* The typed characters (WM_CHAR into the queue 0x6ed3f4, 30 deep): 0x4b7cd0 takes the next one, false
    when none; 0x4b7c80 empties the queue. The port makes them from the key presses (letters lower

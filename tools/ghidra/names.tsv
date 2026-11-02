@@ -1431,3 +1431,31 @@
 0047bad0	Car_RearView	race	high	The rear view while its key is held, then the profile's camera
 0047bca0	Car_ActionMasks	race	high	The player's action bits and analogue flags for the controls reader
 00404e10	Pause_Pressed	race	high	The pause key (0x400 on the keyboard, the pause action on a controller)
+004fba80	Ctlpg_Player	frontend	high	The player the controller pages set up (0x82a7ec)
+004fba90	Ctlpg_ControllersEnter	frontend	high	The Controllers page's rows selectable
+004fbab0	Ctlpg_DeviceName	frontend	high	The device's name in the pages' copy
+004fbae0	Ctlpg_Binding	frontend	high	What an action is bound to, as shown
+004fbe60	Ctlpg_WorkAxis	frontend	high	The analogue page's axis with its position now
+004fbea0	Ctlpg_PickPlayer	frontend	high	The player chosen
+004fbec0	Ctlpg_CaptureStart	frontend	high	An action chosen: waiting for its key, button or axis
+004fbf60	Ctlpg_ActionsEnter	frontend	high	The actions page's rows by device
+004fbff0	Ctlpg_ActionsLeave	frontend	high	The actions kept, the keys bound; on to the analogue set-up
+004fc070	Ctlpg_Capture	frontend	high	The actions page's capture
+004fc490	Ctlpg_AxisAction	frontend	high	Whether the chosen action is on an axis
+004fc500	Ctlpg_AnalogueEnter	frontend	high	The analogue page's axes from the device
+004fc620	Ctlpg_Adjust	frontend	high	An axis' dead zone and saturation adjusted
+004fc850	Ctlpg_AdjustStart	frontend	high	An axis chosen for adjusting
+004fc880	Ctlpg_FfbEnter	frontend	high	The force feedback page's values
+004fc8f0	Ctlpg_FfbLeave	frontend	high	The force feedback page's values kept
+004fc970	Ctlpg_DeviceLeave	frontend	high	The players' devices and records kept
+004fc9b0	Ctlpg_DeviceEnter	frontend	high	The devices configured and copied for the pages
+004fc9f0	Ctlpg_DeviceFrame	frontend	high	The device page's values and device changes
+004fcb30	Ctlpg_DeviceItems	frontend	high	The device page's items from the device
+004fcc50	Ctlpg_UnbindOthers	frontend	high	An action's bits and key taken off the others
+004fccb0	Ctlpg_DrawControllers	frontend	high	The Controllers page
+004fd080	Ctlpg_DrawActions	frontend	high	The actions page
+004fd480	Ctlpg_DrawAnalogue	frontend	high	The Analogue Setup page
+004fdb10	Ctlpg_DrawFfb	frontend	high	The force feedback page
+004fe240	Ctlpg_DrawDevice	frontend	high	The device's Configuration page
+004ff060	Ctlpg_ItemGauge	frontend	high	An axis row's gauge by its state
+004ff0f0	Ctlpg_Gauge	frontend	high	An axis gauge: dead zone, saturation and position marks

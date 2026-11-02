@@ -20,9 +20,9 @@ int32_t Ctl_Setting0(int player) { return (int32_t)gm32(Ctl_Config(player)); }  
 int32_t Ctl_Setting1(int player) { return (int32_t)gm32(Ctl_Config(player) + 4); }           /* 0x40bc30 */
 void Ctl_SetSetting0(int player, int32_t v) { gw32(Ctl_Config(player), (uint32_t)v); }        /* 0x40bc60 */
 void Ctl_SetSetting1(int player, int32_t v) { gw32(Ctl_Config(player) + 4, (uint32_t)v); }    /* 0x40bd00 */
-void Ctl_SetFfb(int player, bool on) { gw32(Ctl_Config(player) + 0x11c, on); }               /* 0x40bc90 */
-bool Ctl_Ffb(int player) { return gm32(Ctl_Config(player) + 0x11c) != 0; }                   /* 0x40bcd0 */
-bool Ctl_HasFfb(int player) { return gm32(Ctl_Config(player) + 0x118) != 0; }                /* 0x40bd30 */
+void Ctl_SetQuickUpdate(int player, uint32_t on) { gw32(Ctl_Config(player) + 0x11c, on); }   /* 0x40bc90 */
+bool Ctl_QuickUpdate(int player) { return gm32(Ctl_Config(player) + 0x11c) != 0; }           /* 0x40bcd0 */
+bool Ctl_ForceFeedback(int player) { return gm32(Ctl_Config(player) + 0x118) != 0; }         /* 0x40bd30 */
 bool Ctl_AnalogSteer(int player) { return gm32(Ctl_Config(player) + 0x110) != 0; }           /* 0x40bdd0 */
 bool Ctl_AnalogPedals(int player) { return gm32(Ctl_Config(player) + 0x114) != 0; }          /* 0x40be00 */
 bool Ctl_Swap(int player) { return gm32(Ctl_Config(player) + 0x120) != 0; }                  /* 0x40be30 */
