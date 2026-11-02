@@ -6,6 +6,7 @@
 #pragma once
 #include "c3d.h"
 #include "render/d3d7.h"
+#include "fixmath.h"
 #include <stdint.h>
 
 enum { VB_POOL = 100, VB_VERTS = 2000, MESH_BATCHES = 50 };
@@ -43,3 +44,7 @@ void Mesh_SetFrame1(const C3d *m, uint8_t *part, uint32_t mask, uint32_t frame);
    each polygon's texture from its frame index at +0x2c (clamp_flags: stage 0 addressing from the
    polygon flags too). */
 void Mesh_Draw(const C3d *m, uint8_t *mesh, uint32_t batched, uint32_t clamp_flags, uint32_t batched_tex10);
+/* 0x4abaf0: a copy of a scenery mesh (world space) in the frame of its placement (rows made unit, the
+   position taken off, vertices and normals turned into it), batched and put in a vertex buffer. out
+   gets the copy's block (out->data, freed by the caller); returns its record, NULL without memory. */
+uint8_t *Mesh_Clone(C3d *out, const C3d *src, const uint8_t *mesh, const FxMat *place);

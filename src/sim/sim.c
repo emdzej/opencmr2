@@ -1,5 +1,6 @@
 /* The world step (see sim.h). */
 #include "sim/sim.h"
+#include "sim/knock.h"
 #include "sim/step.h"
 #include "sim/pose.h"
 #include "sim/parts.h"
@@ -120,7 +121,7 @@ void Sim_Step(void)
     if (g_second.n) PENDING_NOTE(0x43f630, "Sim_SecondCars");
     if (g_simple.n) PENDING_NOTE(0x425950, "Sim_SimpleCars");
     Sim_Collide(g_collide.car, g_collide.n);
-    PENDING_NOTE(0x470580, "Sim_Step 0x470580");
+    Knock_Step();   /* 0x470580 */
     Sim_CarsPost(g_stepped.car, g_stepped.n);
     PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0, 0x444c10");
     Pose_Spin(&g_listA);

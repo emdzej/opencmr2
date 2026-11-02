@@ -933,3 +933,21 @@
 00480380	Fireworks_Launch	world	high	A rocket from a random pad
 00480600	Fireworks_Interp	world	high	The drawn positions between steps
 004805f0	Fireworks_SetSounds	world	high	The first sound's id
+0046f500	Knock_Free	sim	confirmed	The pool's mesh copies, entry map and shapes freed
+0046f550	Knock_Init	sim	confirmed	40 pool objects under the world; a mesh copy and shape per movable entry
+0046f7e0	Knock_Hide	sim	confirmed	The pool emptied, its objects 10,000 units down
+0046f810	Knock_Start	sim	confirmed	A pool record started: tipping (shape 1, or slow) or flung from the car's velocity
+0046fe70	Scenery_Knock	sim	confirmed	A movable entry knocked by a car: hidden for it, a pool record taken (full: the farthest)
+00470240	Knock_RestoreEntry	sim	confirmed	A movable entry back up for a car, the static object raised and drawn
+004702a0	Knock_Restore	sim	confirmed	Every movable entry back up for every car, then Knock_Hide
+004702f0	Knock_Lift	sim	confirmed	How far up the pivot goes for the box's lowest corner to sit on the ground
+00470580	Knock_Step	sim	confirmed	Per step: tipping (spin up, lay flat) and flung (fall, slide, settle) records
+00471950	Knock_Interp	sim	confirmed	The drawn matrices blended between steps, relight flags
+00471a60	Knock_Draw	sim	confirmed	The drawn matrices to the objects, relit when changed
+00471bd0	Scenery_Movables	sim	confirmed	The movable entry list and its count
+00471cc0	Scenery_MovedPos	sim	confirmed	A movable entry's centre, 1,000 up once it is down
+00471d40	Scenery_UpFor	sim	confirmed	A movable entry still up for a car (its standing bit)
+00471d80	Scenery_SetUp	sim	confirmed	A movable entry's standing bit for a car set or cleared
+004abaf0	Mesh_Clone	render	confirmed	A scenery mesh copied into its placement's frame, batched and buffered
+004b8aa0	Section_Unlink	world	confirmed	An object out of its cell's list
+004b8b10	Section_Link	world	confirmed	An object onto the list of the cell of its world position

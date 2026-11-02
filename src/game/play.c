@@ -4,6 +4,7 @@
 #include "game/gstate.h"
 #include "game/shadow.h"
 #include "game/play.h"
+#include "sim/knock.h"
 #include "game/fireworks.h"
 #include "game/lamps.h"
 #include "game/timer.h"
@@ -91,6 +92,7 @@ static void draw(int player, int state)
     camera.world.m[15] = 0x10000;
     camera.dirty = 1;
     int32_t cp[3] = {camera.world.m[12], camera.world.m[13], camera.world.m[14]};
+    Knock_Draw();   /* 0x471a60 */
     Cars_ShellsToCamera(&camera);
     Weather_Sky(player);   /* 0x461c30 */
     Sky_Follow(cp);

@@ -3,6 +3,7 @@
 #include "game/balls.h"
 #include "game/shadow.h"
 #include "game/race.h"
+#include "sim/knock.h"
 #include "game/ai.h"
 #include "game/fireworks.h"
 #include "game/weather.h"
@@ -183,6 +184,7 @@ static void Race_Update(uint8_t state, bool flag)
             for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i), Crash_UpdateSounds();
         Sim_StepDone(&g_all);
     }
+    Knock_Interp(R.frac);   /* 0x471950, first in Race_PoseInterp */
     Car_PoseInterp();   /* Race_PoseInterp 0x41d060 (its other effects not ported) */
     if (Gs_Option(0)) Balls_Frame(R.frac);   /* 0x47e1e0, in 0x41d060 */
     Parts_Interp(R.frac);   /* 0x484d30 */
@@ -451,6 +453,7 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             Times_Clear();
             Hud_Init(gm8(0x53810c));   /* 0x411450 */
             Skids_Reset();   /* 0x465530 */
+            Knock_Restore();   /* 0x4702a0 */
             Lights_Reset();   /* 0x463d00 */
             PENDING_NOTE(0x41e6b0, "Race_Restart's splits and replay (0x4584d0, 0x42b800)");
             R.nfinished = 0, R.done = 0;

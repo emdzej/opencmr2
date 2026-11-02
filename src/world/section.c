@@ -417,3 +417,32 @@ void Section_DrawObjects(uint32_t pass)
     Render_ZEnable(1);
     Render_ZWrite(1);
 }
+
+/* 0x4b8aa0: o out of its cell's list (the original walks to it without a check), its cell -1 */
+void Section_Unlink(Obj *o)
+{
+    int i = o->section;
+    if (i < 0 || i >= g_nsec) return;
+    Obj *prev = NULL, *c = g_sec[i].objs;
+    while (c && c != o) prev = c, c = c->section_next;
+    if (!c) return;
+    if (prev) prev->section_next = o->section_next;
+    else g_sec[i].objs = o->section_next;
+    g_sec[i].nobjs--;
+    o->section_next = NULL;
+    o->section = -1;
+}
+
+/* 0x4b8b10: o at the end of the list of the cell of its world position */
+void Section_Link(Obj *o)
+{
+    if (!o) return;
+    int32_t p[3] = {o->world.m[12], o->world.m[13], o->world.m[14]};
+    int i = Section_Find(p);
+    if (i < 0 || i >= g_nsec) return;
+    Obj **tail = &g_sec[i].objs;
+    while (*tail) tail = &(*tail)->section_next;
+    *tail = o;
+    g_sec[i].nobjs++;
+    o->section = (int16_t)i;
+}

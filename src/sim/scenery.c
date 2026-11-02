@@ -2,6 +2,7 @@
    0x5915f8 (the object's centre, radius and height, the push, the normal, the thresholds) are the
    fields of S here. */
 #include "sim/scenery.h"
+#include "sim/knock.h"
 #include "sim/damage.h"
 #include "sim/walls.h"
 #include "sim/contact.h"
@@ -73,6 +74,7 @@ static void vmul(int32_t o[3], const int32_t v[3], const int32_t m[16])
 
 void Scenery_CollFree(void)
 {
+    Knock_Free();
     free(vols), free(ent_s), free(ent_m), free(cell_s), free(cell_m);
     free(list_s), free(list_m), free(cnt_s), free(cnt_m), free(standing), free(up_flag);
     vols = NULL, ent_s = ent_m = NULL, cell_s = cell_m = NULL, list_s = list_m = NULL;
@@ -202,7 +204,8 @@ void Scenery_CollInit(void)
             }
         }
     free(fill_s), free(fill_m), free(vbase);
-    PENDING_NOTE(0x46f550, "Scenery_KnockPool (0x46f550, 0x46f7e0)");
+    Knock_Init();    /* 0x46f550 */
+    Knock_Hide();    /* 0x46f7e0 */
 }
 
 /* 0x471b30, 0x471b80: a cell's fixed or movable entries */
@@ -217,22 +220,30 @@ static Entry *cell_list(int cell, bool movable, int *n)
 
 /* 0x471cc0: a movable entry's centre, 1,000 units up once it is down (for one player its first car's
    bit, else the flag) */
-static void moved_pos(int32_t p[3], const Entry *e)
+void Scenery_MovedPos(int i, int32_t p[3])
 {
-    memcpy(p, e->sc->pos, sizeof e->sc->pos);
-    int i = (int)(e - ent_m);
+    memcpy(p, ent_m[i].sc->pos, sizeof ent_m[i].sc->pos);
     if (i < n_m) {
         if (Gs_SelBits14() < 2) { if (!(standing[i] & 1)) p[1] += 0x3e80000; }
         else if (!up_flag[i]) p[1] += 0x3e80000;
     }
 }
+static void moved_pos(int32_t p[3], const Entry *e) { Scenery_MovedPos((int)(e - ent_m), p); }
 
 /* 0x471d40: the movable entry still up for car n */
-static bool up_for(const Entry *e, int n)
+bool Scenery_UpFor(int i, int n) { return i >= 0 && i < n_m && (standing[i] & (1u << (n & 31))) != 0; }
+static bool up_for(const Entry *e, int n) { return Scenery_UpFor((int)(e - ent_m), n); }
+
+/* 0x471d80 */
+void Scenery_SetUp(int i, int n, bool up)
 {
-    int i = (int)(e - ent_m);
-    return i < n_m && (standing[i] & (1u << (n & 31))) != 0;
+    if (i < 0 || i >= n_m) return;
+    uint8_t b = (uint8_t)(1u << (n & 31));
+    standing[i] = up ? standing[i] | b : standing[i] & (uint8_t)~b;
 }
+
+int Scenery_Movables(void) { return n_m; }   /* 0x471bd0 */
+Scenery *Scenery_Movable(int i) { return ent_m[i].sc; }
 
 /* 0x487b80: the two spheres (the reaches summed) overlap */
 static bool near(int32_t ra, int32_t rb, const int32_t a[3], const int32_t b[3])
@@ -740,7 +751,7 @@ int Car_Scenery(Car *c)
                     S.obox[B_VALID] = 0;
                     obj_box(S.obox, e->v, S.pos);   /* 0x487c40 */
                     hit = box_hit(c, b, f);          /* 0x487f60 */
-                    if (hit && respond(c, e, 0)) PENDING_NOTE(0x46fe70, "Scenery_Knock");
+                    if (hit && respond(c, e, 0)) Scenery_Knock((int)(e - ent_m), cells[q], idx);   /* 0x46fe70 */
                     continue;
                 }
                 /* 0x487e00: the centre, the radius, the height of the mesh's first volume */
@@ -751,7 +762,7 @@ int Car_Scenery(Car *c)
                     continue;
                 }
                 hit = cyl_hit(c, b, f & 0x2001000 ? 0 : 0x10000);
-                if (hit && respond(c, e, 0)) PENDING_NOTE(0x46fe70, "Scenery_Knock");
+                if (hit && respond(c, e, 0)) Scenery_Knock((int)(e - ent_m), cells[q], idx);   /* 0x46fe70 */
             }
         }
     CW8(c, 0xb3e, (uint8_t)CI8(c, 0xb3f));

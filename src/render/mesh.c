@@ -6,6 +6,8 @@
 #include "render/light.h"
 #include "render/rstate.h"
 #include "render/tex.h"
+#include "fixmath.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -302,4 +304,68 @@ void Mesh_Draw(const C3d *m, uint8_t *mesh, uint32_t batched, uint32_t clamp_fla
     if (!batched) draw_polys(m, part, clamp_flags != 0);
     else draw_batches(part, batched_tex10 != 0);
     if (!(f & 0x20)) Light_SetMode(saved);
+}
+
+static void unit_row(int32_t *d, const int32_t *s)
+{
+    int32_t v[3] = {s[0], s[1], s[2]};
+    Vec_Unit(v);
+    d[0] = v[0], d[1] = v[1], d[2] = v[2];
+}
+
+/* v through the transposed 3 x 3 (Vec_RotateT 0x4b9da0), from floats rounded to 16.16 */
+static void rot_t(float *f, const int32_t *m, const int32_t *sub)
+{
+    int32_t v[3], o[3];
+    for (int k = 0; k < 3; k++) v[k] = (int32_t)llrint((double)f[k] * 65536.0) - (sub ? sub[k] : 0);
+    for (int k = 0; k < 3; k++) o[k] = fx_mul(m[4 * k + 2], v[2]) + fx_mul(m[4 * k + 1], v[1]) + fx_mul(m[4 * k], v[0]);
+    for (int k = 0; k < 3; k++) f[k] = (float)((double)o[k] * (1.0 / 65536.0));
+}
+
+/* 0x4abaf0. The original takes a mesh slot (0x4ab8a0, the table at 0x67b124) and allocates the arrays
+   on its heap; the port puts the record and its arrays in one block, the record's array fields offsets
+   into it as C3d_Ref resolves them. */
+uint8_t *Mesh_Clone(C3d *out, const C3d *src, const uint8_t *mesh, const FxMat *place)
+{
+    memset(out, 0, sizeof *out);
+    uint32_t nv = rd32(mesh + 0x10), np = rd32(mesh + 0x28);
+    const uint8_t *sv = C3d_Ref(src, mesh + 0x0c, src->verts), *sp = C3d_Ref(src, mesh + 0x24, src->polys);
+    const uint8_t *s14 = C3d_Ref(src, mesh + 0x20, src->r14), *svx = C3d_Ref(src, mesh + 0x34, src->vx);
+    size_t at_v = C3D_MESH, at_p = at_v + (size_t)nv * C3D_VERTEX, at_14 = at_p + (size_t)np * C3D_POLY;
+    size_t at_vx = at_14 + (size_t)np * C3D_R14, size = at_vx + (size_t)nv * C3D_VX;
+    uint8_t *d = calloc(1, size);
+    if (!d) return NULL;
+    out->data = d, out->size = size;
+    out->meshes = 0, out->verts = (uint32_t)at_v, out->polys = (uint32_t)at_p;
+    out->r14 = (uint32_t)at_14, out->vx = (uint32_t)at_vx;
+    out->kind = src->kind;
+    /* the record: its first 12 bytes, the counts, flags (+0x30), frame (+0x2c), +0x104, +0x108,
+       +0x111-+0x114; the rest (the volumes +0x10c, the batches) zero */
+    memcpy(d, mesh, 0x0c);
+    wr32(d + 0x10, nv), wr32(d + 0x28, np);
+    wr32(d + 0x0c, sv ? 0 : 0xffffffffu), wr32(d + 0x24, sp ? 0 : 0xffffffffu);
+    wr32(d + 0x20, s14 ? 0 : 0xffffffffu), wr32(d + 0x34, svx ? 0 : 0xffffffffu);
+    wr32(d + 0x2c, rd32(mesh + 0x2c)), wr32(d + 0x30, rd32(mesh + 0x30));
+    d[0x104] = mesh[0x104];
+    wr32(d + 0x108, rd32(mesh + 0x108));
+    d[0x111] = mesh[0x111], d[0x112] = mesh[0x112], d[0x113] = mesh[0x113];
+    wr32(d + 0x114, rd32(mesh + 0x114));
+    if (sv) memcpy(d + at_v, sv, (size_t)nv * C3D_VERTEX);
+    if (sp) memcpy(d + at_p, sp, (size_t)np * C3D_POLY);
+    if (s14) memcpy(d + at_14, s14, (size_t)np * C3D_R14);
+    if (svx) memcpy(d + at_vx, svx, (size_t)nv * C3D_VX);
+    /* into the placement's frame: its rows made unit, the vertices less its position */
+    int32_t m[16] = {0}, pos[3] = {place->m[12], place->m[13], place->m[14]};
+    for (int r = 0; r < 3; r++) unit_row(m + 4 * r, place->m + 4 * r);
+    for (uint32_t i = 0; sv && i < nv; i++) {
+        float f[6];
+        uint8_t *v = d + at_v + (size_t)i * C3D_VERTEX;
+        memcpy(f, v, sizeof f);
+        rot_t(f, m, pos);
+        rot_t(f + 3, m, NULL);
+        memcpy(v, f, sizeof f);
+    }
+    Mesh_Batches(out, d);
+    Mesh_AddToVB(out, d);
+    return d;
 }

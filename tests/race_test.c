@@ -46,6 +46,7 @@
 #include "sim/pose.h"
 #include "sim/fade.h"
 #include "sim/scenery.h"
+#include "sim/knock.h"
 #include "sim/walls.h"
 #include "sim/contact.h"
 #include "game/balls.h"
@@ -259,6 +260,30 @@ int main(void)
     CHECK(seen[5] && seen[7] && seen[8] && seen[5] < seen[7] && seen[7] < seen[8]);
     /* the countdown: five seconds of 40 ms steps from its first frame, 300 frames at 60 Hz */
     CHECK(seen[8] - seen[7] >= 299 && seen[8] - seen[7] <= 302 && fin > 0);
+    /* knocking down (0x46fe70): a movable object hit by car 0 at 80 km/h (0.9 units a step) is lowered out of
+       sight for it, a copy of its mesh tips or is flung and comes to rest on the ground */
+    {
+        Car *c = Car_Get(0), keep = *c;
+        int nm = Scenery_Movables();
+        printf("knock: %d movable entries\n", nm);
+        CHECK(nm > 0);
+        if (nm > 0) {
+            Scenery *sc = Scenery_Movable(0);
+            int32_t y0 = sc->pos[1], p0[3], p[3];
+            CW32(c, 0x408, 0xe666), CW32(c, 0x40c, 0), CW32(c, 0x410, 0), CW32(c, 0x778, 0xe666);
+            Scenery_Knock(0, Section_Find(sc->pos), 0);
+            int st = Knock_State(0, p0), k = 0, moving = 0;
+            CHECK(Knock_Count() == 1 && !Scenery_UpFor(0, 0) && sc->pos[1] == y0 - 0x3e80000 && st > 0);
+            for (; k < 400 && Knock_State(0, p) != 0; k++) Knock_Step(), moving++;
+            Knock_State(0, p);
+            printf("knock: state %d, still after %d steps, moved (%.2f, %.2f, %.2f)\n", st, moving,
+                   (p[0] - p0[0]) / 65536.0, (p[1] - p0[1]) / 65536.0, (p[2] - p0[2]) / 65536.0);
+            CHECK(moving > 0 && k < 400);
+            Knock_Restore();
+            CHECK(Knock_Count() == 0 && Scenery_UpFor(0, 0) && sc->pos[1] == y0);
+        }
+        *c = keep;
+    }
     /* the scenery (0x4878a0): the car put with a tree's trunk 0.3 units ahead of its centre is pushed
        out of it, the trunk then outside its flat box */
     {

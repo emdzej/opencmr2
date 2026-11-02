@@ -77,5 +77,7 @@ void Billboard_DrawQueued(void);
    has left its cell), up to three neighbouring cells within 4.5 units of an edge, and the move between
    the cells' lists. */
 void Obj_UpdateSection(Obj *o);
+void Section_Unlink(Obj *o);   /* 0x4b8aa0 */
+void Section_Link(Obj *o);     /* 0x4b8b10 */
 /* Section_DrawObjects 0x49ce40: the listed cells' objects (those with +0x180 clear), z-buffer off. */
 void Section_DrawObjects(uint32_t pass);

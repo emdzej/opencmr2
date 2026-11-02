@@ -900,7 +900,7 @@ flash colour over the low light colour 0x5909c0) and either a burst of sparks (t
 eleven of FireWork.bfl; the whistle's voice is kept in a byte, so it is never found to stop it early
 (the port keeps that).
 
-## Knocking scenery down (mapped, porting)
+## Knocking scenery down (ported: src/sim/knock.c)
 
 Movable scenery (record flags 0x2001000, the movable cell lists 0x58c94c, `n_m` 0x58ca6c) is knocked
 by `Car_Scenery` 0x4878a0 after a hit and `0x48be20`: `Scenery_Knock` 0x46fe70(entry, cell, car).
@@ -928,8 +928,27 @@ by `Car_Scenery` 0x4878a0 after a hit and `0x48be20`: `Scenery_Knock` 0x46fe70(e
   at or below 0) squares it onto the ground and stops; state 2 falls (gravity 0xfffff5c3 a step until
   on the ground, halved with option 1), bounces at 0.8 and settles below 0x28f; both keep the lowest
   box corner (0x589458, chosen by the down direction, 0x4702f0) on the ground (Hpc_Ground).
-- When the pool is full, the record with the most cars nearest (0x58c424 distances, 0x5894b8 counts)
-  is reused, its object put back up for all eight cars. 0x4702a0 (restarts, replays) puts everything back.
+- When the pool is full, each car's farthest record is counted (0x58c424: flat distances, max-axis
+  normalised then the table square root, 0 within 0x290; 0x5894b8 the byte counts) and the record
+  farthest from the most cars (the first of equals) is reused, its entry put back up for all eight cars
+  (0x470240). 0x4702a0 (restarts, replays) puts everything back.
+- Details of 0x470580 (confirmed from the disassembly): the spin's angles are round(fx(spin, dt) *
+  0.009947183943243459) (the double at 0x511380, radians to 4,096ths) as u16, Rows_Turn3 0x429f20 on a
+  3 x 3 copy of the rows. Tipping: the lift is measured with the rows before the turn and added to the
+  position's y, then the turned rows are set; at rest r1 = unit(r1 - n (r1.n)), r0 = unit(r0 - r1
+  (r0.r1)), r2 = unit(r0 x r1). Flung: the world pivot P moves by fx(v, dt) less fx(g, dt / 2); on the
+  ground spin and v fall by 0.8 a step and both below 0x28f stop: r2 eases a tenth a step onto the
+  ground normal (negated when r2.n < 0) until within 0x1999, then r0 = unit(r0 - r2 (r2.r0)), r1 =
+  unit(r2 x r0); in the air the ground is tried only while v.y < 0 and taken when the lift is above
+  -0xccc. The position is then P less the pivot through the new rows.
+- 0x4702f0: off the collision mesh the normal is (0, 1, 0) and the ground ten units under P; the
+  lowest corner is (8 corners, the car shadow's order) index (d.y >= 0 ? 4 : 0) + (d.x < 0 ? 2 : 0) +
+  (d.z < 0 ? 1 : 0) with d the negated normal through the transposed rows; the result is
+  (n.(P' - corner)) << 16 / n.y with P' at the ground's height.
+- 0x4abaf0 copies the record's first 12 bytes, the counts, +0x2c, +0x30, +0x104, +0x108, +0x111-+0x114
+  and the vertex, polygon, 0x14 and 0x34 arrays; the vertices (rounded to 16.16, less the placement's
+  position) and normals go through the transposed unit rows. The copies are counted by a byte
+  (0x58c320): past 255 movable entries they would wrap (none of the stages has that many).
 
 ## Skid marks
 
