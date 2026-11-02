@@ -40,6 +40,9 @@
 #include "sim/fade.h"
 #include "sim/progress.h"
 #include "exe.h"
+#include "audio/snd.h"
+#include "fe/fe_page.h"
+#include "game/select.h"
 #include "game/unlocks.h"
 #include "world/tod.h"
 #include "game/standings.h"
@@ -85,6 +88,7 @@ static struct {
     uint8_t start_count;    /* DAT_0053811c */
     int8_t winner;          /* DAT_005191a0: the head to head's winner, -1 none */
     bool skip;              /* DAT_00817574 */
+    bool exited;            /* the race torn down (0x41e670) for the next stage without the front end */
     int32_t t_start[4], t_elapsed[4];   /* 0x58da10, 0x58da30 */
 } R;
 
@@ -607,6 +611,16 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
     R.first = true;
 }
 
+/* 0x41e670 and 0x41b300: the race torn down (its voices stopped, its archives and textures freed by
+   the port's Play_End) and to be built again */
+static void race_exit(ProcGroup *g)
+{
+    (void)g;
+    Voices_StopAll();
+    R.exited = true;
+    R.built = false;
+}
+
 /* state 11, 0x41e8d0: the results until the key; in a rally on to the next stage through the world
    mode (2: the service area and the loading screens) */
 static void s11_results(ProcGroup *g, uint32_t slot)
@@ -669,18 +683,65 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 4, 2);
             return;
         }
-        /* a rally's restart and the service area's go through mode 2 */
+        /* a rally's restart and the service area's go through mode 2; a championship's or single
+           rally's from its first stage with the rally's set-ups (0x4068e0(0), 0x406820) */
+        if (m == 0 || m == 1) {
+            gw32(0x52f2ac, gm32(0x52f2ac) & 0xfffffc1fu);
+            Fe_CarSetups();
+        }
         set_mode(2);
         for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 3);
         R.built = false;
         return;
     }
-    PENDING_NOTE(0x41e8d0, "Race_Results");
-    if (!R.skip) return;
-    R.skip = false;
-    set_mode(2);
-    for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 3);
-    R.built = false;
+    /* the way on by the race's kind and the mode */
+    uint32_t m = Gs_Mode();
+    bool fe = true;
+    switch (R.kind) {
+    case 0:
+    case 1:
+        if (m <= 1) {
+            for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+            if (Sel_NextStage()) {   /* 0x4072d0 */
+                uint32_t st = Tod_Stage();
+                if (st != 0) {
+                    /* the service area after stages 2, 4, 6, 8 and the super special, else on to
+                       the next stage at once */
+                    if (st == 2 || st == 4 || st == 6 || st == 8 || st == 10) set_mode(2);
+                    race_exit(g);
+                    return;
+                }
+                gw8(0x52ea50, 1);   /* 0x4067c0: a new rally (the front end shows it) */
+            }
+        } else if (R.kind == 0 ? (m == 2 || m == 3 || m == 6 || m == 7 || (m >= 9 && m <= 12)) : (m == 2 || m == 6)) {
+            for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+            if (R.kind == 1 && m == 2 && g->n != 1) return;
+        } else if (m == 5) {
+            for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+            PENDING_NOTE(0x4074a0, "the arcade's next race (to the next without the front end)");
+        } else if (R.kind == 0 && m == 8) {
+            for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+            set_mode(Sel_NextStage() ? 2 : 0);
+            PENDING_NOTE(0x409ab0, "the network records cleared (0x409ab0, 0x409e30)");
+            race_exit(g);
+            return;
+        } else fe = false;
+        break;
+    default:
+        fe = false;
+        break;
+    }
+    if (!fe) {
+        PENDING_NOTE(0x41e8d0, "Race_Results (the championship's, alternation's and the network's ways out)");
+        if (!R.skip) return;
+        R.skip = false;
+        set_mode(2);
+        for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 3);
+        R.built = false;
+        return;
+    }
+    set_mode(0);
+    race_exit(g);
 }
 
 /* state 12, 0x41f4e0: back to the front end */
@@ -858,4 +919,6 @@ int Race_Cars(void) { return g_all.n; }
 int32_t Race_Frac(void) { return R.frac; }
 int Race_Base(void) { return gm8(0x537ef6); }   /* 0x41b370 */
 int Race_Kind(void) { return (int)R.kind; }   /* 0x41b380 */
+bool Race_Exited(void) { return R.exited; }
+void Race_EndReplay(void) { end_replay(&R.group); }   /* 0x41f2b0 */
 Obj *Race_Camera(int player) { return H && H->camera ? H->camera(player) : NULL; }

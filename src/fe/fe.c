@@ -544,6 +544,13 @@ int Game_Frame(void)
     if (m == 3) {
         /* the arcade modes come straight here (0x4d0c60): the port's stage and car set-up (which the
            original does in the race's states 3 and 4) first */
+        /* the results went on to the next stage without the front end (0x41e670): the race
+           freed and begun again */
+        if (raced && Race_Exited()) {
+            Play_End();
+            raced = false;
+            return 0;
+        }
         if (!raced) {
             raced = Play_Begin();
             if (!raced) Game_SetMode(0);

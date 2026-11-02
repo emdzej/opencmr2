@@ -593,8 +593,8 @@ int main(void)
                Cat_FinishPoint());
         CHECK(at > 0 && splits >= 1);
         /* past the finish: state 9 for four seconds, then the replay with the results' pages; Enter
-           through the title, times, splits and board, up (round) to "quit", Enter: the fade, the
-           results state, the front end */
+           through the title, times, splits, board and the rally's times, then the choices' exit and its
+           question: the fade, the results state, the front end */
         int f2 = 0;
         int s9 = 0, brake_lit = 0, lens_ff_brake = -1;
         int32_t brake_lens = 0, brake_glow = 0;
@@ -628,8 +628,9 @@ int main(void)
             }
         printf("the choices after %d pages (a new record %d)\n", pages, gm8(0x817410));
         CHECK(Results_AtChoices());
-        static const int keys[] = {0xc8, 0x1c};
-        for (int k = 0; k < 2; k++)
+        /* in a rally: up (round) to "exit", its question (from "back"), up to "quit", Enter */
+        static const int keys[] = {0xc8, 0x1c, 0xc8, 0x1c};
+        for (int k = 0; k < 4; k++)
             for (int i = 0; i < 40; i++, frame++) {
                 plat_host_key(keys[k], i < 3);
                 Timer_Sample((uint32_t)((uint64_t)frame * 1000 / 60));

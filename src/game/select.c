@@ -3,6 +3,8 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/profile.h"
+#include "game/opponents.h"
+#include "pending.h"
 #include "crt.h"
 #include "exe.h"
 #include <string.h>
@@ -33,6 +35,46 @@ void Sel_ModeFlags(void)
     s &= ~0x800000u;
     if (any) s |= 0x800000;
     gw32(0x52f2ac, s);
+}
+
+/* 0x4072d0: the championship or single rally on to its next stage (the stage word 0x52f2ac): the
+   stage one on; past the rally's last (0x407150) or the super special (10) the rally ends: the single
+   rally's over (false), the championship's next rally from stage 0, after the eighth only when a
+   player's points place is under 3 (the final), never after a ninth; before an odd rally's last stage
+   the super special (10) instead. True with a stage to drive (the mode flags again, 0x408020). */
+bool Sel_NextStage(void)
+{
+    uint32_t m = Gs_Mode(), l = Gs_Mode2();
+    if (Gs_ModeBit19()) {
+        PENDING_NOTE(0x4072d0, "the network rally's next stage (the stage table 0x52ea68)");
+        return false;
+    }
+    uint32_t s = gm32(0x52f2ac), n = (s & 1) + (l == 0 ? 4u : l == 1 ? 8u : 10u);   /* 0x407150 */
+    if (m != 0 && m != 1) return false;
+    s = (s & ~0x3e0u) | ((s & ~0x1fu) + 0x20 & 0x3e0);
+    gw32(0x52f2ac, s);
+    uint32_t st = s >> 5 & 0x1f;
+    if (st == n || (s & 0x3e0) > 0x140) {
+        if (m == 1) return false;
+        s = (s & ~0x1fu) | ((s + 1) & 0x1f);
+        gw32(0x52f2ac, s);
+        if ((s & 0x1f) == 8) {
+            for (int i = 0; i < (int)Gs_Players(); i++)
+                if ((int8_t)gm8(0x533548 + (uint32_t)Opp_PlayerSlot(i)) < 3) {
+                    Sel_ModeFlags();
+                    return true;
+                }
+            return false;
+        }
+        if ((s & 0x1f) == 9) return false;
+        gw32(0x52f2ac, s & 0xfffffc1fu);
+    } else if (st + 1 == n && (s & 1)) {
+        gw32(0x52f2ac, (s & 0xfffffd5fu) | 0x140);
+        Sel_ModeFlags();
+        return true;
+    }
+    Sel_ModeFlags();
+    return true;
 }
 
 /* 0x409a30: the players' records (0x531778), the stage results (0x531bb8, 0x531e00) and their slots

@@ -197,6 +197,7 @@ bool Play_Begin(void)
 void Play_End(void)
 {
     World_SetCars(NULL, 0);
+    Sim_InitLists(0);   /* the cars' lists emptied with the cars (the next race's first draws run before its load) */
     Cockpit_Free();
     Scenery_CollFree();   /* 0x472720 */
     Scenery_FreeAll();

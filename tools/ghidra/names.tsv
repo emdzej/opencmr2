@@ -1371,3 +1371,14 @@
 0040ccd0	Stand_ArcadeAward	game	high	An arcade race's points by the finishing order
 0040ce40	Stand_ArcadePoints	game	high	The arcade's points for a place (6 4 3 2 1)
 00448620	Race_ArcadeAward	game	high	The arcade race's points from the finish tables
+004072d0	Sel_NextStage	game	high	A rally on to its next stage (the super special, the next rally)
+0041e670	Race_Teardown	race	high	The race's exit handlers (voices, archives, textures)
+0041b300	Race_Unbuild	race	high	The race to be built again (0x537ef4)
+0044fea0	res_draw_rally	game	high	Results: the rally's times page (0x53f008)
+0044f680	res_place_fill	game	high	Results: a row's place box filled
+0044f7b0	res_place_line	game	high	Results: the line after the sixth place
+0044af70	res_build_end	game	high	Results: the choices page 0x541400 (stage or rally)
+0044a000	res_continue	game	high	Results: on (every car's fade to 0x449fe0)
+00449fe0	res_continue_done	game	high	Results: the continue fade's end
+00449b90	res_last_enter	game	high	A page entered at its last item
+00449ba0	res_list_enter	game	high	Results: a list page's start by the best player's place
