@@ -1,5 +1,7 @@
 /* The race times and the HUD (see hud.h). */
 #include "game/hud.h"
+#include "game/profile.h"
+#include "crt.h"
 #include "text.h"
 #include "exe.h"
 #include "game/pause.h"
@@ -136,6 +138,19 @@ static void bar_layout(void)
     }
 }
 
+/* the messages' state, at the original's addresses (Hud_Draw reads them): per player a countdown
+   (bytes at 0x536c08) and five flags (0x536c00 a lap record, 0x536c88, 0x536e88 a best without a
+   profile, 0x536c28 the best so far, 0x536ec4 a lap done); the best time 0x53706c and its driver's
+   name 0x536ed0 */
+enum { MSG_COUNT = 0x536c08, MSG_REC = 0x536c00, MSG_88 = 0x536c88, MSG_NOPROF = 0x536e88, MSG_BEST = 0x536c28,
+       MSG_LAP = 0x536ec4, MSG_TIME = 0x53706c, MSG_NAME = 0x536ed0 };
+
+static void msg_clear(int p)
+{
+    const uint32_t o = 4 * (uint32_t)p;
+    gw32(MSG_REC + o, 0), gw32(MSG_88 + o, 0), gw32(MSG_NOPROF + o, 0), gw32(MSG_BEST + o, 0), gw32(MSG_LAP + o, 0);
+}
+
 /* Hud_Init 0x411450 (Stage_Load with 0, the line with 1, the restart with 0x53810c): the clock's
    cap, the reference splits forgotten (0x4111a0), the bar laid out; the map in the other modes */
 void Hud_Init(int again)
@@ -152,7 +167,9 @@ void Hud_Init(int again)
         memset(my_split[i], 0, sizeof my_split[i]);
     }
     bar_layout();
-    if (!again) gw32(0x53706c, 0);
+    for (int i = 0; i < 2; i++) msg_clear(i);
+    gw32(0x536c08, 0), gw32(0x536cac, 0), gw32(0x536c04, 0), gw32(0x537050, 0);
+    if (!again) gw32(0x53706c, 0), gw8(MSG_NAME, 0);   /* (sprintf of the empty string 0x52ea5c) */
     uint32_t m = Gs_Mode();
     if (m == 5 || m == 6 || m == 7 || m == 4 || m == 11 || m == 12 || Gs_SelBit25()) PENDING_NOTE(0x415e30, "Hud_MapInit");
 }
@@ -172,7 +189,7 @@ static void tick(void)
         return;
     }
     clock_ += 4;
-    shown = clock_ + (rand() % 4 - 1);   /* (C's remainder of a non-negative value, as the original's mask) */
+    shown = clock_ + (crt_rand() % 4 - 1);   /* (C's remainder of a non-negative value, as the original's mask; msvcrt's rand 0x4c6676, the one sequence) */
     if (gm32(0x52f2b0) >> 0xb & 1) PENDING_NOTE(0x448de0, "Times_Tick (the clock at 0x53d1a0)");
 }
 
@@ -432,6 +449,72 @@ static void standings_rows(int p)
     else rows[p][0] = pl - 1, rows[p][1] = pl, rows[p][2] = pl + 1;
 }
 
+/* 0x408400: a player's profile name ("" without one) */
+static const char *driver_name(int n)
+{
+    uint32_t k = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
+    return k == 0xf ? "" : (const char *)gm(0x52fa18 + k * 0x650);
+}
+
+/* the name into 0x536ed0 (the original passes it to sprintf as the format) */
+static void set_name(const char *n)
+{
+    char *d = (char *)gm(MSG_NAME);
+    size_t i = 0;
+    for (; n[i] && i < 0x1f; i++) d[i] = n[i];
+    d[i] = 0;
+}
+
+/* 0x415a60: a lap just finished (0x458290): its time (0x4481f0, the lap of the last split); the flags
+   cleared, then (not networked, and unless 0x52afbc bit 11 with selection bit 24) the lap record
+   flag (0x448cd0) and, faster than the record to beat (0x536c3c) without a profile, the no-profile
+   flag; a best of the race (or in the time trial, mode 12 with 0x531ce4, its record 0x531c98) gets
+   the driver's name; the lap flag; each shown for 125 steps */
+static void lap_message(int p)
+{
+    if (!Sectors_LapFirst(p)) return;
+    int32_t t = gms32(0x53d9b4 + 4u * (uint32_t)(Sectors_LastLap(p) + p * 0x22));
+    msg_clear(p);
+    const uint32_t o = 4 * (uint32_t)p;
+    if ((!(gm32(0x52afbc) >> 0xb & 1) || !Gs_SelBit24()) && !Gs_ModeBit19()) {
+        if (gm8(0x53d9ec + 0x88u * (uint32_t)p)) gw32(MSG_REC + o, 1), gw8(MSG_COUNT + (uint32_t)p, 0x7d);
+        if ((gms32(0x536c3c) == 0 || t < gms32(0x536c3c)) && !Player_HasProfile(Gs_Byte537ef6() + p))
+            gw32(MSG_NOPROF + o, 1), gw8(MSG_COUNT + (uint32_t)p, 0x7d);
+    }
+    bool named = false;
+    if (!Gs_ModeBit19()) {
+        if (gms32(MSG_TIME) == 0 || t < gms32(MSG_TIME)) {
+            gw32(MSG_TIME, (uint32_t)t);
+            set_name(driver_name(Gs_Byte537ef6() + p));
+            named = true;
+        }
+    } else if (Gs_Mode() == 12 && gm32(0x531ce4)) {
+        gw32(MSG_TIME, gm32(Gs_Mode() == 12 ? 0x531c98 : 0x531c94));   /* 0x40a420(0) */
+        set_name(driver_name(0));
+        named = true;
+    }
+    if (named) gw32(MSG_BEST + o, 1), gw8(MSG_COUNT + (uint32_t)p, 0x7d);
+    gw32(MSG_LAP + o, 1);
+    gw8(MSG_COUNT + (uint32_t)p, 0x7d);
+}
+
+/* 0x415990: the messages' countdown (the flags cleared when it runs out); off the circuits (selection
+   bit 24 clear, and bit 25 only out of mode 3 or networked) the best finish among the players gets
+   its driver's name; on them the laps (0x415a60) */
+static void messages(int p)
+{
+    uint32_t c = MSG_COUNT + (uint32_t)p;
+    if (gm8(c)) gw8(c, (uint8_t)(gm8(c) - 1));
+    if (!gm8(c)) msg_clear(p);
+    if (!Gs_SelBit24() && (!Gs_SelBit25() || Gs_Mode() != 3 || Gs_ModeBit19())) {
+        if (Race_Finished(p) && (gms32(MSG_TIME) == 0 || hud_time[p] < gms32(MSG_TIME))) {
+            gw32(MSG_TIME, (uint32_t)hud_time[p]);
+            set_name(driver_name(Gs_Byte537ef6() + p));
+        }
+    } else
+        lap_message(p);
+}
+
 void Hud_Update(int p, bool on_line)
 {
     static int lw, lh;
@@ -448,9 +531,9 @@ void Hud_Update(int p, bool on_line)
         hud_ready = true;
         for (int i = 0; i < 12; i++) ref_split[i] = Opp_TimeAt(0, i);
     }
-    PENDING_NOTE(0x411f70, "Hud_Update (the gauges, the messages)");
     if (on_line) hud_time[p] = 0;
     else hud_time[p] = Race_Finished(p) ? Times_Finish(p) : Times_Race();
+    messages(p);   /* 0x415990 */
     /* the passed part of the current split's box, by the furthest point reached */
     if (p < 2) {
         int idx = split_idx[p];
@@ -462,7 +545,10 @@ void Hud_Update(int p, bool on_line)
         for (int i = 0; i < 4; i++) gw16(BAR_DONE(p) + 2u * (uint32_t)i, (uint16_t)a[i]), gw16(BAR_REST(p) + 2u * (uint32_t)i, (uint16_t)z[i]);
     }
     rally_split(p);   /* 0x413160 */
-    standings_rows(p);   /* 0x414720 */
+    if (Gs_SelBit26() && (gm32(0x52f2b0) >> 0xb & 1)) PENDING_NOTE(0x4118b0, "Hud_LapSounds (the arcade's lap beeps and countdown)");
+    uint32_t m = Gs_Mode();
+    if (m == 5 || m == 6 || m == 7 || Gs_SelBit25()) PENDING_NOTE(0x415870, "Hud_ArcadeRows");
+    else standings_rows(p);   /* 0x414720 */
     if (show_for[p]) show_for[p]--;
 }
 
