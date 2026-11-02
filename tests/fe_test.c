@@ -103,6 +103,11 @@ int main(void)
     press(ENTER);
     CHECK((gm32(0x52afb4) >> 3 & 0x7f) == 2);   /* single stage */
     CHECK((gm32(0x52f2ac) & 0x1f) == 0 && (gm32(0x52f2ac) >> 5 & 0x1f) == 0);   /* Finland, stage 1 */
+    /* the service area (mode 2): right to Race, Enter */
+    for (int i = 0; i < 300 && Game_Mode() != 2; i++) step();
+    CHECK(Game_Mode() == 2);
+    for (int i = 0; i < 120; i++) step();
+    press(0xcd), press(0xcd), press(0xcd), press(ENTER);
     for (int i = 0; i < 300 && Game_Mode() != 3; i++) step();
     CHECK(Game_Mode() == 3);
     printf("race at frame %u\n", frame);
