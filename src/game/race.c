@@ -43,6 +43,9 @@
 #include "fixmath.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
+#include "game/profile.h"
+#include "text.h"
+#include <stdio.h>
 #include "pending.h"
 #include "game/pause.h"
 #include "game/results.h"
@@ -77,6 +80,7 @@ static struct {
     int place_count;        /* DAT_005298f4 */
     bool loading;           /* DAT_00538108 */
     uint8_t start_count;    /* DAT_0053811c */
+    int8_t winner;          /* DAT_005191a0: the head to head's winner, -1 none */
     bool skip;              /* DAT_00817574 */
     int32_t t_start[4], t_elapsed[4];   /* 0x58da10, 0x58da30 */
 } R;
@@ -403,6 +407,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
    (500 1/100 s) on the line */
 static void s7_countdown(ProcGroup *g, uint32_t slot)
 {
+    R.winner = -1;
     R.finished[slot] = 0;
     R.shown[slot] = 0;
     timer_run((int)slot);
@@ -442,6 +447,7 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
 {
     timer_run((int)slot);
     bool fin = Race_Finished((int)slot);
+    if (Gs_SelBit25() && !Gs_ModeBit19()) PENDING_NOTE(0x41d7a0, "the head to head's finish and winner (0x487130, 0x4481c0)");
     if (fin) {
         R.nfinished++;
         R.finished[slot] = 1;
@@ -533,6 +539,7 @@ static void s11_results(ProcGroup *g, uint32_t slot)
 {
     (void)slot;
     Results_Stop();
+    R.winner = -1;   /* 0x41f250 */
     /* the players' replays ended (0x41e8d0 on each way out; nothing steps them here) */
     for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
         Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
@@ -643,6 +650,49 @@ static void draw(ProcGroup *g, uint32_t slot)
     if (H->draw) H->draw((int)slot, Proc_State(g, slot));
 }
 
+/* 0x40f8d0's split screen part, per view: the finished player's half darkened (0x516ce0) with a
+   message while the other still drives (its state 9 against 8, not paused, 100 steps after the
+   finish): outside selection bit 26 "0x86 0x87 <the other's name>", or for the head to head's winner
+   "0x94 <name>"; with bit 26 only in a race of laps (0x52f2b0 bit 11, kind 0), "0x85 0x87 <the
+   other's name>". On the second view the line between the halves (0x516cd8), not in the shared
+   replay nor while paused, nor once the second player's results show (0x44a130, taken as never). */
+static void split_labels(int p)
+{
+    bool paused = gm8(0x52af40) != 0;
+    if (Gs_SelBits14() < 2 || p > 1) return;
+    int o = (p + 1) & 1;
+    uint8_t white[4] = {0xff, 0xff, 0xff, 0xff}, dark[4], black[4];
+    for (int k = 0; k < 4; k++) dark[k] = (uint8_t)exe_u32(0x516ce0 + (uint32_t)k), black[k] = (uint8_t)exe_u32(0x516cd8 + (uint32_t)k);
+    if (Race_State(p) == 9 && Race_State(o) == 8 && !paused && R.start_count == 100) {
+        int16_t v[4];
+        char t[256];
+        bool say = true;
+        if (Gs_Mode() == 4) PENDING_NOTE(0x473810, "the championship's names in the split screen");
+        if (!Gs_SelBit26()) {
+            View_Rect(p, v);
+            Rect_Fill(v, dark, 2);
+            if (R.winner == -1 || R.winner != p)
+                snprintf(t, sizeof t, "%s %s %s", Text_Get(0x86), Text_Get(0x87), Player_Name(o));
+            else
+                snprintf(t, sizeof t, "%s %s", Text_Get(0x94), Player_Name(p));
+        } else if ((gm32(0x52f2b0) >> 0xb & 1) && (gm32(0x52f2b0) & 7) == 0) {
+            View_Rect(p, v);
+            Rect_Fill(v, dark, 2);
+            snprintf(t, sizeof t, "%s %s %s", Text_Get(0x85), Text_Get(0x87), Player_Name(o));
+        } else
+            say = false;
+        if (say) Hud_Message(t, white, p, false, -1, -1);
+    }
+    bool shared = Gs_SelBits14() > 1 && Race_State(0) == 10;   /* 0x41f3a0 */
+    if (!shared && Hud_SplitScreen() && !paused && p == 1 && Race_State(1) != 10) {
+        int16_t v[4], l[4];
+        View_Rect(1, v);
+        if (!Gs_ModeBit18()) l[0] = v[0], l[1] = v[1], l[2] = 1, l[3] = v[3];
+        else l[0] = 0, l[1] = v[1], l[2] = v[2], l[3] = 1;
+        Rect_Fill(l, black, 2);
+    }
+}
+
 void Race_DrawOverlays(int player)
 {
     Hud_MessageReset();       /* 0x417e60, in the view 0x40f0c0 */
@@ -650,6 +700,7 @@ void Race_DrawOverlays(int player)
     Hud_Draw(player);         /* 0x4125f0 */
     Codriver_Notes(player);   /* 0x4177d0 */
     fade_overlay(player, gm8(0x52af40) != 0);
+    split_labels(player);
     Intro_Draw(player, Race_State(player));   /* 0x40f8d0 */
 }
 
@@ -686,6 +737,7 @@ void Race_Begin(const RaceHost *h)
 {
     H = h;
     memset(&R, 0, sizeof R);
+    R.winner = -1;   /* 0x5191a0's start */
     set_mode(3);
 }
 
