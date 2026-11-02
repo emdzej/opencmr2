@@ -267,3 +267,4 @@ void fe_4fd480(Menu *m);
 void fe_4fdb10(Menu *m);
 void fe_4fe240(Menu *m);
 void fe_4e4130(Menu *m);
+void Fe_ArcadeLocation(Menu *m);   /* 0x4dbd80: the arcade location's banner, map, facts and records */

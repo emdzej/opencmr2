@@ -1044,3 +1044,4 @@
 0041f250	Race_ClearWinner	race	confirmed	The head to head's winner (0x5191a0) cleared
 004da710	Fe_SetupDraw	fe	confirmed	The single race's options page (one player)
 004daf90	Fe_DuelSetupDraw	fe	confirmed	The single race's options page (two players)
+004dbd80	Fe_ArcadeLocation	fe	confirmed	The arcade location's banner, map, facts and records

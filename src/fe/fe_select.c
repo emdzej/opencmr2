@@ -695,7 +695,7 @@ void fe_4dc710(Menu *m)
     Fe_Titles(m, title_x(), title_y(), true, 3, names, 2);
     Fe_Header();
     Strip_Draw(Fe_Scroll(10), true);
-    PENDING_NOTE(0x4dbd80, "the arcade location's picture and records");
+    Fe_ArcadeLocation(m);   /* 0x4dbd80 */
 }
 
 /* ---- the single race's options (0x828040): laps, and the CPU cars (two players: an on/off) ---- */

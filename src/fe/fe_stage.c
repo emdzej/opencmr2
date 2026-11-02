@@ -241,6 +241,69 @@ void fe_4d9c40(Menu *m)
     Fe_Hint(Text_Get(0x57), true);
 }
 
+/* 0x4dbd80 (the arcade's locations, 0x4dc710): as 0x4d9c40 for the location chosen: the banner of its
+   rally (the order 6, 3, 1, 4, 0, 2, 5, 7), its map (the challenge's), name (0x5269b0), length and
+   surfaces (0x525c30), the record (0x52b044 + 0x1210) and the players' own (their profiles' + 0x4bc);
+   the index is the selection (the original's (s / 3) * 3 + s % 3) */
+void Fe_ArcadeLocation(Menu *m)
+{
+    static const int order[8] = {6, 3, 1, 4, 0, 2, 5, 7};
+    int w, h;
+    screen(&w, &h);
+    int s = m->sel;
+    if (s < 0 || s > 7) return;
+    Tex *b = g_fe.banner[order[s]];
+    if (b) {
+        Rect16 src = {0, 0, b->width, b->height}, d = {(int16_t)(w * 0x19f / 0x280), (int16_t)(h * 0x4b / 0x1e0), b->width, b->height};
+        Sprite_Add(&src, &d, b, 1, 0, NULL, NULL, C(0x524968), 8);
+    }
+    stage_map(s, true);
+    int x = w * 0x19f / 0x280, y = h * 0x4b / 0x1e0 + h * 0x50 / 0x1e0, line = h * 0x10 / 0x1e0;
+    char t[160];
+    snprintf(t, sizeof t, exe_str(0x524d38), Text_Get(0x18b), exe_str(gm32(0x5269b0 + 4u * (uint32_t)s)));
+    Font_Print(1, t, x, y, C(0x52496c), 0x21);
+    y += line;
+    uint32_t info = 0x525c30 + (uint32_t)s * 0x24;
+    if (!gm8(info + 1)) snprintf(t, sizeof t, exe_str(0x524d2c), Text_Get(0x18c), gm8(info));
+    else snprintf(t, sizeof t, exe_str(0x524d20), Text_Get(0x18c), gm8(info), gm8(info + 1));
+    strncat(t, exe_str(0x524d1c), sizeof t - strlen(t) - 1);
+    Font_Print(1, t, x, y, C(0x52496c), 0x21);
+    y += line;
+    snprintf(t, sizeof t, exe_str(0x524d14), Text_Get(0x18d));
+    Font_Print(1, t, x, y, C(0x52496c), 0x21);
+    y += line;
+    uint32_t nsurf = gm8(info + 2);
+    if (nsurf > 1) nsurf = 2;
+    for (uint32_t i = 0; i < nsurf; i++) {
+        uint32_t e = info + 4 + 8 * i;
+        snprintf(t, sizeof t, exe_str(0x524d0c), gm8(e + 4), Text_Get((int)gm32(e) + 0x18e));
+        Font_Print(1, t, x, y, C(0x52496c), 0x21);
+        y += line;
+    }
+    int ty = h * 0x4b / 0x1e0 + (h * 8 / 0x1e0) * 0x24;
+    uint32_t rec = 0x52b044 + 0x1210 + (uint32_t)s * 8;   /* 0x405fe0 */
+    print_time(t, sizeof t, gm32(rec + 4) >> 7 & 0xffff);
+    Font_Print(1, t, w * 0x3a / 0x280 + x, ty, C(0x52496c), 0x21);
+    snprintf(t, sizeof t, "%s", (const char *)gm(rec));
+    Font_Print(1, t, x, ty, C(0x52496c), 0x21);
+    Font_Print(1, Text_Get(0x193), x, ty - line, C(0x52496c), 0x21);
+    int shown = 0;
+    for (int p = 0; p < (int)(gm32(0x52afb4) >> 13 & 0xf); p++) {
+        if (Player_HasProfile(p)) continue;
+        shown++;
+        uint32_t pw = Player_Word(p);
+        if ((pw & 0x3c0000) == 0x3c0000) continue;   /* 0x408cb0: no record without a profile (the original reads at 0) */
+        uint32_t pr = 0x52fa8c + (pw >> 0x12 & 0xf) * 0x650 + 0x4bc + (uint32_t)s * 8;
+        if (!(gm8(pr) & 0x80)) snprintf(t, sizeof t, "%s", exe_str(0x516e30));
+        else print_time(t, sizeof t, gm32(pr + 4));
+        Font_Print(1, t, w * 0x3a / 0x280 + x, ty - line * (shown + 2), C(0x52496c), 0x21);
+        const char *nm = (const char *)gm(0x52fa18 + (pw >> 0x12 & 0xf) * 0x650);
+        Font_Print(1, nm, x, ty - line * (shown + 2), C(0x52496c), 0x21);
+    }
+    if (shown > 0) Font_Print(1, Text_Get(0x194), x, ty - line * (shown + 3), C(0x52496c), 0x21);
+    Fe_Hint(Text_Get(0x57), true);
+}
+
 /* 0x4efe60: the weather page (0x81f4d8) from the rally's weathers (0x4081d0: the distinct ones of
    the rally's 30, 0x52ea74, their count 0x52eab8): "random" and up to three (with four or more the
    first, middle and last); none at night or on stage 11 (straight to the start then) */
