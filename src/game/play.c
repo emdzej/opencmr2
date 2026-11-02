@@ -11,6 +11,8 @@
 #include "game/lamps.h"
 #include "game/timer.h"
 #include "game/camera.h"
+#include "game/mud.h"
+#include "game/pause.h"
 #include "game/car_load.h"
 #include "game/mem.h"
 #include "game/race.h"
@@ -121,6 +123,11 @@ static void draw(int player, int state)
     Cars_ShellsToCamera(camera);
     Weather_Sky(player);   /* 0x461c30 */
     Sky_Follow(cp);
+    /* the mud on the first car's body, in the first view of a one-player race, not paused */
+    if (player == 0 && Gs_SelBits14() == 1 && !Pause_Active() && (Car_Slot(0)->kind == 'A' || Car_Slot(0)->kind == 'C')) {
+        Mud_Throw(0);   /* 0x46ea10 */
+        Mud_Paint();    /* 0x46e780 */
+    }
     for (int i = 0; i < g_all.n; i++) Car_GroundLight(i, player);   /* 0x462aa0 */
     Cars_Lod(player, view);   /* 0x428bf0 */
     Lamps_Lights(player);   /* 0x464960 for the camera's car (0x422fb0) */

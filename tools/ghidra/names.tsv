@@ -1703,3 +1703,18 @@
 00445a20	Race_Held	race	high	The free camera (kind 9) or 0x53cdb4: the race's controls, world step and particles held
 00445a40	Race_StepOnce	race	high	0x53cdbc taken: one step of the held world
 0045c6b0	Tyres_Reset	game	high	A player's wheel's wear counts cleared (new tyres)
+00458050	Mud_Setup	game	high	The first BODF texture and the class's eleven mud patches (0x51a3e8)
+0046e530	Mud_Clear	game	high	The splats and the patches' counts cleared
+0046e580	Mud_FindBody	game	high	The first BODF texture for a car, the class 0's flip
+0046e620	Mud_AddPatch	game	high	A patch of the body texture from the class's table
+0046e6a0	Mud_Rates	game	high	Each patch's rate and cap by its share of the largest
+0046e780	Mud_Paint	game	high	The splats in this frame's quarter of the body texture painted with a brush
+0046ea10	Mud_Throw	game	high	Each wet wheel spinning on a loose surface throws mud
+0046ea80	Mud_ThrowWheel	game	high	A wheel's splats: the rear ones anywhere, the front ones along their patch
+0046ec40	Mud_Splat	game	high	A splat on a patch, the patch full at its cap
+0046ed40	Mud_Takes	game	high	The patch's count passes 255
+0046ed80	Mud_ThrowRun	game	high	A splat along a front wheel's run
+0046eeb0	Mud_Wheel	game	high	The wheel on a loose surface with the car wet
+004a50f0	Tex_LockRect	render	high	A texture's rect locked for writing (the lock list 0x65aa88)
+004a52d0	Tex_PutPixel	render	high	A pixel written into a locked texture (16-bit blended; 32-bit only blue blended)
+004a56c0	Tex_Unlock	render	high	A locked texture unlocked

@@ -7,6 +7,7 @@
 #include "game/select.h"
 #include "game/opponents.h"
 #include "game/ghost.h"
+#include "game/mud.h"
 #include "game/sectors.h"
 #include "game/timer.h"
 #include "crt.h"
@@ -263,6 +264,7 @@ bool Car_Load(int n)
     if ((uint32_t)n < Gs_SelBits14() && ((mode != 0 && mode != 1) || Tod_Stage() == 0 || Tod_Stage() == 4 ||
                                          Tod_Stage() == 8 || Tod_Stage() == 10))
         for (int w = 0; w < 4; w++) Tyres_Reset(n, w);   /* 0x45c6b0 */
+    if (!Gs_SelBit24() && (letter == 'C' || letter == 'A')) Mud_Setup(n, cls);   /* 0x458050 */
     /* a kind A car's wheels from its S model on snow (0x42cae0 with 1), or its L one where the wheels
        show as they are (0x42cb50; the S file is then left loaded): the model under the world root with
        the car's textures (0x54263c), the wheels' meshes kept (+0x10-+0x1c, never read back) and the
