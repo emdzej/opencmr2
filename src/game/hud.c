@@ -243,7 +243,11 @@ static void tick(void)
     }
     clock_ += 4;
     shown = clock_ + (crt_rand() % 4 - 1);   /* (C's remainder of a non-negative value, as the original's mask; msvcrt's rand 0x4c6676, the one sequence) */
-    if (gm32(0x52f2b0) >> 0xb & 1) PENDING_NOTE(0x448de0, "Times_Tick (the clock at 0x53d1a0)");
+    if (gm32(0x52f2b0) >> 0xb & 1) {
+        /* the lap game's clock 0x53d1a0: its low half 4 a step, the high (the shown) with the jitter */
+        uint16_t lo = (uint16_t)(gm16(0x53d1a0) + 4);
+        gw16(0x53d1a0, lo), gw16(0x53d1a2, (uint16_t)(lo + (shown - clock_)));
+    }
 }
 
 /* The arcade's records stay at the original's addresses (the results and the front end read them):
@@ -462,6 +466,50 @@ static void split_beep(bool ahead)
     else Voice_Play((int)gm32(0x537060), v, 0x2b11, 0, false, false);
 }
 
+/* 0x4118b0: the lap game's sounds (0x52f2b0 bit 11; called with the selection's bit 26). Kind 1 (a
+   race of laps against the clock 0x53d1a0): on the lap's first step "cross" (0x536cb0 + 1) for the
+   leader, else the split beep "up", and the seconds left (bits 3-6 less the clock's) kept at
+   0x536fec; once a car leads (0x53d1a6) for the other cars a blip each second down, pitched up over
+   the last six. Kind 2: on the lap's first step a new count (0x53d1a4) shows message 0x536c88 for
+   125 steps with "cross". When the game is over (0x53d1a7), once (0x537050), "timeout" (+2) in kind
+   1, else "cross". */
+static void lap_sounds(int p)
+{
+    uint32_t w = gm32(0x52f2b0), k = w & 7;
+    int32_t lvl = Codriver_Level();   /* 0x418570 */
+    int blip = (int)gm32(0x536cb0);
+    if (gm8(0x53d1a7)) {
+        if (!gm32(0x537050)) {
+            gw32(0x537050, 1);
+            Voice_Play(k == 1 ? blip + 2 : blip + 1, lvl, 0xac44, 0, false, false);
+        }
+        return;
+    }
+    if (k == 1) {
+        if (Sectors_LapFirst(p)) {
+            if (Times_Place(p) == 0) Voice_Play(blip + 1, lvl, 0xac44, 0, false, false);
+            else split_beep(true);   /* 0x411ab0 */
+            gw32(0x536fec, (uint32_t)((int)(w >> 3 & 0xf) - (int16_t)gm16(0x53d1a2) / 100));   /* 0x4082d0, 0x448c70 */
+        }
+        if (gm8(0x53d1a6) && (int8_t)gm8(0x53d1a8) != p) {   /* 0x448c90, 0x448c80 */
+            int left = (int)(w >> 3 & 0xf) - (int16_t)gm16(0x53d1a2) / 100;
+            if (left < gms32(0x536fec)) {
+                uint32_t f = left < 6 ? (uint32_t)((6 - left) * 0xac44 / 0x30 + 0xac44) : 0xac44;
+                gw32(0x536fec, (uint32_t)left);
+                if (left != 0) Voice_SetFrequency(Voice_Play(blip, lvl, f, 0, false, false), f);
+            }
+        }
+    } else if (k == 2 && Sectors_LapFirst(p)) {
+        int8_t c = (int8_t)gm8(0x53d1a4 + (uint32_t)p);   /* 0x448c60 */
+        if ((int8_t)gm8(0x536cac + (uint32_t)p) != c) {
+            gw8(0x536cac + (uint32_t)p, (uint8_t)c);
+            gw32(MSG_88 + 4u * (uint32_t)p, 1);
+            gw8(MSG_COUNT + (uint32_t)p, 0x7d);
+            Voice_Play(blip + 1, lvl, 0xac44, 0, false, false);
+        }
+    }
+}
+
 /* 0x413330's rally part: at a split its index, the time there, the place at it */
 static void rally_split(int p)
 {
@@ -598,7 +646,7 @@ void Hud_Update(int p, bool on_line)
         for (int i = 0; i < 4; i++) gw16(BAR_DONE(p) + 2u * (uint32_t)i, (uint16_t)a[i]), gw16(BAR_REST(p) + 2u * (uint32_t)i, (uint16_t)z[i]);
     }
     rally_split(p);   /* 0x413160 */
-    if (Gs_SelBit26() && (gm32(0x52f2b0) >> 0xb & 1)) PENDING_NOTE(0x4118b0, "Hud_LapSounds (the arcade's lap beeps and countdown)");
+    if (Gs_SelBit26() && (gm32(0x52f2b0) >> 0xb & 1)) lap_sounds(p);   /* 0x4118b0 */
     uint32_t m = Gs_Mode();
     if (m == 5 || m == 6 || m == 7 || Gs_SelBit25()) arcade_rows(p);   /* 0x415870 */
     else standings_rows(p);   /* 0x414720 */
