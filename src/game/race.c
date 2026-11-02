@@ -1207,6 +1207,8 @@ static void split_labels(int p)
 void Race_DrawOverlays(int player)
 {
     Hud_MessageReset();       /* 0x417e60, in the view 0x40f0c0 */
+    /* the countdown's draw 0x410e20: the head to head's pair, before the HUD */
+    if (Race_State(player) == 7 && Gs_SelBit27() && !Gs_ModeBit19()) Hud_PairNames(player);   /* 0x412390 */
     Dash_Draw(player);        /* 0x446210 */
     Hud_Draw(player);         /* 0x4125f0 */
     Codriver_Notes(player);   /* 0x4177d0 */

@@ -1362,6 +1362,43 @@ static void game_over(int p)
     if ((k == 1 || k == 2) && (int8_t)gm8(0x53e184 + (uint32_t)p) == 0) Hud_Message(Text_Get(0xbe), colour(0x5170f4), p, false, -1, -1);
 }
 
+/* 0x4125a0: the name of the driver in Opp slot d: a player's if one has it, else a computer's */
+const char *Slot_Name(int d)
+{
+    for (int i = 0; i < (int)Gs_Players(); i++)
+        if (Opp_PlayerSlot(i) == d) return Player_Name(i);   /* 0x455de0, 0x408400 */
+    return Cpu_Name(d);   /* 0x407ec0 */
+}
+
+/* 0x412390 (the countdown's view, 0x410e20, in the head to head outside the network game): "<first>
+   0x75 <second>" in lower case at the view's top left (24, 24 of 640 x 480), on a split screen only
+   in the first view: in mode 4 the match's sides (a player's tag, a computer's name), else the
+   race's pair once the opponents are loaded */
+void Hud_PairNames(int p)
+{
+    if (Hud_SplitScreen() && p != 0) return;
+    char a[32], b[32], line[128];
+    if (Gs_Mode() == 4) {
+        uint32_t m = Challenge_Match(), w = gm32(m);
+        for (int k = 0; k < 2; k++) {
+            int slot = (int)(k ? w >> 5 & 0x1f : w & 0x1f);
+            const char *n = Player_Driver(slot) == -1 ? Challenge_Tag(m, k) : Challenge_Name(m, k);
+            snprintf(k ? b : a, sizeof a, "%s", n);
+            Text_Lower(k ? b : a);   /* 0x4aa090 */
+        }
+    } else {
+        if (!Opp_Loaded()) return;   /* 0x455ae0 */
+        for (int k = 0; k < 2; k++) {
+            snprintf(k ? b : a, sizeof a, "%s", Slot_Name(Opp_PairDriver(Race_Base(), k)));
+            Text_Lower(k ? b : a);
+        }
+    }
+    snprintf(line, sizeof line, exe_str(0x516e20), a, Text_Get(0x75), b);
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    Hud_Message(line, colour(0x5170f4), p, true, w * 0x18 / 0x280, h * 0x18 / 0x1e0);
+}
+
 /* 0x4129d0 for one view: the arcade's time panel, the box (taller by a line or two for the laps,
    0x543098, by the language's slot) with the time at its left; under it "Lap n" (modes 7 and 12,
    or the lap game's kind 1) or "Lap n / laps" (not with the selection's bit 27), or in the lap

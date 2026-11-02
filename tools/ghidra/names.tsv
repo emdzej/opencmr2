@@ -1724,3 +1724,5 @@
 00413200	Hud_ArcadeSplit	hud	high	The arcade's and head to head's split: the gap to the first car through it, dashes when first
 00448260	Split_LeaderTime	hud	high	The time the first car through a player's last split passed it
 004482d0	Split_TimeAt	hud	high	A car's time at another car's last split
+00410e20	Race_DrawCountdown	race	high	State 7 draw: the view, the head to head pair names, the HUD
+00412390	Hud_PairNames	hud	high	The head to head pair "a vs b" at the countdown

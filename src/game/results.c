@@ -80,14 +80,6 @@ static int title(int16_t text)
 }
 
 
-/* 0x4125a0: the name of the driver in Opp slot d: a player's if one has it, else a computer's */
-static const char *slot_name(int d)
-{
-    for (int i = 0; i < (int)Gs_Players(); i++)
-        if (Opp_PlayerSlot(i) == d) return player_name(i);
-    return Cpu_Name(d);
-}
-
 /* 0x44b7b0: "replay" and the driver the camera follows: in the shared replay (0x41f3a0) the second
    camera's; one player with computer drivers (bit 26) the first camera's (a computer's when it has
    a driver, 0x408500); a head to head outside the network game its pair's driver (0x455ac0); else
@@ -111,7 +103,7 @@ static void draw_title(Menu *m)
         int side = Challenge_Side(ch_match, c0);
         name = !Challenge_IsPlayer(ch_match, side) ? Challenge_Name(ch_match, side) : Challenge_Tag(ch_match, side);
     } else if (Gs_SelBit27() && !Gs_ModeBit19()) {
-        name = slot_name(Opp_PairDriver(Race_Base(), c0));
+        name = Slot_Name(Opp_PairDriver(Race_Base(), c0));
     } else {
         int d = Player_Driver(c0 + Race_Base());
         name = d == -1 ? player_name(c0 + Race_Base()) : Cpu_Name(d);

@@ -23,6 +23,8 @@ uint8_t Hud_Flags(int n);         /* Profile_HudFlags 0x408a00: profile slot n's
 /* 0x417e70: a message in the big font, centred in player p's view (or at x, y unless -1), with a
    shadow when asked; one a view */
 void Hud_Message(const char *text, const uint8_t *rgba, int p, bool shadow, int x, int y);
+const char *Slot_Name(int d);   /* 0x4125a0: the name of the driver in Opp slot d */
+void Hud_PairNames(int p);         /* 0x412390: the head to head's pair at the countdown */
 void Hud_MessageReset(void);     /* 0x417e60 (each view, 0x40f0c0): the next message is drawn */
 int32_t Times_Split(int player, int k);   /* 0x448680: the race time at split k */
 const int32_t *Hud_FinishTimes(void);   /* 0x53d1b8: each car's finish time (16.16 s) */

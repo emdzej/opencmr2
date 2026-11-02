@@ -504,7 +504,7 @@ void Opp_SetRace(int r) { race_no = r; }                                        
 int Opp_Race(void) { return Gs_Mode() == 4 ? race_no : Race_Base(); }                      /* 0x456b10 */
 /* 0x456ae0: the head to head's CPU run's steps a second, for the race's lane away from the start
    side (0x4584c0) */
-float Opp_StepRate(void) { return rates[Opp_Race() & 7][(1 - (int)gm32(0x542cb0)) & 1].rate; }                                                   /* 0x455ae0 */
+float Opp_StepRate(void) { return rates[Opp_Race() & 7][(1 - (int)gm32(0x542cb0)) & 1].rate; }                                                   /* 0x456ae0 */
 int Opp_PlaceAt(int player, int s) { return s >= 0 && s < 16 ? place[s][player_slot[player & 15]] : 15; }   /* 0x455c80 */
 int Opp_Entries(int s) { return s >= 0 && s < 16 ? entries[s] : 0; }                       /* 0x455c70 */
 int Opp_DriverAt(int e, int s) { return s < 0 || s >= 16 || e < 0 || e >= entries[s] ? -1 : order[s][e]; }   /* 0x455cc0 */
