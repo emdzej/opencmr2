@@ -758,7 +758,7 @@ static void records(int p)
 
 /* 0x411280's textures: the network's blobs (0x537070, 0x537074), the map's dot (0x537078) and the
    map (0x53707c) */
-static Tex *t_net, *t_netr, *t_blob, *t_map;   /* (the blobs are for the network game, not ported) */
+static Tex *t_net, *t_netr, *t_blob, *t_map;
 
 static Tex *common_tex(uint32_t name)
 {
@@ -776,7 +776,6 @@ void Hud_LoadMap(void)
 {
     uint32_t m = Gs_Mode();
     t_net = t_netr = t_blob = t_map = NULL;
-    (void)t_net, (void)t_netr;
     if (m == 8 || m == 9) t_net = common_tex(0x517da0), t_netr = common_tex(0x517d74);
     if (m != 5 && m != 6 && m != 7 && m != 4 && m != 11 && m != 12 && !Gs_SelBit25()) return;
     t_blob = common_tex(0x517d50);
@@ -925,10 +924,44 @@ static void split_delta(int p)
     else draw_time(ref - last, 4, fx, fy, colour(0x51709c), 9, exe_str(0x517e18), true);
 }
 
+/* 0x413e00: a network player's blob on the bar (k 0 the own one, the colour of the player's car
+   0x5a1ea0; else player k's, 0x40b020's slot of id k in 0x531780): its centre at the fraction
+   0x536c4c of split 0x536c48's box, the top blob at the box's top, the other (0x537074) at its bottom,
+   cut to the bar's first and last boxes. The source's corner is the texture's +0x11c (the port's
+   zero). */
+static void net_blob(int p, uint32_t k)
+{
+    int32_t s = gms32(0x536c48 + 8 * k);
+    int16_t b[4], first[4], last[4];
+    box_at(BAR_BOX(p, s), b), box_at(BAR_BOX(p, 0), first), box_at(BAR_BOX(p, gms32(NSPLITS) - 1), last);
+    Rect16 src = {0, 0, t_net->width, t_net->height};
+    Rect16 dst = {(int16_t)((int16_t)(((int64_t)((int32_t)b[2] << 16) * gms32(0x536c4c + 8 * k)) >> 32) - t_net->width / 2 + b[0]),
+                  b[1], t_net->width, t_net->height};
+    if (first[0] - dst.x > 0) {
+        int16_t d = (int16_t)(first[0] - dst.x);
+        src.x = (int16_t)(src.x + d), dst.x = (int16_t)(dst.x + d), dst.w = (int16_t)(dst.w - d), src.w = (int16_t)(src.w - d);
+    }
+    int over = dst.w - last[0] - last[2] + dst.x;
+    if (over > 0) dst.w = (int16_t)(dst.w - over), src.w = (int16_t)(src.w - over);
+    uint32_t car = gm32(0x5a1ea0);   /* 0x4a1a00 */
+    if (k) {
+        uint32_t slot = 0;   /* 0x40b020 */
+        for (uint32_t i = 0; i < 7; i++)
+            if (gm8(0x53177c + 0x80 * i) & 0x80 && gm32(0x531780 + 0x80 * i) == k) { slot = i; break; }
+        car = gm32(0x531778 + 0x80 * slot);   /* 0x409d20 */
+    }
+    Sprite_Add(&src, &dst, t_net, 2, 0, NULL, NULL, ghost_colour(car), 8);
+    dst.y = (int16_t)(b[3] - t_netr->height + b[1]);
+    Sprite_Add(&src, &dst, t_netr, 2, 0, NULL, NULL, ghost_colour(car), 8);
+}
+
 /* 0x4143f0: the split bar, each split's box in its colour, the current one's passed part opaque,
    1-pixel marks at the inner splits (not when the selection's bit 28 is set, unless 0x536c40 is
-   neither 0 nor the cap) */
-static void split_bar(int p)
+   neither 0 nor the cap). 0x414550, the arcade's (modes 8, 9, 11), is the same bar for any player
+   (it reads 0x405dc0 on a split screen and drops it) with, when the network's blobs are loaded, a
+   blob for each of the slots 6 to 0 in the game (0x531778 + 0x80 n, bit 7 of +4) by its id (+8),
+   then the own one. */
+static void split_bar(int p, bool arcade)
 {
     uint32_t c40 = gm32(0x536c40);
     if (Gs_SelBit28() && (c40 == gm32(0x537068) || c40 == 0)) return;
@@ -948,6 +981,11 @@ static void split_bar(int p)
             Rect_Fill(r, colour(0x5170ac), 2);
         }
     }
+    if (arcade && t_net && t_netr) {
+        for (int i = 6; i >= 0; i--)
+            if (gm32(0x53177c + 0x80u * (uint32_t)i) >> 7 & 1) net_blob(p, gm32(0x531780 + 0x80u * (uint32_t)i));   /* 0x409cb0, 0x40b010 */
+        net_blob(p, 0);
+    }
 }
 
 /* 0x413fe0 for one player: a box (0x5170bc) and the time in lcd_640 (slot 4) at its top right */
@@ -956,8 +994,8 @@ static void time_panel(int p)
     int w, h;
     D3d_ScreenSize(&w, &h);
     uint32_t m = Gs_Mode();
-    if (m == 8 || m == 9 || m == 11) PENDING_NOTE(0x414550, "Hud_SplitBar (the arcade's)");
-    else if (p < 2) split_bar(p);   /* 0x4143f0 */
+    if (m == 8 || m == 9 || m == 11) split_bar(p, true);   /* 0x414550 */
+    else if (p < 2) split_bar(p, false);   /* 0x4143f0 */
     int16_t r[4] = {(int16_t)((w * 0xab9b) >> 16), (int16_t)((h * 0x1aac) >> 16), (int16_t)(((w * 0x4865) >> 16) + 1),
                     (int16_t)((h * 0x1554) >> 16)};
     if (gm32(0x543098)) PENDING_NOTE(0x459390, "Hud_TimePanel (laps)");
