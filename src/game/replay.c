@@ -528,7 +528,7 @@ void Replay_LoadDemo(void)
    the CPU runs for the cars that are a computer driver's (0x408500; in mode 4 those without a pad) and
    a recording for each other player: 7,500 frames for one player alone (6,250 with two, in the
    championship or with the CPU runs; with the ghost, bit 28, 7,500 for one). The super special plays
-   its own run (champend.rpl). The network game's (kind 2) and the ghost's .grp are not ported. */
+   its own run (champend.rpl). The network game's (kind 2) is not ported. */
 void Replay_Setup(void)
 {
     memset(race, 0, sizeof race);

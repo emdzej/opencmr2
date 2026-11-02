@@ -1017,7 +1017,7 @@ static void continue_done(int ch)
 {
     (void)ch;
     Race_EndReplay();
-    gw8(0x538118, 0);   /* 0x41f390 */
+    gw32(0x538118, 0);   /* 0x41f390 */
     Input_SetMenuMode(false);
 }
 

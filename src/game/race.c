@@ -810,7 +810,7 @@ static void replay_again(int p)
 }
 
 /* 0x41f2b0: every process on to the results, the players' damage stored (0x469b50), their replays
-   ended (the ghost's rest not ported); in the challenge the results' way out asked for at once: the
+   ended and the ghost's (0x466080); in the challenge the results' way out asked for at once: the
    match's restart, or once the challenge is given up (0x52f2b4 bit 23) its quit */
 static void end_replay(ProcGroup *g)
 {
@@ -831,8 +831,8 @@ static void end_replay(ProcGroup *g)
 /* state 10, 0x41e350: the replay with the results' pages over it (Results_Step in the steps): while no
    player's replay plays each player's fade (from the finish's shown flag a fade in at once, then out
    and in) starts it again from the start; the skip key (0x4d0580) ends it (0x41f2b0), the results'
-   choices go on through their fades. The super special plays its CPU run (champend.rpl, not ported)
-   and launches a rocket each frame once it has ended. */
+   choices go on through their fades. The super special plays its CPU run (champend.rpl) again and
+   launches a rocket each frame once it has ended. */
 static void s10_replay(ProcGroup *g, uint32_t slot)
 {
     /* (mode 10's time-out, the network time trial's clock 0x406710 against 0x40af30, needs a network
@@ -851,11 +851,25 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
                 if (R.shown[i]) mode = 2, R.shown[i] = 0;
                 Fade_Start((int)i, 0xc8000, replay_again, mode, 2, 0, 0, false);   /* 0x428410 */
             }
-    }
-    /* (the super special's run taken as ended) */
-    if (Gs_SuperSpecial()) {
-        Fireworks_Launch();            /* 0x480380 */
-        Results_SuperSpecialTick();    /* 0x44a150 */
+    } else {
+        /* the super special: once its run (champend.rpl) has stopped, it plays again from the start on
+           the trackside camera nearest car 0 (0x538118, cleared by 0x41f390); once that has ended too,
+           a rocket a frame */
+        Replay *r = Race_Replay(0);
+        bool go = true;
+        if (!gm32(0x538118)) {
+            if (Replay_Playing(r)) go = false;
+            else {
+                Camera_SelectAt(0, 7, 0xffff, Camera_Car(0), false);   /* 0x421720 */
+                gw32(0x538118, 1);
+                Replay_End(r);
+                Replay_Play(r, 0, 0, 0);
+            }
+        }
+        if (go && !Replay_Playing(r)) {
+            Fireworks_Launch();            /* 0x480380 */
+            Results_SuperSpecialTick();    /* 0x44a150 */
+        }
     }
     Race_Update(Proc_State(g, 0), true);
     R.first = true;
