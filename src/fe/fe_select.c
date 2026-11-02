@@ -132,6 +132,15 @@ void fe_4f3610(Menu *m, bool back)
     Scroll_Measure(Fe_Scroll(4), m);
 }
 
+/* 0x4f3530: a challenge's players strip: eight rows, all enabled (scroller 4; the gap as set up) */
+void fe_4f3530(Menu *m, bool back)
+{
+    (void)back;
+    m->n = 8;
+    for (int i = 0; i < m->n; i++) m->items[i].flags |= MIF_ENABLED;
+    Scroll_Measure(Fe_Scroll(4), m);
+}
+
 void fe_4f39f0(Menu *m) { (void)m; Scroll_Update(Fe_Scroll(4)); }
 
 /* 0x4d5ad0: a driver figure, 7 x 15 cells of the small matrix (0x523f30), shaded by a ripple */
@@ -192,7 +201,7 @@ void fe_4ef7c0(Menu *m, MenuItem *it)
     gw32(0x52afb4, (gm32(0x52afb4) & 0xfffe1fffu) | ((uint32_t)(m->sel + 1) & 0xf) << 13);   /* 0x4ea8c0 */
     Players_DropAll();
     if (mode() == 4) {
-        PENDING_NOTE(0x4eae40, "the challenge's players");
+        Challenge_ResetPlayers();
         gw32(0x52afb4, gm32(0x52afb4) & ~0x20000u);
         pg_81cf58.frame = NULL;
         pg_81cf58.parent = &pg_824a38;
@@ -550,12 +559,23 @@ static char *player_name(int n)
     return p == 0xf ? NULL : (char *)gm(0x52fa18 + p * 0x650);
 }
 
-/* 0x4eae90 */
+/* 0x4eae90: the player's name; a profile's marked changed with random bits 12-15 and 22-27 in its
+   word (two rand()s each time); in mode 4 into the challenge record, +0xc bit 1 set */
 static void set_player_name(int n, const char *s)
 {
-    if (mode() == 4) return;
+    if (mode() == 4) {
+        uint32_t a = 0x52f3e0 + 0xc4u * (uint32_t)n;
+        memmove(gm(a), s, strlen(s) + 1);
+        gw8(a + 0xc, (uint8_t)(gm8(a + 0xc) | 2));
+        return;
+    }
     uint32_t p = Player_Word(n) >> 0x12 & 0xf;
-    if (p != 0xf) snprintf((char *)gm(0x52fa18 + p * 0x650), 0x10, "%s", s);
+    if (p == 0xf) return;
+    memmove(gm(0x52fa18 + p * 0x650), s, strlen(s) + 1);
+    gw8(0x52fa00 + p, 1);
+    uint32_t a = 0x52fa1c + p * 0x650;
+    gw32(a, ((uint32_t)crt_rand() & 0xf) << 0xc | (gm32(a) & 0xffff0fffu));
+    gw32(a, ((uint32_t)crt_rand() & 0x3f) << 0x16 | (gm32(a) & 0xf03fffffu));
 }
 
 /* 0x4f0d30: typing on, the cursor at "end" when back, else the name cleared */

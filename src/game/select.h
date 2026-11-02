@@ -13,3 +13,5 @@ void Sel_SetCpuCount(int n);
    its own car and one or two others of the same group (0x40e180, 0x40e210), the cheat's fixed sets */
 void Sel_CpuCars(void);
 int Sel_CpuCar(int i);   /* 0x52ea98 + 4 i */
+/* 0x4069c0: the challenge's draw from its depth (0x52f2b4 bits 0-2) and the opponents' level */
+void Sel_ChallengeDraw(void);

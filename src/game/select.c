@@ -123,3 +123,80 @@ void Sel_CpuCars(void)
     gw32(0x5337c8, (uint32_t)x);
     set_cpu(2, x), set_cpu(5, x);
 }
+
+/* 0x4084c0: a player record made a CPU driver: bits 0-17 cleared, the CPU's number in bits 14-17, the
+   second word cleared */
+static void cpu_driver(int p, int n)
+{
+    uint32_t a = 0x531350 + 0x30u * (uint32_t)(p & 0xff);
+    gw32(a, ((uint32_t)n & 0xf) << 0xe | (gm32(a) & 0xfffc0000u));
+    gw32(a + 4, 0);
+}
+
+/* the challenge's rounds: 1, 2, 4 and 8 matches of three words (the drivers in bits 0-4 and 5-9, 0x1f
+   none), the final first */
+static const uint32_t round_at[5] = {0, 0x52f2b8, 0x52f2c4, 0x52f2dc, 0x52f30c};
+
+/* 0x4069c0: the challenge's draw. The rounds emptied, the first round from the depth (0x52f2b4 bits
+   0-2: 1 the final, 4 sixteen drivers) filled with the players and (with an opponents' level) CPU
+   drivers at random places; then two players never meet in the first round while some match has two
+   CPU drivers, and in each match the lower player comes first */
+void Sel_ChallengeDraw(void)
+{
+    uint32_t s = gm32(0x52f2b4), depth = s & 7;
+    int matches = 0;   /* the original leaves it unset for other depths */
+    s = (s & 0xffff03ffu) | 0x200;
+    switch (depth) {   /* bits 3-5: the rounds to go */
+    case 1: matches = 1, s = (s & 0xffffffe7u) | 0x20; break;
+    case 2: matches = 2, s = (s & 0xffffffdfu) | 0x18; break;
+    case 3: matches = 4, s = (s & 0xffffffd7u) | 0x10; break;
+    case 4: matches = 8, s = (s & 0xffffffcfu) | 0x08; break;
+    }
+    gw32(0x52f2b4, s);
+    uint32_t players = Gs_Players();
+    for (int r = 4; r >= 2; r--)
+        for (int i = 0; i < 1 << (r - 1); i++) {
+            uint32_t a = round_at[r] + 12u * (uint32_t)i;
+            gw32(a, gm32(a) & ~0x400u);
+            gw32(a + 4, 0), gw32(a + 8, 0);
+            gw32(a, (gm32(a) & ~0x1800u) | 0x3ff);
+        }
+    gw32(0x52f2bc, 0), gw32(0x52f2c0, 0);
+    gw32(0x52f2b8, (gm32(0x52f2b8) & 0xffffe3ffu) | 0x3ff);
+    if (depth >= 1 && depth <= 4) {
+        uint32_t n = (gm32(0x52afb4) >> 0x14 & 7) ? 2u << (depth - 1) : players;   /* 0x405dd0 */
+        int cpu = 0;
+        for (uint32_t d = 0; d < n; d++) {
+            if (players <= d) cpu_driver((int)d, cpu++);
+            for (;;) {
+                int k = depth == 1 ? crt_rand() & 1 : crt_rand() % (2 << (depth - 1));
+                uint32_t a = round_at[depth] + 12u * (uint32_t)(k / 2);
+                bool first = depth == 1 ? (k & 1) : !(k & 1);   /* the final's sides the other way */
+                if (first) {
+                    if ((gm32(a) & 0x1f) == 0x1f) { gw32(a, (gm32(a) & ~0x1fu) | (d & 0x1f)); break; }
+                } else if ((gm32(a) & 0x3e0) == 0x3e0) {
+                    gw32(a, (gm32(a) & 0xfffffc1fu) | (d & 0x1f) << 5);
+                    break;
+                }
+            }
+        }
+    }
+    /* the original walks the sixteen drivers' round whatever the depth */
+    for (int i = 0; i < matches; i++) {
+        uint32_t a = 0x52f30c + 12u * (uint32_t)i, e = gm32(a);
+        if ((e & 0x1f) >= players || (e >> 5 & 0x1f) >= players || i + 1 >= matches) continue;
+        for (int j = i + 1; j < matches; j++) {
+            uint32_t b = 0x52f30c + 12u * (uint32_t)j, q = gm32(b);
+            if ((q & 0x1f) >= players && (q >> 5 & 0x1f) >= players) {
+                e = gm32(a);
+                gw32(b, (e >> 5 & 0x1f) | (q & 0xffffffe0u));
+                gw32(a, (q & 0x1f) << 5 | (e & 0xfffffc1fu));
+            }
+        }
+    }
+    for (int r = 4; r >= 1; r--)
+        for (int i = 0; i < 1 << (r - 1); i++) {
+            uint32_t a = round_at[r] + 12u * (uint32_t)i, e = gm32(a), x = e & 0x1f, y = e >> 5 & 0x1f;
+            if (x < players && y < players && y < x) gw32(a, (e & 0xfffffc00u) | y | x << 5);
+        }
+}

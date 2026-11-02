@@ -5,6 +5,7 @@
 #include "fe/fe_strip.h"
 #include "fe/pages.h"
 #include "crt.h"
+#include "exe.h"
 #include "font.h"
 #include "game/gstate.h"
 #include "game/mem.h"
@@ -207,19 +208,12 @@ void fe_4f1960(Menu *m, bool back)
     if (back && mode() != 4) fe_4f17d0(Fe_Scroll(2)->page, false);
 }
 
-/* 0x4d8480: the trail (player, name), the transmission row with its two values (the chosen lit), the
-   car strip unlit */
-void fe_4d8480(Menu *m)
+/* the transmission row of 0x4d8480 and 0x4d9450: between two bands, the arrow, the label and the two
+   values (the chosen lit) */
+static void box_row(Menu *m)
 {
     int w, h;
     screen(&w, &h);
-    Fe_Header();
-    char who[64], name[16] = "";
-    snprintf(who, sizeof who, Text_Get(0xdc), (int)(gm32(0x52afb4) >> 13 & 0xf) - Fe_ToSet());
-    uint32_t prof = Player_Word(Fe_SetupPlayer()) >> 0x12 & 0xf;
-    if (prof != 0xf) snprintf(name, sizeof name, "%s", (const char *)gm(0x52fa18 + prof * 0x650));
-    const char *names[2] = {who, name};
-    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 3, names, 2);
     int16_t top = (int16_t)((h * 0x38 / 0x1e0 + h * 0x176 / 0x1e0) / 2 - (h * 0x24 / 0x1e0) * m->n / 2);
     int16_t r[4] = {(int16_t)(w * 99 / 0x280), top, (int16_t)(w * 0x11a / 0x280), 1};
     Rect_Fill(r, gm(0x524974), 1);
@@ -244,6 +238,22 @@ void fe_4d8480(Menu *m)
     Rect_Fill(r, gm(0x524974), 1);
     r[1]++;
     Rect_Fill(r, gm(0x524968), 1);
+}
+
+/* 0x4d8480: the trail (player, name), the transmission row with its two values (the chosen lit), the
+   car strip unlit */
+void fe_4d8480(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    char who[64], name[16] = "";
+    snprintf(who, sizeof who, Text_Get(0xdc), (int)(gm32(0x52afb4) >> 13 & 0xf) - Fe_ToSet());
+    uint32_t prof = Player_Word(Fe_SetupPlayer()) >> 0x12 & 0xf;
+    if (prof != 0xf) snprintf(name, sizeof name, "%s", (const char *)gm(0x52fa18 + prof * 0x650));
+    const char *names[2] = {who, name};
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 3, names, 2);
+    box_row(m);
     if (mode() != 4) Strip_Draw(Fe_Scroll(2), false);
     Fe_Hint(Text_Get(0x57), true);
 }
@@ -477,4 +487,163 @@ void fe_4faea0(Menu *m, MenuItem *it)
     (void)it;
     set_auto_box(Fe_SetupPlayer(), m->items[0].value);
     Menu_Goto(Fe_ToSet() == 0 ? &pg_826420 : &pg_8241b8);
+}
+
+/* ---- a challenge's transmission (0x822d18) ---- */
+
+/* 0x4f19d0: the row at the player's box */
+void fe_4f19d0(Menu *m, bool back)
+{
+    (void)back;
+    m->items[0].value = auto_box(Fe_SetupPlayer()) ? 1 : 0;
+}
+
+/* 0x4f1b30: the box kept; with every player set, the rallies opened and the challenge's
+   configuration (0x4f8420), else the next player's driver select */
+void fe_4f1b30(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_auto_box(Fe_SetupPlayer(), m->items[0].value);
+    if (Fe_ToSet() == 0) {
+        open_rallies();
+        Menu_Goto(&pg_823858);
+        return;
+    }
+    Menu_SetParent(&pg_8241b8, m);   /* 0x4f83a0 */
+    Menu_Goto(&pg_8241b8);
+}
+
+/* 0x4d9450: the trail, the transmission row (no strip, no hint) */
+void fe_4d9450(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 2, NULL, -1);
+    box_row(m);
+}
+
+/* ---- a challenge's configuration (0x823858): the opponents, the rounds, the rally, start ---- */
+
+static int rounds_off;     /* DAT_00819050: the rounds the players take up (0 for 1-2, 1 for 3-4, else 2) */
+static bool one_player;    /* DAT_00819748: no "no opponents" row */
+static char config_line[128];   /* 0x663b60: kept when a row's value has no text */
+
+static int level(void) { return (int)(gm32(0x52afb4) >> 0x14 & 7); }                    /* 0x405dd0 */
+static void set_level(int v) { gw32(0x52afb4, ((uint32_t)v & 7u) << 0x14 | (gm32(0x52afb4) & 0xff8fffffu)); }   /* 0x4ea970 */
+static int depth(void) { return (int)(gm32(0x52f2b4) & 7); }                            /* 0x4069b0 */
+static void set_depth(int v) { gw32(0x52f2b4, ((uint32_t)v & 7u) | (gm32(0x52f2b4) & ~7u)); }   /* 0x40d660 */
+static int players_depth(void) { uint32_t p = Gs_Players(); return p <= 2 ? 1 : p <= 4 ? 2 : 3; }
+
+/* 0x4ef970: the rows from the settings: the level (one player always has opponents, at the
+   difficulty's level), the rounds (fixed by the players without opponents), the rally (0x52f2b4 bits
+   16-19: 1, 3, 5, 7 or any other for the random row 0) among the open ones */
+void fe_4ef970(Menu *m, bool back)
+{
+    (void)back;
+    uint32_t p = Gs_Players();
+    rounds_off = p <= 2 ? 0 : p <= 4 ? 1 : 2;
+    if (p == 1) {
+        if (level() == 0) {
+            set_level((int)(gm32(0x52afb4) >> 10 & 7) + 1);   /* 0x405d90 */
+            m->items[0].value = (uint8_t)(gm32(0x52afb4) >> 10 & 7);
+        } else {
+            m->items[0].value = (uint8_t)(level() - 1);
+        }
+        m->items[0].count = 3;
+        one_player = true;
+    } else {
+        m->items[0].value = (uint8_t)level();
+        m->items[0].count = 4;
+        one_player = false;
+    }
+    if (level() == 0) {
+        set_depth(players_depth());
+        m->items[1].flags &= (uint8_t)~MIF_ENABLED;
+        m->items[1].value = (uint8_t)(depth() - 1);   /* overwritten below */
+    } else {
+        m->items[1].flags |= MIF_ENABLED;
+    }
+    m->items[1].count = (uint8_t)(4 - rounds_off);
+    m->items[1].value = (uint8_t)(depth() - 1);
+    if (m->items[1].count <= m->items[1].value) m->items[1].value = (uint8_t)(m->items[1].count - 1);
+    switch (gm32(0x52f2b4) >> 0x10 & 0xf) {   /* 0x4070e0 */
+    case 1: m->items[2].value = 1; break;
+    case 3: m->items[2].value = 2; break;
+    case 5: m->items[2].value = 3; break;
+    case 7: m->items[2].value = 4; break;
+    default: m->items[2].value = 0; break;
+    }
+    if (option(0xd)) m->items[2].count = 5;
+    else m->items[2].count = (uint8_t)(__builtin_popcount(gm32(0x52b03c + 4) & 0x1f) + 1);   /* 0x4eaac0 */
+    if (m->items[2].count <= m->items[2].value) m->items[2].value = (uint8_t)(m->items[2].count - 1);
+}
+
+/* 0x4f0250: the level from its row; without opponents the rounds fixed by the players */
+void fe_4f0250(Menu *m)
+{
+    set_level(m->items[0].value + (one_player ? 1 : 0));
+    if (level() != 0) {
+        m->items[1].flags |= MIF_ENABLED;
+        return;
+    }
+    set_depth(players_depth());
+    m->items[1].flags &= (uint8_t)~MIF_ENABLED;
+    m->items[1].value = (uint8_t)(depth() - 1 - rounds_off);
+}
+
+/* 0x4f01c0: start: the level, the rounds, the round (0x40d680: bits 6-8 to 1), the rally (row 0 is 8,
+   any), the draw (0x4069c0), the rally's stage 11 (0x4070c0), and the challenge's start (0x4f8330) */
+void fe_4f01c0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_level(m->items[0].value + (one_player ? 1 : 0));
+    set_depth(m->items[1].value + rounds_off + 1);
+    gw32(0x52f2b4, 1u << 6 | (gm32(0x52f2b4) & 0xfffffe3fu));
+    static const uint8_t rally[5] = {8, 1, 3, 5, 7};
+    uint32_t r = m->items[2].value < 5 ? rally[m->items[2].value] : 8;
+    gw32(0x52f2b4, (r & 0xf) << 0x10 | (gm32(0x52f2b4) & 0xfff0ffffu));   /* 0x40d6a0 */
+    Sel_ChallengeDraw();
+    uint32_t s = gm32(0x52f2ac), rr = gm32(0x52f2b4) >> 0x10 & 0xf;
+    s = (s & ~0x1fu) | (rr & 0x1f);                     /* 0x4068b0 */
+    s = (s & 0xfffffc1fu) | 10u << 5;                    /* 0x4068e0 */
+    gw32(0x52f2ac, s);
+    Sel_ModeFlags();
+    Menu_Goto(&pg_8214b8);
+}
+
+static void config_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    (void)two, (void)w;
+    int i = (int)(it - m->items);
+    int t = -1;
+    switch (i) {
+    case 0:
+        if (one_player) t = it->value == 0 ? 0x43 : it->value == 1 ? 0x44 : it->value == 2 ? 0x45 : -1;
+        else t = it->value == 0 ? 0x133 : it->value == 1 ? 0x43 : it->value == 2 ? 0x44 : it->value == 3 ? 0x45 : -1;
+        if (t >= 0) snprintf(config_line, sizeof config_line, exe_str(0x524d38), Text_Get(0x142), Text_Get(t));
+        break;
+    case 1:
+        snprintf(config_line, sizeof config_line, exe_str(0x524d40), Text_Get(0x143), rounds_off + 1 + it->value);
+        break;
+    case 2:
+        snprintf(config_line, sizeof config_line, exe_str(0x524d64), Text_Get(0x31),
+                 Text_Get(it->value == 0 ? 0x2f : it->value * 2 + 0x26));
+        break;
+    case 3: snprintf(config_line, sizeof config_line, "%s", Text_Get(0x67)); break;
+    case 4: snprintf(config_line, sizeof config_line, "%s", Text_Get(0x1b)); break;
+    }
+    Font_Print(1, config_line, x, y, gm(c), 0x11);
+}
+
+/* 0x4e1230: the trail Rally, Challenge, Configuration; the rows (the disabled dimmed); the hint */
+void fe_4e1230(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    Fe_Header();
+    const char *names[3] = {Text_Get(0xe7), Text_Get(0xe), Text_Get(0x65)};
+    Fe_TitleRow(w * 0x18 / 0x280, h * 0x26 / 0x1e0, names, 3);
+    Rows_Draw(m, config_row, false, true, Rows_Top(m), Rows_ArrowDy());
+    Fe_Hint(Text_Get(0x57), true);
 }

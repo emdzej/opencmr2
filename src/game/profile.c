@@ -418,3 +418,18 @@ int Profile_FreeIndex(int i)
     uint32_t f[4];
     return i < free_profiles(f) ? (int)f[i] : -1;
 }
+
+/* 0x4eae40: a challenge's eight player records (0x52f3e0, 0xc4 bytes each) cleared: +0xc bit 0 set (an
+   automatic box), bit 1 cleared; +4 the options' word 0x52b038 (0x4eaca0); the chase defaults
+   (0x4ec260, which sets bit 1 again); +0xd bits 2-5 set, bits 0-1 cleared */
+void Challenge_ResetPlayers(void)
+{
+    for (uint32_t a = 0x52f3e0; a < 0x52f3e0 + 0x188 * 4; a += 4) gw32(a, 0);
+    int n = 0;
+    for (uint32_t a = 0x52f3ec; a < 0x52fa0c; a += 0xc4, n++) {
+        gw8(a, (uint8_t)((gm8(a) & 0xfd) | 1));
+        gw32(a - 8, gm32(0x52b038));
+        default_camera(n);
+        gw8(a + 1, (uint8_t)((gm8(a + 1) & 0xfc) | 0x3c));
+    }
+}

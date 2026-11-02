@@ -1182,3 +1182,15 @@
 004ea950	Opts_SetAlternate	game	confirmed	0x52afb4 bit 17
 004ea970	Opts_SetLevel	game	confirmed	0x52afb4 bits 20-22
 00405dd0	Opts_Level	game	confirmed	0x52afb4 bits 20-22
+004d9450	FeChalBox_Draw	fe	confirmed	A challenge player's transmission
+004f19d0	FeChalBox_Enter	fe	confirmed	The row at the player's box
+004f1b30	FeChalBox_Choose	fe	confirmed	The box, then the configuration or the next player
+004e1230	FeChalConfig_Draw	fe	confirmed	The challenge configuration rows
+004ef970	FeChalConfig_Enter	fe	confirmed	The rows from the settings
+004f0250	FeChalConfig_Frame	fe	confirmed	The level; the rounds fixed without opponents
+004f01c0	FeChalConfig_Start	fe	confirmed	The settings, the draw, the start
+004069c0	Sel_ChallengeDraw	game	confirmed	The challenge draw
+004084c0	Player_MakeCpu	game	confirmed	A player record made a CPU driver
+004f3530	FeChalPlayers_Enter	fe	confirmed	Eight rows, the players strip
+004eae40	Challenge_ResetPlayers	game	confirmed	The challenge player records
+004eae90	Player_SetName	game	confirmed	The name, a profile's random bits

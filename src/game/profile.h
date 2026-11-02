@@ -36,6 +36,7 @@ void Player_AssignProfile(int player, int profile);   /* 0x4eb860: -1 picks a fr
 void Player_SetGuest(int player, bool guest);         /* 0x4eb000 */
 void Player_DropProfile(int player);       /* 0x4ebe80 */
 void Players_DropAll(void);                /* 0x4ec000 */
+void Challenge_ResetPlayers(void);         /* 0x4eae40 */
 int Profiles_Free(void);                   /* 0x4ec020: those in use and not a player's */
 const char *Profile_FreeName(int i);       /* 0x4ec110: the i-th of them's name (0x52fa18) */
 int Profile_FreeIndex(int i);              /* 0x4ec090 */
