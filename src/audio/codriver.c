@@ -12,6 +12,12 @@
 #include "sim/car.h"
 #include "sim/progress.h"
 #include "world/stage.h"
+#include "game/hud.h"
+#include "game/pause.h"
+#include "render/d3d7.h"
+#include "render/tex.h"
+#include "render/twod.h"
+#include "text.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -23,6 +29,9 @@ static int32_t volume = 0x10000; /* DAT_00537194 */
 /* The speech queue (0x5370a0, 20 entries of 12 bytes): a sound, its voice, 1 playing and 2 in use */
 typedef struct { int id; int32_t voice; uint8_t flags; } Speech;
 static Speech queue[20];
+static Tex *arrows;              /* DAT_00537098 */
+static uint32_t arrow_rects;     /* DAT_00537088: eight rectangles (x, y, w, h) in the texture */
+static int digit = -1;           /* DAT_00537350: the arcade's countdown digit (6 "go"), -1 none */
 
 /* The calls per player (0x5371d0, five of 12 bytes): two descriptors, the flags (low byte a countdown
    in steps, 0x100 in use, 0x200 spoken) */
@@ -121,7 +130,12 @@ void Codriver_Start(int p)
     int c = Race_Countdown() > 499 ? 499 : Race_Countdown();   /* 0x41d780 */
     int left = (500 - c) / 100;
     last_point[p] = Car_CatIndex(Car_Get(p));
-    if (Gs_SelBit26()) PENDING_NOTE(0x416f70, "Codriver_Start (the arcade's lights)");
+    digit = -1;
+    if (Gs_SelBit26()) {   /* 0x407e70: the arcade's digit, "go" over the last fifth of each second */
+        int raw = Race_Countdown();
+        if ((500 - raw) % 100 < 0x14) digit = 6;
+        else digit = (500 - raw) / 100 < 5 ? (500 - raw) / 100 + 1 : -1;
+    }
     speak();
     if (0 < p) {
         PENDING_NOTE(0x416f70, "Codriver_Start (the second player)");
@@ -163,7 +177,6 @@ static void queue_call(int p, uint8_t code, uint8_t next)
         c->flags = (c->flags & 0xfffffd32) | 0x132;   /* in use, 50 steps, not spoken */
         c->desc = d;
         c->desc2 = d2;
-        PENDING_NOTE(0x418580, "Notes_Arrow");
         return;
     }
 }
@@ -179,6 +192,7 @@ void Codriver_Step(int p)
         say(base + 0xd);   /* "go" */
         go_said = true;
     }
+    if (Gs_SelBit26()) digit = (Times_Race() < 0x5a) - 1;   /* 0x407e70: "go" for the first 0.9 s */
     speak();
     const Car *c = Car_Get(p);
     int32_t t[3], f[3] = {CI32(c, 0x3f0), CI32(c, 0x3f4), CI32(c, 0x3f8)};
@@ -264,19 +278,147 @@ static bool arrow(uint32_t d)
     return dir != 0 || (sev != 0 && sev != 9) || m1 == 0xe || m1 == 2 || m1 == 1 || m2 != 0;
 }
 
-/* 0x4177d0's speech: each call not yet spoken (one player, no split screen); the walk stops at a call
-   with no arrow, as the original's does (the calls after it wait until it has gone) */
+
+/* 0x4165e0 (0x40f020): the arrows' texture from the Com archive, and their rectangles (0x517e70
+   for a 1,024-wide mode with the texture memory, else 0x517e30) */
+void Codriver_LoadArrows(void)
+{
+    char b[260];
+    snprintf(b, sizeof b, "%s%s", exe_str(0x516a50), exe_str(0x517eb0));   /* 0x40ed50, "%s%s" 0x517d98 */
+    uint8_t found;
+    arrows = Bfl_FindTexture(Bfl_Com(), b, &found, false, 0);   /* 0x4552a0 */
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    if (w > 0x3ff) PENDING_NOTE(0x4b7560, "Codriver_LoadArrows (the 1,024 rectangles with the texture memory)");
+    arrow_rects = 0x517e30;
+}
+
+/* Notes_Arrow 0x418580: a call's arrow, the rectangle by the severity (8 the first, 7, 5 and 6, 4,
+   3, 2, the others the seventh), mirrored for a left (dir 1; option 2 swaps), the eighth (unmirrored)
+   for a modifier without a direction (crest and over yellow, jump red) or a second modifier (1
+   yellow, else red); the answer whether it has one */
+static bool notes_arrow(uint32_t d, Tex **t, Rect16 *src, bool *mirror, uint8_t rgba[4])
+{
+    uint32_t sev = d & 0xf, dir = d >> 4 & 3, m1 = d >> 0x11 & 0xf, m2 = d >> 0x15 & 3;
+    rgba[0] = rgba[1] = rgba[2] = rgba[3] = 0xff;
+    *mirror = (dir == 1) != Gs_Option(2);   /* 0x4063f0 */
+    int r;
+    switch (sev) {
+    case 2: r = 5; break;
+    case 3: r = 4; break;
+    case 4: r = 3; break;
+    case 5: case 6: r = 2; break;
+    case 7: r = 1; break;
+    case 8: r = 0; break;
+    default: r = 6; break;
+    }
+    if ((m1 != 0 && dir == 0) || m2 != 0) {
+        *mirror = false;
+        r = 7;
+        if (m2 != 0) rgba[1] = m2 == 1 ? 0xff : 0, rgba[2] = m2 == 1 ? 0x0d : 0;
+        else if (m1 == 2 || m1 == 0xe) rgba[2] = 0x0d;
+        else if (m1 == 1) rgba[1] = rgba[2] = 0;
+    }
+    uint32_t a = arrow_rects + 8u * (uint32_t)r;
+    *src = (Rect16){(int16_t)gm16(a), (int16_t)gm16(a + 2), (int16_t)gm16(a + 4), (int16_t)gm16(a + 6)};
+    *t = arrows;
+    return arrow(d);
+}
+
+/* 0x477f70: the arcade's countdown digit n as a 20 by 26 grid of cells (0x51ca00, 0x294 bytes a
+   digit, rows 0x21 apart, columns 8 to 25) on a box (0x51c9f4), lit cells 0x51c9f8 (2) or 0x51c9fc */
+static void countdown_digit(int n)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    int cy = h * 6 / 0x1e0, cx = w * 6 / 0x280, mid = w * 0x140 / 0x280;
+    int16_t y0 = Hud_SplitScreen() ? (int16_t)((h - cy * 0x14) / 2 + 4) : (int16_t)((h << 0xc) >> 16);
+    int16_t r[4] = {(int16_t)(mid - cx * 9), y0, (int16_t)(cx * 0x14), (int16_t)(cy * 0x15 - 1)};
+    Rect_Fill(r, gm(0x51c9f4), 3);
+    r[2] = (int16_t)(w * 4 / 0x280), r[3] = (int16_t)(h * 4 / 0x1e0);
+    for (int i = 8; i < 0x1a; i++) {
+        r[0] = (int16_t)((i - 0x10) * cx + mid), r[1] = y0;
+        for (int j = 0; j < 0x14; j++, r[1] = (int16_t)(r[1] + cy)) {
+            uint8_t c = gm8(0x51ca00 + 0x294u * (uint32_t)n + (uint32_t)i + 0x21u * (uint32_t)j);
+            if (c) Rect_Fill(r, gm(c == 2 ? 0x51c9f8 : 0x51c9fc), 3);
+        }
+    }
+}
+
+/* the arrow's width turned by angle a (4,096 a turn): half of it in 16.16 times the cosine, doubled */
+static int16_t turned(int16_t w, int a)
+{
+    int32_t half = (int32_t)((w / 2) * 65536);
+    int32_t r = (int32_t)(((int64_t)half * g_sin[(a + 0x400) & 0xfff]) >> 16);
+    return (int16_t)((r * 2) >> 16);
+}
+
+/* Notes_Draw 0x4177d0 for one view: the arcade's countdown digit; "wrong way" (text 0x57), also
+   while the pause menu's display page is open; then, off the circuits, each call in use (and with
+   that page open the others as a sample, 0x14) speaks once (not on a split screen) and shows its
+   arrows centred at the top: two side by side when it has a second, which turn in and out by the
+   first call's countdown (the ease 0x0-0x400 in eleven steps, the first arrow over steps 0-29, the
+   second 20-50). Nothing is drawn on a split screen or with display flags 2; the walk stops at a call
+   without arrows unless a second arrow has been seen. */
 void Codriver_Notes(int p)
 {
-    PENDING_NOTE(0x4177d0, "Notes_Draw (the arrows, the wrong way)");
+    static const int16_t ease[11] = {0, 0xc, 0x19, 0x4c, 0x99, 0x100, 0x180, 0x219, 0x2cc, 0x399, 0x400};
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    bool split = Hud_SplitScreen();
+    if (Gs_SelBit26() && digit != -1 && (!split || p == 1)) countdown_digit(digit);   /* 0x407e70 */
+    int dx = 0, dy = 0;
+    if (split) {
+        if (!Gs_ModeBit18()) dx = p == 0 ? -(w / 4) : w / 4, dy = (h * 0x2333) >> 16;
+        else dy = (p == 1 ? h / 2 : 0) + h / 8 + h * 10 / 0x1e0, dx = w * 0x2e / 0x280 - ((w * 0x7400) >> 16);
+    }
+    uint8_t fl = Hud_Flags(Gs_Byte537ef6() + p);
+    int y = ((h << 0xc) >> 16) + (!split && (fl & 3) == 1 ? 0x10 : 0);
+    if (wrong_way[p] || Pause_OsdPage(p)) Hud_Message(Text_Get(0x57), gm(0x517e24), p, true, -1, -1);
+    if (Gs_SelBit24()) return;   /* 0x4174d0 */
+    bool seen2 = false;
     for (int k = 0; k < 5; k++) {
         Call *c = &calls[p][k];
-        if (!(c->flags & 0x100)) continue;
+        uint32_t d;
+        if (c->flags & 0x100) d = c->desc;
+        else if (Pause_OsdPage(p) && Pause_Active()) d = 0x14;
+        else continue;
+        Tex *t1, *t2 = NULL;
+        Rect16 s1, s2 = {0, 0, 0, 0};
+        bool m1, m2 = false, two = false;
+        uint8_t c1[4], c2[4] = {0xff, 0xff, 0xff, 0xff};
+        bool a1 = notes_arrow(d, &t1, &s1, &m1, c1);
+        if (c->desc2 && notes_arrow(c->desc2, &t2, &s2, &m2, c2)) two = seen2 = true;
         if (!(c->flags & 0x200)) {
-            words(c->desc);
-            if (c->desc2) words(c->desc2);
+            if (!split) {
+                words(c->desc);
+                if (c->desc2) words(c->desc2);
+            }
             c->flags |= 0x200;
         }
-        if (!arrow(c->desc) && !(c->desc2 && arrow(c->desc2))) return;
+        if (!a1 && !seen2) return;
+        if (split || (Hud_Flags(Gs_Byte537ef6() + p) & 3) == 2) continue;
+        Rect16 d1 = {0, (int16_t)y, s1.w, s1.h}, d2 = {0, (int16_t)y, s1.w, s1.h};   /* (both the first's size) */
+        uint32_t f0 = calls[p][0].flags;
+        int a = 0x32 - (int)(f0 & 0xff), r1, r2 = 0;
+        if (two) {
+            r1 = a < 10 ? -ease[10 - a] : a < 20 ? 0 : a < 30 ? -ease[a - 20] : 0x400;
+            r2 = a < 20 ? 0x400 : a < 30 ? -ease[30 - a] : a < 40 ? 0 : a < 50 ? -ease[a - 40] : 0x400;
+        } else
+            r1 = a >= 40 ? -ease[a - 40] : a <= 10 ? ease[10 - a] : 0;
+        if (!(f0 & 0x100)) r1 = 0;
+        d1.y = (int16_t)(d1.y + dy), d2.y = (int16_t)(d2.y + dy);
+        if ((int16_t)r1) d1.w = turned(d1.w, (int16_t)r1);
+        if (!a1) d1.w = 0;
+        if (two) {
+            d2.w = turned(d2.w, r2);
+            d1.x = (int16_t)(((w << 0xf) >> 16) - (d2.w + d1.w) / 2 + dx);
+            if (a1 && (!m1 || d1.w)) Sprite_Add(&s1, &d1, t1, 2, 0, NULL, NULL, c1, m1 ? 1 : 8);
+            d2.x = (int16_t)(d1.x + d1.w);
+            if (d2.w) Sprite_Add(&s2, &d2, t2, 2, 0, NULL, NULL, c2, m2 ? 1 : 8);
+        } else {
+            d1.x = (int16_t)(((w << 0xf) >> 16) - d1.w / 2 + dx);
+            if (a1) Sprite_Add(&s1, &d1, t1, 2, 0, NULL, NULL, c1, m1 ? 1 : 8);
+        }
     }
 }

@@ -298,6 +298,9 @@ static void sound_leave(Menu *m, bool back)
 
 static void stub_draw(Menu *m) { draw_confirm(m); }
 
+/* 0x4054b0: paused by player p (0x52af58's byte 1) on the on-screen display page (0x52aa70) */
+bool Pause_OsdPage(int p) { return Pause_Active() && base == (uint8_t)p && page == &pg_osd; }
+
 void Pause_Build(void)
 {
     paused = false;

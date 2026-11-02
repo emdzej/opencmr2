@@ -247,6 +247,7 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
         Lights_Load();
         Weather_Load();
         Effects_LoadTextures();
+        Codriver_LoadArrows();   /* 0x4165e0 */
         Pause_Build();   /* 0x403500 */
     }
     Proc_Event(g, slot, 0, 2);

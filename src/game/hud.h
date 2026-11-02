@@ -15,6 +15,11 @@ void Hud_LoadSounds(void);        /* 0x411120: up, down, blip, cross, timeout */
 void Hud_LoadMap(void);           /* 0x411280: the map's textures (Stage_Load) */
 void Hud_Init(int again);         /* 0x411450: Stage_Load (0), the line (1), a restart */
 void Hud_Update(int player, bool on_line);   /* 0x411f70 */
-void Hud_Draw(int player);
-void Hud_MessageReset(void);     /* 0x417e60 (each view, 0x40f0c0): the next message is drawn */       /* 0x4125f0 */
+void Hud_Draw(int player);       /* 0x4125f0 */
+bool Hud_SplitScreen(void);       /* 0x411880: two players, the screen split */
+uint8_t Hud_Flags(int n);         /* Profile_HudFlags 0x408a00: profile slot n's display flags (0 without) */
+/* 0x417e70: a message in the big font, centred in player p's view (or at x, y unless -1), with a
+   shadow when asked; one a view */
+void Hud_Message(const char *text, const uint8_t *rgba, int p, bool shadow, int x, int y);
+void Hud_MessageReset(void);     /* 0x417e60 (each view, 0x40f0c0): the next message is drawn */
 int32_t Times_Split(int player, int k);   /* 0x448680: the race time at split k */

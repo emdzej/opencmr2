@@ -13,6 +13,7 @@ bool Pause_Pressed(int player);    /* 0x404e10 */
 void Pause_Begin(int player);      /* 0x404ea0 */
 void Pause_End(void);              /* 0x404ef0 */
 bool Pause_Active(void);           /* 0x404f20 */
+bool Pause_OsdPage(int p);         /* 0x4054b0 */
 void Pause_Frame(void);            /* 0x404f40: the page's input */
 void Pause_Draw(void);             /* 0x4054a0: the page's draw */
 bool Pause_RestartAsked(void);     /* DAT_0053810c */

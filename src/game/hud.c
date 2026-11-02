@@ -58,7 +58,7 @@ void Times_Clear(void) { shown = clock_ = 0; }
 static void box_at(uint32_t a, int16_t r[4]) { for (int i = 0; i < 4; i++) r[i] = gms16(a + 2u * (uint32_t)i); }
 
 /* 0x411880: the screen split between two players */
-static bool split_screen(void)
+bool Hud_SplitScreen(void)
 {
     if (Gs_SelBits14() > 1 && !Gs_ModeBit17() && Gs_Mode() != 4) return true;
     if (Gs_Mode() == 4) PENDING_NOTE(0x4070f0, "Split_Screen (the network game's)");
@@ -104,7 +104,7 @@ static void bar_layout(void)
     bool wide = m == 8 || m == 9 || m == 11;
     int left;
     if (wide) left = (w * 0xc00) >> 16;
-    else if (split_screen() && !(gm32(0x52afb4) >> 0x12 & 1)) left = ((w * 0xc934) >> 16) - 10;   /* 0x405dc0 */
+    else if (Hud_SplitScreen() && !(gm32(0x52afb4) >> 0x12 & 1)) left = ((w * 0xc934) >> 16) - 10;   /* 0x405dc0 */
     else left = (w * 0xab9b) >> 16;
     if (total == 0) total = 1;
     int32_t n = gms32(NSPLITS);
@@ -112,7 +112,7 @@ static void bar_layout(void)
     for (int p = 0; p < 2; p++) {
         for (int i = 0; i < 0xc; i++) {
             int16_t ox = 0, oy = 0;
-            if (split_screen()) {
+            if (Hud_SplitScreen()) {
                 if (!(gm32(0x52afb4) >> 0x12 & 1)) { if (p == 0) ox = (int16_t)-(w / 2); }   /* (the first player's moved off to the left) */
                 else if (p == 1) oy = (int16_t)(h / 2);
             }
@@ -892,7 +892,7 @@ static void map(int p)
         Rect16 ms = {0, 0, (int16_t)(t_map->width - 1), (int16_t)(t_map->height - 1)};
         src = ms;
         if (t_blob) dot.w = (int16_t)(t_blob->width - 1), dot.h = (int16_t)(t_blob->height - 1);
-        if (split_screen() && Gs_ModeBit18()) return;
+        if (Hud_SplitScreen() && Gs_ModeBit18()) return;
         box[0] = (int16_t)(((w * 0x731) >> 16) + ox);
         box[2] = (int16_t)(src.w * w / 640);
         box[3] = (int16_t)(src.h * h / 480);
@@ -1103,7 +1103,7 @@ static void ghost_standings(int p)
 
 /* the player's display flags (Profile_HudFlags 0x408a00: mode 4's at 0x52f3ed, else the profile's
    +0x574; the original reads through NULL without a profile, the port reads zero) */
-static uint8_t hud_flags(int n)
+uint8_t Hud_Flags(int n)
 {
     if (Gs_Mode() == 4) return gm8(0x52f3ed + 0xc4u * (uint32_t)n);
     uint32_t t = gm32(0x531350 + 0x30u * (uint32_t)n) >> 0x12 & 0xf;
@@ -1118,21 +1118,21 @@ void Hud_MessageReset(void) { msg_lock = false; }   /* 0x417e60 */
    height (lower by 0x10 with display flags 1 of 3; on a split screen at 0.1375 of the height
    further down or, one above the other, up from the half's line), with a shadow when asked, or at
    (x, y) given; only the view's first message is drawn */
-static void message(const char *text, const uint8_t *rgba, int p, bool shadow, int x, int y)
+void Hud_Message(const char *text, const uint8_t *rgba, int p, bool shadow, int x, int y)
 {
     if (msg_lock) return;
     msg_lock = true;
     int w, h;
     D3d_ScreenSize(&w, &h);
     int16_t v[4] = {0, 0, (int16_t)w, (int16_t)h};   /* View_Rect 0x464b10 */
-    bool split = split_screen();
+    bool split = Hud_SplitScreen();
     int off = 0;
     if (split) {
         if (!Gs_ModeBit18()) off = (h * 0x2333) >> 16;
         else off = (p == 1 ? h / 2 : 0) - ((h * 0x2333) >> 16);
     }
     int ty = ((h << 0xe) >> 16) + off;
-    if (!split && (hud_flags(Gs_Byte537ef6() + p) & 3) == 1) ty += 0x10;
+    if (!split && (Hud_Flags(Gs_Byte537ef6() + p) & 3) == 1) ty += 0x10;
     int tx = v[2] / 2 + v[0];
     uint32_t fl = 0x12;
     if (x != -1) fl = 9, tx = x, ty = y;
@@ -1146,7 +1146,7 @@ static void game_over(int p)
 {
     if (!gm8(0x53d1a7)) return;
     uint32_t k = gm32(0x52f2b0) & 7;
-    if ((k == 1 || k == 2) && (int8_t)gm8(0x53e184 + (uint32_t)p) == 0) message(Text_Get(0xbe), colour(0x5170f4), p, false, -1, -1);
+    if ((k == 1 || k == 2) && (int8_t)gm8(0x53e184 + (uint32_t)p) == 0) Hud_Message(Text_Get(0xbe), colour(0x5170f4), p, false, -1, -1);
 }
 
 /* 0x4129d0 for one view: the arcade's time panel, the box (taller by a line or two for the laps,
@@ -1161,7 +1161,7 @@ static void arcade_time(int p)
     D3d_ScreenSize(&w, &h);
     int m8 = w * 3 / 0x280, m20 = w * 0x2c / 0x280, dy = h * 3 / 0x1e0;
     int ox = 0, oy = 0;
-    if (split_screen()) {
+    if (Hud_SplitScreen()) {
         if (!Gs_ModeBit18()) { if (p == 0) ox = -(w / 2); }
         else if (p == 1) oy = h / 2;
     }
@@ -1226,17 +1226,17 @@ void Hud_Draw(int p)
         Font_Print(0, b, v[0] + 10, v[3] + v[1] - 10, white, 0x21);
     }
     if (gm32(0x52f2b0) >> 0xb & 1) game_over(p);   /* 0x4082e0 */
-    else if (split_screen() && (Gs_SelBit24() || Gs_SelBit25()) && Race_Finished(p) && (int8_t)gm8(0x53e184 + (uint32_t)p) == 0)
-        message(Text_Get(0xbe), colour(0x5170f4), p, false, -1, -1);
+    else if (Hud_SplitScreen() && (Gs_SelBit24() || Gs_SelBit25()) && Race_Finished(p) && (int8_t)gm8(0x53e184 + (uint32_t)p) == 0)
+        Hud_Message(Text_Get(0xbe), colour(0x5170f4), p, false, -1, -1);
     static const uint32_t msgs[4][2] = {{MSG_88, 0xbd}, {MSG_REC, 0x30}, {MSG_NOPROF, 0x6a}, {MSG_BEST, 0x83}};
     for (int i = 0; i < 4; i++)
-        if (gm32(msgs[i][0] + 4u * (uint32_t)p)) message(Text_Get(msgs[i][1]), colour(0x5170e8), p, true, -1, -1);
-    uint8_t flags = hud_flags(Gs_Byte537ef6() + p);
+        if (gm32(msgs[i][0] + 4u * (uint32_t)p)) Hud_Message(Text_Get(msgs[i][1]), colour(0x5170e8), p, true, -1, -1);
+    uint8_t flags = Hud_Flags(Gs_Byte537ef6() + p);
     uint32_t m = Gs_Mode();
     bool arcade = m == 5 || m == 6 || m == 7 || m == 11 || m == 12 || Gs_SelBit25();
     if (flags & 4) {
         if (m == 7 || m == 5 || m == 6 || m == 3 || m == 10 || m == 12) {
-            if (!split_screen() || Gs_ModeBit18()) records(p);   /* 0x4147f0 */
+            if (!Hud_SplitScreen() || Gs_ModeBit18()) records(p);   /* 0x4147f0 */
         } else if (!Gs_SelBit27() || Gs_ModeBit19()) {
             if (m == 2 || m == 0 || m == 1) standings(p);   /* 0x414ed0 */
             else if (m == 8 || m == 9 || m == 11) ghost_standings(p);   /* 0x415480 */
