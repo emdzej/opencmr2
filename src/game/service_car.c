@@ -164,7 +164,7 @@ static bool car_load(int p)
     c->cls = cls;
     c->second = Obj_FindType(root, 5);
     c->root = root;
-    PENDING_NOTE(0x507080, "the stand car's body panels for the damage (0x507080, 0x507a10, 0x507650)");
+    Sv_DmgInit(p, c->second, c->wheel, cls);   /* 0x507080, 0x507a10 */
     Obj *lens = Obj_FindType(root, 0xe);
     if (lens && lens->mesh && lens->model) {
         const uint8_t *poly = C3d_Ref(lens->model, lens->mesh + 0x24, lens->model->polys);
@@ -174,6 +174,7 @@ static bool car_load(int p)
             Tex_KeyAlpha(g_tex[t], 0xe0, 0, 0xe0, 0, 0xe0, 0, p);
         }
     }
+    Sv_DmgApply(p);    /* 0x507650 */
     tyre_shown[p] = -1;
     view_points(cls);
     return true;
@@ -209,7 +210,7 @@ void Sv_CarShow(int p, bool on)
     mask_tree(c->root, on ? 0xff : 0);
     mask_tree(c->second, on ? 0xff : 0);
     if (!on) return;
-    PENDING_NOTE(0x509150, "the stand car's body panels shown");
+    Sv_DmgShow(p);   /* 0x509150 */
     wheels(p);
 }
 
@@ -275,6 +276,17 @@ static void wheel_turns(int p)
     }
 }
 
+/* 0x5091c0's ride height: while the main page's set-up panel is up (0x4ff550) with its item 1 on the
+   ride height list, the value being set, else the set-up's */
+static int ride(int p)
+{
+    if (Sv_Active() == 1) {
+        int i = Menu_IndexOf(&sv_main, 1);   /* 0x4a0380 */
+        if (i >= 0 && sv_main.items[i].value == 2) return sv_setup.items[0].value;
+    }
+    return (int8_t)Sv_SetupValue(p, 2);
+}
+
 /* 0x506720: each car turning to its view (squared), its lines following */
 void Sv_CarTurn(void)
 {
@@ -294,7 +306,7 @@ void Sv_CarTurn(void)
             Obj_SetAngles(cars[p].root, u);
         }
         wheel_turns(p);
-        PENDING_NOTE(0x5091c0, "the stand car's suspension and parts by the set-up");
+        if (cars[p].root) Sv_DmgPose(p, cars[p].second, ride(p));   /* 0x5091c0 */
     }
 }
 

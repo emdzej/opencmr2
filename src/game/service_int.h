@@ -110,6 +110,17 @@ void sv_save_yes(Menu *m, MenuItem *it);  /* 0x500020 */
 void sv_save_enter(Menu *m, bool back);   /* 0x4ffa50 */
 void sv_save_draw(Menu *m);               /* 0x50e780 */
 
+/* service_dmg.c: the stand car's damage */
+void Sv_DmgInit(int p, Obj *second, Obj *const wheel[4], int cls);   /* 0x507080, 0x507a10 */
+void Sv_DmgApply(int p);                  /* 0x507650: the carried damage on the stand's car */
+void Sv_DmgRest(int p);                   /* 0x5074d0: back to the rest shape, the glass whole */
+void Sv_DmgShow(int p);                   /* 0x509150 */
+void Sv_DmgPose(int p, Obj *second, int ride);   /* 0x5091c0's body on its corners */
+void Sv_SuspDamaged(int p);               /* 0x509be0 */
+void Sv_SuspRepaired(int p);              /* 0x509d00 */
+void Sv_AxlesDamaged(int p);              /* 0x509d30 */
+void Sv_AxlesRepaired(int p);             /* 0x509d90 */
+
 /* service_car.c */
 void Sv_LoadTextures(void);               /* 0x503ea0 */
 void Sv_StageInit(void);                  /* 0x5040f0 */

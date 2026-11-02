@@ -1574,3 +1574,23 @@
 00407f20	Cpu_Tag	select	high	a computer car's driver's three letters
 00407f80	Cpu_LevelSlot	select	high	an arcade slot moved by the level
 00415750	Hud_PlaceName	hud	high	the name at a place of a split: a player's or the driver's
+00506bb0	Sv_DmgSaveRest	service	high	the stand car slots' rest vertices and limits
+00506fc0	Sv_DmgMatchRest	service	high	each stand slot's rest vertices by type, then ready
+00507080	Sv_DmgBuild	service	high	the stand car's damage record from its body
+00507290	Sv_DmgAddSlot	service	high	a mesh into the stand record, its box and the extremes
+005074d0	Sv_DmgRest	service	high	the stand car back to rest, shown, the glass whole
+00507650	Sv_DmgApply	service	high	the carried damage replayed on the stand car
+00507710	Sv_DmgDecodeHit	service	high	a carried log entry into the stand's hit
+005078e0	Sv_DmgDent	service	high	the stand hit's radii, then its dent
+00507a10	Sv_DmgHull	service	high	the stand car's box, hull and wheel points by class
+00507fe0	Sv_DmgDentFlat	service	high	a flat hit dented on the stand car
+00508890	Sv_DmgDentRound	service	high	a round hit dented on the stand car
+00508ee0	Sv_DmgGlassAll	service	high	the stand car's glass cracked or broken by its panels
+00508f60	Sv_DmgSlotOfType	service	high	the stand record's slot of an object type
+00508fa0	Sv_DmgGlass	service	high	a stand glass panel to a state's frames
+00509150	Sv_DmgShow	service	high	the stand slots drawn by their shown flags
+005091c0	Sv_DmgPose	service	high	the stand body set on its corners' heights
+00509be0	Sv_SuspDamaged	service	high	the stand corners' sag from the suspension panels
+00509d00	Sv_SuspRepaired	service	high	the stand corners' sag cleared
+00509d30	Sv_AxlesDamaged	service	high	the stand axles' values from their panels
+00509d90	Sv_AxlesRepaired	service	high	the stand axles' values cleared

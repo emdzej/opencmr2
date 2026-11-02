@@ -489,10 +489,10 @@ void Sv_Repair(int p, int part)
         }
         S.time[p] -= (int)gm32(0x5270b4 + 4u * (uint32_t)part);
         gw8(repaired_at(p, part), 1);
-        if (part == 3) PENDING_NOTE(0x509d00, "the stand's car: the suspension repaired");
-        if (part == 11) PENDING_NOTE(0x509d90, "the stand's car: the axles repaired");
+        if (part == 3) Sv_SuspRepaired(p);    /* 0x509d00 */
+        if (part == 11) Sv_AxlesRepaired(p);  /* 0x509d90 */
     }
-    if (part == 6) PENDING_NOTE(0x5074d0, "the stand's car: the body repaired");
+    if (part == 6) Sv_DmgRest(p);   /* 0x5074d0 */
 }
 
 /* 0x5034f0: part's damage as it came in, the time given back */
@@ -508,7 +508,7 @@ void Sv_Unrepair(int p, int part)
     }
     S.time[p] += (int)gm32(0x5270b4 + 4u * (uint32_t)part);
     gw8(repaired_at(p, part), 0);
-    if (part == 3) PENDING_NOTE(0x509be0, "the stand's car: the suspension damaged again");
-    if (part == 6) PENDING_NOTE(0x507650, "the stand's car: the body damaged again");
-    if (part == 11) PENDING_NOTE(0x509d30, "the stand's car: the axles damaged again");
+    if (part == 3) Sv_SuspDamaged(p);   /* 0x509be0 */
+    if (part == 6) Sv_DmgApply(p);      /* 0x507650 */
+    if (part == 11) Sv_AxlesDamaged(p); /* 0x509d30 */
 }
