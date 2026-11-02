@@ -55,7 +55,9 @@
   the way on, a restart or the way out. A championship goes on from stage to stage, through the
   service area (repairs, set-up, the stage information, saving) after every second stage, with its
   times, points and unlocks kept and the rally's points, result and the championship's table at
-  each rally's end; saved championships load from the front end. The page of what a stage opened,
+  each rally's end; saved championships load from the front end. An arcade location runs its
+  races one after the other, with the finish, the race's points, the location's standings and its
+  end page between them. The page of what a stage opened,
   the movies and the network game are not done yet; the menu music plays.
 
 Next: the rest of the results (what a stage opened, alternation), the service area's car
