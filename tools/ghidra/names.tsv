@@ -754,7 +754,6 @@
 00484d30	Parts_Interp	damage	high	Every loose part's drawn matrix between its last two steps
 0046b670	Parts_HideFallen	damage	med	Each fallen-off part hidden (Part_Hide with the damage flag)
 00469bf0	Damage_PartOff	damage	med	Part k fallen off: the record's flag, then the panels
-00469de0	Surface_Sparks	sim	med	A surface that sparks (1, 6-11, 16, 24, 25, 27, 28)
 004bab80	Mat_Copy34	math	med	A 3x4 matrix copied
 004bac60	Mat_GetRow0	math	med	A matrix's row 0
 004bac80	Mat_GetRow1	math	med	A matrix's row 1
@@ -960,3 +959,6 @@
 004863d0	Aerial_Fade	sim	confirmed	1.0 within 10 units, 0 at 50
 00486500	Aerials_Interp	sim	confirmed	The drawn swings between steps
 00486630	Aerial_Reset	sim	confirmed	An aerial's record cleared, its lying flag as carried
+00469de0	Scrape_Surface	sim	confirmed	A surface that sparks under a scrape (off the wheels or +0xb29 6)
+00469e40	Damage_Scrapes	sim	confirmed	Per car the eight contact points' sparks on hard surfaces, then bottoming out
+0046a500	Damage_BottomOut	sim	confirmed	All wheels at their stops: underbody sparks, dent, roll sound, shake, 3% speed

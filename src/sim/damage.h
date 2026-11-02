@@ -21,6 +21,7 @@ void Car_Damage(Car *c, const int32_t pt[3], const int32_t n[3], uint32_t size, 
 
 int32_t Damage_Flag(const Car *c, int n);   /* 0x469bc0: the record's +0x4b0 + 4n (the fallen-off parts) */
 void Damage_PartOff(Car *c, int k);         /* 0x469bf0: part k fallen off (the flag), the panels again */
+void Damage_Scrapes(const int16_t *list, int n);   /* 0x469e40 (Sim_Step): the contact points' sparks, bottoming out */
 uint8_t *Damage_Log(int n);                /* the port: car n's 0x290-byte hit log (0x588b98) */
 void Damage_SetDents(int on, int n);        /* 0x46b400: car n's dents on (0x588970, set by Car_Load) */
 void Damage_Alloc(int n);                   /* 0x4667c0 */

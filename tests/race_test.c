@@ -351,6 +351,21 @@ int main(void)
                 if (Crash_Voice(i) >> 8 >= 10 && Crash_Voice(i) >> 8 <= 13) roll = Crash_Voice(i) >> 8;
             printf("crash: off the wheels sound %d\n", roll);
             CHECK(roll >= 10);
+            /* a scrape (0x469e40): off its wheels on tarmac (surface 1) at 0.5, a body point touching
+               throws sparks */
+            {
+                Car save = *c;
+                CW32(c, 0xb74, 0), CW32(c, 0x778, 0x8000), CW32(c, 0x408, 0x8000);
+                for (uint32_t i = 0; i < 8; i++) c->s[0xb2c + i] = i == 5 ? 0 : 1;
+                CW16(c, 0xaae + 2 * 5, 1);
+                CW32(c, 0x4a4 + 12 * 5, 0), CW32(c, 0x4a8 + 12 * 5, 0x10000), CW32(c, 0x4ac + 12 * 5, 0);
+                int before = Particles_Alive();
+                int16_t one[1] = {0};
+                Damage_Scrapes(one, 1);
+                printf("scrape: %d sparks\n", Particles_Alive() - before);
+                CHECK(Particles_Alive() > before);
+                *c = save;
+            }
             CW32(c, 0xb74, up_was);
             for (uint32_t i = 0; i < 3; i++) CW32(c, 0x5c4 + 4 * i, keep[i]);
             /* a fixed box (0x487f60) 2 by 2 by 2, square to the car, its near face 0.5 units into the

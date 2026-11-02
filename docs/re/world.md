@@ -791,7 +791,7 @@ model, which the particles take as their base), three rows and the most to throw
   normal; the point the deepest corner less the car's place, times 0.8, at height 0; up to 9;
 - a loose part scraping the ground (0x483100): the scrape reversed, the ground normal and their cross;
   up to 4;
-- the cars' contacts (0x48ae90) and the scenery (0x469e40, 0x46a500), not ported yet.
+- the cars' contacts (0x48ae90) and the contact points' scrapes and bottoming out (0x469e40, 0x46a500).
 Each throws 1 to that many (at random), each moving along the rows scaled by the strength times 0.2,
 0.1 and 0.05 and a random share, the second and third rows one way or the other at random. For a
 random share under 0.4 a paint chip (type 27) comes in place of the spark while the damage record's

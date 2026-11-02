@@ -1,5 +1,6 @@
 /* The world step (see sim.h). */
 #include "sim/sim.h"
+#include "sim/damage.h"
 #include "sim/knock.h"
 #include "sim/step.h"
 #include "sim/pose.h"
@@ -130,5 +131,7 @@ void Sim_Step(void)
     Pose_Capture(&g_simple);
     PENDING_NOTE(0x46d510, "Sim_Step 0x46d510");
     Parts_Step(&g_listA);   /* 0x480bb0 */
-    PENDING_NOTE(0x469e40, "Sim_Step 0x469e40, 0x424710, 0x4258e0");
+    Damage_Scrapes(g_stepped.car, g_stepped.n);   /* 0x469e40 */
+    /* 0x424710: the steering wheel's force feedback (DirectInput effects; gasm has none, left out) */
+    PENDING_NOTE(0x4258e0, "Net_SendCars (the network game's car states, with 0x539cc8 set by 0x427640)");
 }

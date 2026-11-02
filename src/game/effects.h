@@ -28,7 +28,7 @@ void Glass_Queue(const uint8_t *dmg, const Car *c, uint8_t id);
 /* 0x49ab20 (the end of each car in Parts_Step 0x480bb0): the queue thrown, last first (0x49a870) */
 void Glass_Pieces(Car *c);
 /* Sparks_Add 0x499750 (scrapes: the walls 0x48fb80, the loose parts 0x483100, the cars' contacts
-   0x48ae90, the scenery 0x469e40, 0x46a500): 1 to most (16.16) at random of sparks (type 26) at pos
+   0x48ae90, the contact points' scrapes 0x469e40 and bottoming out 0x46a500): 1 to most (16.16) at random of sparks (type 26) at pos
    (relative to the car's first model's place), each with a velocity from the three rows (along,
    across, up) scaled by strength times 0.2, 0.1 and 0.05 and a random share, the second and third
    rows each one way or the other at random; of a random share under chips, paint chips (type 27,

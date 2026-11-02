@@ -917,3 +917,142 @@ void Damage_Misfire(Car *c)
         W(d, 0x40c, R(d, 0x40c) + fx_mul(b, 0));
     }
 }
+
+/* 0x469de0: a surface that sparks under a scrape: (off the wheels, or +0xb29 = 6) and one of the
+   hard surfaces */
+static bool scrape_surface(uint16_t s, int32_t on_wheels, uint8_t b29)
+{
+    if (on_wheels && b29 != 6) return false;
+    switch (s) {
+    case 1: case 6: case 7: case 8: case 9: case 10: case 11: case 16: case 24: case 25: case 27: case 28:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static uint32_t sc_len(const int32_t v[3]) { return Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2])); }
+static void sc_unit(int32_t v[3])
+{
+    uint32_t l = sc_len(v);
+    if (!l) { v[0] = v[1] = v[2] = 0; return; }
+    int32_t r = (int32_t)(0x100000000LL / (int32_t)l);
+    for (int i = 0; i < 3; i++) v[i] = fx_mul(v[i], r);
+}
+static void sc_cross(int32_t o[3], const int32_t a[3], const int32_t b[3])
+{
+    int32_t x = fx_mul(a[1], b[2]) - fx_mul(a[2], b[1]), y = fx_mul(a[2], b[0]) - fx_mul(a[0], b[2]),
+            z = fx_mul(a[0], b[1]) - fx_mul(a[1], b[0]);
+    o[0] = x, o[1] = y, o[2] = z;
+}
+/* the sparks' frame: along the velocity's part across the normal n (backwards), then across */
+static void scrape_rows(int32_t rows[9], const Car *c, const int32_t n[3])
+{
+    int32_t v[3];
+    for (uint32_t i = 0; i < 3; i++) v[i] = fx_mul(CI32(c, 0x408 + 4 * i), -0x10000);
+    int32_t d = fx_mul(n[2], v[2]) + fx_mul(n[0], v[0]) + fx_mul(n[1], v[1]);
+    for (int i = 0; i < 3; i++) rows[i] = v[i] - fx_mul(n[i], d);
+    sc_unit(rows);
+}
+
+/* 0x46a500: bottoming out. All four wheels' suspension (+0x9d8) past their stops (+0x988, at least
+   0x51e) with one moving fast (+0x9c8 above 0xd91), on its wheels: on a hard surface under a wheel at
+   a speed above 0.3, sparks from the middle of the box's floor (corners +0x270 and +0x294) and the
+   underside cell (+0x22c) dented by a hundredth of the speed (at most 1.0), the panels again; then
+   for a player's car the roll sound (at most every quarter second) and, as for any bottoming car,
+   the force feedback's shake (0x4241d0) and the velocity down by 3%. All wheels at their stops but
+   none fast: only the shake. */
+static void bottom_out(Car *c)
+{
+    Dmg *d = of(c);
+    bool all = true, fast = false, sparked = false;
+    for (uint32_t i = 0; i < 4; i++) {
+        int32_t t = CI32(c, 0x988 + 4 * i);
+        if (t < 0x51e) t = 0x51e;
+        if (-t <= CI32(c, 0x9d8 + 4 * i)) { all = false; break; }
+    }
+    if (all)
+        for (uint32_t i = 0; i < 4; i++) {
+            int32_t v = CI32(c, 0x9c8 + 4 * i);
+            if ((v < 0 ? -v : v) > 0xd91) fast = true;
+        }
+    if (!CI32(c, 0xb74)) return;
+    int32_t vel[3] = {CI32(c, 0x408), CI32(c, 0x40c), CI32(c, 0x410)};
+    if (!fast) {
+        if (all) Camera_Shake(c, vel, false);
+        return;
+    }
+    bool hard = false;
+    for (uint32_t i = 0; i < 4 && !hard; i++) hard = scrape_surface((uint16_t)CI16(c, 0xaae + 2 * i), 0, c->s[0xb29]);
+    if (hard && CI32(c, 0x778) > 0x4ccc) {
+        sparked = true;
+        int32_t n[3] = {CI32(c, 0x48c), CI32(c, 0x490), CI32(c, 0x494)}, rows[9], x[3], y[3];
+        scrape_rows(rows, c, n);
+        sc_cross(x, rows, n);
+        sc_unit(x);
+        sc_cross(y, x, rows);
+        sc_unit(y);
+        for (int i = 0; i < 3; i++) rows[3 + i] = fx_mul(y[i], 0x8000), rows[6 + i] = x[i];
+        int32_t p[3];
+        for (uint32_t i = 0; i < 3; i++)
+            p[i] = fx_mul(CI32(c, 0x270 + 4 * i) - CI32(c, 0x294 + 4 * i), 0x8000) + CI32(c, 0x294 + 4 * i) - CI32(c, 0x2d0 + 4 * i);
+        Sparks_Add(CI32(c, 0x778), p, c, rows, 0x1e0000, 0);
+        int32_t k = CI32(c, 0x778) > 0x10000 ? 0x10000 : CI32(c, 0x778);
+        W(d, 0x22c, R(d, 0x22c) + fx_mul(k, 0x28f));
+        panels(c);
+    }
+    int n = CI8(c, 0xb1a);
+    if (n < players() && Timer_Centis() - gm32(0x588a80 + 4 * (uint32_t)n) > 0x19 && CI32(c, 0x778) > 0) {
+        int32_t s = CI32(c, 0x778);
+        Crash_Roll(n, s > 0x10000 ? 0x5c28 : fx_mul(s, 0x5c28), sparked, n);
+        gw32(0x588a80 + 4 * (uint32_t)n, Timer_Centis());
+    }
+    Camera_Shake(c, vel, false);
+    for (uint32_t i = 0; i < 3; i++) CW32(c, 0x408 + 4 * i, fx_mul(CI32(c, 0x408 + 4 * i), 0xf851));
+}
+
+/* Damage_Scrapes 0x469e40: per listed car (from the last), each of its eight contact points (the
+   wheels 0-3, the body 4-7) touching (+0xb2c + i clear) a hard surface (+0xaae + 2i) above 0.1 of
+   speed sparks: on its wheels a wheel point (its +0xb29 = 6) with the strength from its loads
+   (+0x870 + 4i and +0x880 + 4i, at most 1.0) at its contact point (+0x3c0 + 12i, 0.35 lower); off
+   them any point at the speed, from below the car's middle (half its up axis down); none at or
+   below 0.3. The sparks' frame: along the velocity across the point's normal (+0x4a4 + 12i), then
+   that cross the normal, then those crossed. Then the car's bottoming out (0x46a500). */
+void Damage_Scrapes(const int16_t *list, int n)
+{
+    for (int j = n - 1; j >= 0; j--) {
+        Car *c = Car_Get(list[j]);
+        if (!c) continue;
+        for (uint32_t i = 0; i < 8; i++) {
+            if (c->s[0xb2c + i]) continue;
+            if (!scrape_surface((uint16_t)CI16(c, 0xaae + 2 * i), CI32(c, 0xb74), c->s[0xb29])) continue;
+            int32_t k = CI32(c, 0x778);
+            if (k <= 0x1999) continue;
+            bool wheel = i < 4 && CI32(c, 0xb74);
+            if (wheel) {
+                int32_t a = CI32(c, 0x870 + 4 * i), b = CI32(c, 0x880 + 4 * i);
+                k = fx_mul((a < 0 ? -a : a) + (b < 0 ? -b : b), 0x10000);
+                if (k > 0x10000) k = 0x10000;
+                else if (k <= 0x4ccc) continue;
+            } else if (k <= 0x4ccc)
+                continue;
+            int32_t nrm_[3] = {CI32(c, 0x4a4 + 12 * i), CI32(c, 0x4a8 + 12 * i), CI32(c, 0x4ac + 12 * i)};
+            int32_t rows[9], x[3], y[3];
+            scrape_rows(rows, c, nrm_);
+            sc_cross(x, rows, nrm_);
+            sc_unit(x);
+            sc_cross(y, x, rows);
+            sc_unit(y);
+            for (int q = 0; q < 3; q++) rows[3 + q] = y[q], rows[6 + q] = x[q];
+            int32_t m[12], p[3];
+            for (uint32_t q = 0; q < 12; q++) m[q] = CI32(c, 4 * q);
+            if (wheel) {
+                int32_t w[3] = {CI32(c, 0x3c0 + 12 * i), CI32(c, 0x3c4 + 12 * i) - 0x5999, CI32(c, 0x3c8 + 12 * i)};
+                for (int q = 0; q < 3; q++) p[q] = fx_mul(m[8 + q], w[2]) + fx_mul(m[4 + q], w[1]) + fx_mul(m[q], w[0]);
+            } else
+                p[0] = fx_mul(m[1], -0x8000), p[1] = fx_mul(m[5], -0x8000), p[2] = fx_mul(m[9], -0x8000);
+            Sparks_Add(k, p, c, rows, wheel ? 0 : 0x90000, wheel ? 0 : 0x9999);
+        }
+        bottom_out(c);
+    }
+}
