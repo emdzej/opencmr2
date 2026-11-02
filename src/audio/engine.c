@@ -4,6 +4,8 @@
 #include "game/camera.h"
 #include "game/gstate.h"
 #include "game/race.h"
+#include "game/effects.h"
+#include "game/timer.h"
 #include "crt.h"
 #include "game/mem.h"
 #include "fixmath.h"
@@ -26,6 +28,11 @@ static int32_t thr_s[4], thr[4];           /* 0x58de00, 0x58de08: the throttle s
 static int32_t gear_now[4], gear_was[4];   /* 0x58df88, 0x58dd68 */
 static int high_gear[4], high_revs[4], chattered[4];   /* 0x58df68, 0x58df70, 0x58df60 */
 static int32_t master;                     /* DAT_0058dda8 */
+/* the backfires and the idle (0x479360): the last change of the pattern and its length in 1/100 s, a
+   bang to stop when it ends, the pause between runs, the lift-off run, the voice's two uses */
+static uint32_t bf_at[4], bf_len[4], bf_start[4];   /* 0x58dd60, 0x58df28, 0x58dda0 */
+static int bf_end[4], bf_quiet[4], bf_on[4], det_on[4], idle_on[4];
+                                           /* 0x58ddf8, 0x58dd98, 0x58df78, 0x58df20, 0x58dd70 */
 /* the inside and outside mixes (0x47a710): fs, rs, fm, rm, ft, rt */
 static int32_t k_fs, k_rs, k_fm, k_rm, k_ft, k_rt;   /* 0x58df38, 0x51f274, 0x58df3c, 0x51f278, 0x58df40, 0x51f27c */
 
@@ -98,8 +105,7 @@ static int32_t loop_voice(int32_t *h, int car, int which, uint32_t start)
 
 static void stop_voice(int32_t *h)
 {
-    if (Voice_Playing(*h)) Voice_Stop(*h);
-    *h = -1;
+    if (Voice_Playing(*h)) Voice_Stop(*h), *h = -1;   /* a handle that ended is kept, as the original */
 }
 
 void Engine_Volume(int32_t sfx_percent) { master = fx_mul((sfx_percent << 16) / 100, 0x5555); }   /* 0x427c10 */
@@ -112,6 +118,7 @@ void Engine_Reset(void)
         gear_was[i] = -1;
         v_fs[i] = v_rs[i] = v_fm[i] = v_rm[i] = v_whine[i] = v_ft[i] = v_rt[i] = v_det[i] = -1;
         high_gear[i] = high_revs[i] = chattered[i] = 0;
+        bf_end[i] = bf_quiet[i] = idle_on[i] = det_on[i] = 0;
     }
 }
 
@@ -195,11 +202,117 @@ static void whine(int car, int player, int speed, int gear, int throttle)
     if (Voice_Playing(v_whine[car])) Voice_SetVolume(v_whine[car], 0), Voice_SetFrequency(v_whine[car], 0x2b11);
 }
 
+/* 0x4792c0, 0x479310: the voice stopped if it plays the idle, the detonations */
+static void stop_idle(int car)
+{
+    if (!idle_on[car]) return;
+    stop_voice(&v_det[car]);
+    idle_on[car] = 0;
+}
+
+static void stop_det(int car)
+{
+    if (!det_on[car]) return;
+    stop_voice(&v_det[car]);
+    det_on[car] = 0;
+}
+
+static int32_t det_volume(int car, int player)
+{
+    return fx_mul(Engine_DistanceFade(car, player), fx_mul(master, fx_mul(gms32(0x51f294), 0x10000)));
+}
+
+/* 0x479360's backfires, with the revs clamped (rpm) and the time in 1/100 s:
+   - the pattern changes when its length runs out: a bang that ran is stopped; under 4,000 revs every
+     other change is a pause (10 under 3,001, less above), otherwise a run of 5 to 14;
+   - a change up to gears 2-6 in a car that backfires (0x40ee80, the class's flag at 0x516c40) bangs
+     with a chance growing with the gear (90, 75, 50, 20 then 10 again, 10 in sixth); with option 5 so
+     does any boost left (+0xa84);
+   - closing the throttle above 5,000 revs (3,000 in neutral) starts a lift-off run of 10 to 19, which
+     ends under 3,000 revs (2,800) or on the throttle;
+   - a bang plays one of det1-4 and the exhaust's flame (0x45b550) for a quarter of the new length; the
+     run plays them while it is not pausing, with a flame three times in four at its very start;
+   - otherwise with the throttle closed under 3,000 revs (2,800 in neutral) the idle loop, louder as
+     the revs fall. */
+static void backfires(int car, int player, const Car *c, int rpm, int gear, int throttle, uint32_t now)
+{
+    if (bf_len[car] < now - bf_at[car]) {
+        if (bf_end[car]) stop_det(car), bf_end[car] = 0;
+        if (bf_quiet[car]) bf_quiet[car] = 0;
+        else if (rpm < 4000) {
+            bf_quiet[car] = 1;
+            bf_at[car] = now;
+            bf_len[car] = (uint32_t)(rpm < 3001 ? 10 : rpm < 5000 ? (3000 - rpm) * 10 / 2000 + 10 : 0);
+            goto timed;
+        }
+        bf_at[car] = now;
+        bf_len[car] = (uint32_t)(crt_rand() % 10 + 5);
+    }
+timed:;
+    bool bang = false, fires = exe_u32(0x516c40 + 4u * (uint32_t)(int32_t)CI8(c, 0xb1b)) != 0;
+    int g = gear_now[car];
+    if (fires && 2 <= g && g <= 6 && g > gear_was[car]) {
+        switch (g) {
+        case 2: bang = crt_rand() % 100 >= 10; break;
+        case 3: bang = crt_rand() % 100 > 24; break;
+        case 4: bang = crt_rand() % 100 > 49; break;
+        case 5: if (crt_rand() % 100 > 79) bang = true;
+            /* falls through: the original draws again for fifth */
+        case 6: if (crt_rand() % 100 > 89) bang = true; break;
+        }
+    }
+    if (Gs_Option(5) && CI32(c, 0xa84) > 0) bang = true;
+    int hi = gear == 0 ? 3000 : 5000, lo = gear == 0 ? 0xaf0 : 3000;
+    if (!bf_on[car]) {
+        if (fires && throttle == 0 && hi < rpm) {
+            bf_on[car] = 1;
+            bf_at[car] = bf_start[car] = now;
+            bf_quiet[car] = 0;
+            bf_len[car] = (uint32_t)(crt_rand() % 10 + 10);
+        }
+    } else if (rpm < lo || throttle != 0) bf_on[car] = 0;
+
+    if (bf_on[car] || bang) {
+        stop_idle(car);
+        if (bang) {
+            if (!Voice_Playing(v_det[car])) {
+                v_det[car] = Voice_Play(base[car] + crt_rand() % 4 + DET1, 0, 0x5622, 0, false, false);
+                bf_at[car] = now;
+                det_on[car] = bf_end[car] = 1;
+                bf_len[car] = (uint32_t)(crt_rand() % 10 + 5);
+                Effects_Backfire(car, (int)(bf_len[car] >> 2));
+            }
+            Voice_SetVolume(v_det[car], det_volume(car, player));
+        } else if (!bf_quiet[car]) {
+            if (!Voice_Playing(v_det[car])) {
+                v_det[car] = Voice_Play(base[car] + crt_rand() % 4 + DET1, 0, 0x5622, 0, false, false);
+                det_on[car] = 1;
+            }
+            uint32_t at = bf_at[car], len = bf_len[car];
+            Voice_SetVolume(v_det[car], det_volume(car, player));
+            /* the lengths are 5 and up here; the original divides unguarded */
+            if (len && (now * 100 - at * 100) / len == 0 && crt_rand() % 100 < 75) Effects_Backfire(car, crt_rand() % 2 + 2);
+        } else if (!Voice_Playing(v_det[car])) v_det[car] = -1;
+        else Voice_SetVolume(v_det[car], 0);
+    } else if (throttle == 0) {
+        stop_det(car);
+        if (rpm < lo) {
+            if (!idle_on[car]) {
+                v_det[car] = Voice_Play(base[car] + DETIDLE, 0, 0x5622, 0, true, false);
+                idle_on[car] = 1;
+            }
+            int32_t v = ((((0xaf0 - rpm) * 100) / 0x15e0 + 0x32) << 16) / 100;
+            Voice_SetVolume(v_det[car], fx_mul(Engine_DistanceFade(car, player), fx_mul(master, fx_mul(v, gms32(0x51f294)))));
+        }
+    } else stop_idle(car);
+}
+
 /* 0x479360's engine loops: the slow band (fs, rs), the medium band off the throttle (fm, rm), the
    fast band on it (ft, rt, looped from the class's offset), the chatter when the throttle closes
    after a gear above 1 and 5,000 revs */
 static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int throttle)
 {
+    uint32_t now = Timer_Centis();
     const Car *c = Car_Get(car);
     Band slow = band_at(0x51ea60, 0x51ea74, 0x51ea9e), mid = band_at(0x51eab8, 0x51eacc, 0x51ebca),
          fast = band_at(0x51ec50, 0x51ec64, 0x51ed62);
@@ -238,7 +351,7 @@ static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int
         }
     }
     ease_throttle(throttle, car);
-    if (!gm8(0x539ed8)) PENDING_NOTE(0x479360, "Engine_Mix (the backfires, the detonations, the idle)");
+    if (!gm8(0x539ed8)) backfires(car, player, c, rpm, gear, throttle, now);   /* not in a replay (0x427aa0) */
     if (!in_band(rpm2, &fast)) {
         stop_voice(&v_ft[car]);
         stop_voice(&v_rt[car]);
@@ -263,7 +376,6 @@ static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int
     }
     whine(car, player, speed, gear, throttle);   /* 0x47a3d0 */
     gear_was[car] = gear_now[car];
-    (void)rpm;
 }
 
 void Engine_Update(int car, int player)
