@@ -63,11 +63,36 @@ the file, converts it with the ACM (`Msadp32.acm`) into a DirectSound streaming 
 
 ## Movies (.bik)
 
-`FrontEnd/Videos/intro.bik` (21 MB) and `cm.bik` (5 MB, the Codemasters logo): Bink video, signature
-`BIKi` (Bink 1, revision i), 640x480, played through `binkw32.dll` (`BinkOpen`, `BinkDoFrame`,
-`BinkCopyToBuffer`, `BinkOpenDirectSound`). The port needs its own Bink 1 decoder (video DCT/RLE bundles
-and the Bink audio DCT/RDFT codec), written from the published format descriptions. Until then movies are
-skipped, which the original allows (any key).
+`FrontEnd/Videos/cm.bik` (5 MB, the Codemasters logo, 549 frames at 25 fps), `intro.bik` (21 MB, 2,760
+frames at 30 fps) and one movie a rally in `CountrySpecific/<region>/` (`FIN`, `GRE`, `FRA`, `SWE`,
+`AUS`, `KEN`, `ITA`, `UK`; 660 frames at 30 fps with five sound tracks, one a language). All are Bink 1,
+revision `i`, 640 x 480, played through `binkw32.dll` (`BinkOpen`, `BinkDoFrame`, `BinkCopyToBuffer`,
+`BinkBufferBlit`, `BinkWait`, `BinkOpenDirectSound`).
+
+The container: a 44-byte header (`BIKi`, the file's size less 8, the frame count, the largest frame, the
+width and height, the frame rate as a fraction, the video flags, the number of sound tracks); per track
+its largest decoded size, its rate and flags (0x2000 stereo, 0x1000 the older DCT coding) and its id;
+then the frames' offsets (one more than the frames, bit 0 marking the key frames). A frame holds each
+track's packet (a 32-bit size, then the data) and the video after them.
+
+The video is coded in planes (Y, then the two chroma planes at half size; in this revision the second
+plane is V), each starting on a 32-bit boundary after a 32-bit word at the frame's start. A plane is
+read in rows of 8 x 8 blocks of ten kinds: skip (the last frame's block), a 16 x 16 block scaled from an
+8 x 8 one, motion (a block of the last frame moved), runs of colours along one of sixteen patterns,
+motion with a residue, intra and inter DCT blocks, a fill, a two-colour pattern and raw pixels. Their
+values come from nine bundles (block kinds, sub-kinds, colours, patterns, the motion's x and y, the
+intra and inter DCs, run lengths), each refilled a row at a time from Huffman codes: sixteen fixed code
+sets, the symbols' order given per bundle in the stream. The DCT coefficients are sent by bit planes,
+then dequantised by one of sixteen matrices and put through an 8 x 8 integer inverse DCT. The audio is
+coded in blocks: two floats, a quantiser per critical band, then the coefficients in runs of one bit
+width each; an inverse real DFT gives the samples (stereo interleaved before the transform), each block
+overlapping the last by a sixteenth.
+
+Port: `src/bink.c`, written from the format, with the codec's tables (the code sets, the patterns, the
+coefficient order, the quantisers, the bands and run lengths) read from the user's `binkw32.dll` at run
+time. `tests/bink_test.c` checks every frame of `cm.bik` against a reference decoder
+(`tools/bink-ref.sh`); the other movies and every sound track were compared the same way. The player
+is `src/fe/movie.c`; select ends a movie, as in the original.
 
 ## Text
 

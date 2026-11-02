@@ -1594,3 +1594,10 @@
 00509d00	Sv_SuspRepaired	service	high	the stand corners' sag cleared
 00509d30	Sv_AxlesDamaged	service	high	the stand axles' values from their panels
 00509d90	Sv_AxlesRepaired	service	high	the stand axles' values cleared
+0050fdf0	Movie_Play	movie	high	a Bink movie played to its end or select, or one step
+0050ff90	Movie_Open	movie	high	BinkOpen on the sound track, the BinkBuffer on the screen
+00510120	Movie_Step	movie	high	the input, a frame decoded, scaled and blitted, BinkWait
+005103d0	Movie_Close	movie	high	the movie's surface and BinkClose
+004d1ba0	Fe_MovieCm	frontend	high	FrontEnd\Videos\cm.bik on black
+004d1c30	Fe_MovieIntro	frontend	high	FrontEnd\Videos\Intro.bik
+004d1cc0	Fe_RallyMovie	frontend	high	the loading screen four seconds, then the rally's movie

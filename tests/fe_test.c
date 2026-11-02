@@ -15,6 +15,7 @@
 #include "render/d3d7.h"
 #include "render/mesh.h"
 #include "render/rstate.h"
+#include "fe/movie.h"
 #include "vfs.h"
 #include "vfs_host.h"
 #include "world/stage.h"
@@ -42,11 +43,6 @@ static void press(int code)
     for (int i = 0; i < 40; i++) step();
 }
 
-static void run_until(Menu *page, int limit)
-{
-    for (int i = 0; i < limit && Fe_Page() != page; i++) step();
-}
-
 int main(void)
 {
     char err[128];
@@ -61,8 +57,20 @@ int main(void)
     VB_CreatePool();
     memset(&g_world, 0, sizeof g_world);
     g_world.kind = 3;
-    /* the boot screens (5 s each, the movies skipped, the title 5 s) to the language page */
-    run_until(&pg_8221d8, 60 * 30);
+    /* the boot screens (5 s each, the movies skipped with select once they play, the title 5 s) to the
+       language page */
+    enum { ENTER_KEY = 0x1c };
+    int skipped = 0;
+    for (int i = 0; i < 60 * 40 && Fe_Page() != &pg_8221d8; i++) {
+        if (Movie_Playing()) {
+            for (int k = 0; k < 20; k++) step();   /* a few frames shown */
+            press(ENTER_KEY);
+            skipped++;
+        }
+        step();
+    }
+    printf("movies skipped: %d\n", skipped);
+    CHECK(skipped == 2 || !vfs_exists("FrontEnd/Videos/cm.bik"));
     CHECK(Fe_Page() == &pg_8221d8);
     printf("language page at frame %u\n", frame);
     /* the menus' music plays (select1.adp, from the title's end) */

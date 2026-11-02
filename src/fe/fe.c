@@ -4,6 +4,9 @@
 #include "fe/fe_res.h"
 #include "fe/pages.h"
 #include "fe/fe_page.h"
+#include "fe/movie.h"
+#include "game/gstate.h"
+#include "world/tod.h"
 #include "audio/snd.h"
 #include "audio/music.h"
 #include "exe.h"
@@ -310,16 +313,36 @@ static void st_wait5(ProcGroup *g, uint32_t s)
     }
 }
 
-/* 0x4d1ba0, 0x4d1c30: FrontEnd\Videos\cm.bik and Intro.bik (0x50fdf0 plays a movie to its end or a
-   key). The port has no Bink decoder: the movies end at once. */
-static void st_movie(ProcGroup *g, uint32_t s)
+/* 0x50fdf0 with flags 2 as a frame's step: the movie opened the first time (one that can't be opened
+   is over at once), then a frame a call until its end or select */
+static bool movie_step(const char *path, int track)
+{
+    if (!Movie_Playing() && !Movie_Open(path, track)) return false;
+    if (Movie_Step()) return true;
+    Movie_Close();
+    return false;
+}
+
+/* 0x4d1ba0, 0x4d1c30: FrontEnd\Videos\cm.bik and Intro.bik on black, then the stamp and on */
+static void st_movie_file(uint32_t fmt)
+{
+    char p[260];
+    snprintf(p, sizeof p, exe_str(fmt), Path_Videos());
+    if (movie_step(p, 0)) return;
+    Fe_Stamp();
+    Proc_Event(&group, 0, 0, 2);
+}
+static void st_cm(ProcGroup *g, uint32_t s) { (void)g, (void)s; st_movie_file(0x523da4); }
+static void st_intro(ProcGroup *g, uint32_t s) { (void)g, (void)s; st_movie_file(0x523db0); }
+
+/* the movie's frame on black (BinkBufferBlit: the original draws nothing else meanwhile) */
+static void dr_movie(ProcGroup *g, uint32_t s)
 {
     (void)g, (void)s;
     Render_SetClearColour(0, 0, 0);
-    Render_ClearTarget();
-    PENDING_NOTE(0x50fdf0, "the Bink movies (cm.bik, Intro.bik, the rallies')");
-    Fe_Stamp();
-    Proc_Event(&group, 0, 0, 2);
+    begin();
+    Movie_Draw();
+    draw_scene();
 }
 
 /* the menus' music: sounds\music\select1.adp at the options' music volume (0x52afb8 bits 0-6) */
@@ -372,12 +395,34 @@ static void st_menus(ProcGroup *g, uint32_t s)
 
 uint32_t Fe_MenuTime(void) { return since_menu; }
 
-/* 0x4d1cc0 (state 7): a rally's movie at the first stage of a championship or single rally */
+/* 0x4d1cc0 (state 7): going on to the game at the first stage of a championship or single rally, the
+   music off and the loading screen for four seconds (select ends them), then the rally's movie
+   (CountrySpecific\<region>\<FIN, GRE, ...>.bik, on the language's sound track); otherwise on at once */
 static void st_rally_movie(ProcGroup *g, uint32_t s)
 {
     (void)g, (void)s;
-    /* the movie (FrontEnd\Videos\<region>\<rally>.bik) only for the first stage of a championship
-       or single rally; the port has no Bink decoder */
+    static const uint32_t codes[8] = {0x519280, 0x51927c, 0x519278, 0x519274, 0x519270, 0x51926c, 0x519268, 0x519264};
+    if (to_game && (Gs_Mode() == 0 || Gs_Mode() == 1) && Tod_Stage() == 0) {
+        if (Movie_Playing()) {
+            if (movie_step("", 0)) return;
+            Proc_Event(&group, 0, 0, 2);
+            return;
+        }
+        Music_Stop(false);   /* 0x4a2b50 */
+        uint32_t now = Time_Get();
+        Input_PollAll();
+        Ctl_AxisPresses();   /* 0x40bad0 */
+        InputRecord *r = Input_Record(0);
+        Ctl_Merge(0, r);
+        uint32_t d = now - Fe_Stamped();
+        if (d > 4000) {
+            char p[260];
+            snprintf(p, sizeof p, exe_str(0x523dc0), Path_CountryCd(), exe_str(exe_u32(0x516124 + 4 * gm32(0x52ea54))),
+                     exe_str(codes[Tod_Rally() & 7]));
+            if (movie_step(p, (int)(gm32(0x52afb4) & 7))) return;   /* the track: 0x4057f0 */
+        }
+        if (!(r->pressed & 0x10) && d < 4001) return;
+    }
     Proc_Event(&group, 0, 0, 2);
 }
 
@@ -516,12 +561,16 @@ static void dr_menus(ProcGroup *g, uint32_t s)
 /* 0x4d0ba0 (state 7): "Loading" and the rally on black */
 static void dr_rally_movie(ProcGroup *g, uint32_t s)
 {
+    if (Movie_Playing()) {
+        dr_movie(g, s);
+        return;
+    }
     (void)g, (void)s;
     PENDING_NOTE(0x4d0ba0, "the rally movie's screen");
 }
 
 static const ProcState states[10] = {
-    {st_startup, NULL}, {st_wait5, dr_copyright}, {st_wait5, dr_bink}, {st_movie, NULL}, {st_movie, NULL},
+    {st_startup, NULL}, {st_wait5, dr_copyright}, {st_wait5, dr_bink}, {st_cm, dr_movie}, {st_intro, dr_movie},
     {st_title, dr_title}, {st_menus, dr_menus}, {st_rally_movie, dr_rally_movie}, {st_pause, NULL}, {st_leave, NULL},
 };
 
