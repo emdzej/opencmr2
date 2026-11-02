@@ -55,7 +55,7 @@
 004b7a40	Input_Poll	input	low	Called once per idle loop iteration before Game_Frame
 004a8140	Window_Create	main	med	Registers the class and creates the window
 004aaaf0	Net_CreateDirectPlay	net	high	CoCreateInstance CLSID_DirectPlay / IID_IDirectPlay4A
-00410c80	Race_DrawStats	race	low	Debug FPS / hardware T&L overlay
+00410c80	Race_DrawStats	race	high	state 2's draw: the loading screen (colour, stage name and records, bar; frame rate with option bit 2), three passes
 004eb290	Cheat_Match	frontend	high	Matches an entered string against the 20 cheat codes at 0x5250fc
 0041c5a0	Race_Update	race	high	Per player in race states 7-10: runs the due simulation steps (controls per car, replay, Sim_Step), then pose interpolation
 0042c890	Sim_StepCount	sim	high	Steps due per car from latched times and the rate at car+0xa98 (25 Hz), capped at 5; fraction to car+0xa90
@@ -1469,3 +1469,12 @@
 00487130	Cars_Touching	sim	high	The last pair of cars whose boxes were tested touched (0x591390)
 004483e0	Times_Estimate	race	high	At the end the unfinished cars put in the finish order, their finishes from their share of the race
 004074a0	Sel_ArcadeNext	game	high	Mode 5: the location's next stage (bits 12-13 up); true while below the fourth and not location 2
+00411070	Race_DrawLoading	race	med	state 1's draw: target and depth cleared, the loading screen's tree (0x536be0)
+00451df0	Results_DrawArcadeOrder	results	high	the arcade's finish and race points pages: each car in its place, name, car, time or points
+004530e0	Results_DrawArcadeStandings	results	high	the arcade location's standings: location, standings, points per car
+00453830	Results_DrawArcadeLast	results	high	the arcade location's end page: the level's places and the unlock
+00451890	Results_ArcadeTitle	results	high	the arcade results pages' title
+00448390	Times_FinishCar	results	high	the car in place i of the finish (0x53e17c), -1 outside the eight
+00407ec0	Cpu_Driver	select	high	a computer car's driver (0x5166b4 records)
+00407fc0	Cpu_Car	select	high	a computer car's model
+00405610	Pause_Crt	pause	high	the crtna640 texture (0x52af50)

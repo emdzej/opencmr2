@@ -24,3 +24,4 @@ void Pause_Ask(bool restart, bool service, bool quit);   /* 0x41f280, 0x41f290, 
 typedef struct Tex Tex;
 Tex *Pause_ArrowOn(void);         /* 0x4055e0 */
 Tex *Pause_ArrowOff(void);        /* 0x4055f0 */
+Tex *Pause_Crt(void);             /* 0x405610 */

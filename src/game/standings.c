@@ -112,7 +112,7 @@ void Stand_UndoPoints(void)
 }
 
 /* 0x40ce40: the arcade's points for a place */
-static int arcade_points(int place)
+int Stand_ArcadePoints(int place)
 {
     static const int8_t pts[5] = {6, 4, 3, 2, 1};
     return place >= 0 && place < 5 ? pts[place] : 0;
@@ -129,7 +129,7 @@ void Stand_ArcadeAward(const int32_t *finish)
     for (int k = 0; k < 8; k++) {
         int8_t c = (int8_t)gm8(0x53e17c + (uint32_t)k);
         if (k == 0) gw8(0x533628 + (uint32_t)c, (uint8_t)(gm8(0x533628 + (uint32_t)c) + 1));
-        int pts = arcade_points(k);
+        int pts = Stand_ArcadePoints(k);
         gw32(0x5335b8 + 4u * (uint32_t)c, gm32(0x5335b8 + 4u * (uint32_t)c) + ((uint32_t)pts << 16));
         gw8(0x5335d8 + (uint32_t)c * 3 + race, (uint8_t)pts);
     }

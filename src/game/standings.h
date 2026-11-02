@@ -11,4 +11,5 @@ void Stand_Sort(void);                     /* 0x40d0c0 */
 void Stand_AddTimes(const int8_t *order, const int8_t *by, const int32_t *t);   /* 0x40d120 */
 void Stand_AwardPoints(void);              /* 0x40cf30: at a rally's end */
 void Stand_UndoPoints(void);               /* 0x40d010 */
+int Stand_ArcadePoints(int place);         /* 0x40ce40: 6, 4, 3, 2, 1, then 0 */
 void Stand_ArcadeAward(const int32_t *finish);   /* 0x40ccd0 (0x448620): the arcade race's points */

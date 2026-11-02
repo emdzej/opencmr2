@@ -32,6 +32,7 @@ static bool paused;                /* DAT_0052af40 */
 static int prev_sel;               /* DAT_0052af6c */
 static bool ask_restart, ask_quit, ask_service;   /* 0x53810c, 0x53810d, 0x537ffa */
 static Tex *arrow_on, *arrow_off;  /* DAT_0052aa60, DAT_0052aa68 */
+static Tex *crt;                   /* DAT_0052af50: crtna640, on the results' times page */
 static int32_t keep_music, keep_effects, keep_speech;   /* 0x529ecc, 0x52a488, 0x52ad50 */
 
 static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }
@@ -51,6 +52,7 @@ void Pause_Ask(bool restart, bool service, bool quit)
 }
 Tex *Pause_ArrowOn(void) { return arrow_on; }    /* 0x4055e0 */
 Tex *Pause_ArrowOff(void) { return arrow_off; }  /* 0x4055f0 */
+Tex *Pause_Crt(void) { return crt; }             /* 0x405610 */
 
 /* 0x404e10: the pause key: on the keyboard (or the mouse) the bit 0x400 (Escape); on a game
    controller its pause action's bits (kept in 0x52a0b8 to leave the pause with), or the first
@@ -310,12 +312,16 @@ void Pause_Build(void)
     gw8(0x52af40, 0);
     player = base = 0;
     ask_restart = ask_quit = ask_service = false;
-    /* 0x4054f0: the arrows from the race's Com archive */
+    /* 0x4054f0: the arrows and crtna640 from the race's Com archive (mode 4's RoCx_640 from the
+       challenge's, 0x52af4c, not ported) */
     char p[260];
     Path_Format(p, sizeof p, 0x5160f4, Path_Root());
     arrow_on = Bfl_FindTexture(Bfl_Com(), p, NULL, false, 0);
     Path_Format(p, sizeof p, 0x5160d8, Path_Root());
     arrow_off = Bfl_FindTexture(Bfl_Com(), p, NULL, false, 0);
+    if (Gs_Mode() == 4) PENDING_NOTE(0x4054f0, "the challenge's RoCx_640");
+    Path_Format(p, sizeof p, 0x5160a0, Path_Root());
+    crt = Bfl_FindTexture(Bfl_Com(), p, NULL, false, 0);
     /* 0x403370: restart: the stage (the text by the mode, below), at the service area, cancel */
     Menu_Init(&pg_restart, NULL, 0, &pg_main, false, NULL, 1, 0, 1);
     Menu_AddAction(&pg_restart, NULL, 0xf, restart_fn, 3);
