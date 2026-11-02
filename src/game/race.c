@@ -1102,12 +1102,13 @@ static void s11_results(ProcGroup *g, uint32_t slot)
         break;
     }
     if (!fe) {
-        PENDING_NOTE(0x41e8d0, "Race_Results (the championship's, alternation's and the network's ways out)");
-        if (!R.skip) return;
-        R.skip = false;
-        set_mode(2);
-        for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 3);
-        R.built = false;
+        /* the original's default (kind 1 or 4 in a mode its switch doesn't list): the replays stopped
+           (above), with the ghost (bit 28 and 30) its run ended and each player's taken into it
+           (0x466080, 0x4660a0); the state stays, left only by the pause's quit */
+        if (Ghost_On()) {
+            Ghost_End();
+            for (int i = 0; i < (int)players(); i++) Ghost_Take(i, Race_Base() + i);
+        }
         return;
     }
     set_mode(0);

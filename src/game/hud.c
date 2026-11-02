@@ -27,7 +27,6 @@
 #include "audio/snd.h"
 #include "audio/codriver.h"
 #include "game/common.h"
-#include "pending.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -67,12 +66,21 @@ void Times_Clear(void) { shown = clock_ = 0; }
 
 static void box_at(uint32_t a, int16_t r[4]) { for (int i = 0; i < 4; i++) r[i] = gms16(a + 2u * (uint32_t)i); }
 
+/* 0x4070f0: a challenge's match between two different drivers, neither a computer's (0x408500).
+   (Outside a match the original compares its unset locals; 0 and 0 here.) */
+static bool challenge_split(void)
+{
+    if (Gs_Mode() != 4) return false;
+    uint32_t a = 0, b = 0;
+    Challenge_Pair(&a, &b);   /* 0x407830 */
+    return a != b && Player_Driver((int)a) == -1 && Player_Driver((int)b) == -1;
+}
+
 /* 0x411880: the screen split between two players */
 bool Hud_SplitScreen(void)
 {
     if (Gs_SelBits14() > 1 && !Gs_ModeBit17() && Gs_Mode() != 4) return true;
-    if (Gs_Mode() == 4) PENDING_NOTE(0x4070f0, "Split_Screen (the network game's)");
-    return false;
+    return challenge_split();
 }
 
 /* 0x411550: the splits shown (no more than 12 unless one lap), each one's point and its distance
