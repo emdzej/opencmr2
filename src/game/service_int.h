@@ -79,6 +79,13 @@ void Sv_Unrepair(int p, int part);        /* 0x5034f0 */
 /* service_draw.c */
 void Sv_Textures(void);                   /* 0x50a080 */
 int Sv_Active(void);                      /* 0x4ff550 */
+void Sv_Type1(int i, int f, int g, const char *s, int x, int y, const uint8_t *c, const uint8_t *c2, uint32_t flags);   /* 0x501f80 */
+void Sv_Gradient(const int16_t r[4], uint32_t n, const uint8_t *cols);   /* 0x50ee50 */
+void Sv_TweenGrow(int i, int16_t r[4], bool wide);   /* 0x501d50 */
+
+/* service_map.c */
+void Sv_InfoZoom(int a, int b);           /* 0x503960 */
+void Sv_InfoMap(int v);                   /* 0x50a880 */
 void Sv_MainTurn(void);                   /* 0x502520 */
 int Sv_SetupView(int i);                  /* 0x4ff4b0 */
 int Sv_RepairView(int i);                 /* 0x4ff4d0 */
@@ -104,7 +111,7 @@ void sv_save_draw(Menu *m);               /* 0x50e780 */
 /* service_car.c */
 void Sv_LoadTextures(void);               /* 0x503ea0 */
 void Sv_StageInit(void);                  /* 0x5040f0 */
-void Sv_TyresInit(void);                  /* 0x505e70 */
+void Sv_ForecastInit(void);               /* 0x505e70 */
 void Sv_CarShow(int p, bool on);          /* 0x506b20 */
 void Sv_CarView(int p, int view, bool now);    /* 0x506930 */
 void Sv_CarTyres(int p, int view, bool now);   /* 0x5009c0 */

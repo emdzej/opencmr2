@@ -15,6 +15,7 @@
 #include "render/tex.h"
 #include "render/twod.h"
 #include "text.h"
+#include "world/tod.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -79,7 +80,7 @@ static int16_t scale(int16_t v, int32_t k) { return (int16_t)(((int64_t)((int32_
 static int32_t fmul(int32_t a, int32_t b) { return (int32_t)(((int64_t)a * b) >> 16); }
 
 /* 0x501d50: a box's width (wide) or height grown by tween i; nothing while it waits */
-static void tw_grow(int i, int16_t r[4], bool wide)
+void Sv_TweenGrow(int i, int16_t r[4], bool wide)
 {
     const SvTween *t = &S.tw[i];
     if (t->state == 0) r[2] = r[3] = 0;
@@ -136,7 +137,7 @@ static int typed(int i, const char *s, char *buf, size_t cap)
 
 /* 0x501f80: s typed out by tween i in font f; with flags 9, 0x11 or 0x21 the next letter in font g's
    colour c2; whole once the tween is done, nothing before it starts */
-static void type1(int i, int f, int g, const char *s, int x, int y, const uint8_t *c, const uint8_t *c2, uint32_t flags)
+void Sv_Type1(int i, int f, int g, const char *s, int x, int y, const uint8_t *c, const uint8_t *c2, uint32_t flags)
 {
     if (S.tw[i].state == 2) {
         Font_Print(f, s, x, y, c, flags);
@@ -248,7 +249,7 @@ static void list_panel(int n, int sel, int kind, int x, int y, bool lit)
     if (t_tick) tick[2] = t_tick->width, tick[3] = t_tick->height, tw_grow2(1, tick);
     int16_t r[4] = {(int16_t)(x * sw / 0x280), (int16_t)(sh * y / 0x1e0), (int16_t)X(0xa2), 1};
     if (kind == 4) r[2] = (int16_t)(r[2] + X(200));
-    tw_grow(0, r, true);
+    Sv_TweenGrow(0, r, true);
     Rect_Fill(r, sel == 0 ? hi(c) : C_LINE, 1);
     int p = Sv_Player(), cls = Sv_CarClass();
     for (int i = 0; i < n; i++) {
@@ -312,13 +313,13 @@ static void list_panel(int n, int sel, int kind, int x, int y, bool lit)
         if (i == sel) {
             bool bl = Sv_BlinkLit();
             if (Sv_TweenState(3) == 2) type2(7, 0, 0, b, tx, ty, bl ? C_BLINK : c, C_TEXT, 0x11);
-            else type1(3, 0, 0, b, tx, ty, bl ? C_BLINK : c, bl ? C_BLINK : C_FAINT, 0x11);
+            else Sv_Type1(3, 0, 0, b, tx, ty, bl ? C_BLINK : c, bl ? C_BLINK : C_FAINT, 0x11);
             sprite(t_arrow, arrow, bl ? C_BLINK : c);
         } else if (off) {
-            type1(3, 0, 0, b, tx, ty, C_OFF, C_OFF2, 0x11);
+            Sv_Type1(3, 0, 0, b, tx, ty, C_OFF, C_OFF2, 0x11);
             sprite(t_arrow, arrow, C_OFF);
         } else {
-            type1(3, 0, 0, b, tx, ty, C_TEXT, C_NEXT, 0x11);
+            Sv_Type1(3, 0, 0, b, tx, ty, C_TEXT, C_NEXT, 0x11);
             sprite(t_arrow_off, arrow, C_TEXT);
         }
         r[1] = (int16_t)((int16_t)(sh * y / 0x1e0) + (int16_t)Y(0x18) * (int16_t)(i + 1));
@@ -343,7 +344,7 @@ static void info_panel(void)
         Rect16 dst = {r[0], r[1], r[2], r[3]};
         Sprite_Add(&src, &dst, t_banner, 1, 0, NULL, NULL, C_WHITE, 8);
     }
-    PENDING_NOTE(0x50a880, "the information page's map and notes (0x5059d0, 0x5043b0)");
+    Sv_InfoMap(v);
 }
 
 /* 0x50e1c0: Race: the prompt centred */
@@ -353,7 +354,7 @@ static void race_draw(void)
     snprintf(b, sizeof b, "%s", Text_Get(0x131));
     PENDING_NOTE(0x40bac0, "the key names in the race prompt");
     int w = Font_TextWidth(0, b);
-    type1(4, 0, 0, b, X(0x140) - w / 2, Y(0xf0), C_TEXT, C_NEXT, 0x11);
+    Sv_Type1(4, 0, 0, b, X(0x140) - w / 2, Y(0xf0), C_TEXT, C_NEXT, 0x11);
 }
 
 /* 0x50e280: Save: the saved championships (none yet: the message), the slots */
@@ -361,7 +362,7 @@ static void save_draw(Menu *m)
 {
     (void)m;
     const uint8_t *c = gm8(0x82ab44) ? C_TEXT : C_FAINT;   /* 0x82ab44 the list in use */
-    if (gms32(0x82ac48) < 1) type1(4, 0, 0, Text_Get(0x140), sw / 2, sh / 2, c, C_NEXT, 0x12);
+    if (gms32(0x82ac48) < 1) Sv_Type1(4, 0, 0, Text_Get(0x140), sw / 2, sh / 2, c, C_NEXT, 0x12);
     else PENDING_NOTE(0x50e280, "the saved championships' rows (0x4f4dc0-0x4f4e70)");
     list_panel(2, value_of(4), 4, 0x32, 0x17c, true);
 }
@@ -369,7 +370,7 @@ static void save_draw(Menu *m)
 /* 0x50e6a0: Quit: the question, Yes / No */
 static void quit_draw(void)
 {
-    type1(4, 0, 0, Text_Get(0x133), X(0xf0), Y(200), C_TEXT, C_NEXT, 0x11);
+    Sv_Type1(4, 0, 0, Text_Get(0x133), X(0xf0), Y(200), C_TEXT, C_NEXT, 0x11);
     list_panel(2, value_of(5), 3, 0xf0, 0xd7, false);
 }
 
@@ -381,17 +382,17 @@ static void time_panel(void)
     int d = t;
     if (t < shown && t <= shown - 6000) d = shown - 6000;
     else if (shown < t && shown + 6000 <= t) d = shown + 6000;
-    type1(4, 0, 0, Text_Get(0x90), x, Y(0x5d), C_TEXT, C_NEXT, 0x11);
+    Sv_Type1(4, 0, 0, Text_Get(0x90), x, Y(0x5d), C_TEXT, C_NEXT, 0x11);
     char b[128];
     snprintf(b, sizeof b, Text_Get(0x91), S.time_lim[p]);
-    type1(4, 1, 0, b, x, Y(0x6d), C_TEXT, C_NEXT, 0x11);
+    Sv_Type1(4, 1, 0, b, x, Y(0x6d), C_TEXT, C_NEXT, 0x11);
     S.shown_time = d;
     snprintf(b, sizeof b, exe_str(0x51a904), d / 100 / 0x3c, d / 100 % 0x3c);
     bool bl = Sv_BlinkLit();
-    type1(4, 3, 3, b, x, Y(0x96), bl ? C_BLINK : C_LIT, bl ? C_BLINK : C_FAINT, 0x11);
+    Sv_Type1(4, 3, 3, b, x, Y(0x96), bl ? C_BLINK : C_LIT, bl ? C_BLINK : C_FAINT, 0x11);
     int wx = Font_TextWidth(3, b);
     snprintf(b, sizeof b, "%s", exe_str(0x5295f0));
-    type1(4, 0, 0, b, (int)gm32(0x5293a0) * sw / 0x280 + wx, Y(0x90), bl ? C_BLINK : C_LIT, bl ? C_BLINK : C_FAINT, 0x11);
+    Sv_Type1(4, 0, 0, b, (int)gm32(0x5293a0) * sw / 0x280 + wx, Y(0x90), bl ? C_BLINK : C_LIT, bl ? C_BLINK : C_FAINT, 0x11);
 }
 
 /* 0x50a680: the car's class, four lines (Text 0x4c + 4 class) */
@@ -399,7 +400,7 @@ static void class_panel(void)
 {
     int x = (int)gm32(0x5293a0) * sw / 0x280, c = Sv_CarClass();
     static const int ys[4] = {0xb4, 0xc2, 0xd0, 0xde};
-    for (int i = 0; i < 4; i++) type1(3, i ? 1 : 0, 0, Text_Get(c * 4 + 0x4c + i), x, Y(ys[i]), C_TEXT, C_NEXT, 0x11);
+    for (int i = 0; i < 4; i++) Sv_Type1(3, i ? 1 : 0, 0, Text_Get(c * 4 + 0x4c + i), x, Y(ys[i]), C_TEXT, C_NEXT, 0x11);
 }
 
 /* 0x50cb30: a box's outline, a pixel wide */
@@ -417,7 +418,7 @@ static void outline(const int16_t r[4], const uint8_t *c)
 
 /* 0x50ee50: r in n slices from colour 0 to 1 over the first half, 1 to 2 over the rest (rgba at 0, 4,
    8 of cols) */
-static void gradient(const int16_t r[4], uint32_t n, const uint8_t *cols)
+void Sv_Gradient(const int16_t r[4], uint32_t n, const uint8_t *cols)
 {
     int32_t c0[3], d0[3], c1[3], d1[3];
     for (int k = 0; k < 3; k++) {
@@ -485,7 +486,7 @@ static void part_panel(bool repair)
         time = (int)gm32(0x5293c0 + 4u * (uint32_t)v) * 6000;
     } else {
         int16_t g[4] = {(int16_t)X(0x1c), (int16_t)Y(0x160), (int16_t)X(0x147), (int16_t)Y(0xd)};
-        gradient(g, 0x15, bar);
+        Sv_Gradient(g, 0x15, bar);
         snprintf(b, sizeof b, "%s", exe_str(0x519fb0));
         Font_Print(0, b, g[0], Y(0x17c), C_TEXT, 0x11);
         snprintf(b, sizeof b, "%s", exe_str(0x524e20));
@@ -502,7 +503,7 @@ static void part_panel(bool repair)
     }
     snprintf(b, sizeof b, exe_str(0x51a904), time / 100 / 0x3c, time / 100 % 0x3c);
     Font_Print(3, b, X(0x124), Y(0x150), Sv_BlinkLit() ? C_BLINK : C_LIT, 0x12);
-    for (int k = 0; k < 4; k++) type1(5, 1, 1, Text_Get(text + k), X(0x1c), Y(0x19a + 0xe * k), C_TEXT, C_NEXT, 0x11);
+    for (int k = 0; k < 4; k++) Sv_Type1(5, 1, 1, Text_Get(text + k), X(0x1c), Y(0x19a + 0xe * k), C_TEXT, C_NEXT, 0x11);
 }
 
 /* the slider's x (640 x 480) for value v of part (the tyres' 7 places, the gearbox's 5, the others
@@ -624,7 +625,22 @@ void sv_info_draw(Menu *m)
     (void)m;
     D3d_ScreenSize(&sw, &sh);
     top_bar(false);
-    PENDING_NOTE(0x50c130, "the information pages");
+    /* 0x50c130: the rally, its stages (the shown one white) and the forecast (Tod_Weather by the page
+       number, as the original), then the map */
+    int v = value_of(0);
+    Font_Print(0, Text_Get(0x9c), X(0x25f), Y(100), C_LIT, 0xc);
+    char b[128];
+    snprintf(b, sizeof b, "%s", Text_Get((int)(gm32(0x52f2ac) & 0x1f) + 0x93));
+    Font_Print(0, b, X(0x25f), Y(0x78), C_LIT, 0xc);
+    snprintf(b, sizeof b, "%s", exe_str(0x529624));
+    Font_Print(0, b, X(0x25f), Y(0xa0), C_LIT, 0xc);
+    for (int i = 0; i < Sv_InfoPages(); i++) {
+        snprintf(b, sizeof b, exe_str(0x517dd0), (int)(gm32(0x52f2ac) >> 5 & 0x1f) + 1 + i);
+        Font_Print(0, b, X(0x25f), Y(0xb4) + Y(0x14) * i, i == v ? C_LIT : C_TEXT, 0xc);
+    }
+    snprintf(b, sizeof b, exe_str(0x52960c), Text_Get(Tod_Weather((uint32_t)v)[0] + 0x9d));
+    Font_Print(0, b, X(100), Y(400), C_TEXT, 9);
+    Sv_InfoMap(v);
 }
 
 /* 0x50e740: the message (0x82a93c) centred */
@@ -632,7 +648,7 @@ void sv_msg_draw(Menu *m)
 {
     (void)m;
     D3d_ScreenSize(&sw, &sh);
-    type1(4, 0, 0, (const char *)gm(0x82a93c), sw / 2, sh / 2, C_TEXT, C_NEXT, 0x12);
+    Sv_Type1(4, 0, 0, (const char *)gm(0x82a93c), sw / 2, sh / 2, C_TEXT, C_NEXT, 0x12);
 }
 
 /* 0x50e780: save the championship? Yes / No, white. The arrow's box is scaled twice and has no size
@@ -643,9 +659,9 @@ void sv_save_draw(Menu *m)
     int x1 = X(0xf0), y1 = Y(0xd7);
     const uint8_t *c = C_LIT;
     int16_t arrow[4] = {(int16_t)(x1 * sw / 0x280), 0, 0, 0};
-    type1(4, 0, 0, Text_Get(0x13f), X(0xf0), Y(200), C_TEXT, C_NEXT, 0x11);
+    Sv_Type1(4, 0, 0, Text_Get(0x13f), X(0xf0), Y(200), C_TEXT, C_NEXT, 0x11);
     int16_t r[4] = {(int16_t)x1, (int16_t)y1, (int16_t)X(0xa2), 1};
-    tw_grow(0, r, true);
+    Sv_TweenGrow(0, r, true);
     int sel = m->sel;
     Rect_Fill(r, sel == 0 ? c : C_LINE, 1);
     for (int i = 0; i < m->n; i++) {
@@ -657,7 +673,7 @@ void sv_save_draw(Menu *m)
             type2(7, 0, 0, b, tx, ty, c, C_TEXT, 0x11);
             sprite(t_arrow, arrow, c);
         } else {
-            type1(3, 0, 0, b, tx, ty, C_TEXT, C_NEXT, 0x11);
+            Sv_Type1(3, 0, 0, b, tx, ty, C_TEXT, C_NEXT, 0x11);
             sprite(t_arrow_off, arrow, C_TEXT);
         }
         r[1] = (int16_t)((int16_t)Y(0x18) * (int16_t)(i + 1) + (int16_t)y1);

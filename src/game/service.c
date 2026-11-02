@@ -401,7 +401,7 @@ static void s0_init(ProcGroup *g, uint32_t s)
     Render_SetDefaultCull(3);
     Sv_LoadTextures();
     Sv_StageInit();
-    Sv_TyresInit();
+    Sv_ForecastInit();
     PENDING_NOTE(0x4b2970, "the service area's environment map (option 15, 16)");
     PENDING_NOTE(0x4f4ef0, "the saved championships' list");
     load_sounds();

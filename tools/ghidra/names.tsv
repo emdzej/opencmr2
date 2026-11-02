@@ -1281,3 +1281,26 @@
 00503930	Sv_RepairTime	service	high	a part's repair time
 0050cc10	Sv_Sliders	service	high	the set-up slider: bar, original and new values, the ends and tyre places
 00502c60	Sv_SetupOriginal	service	high	a set-up part's original value
+00503ea0	Sv_LoadTextures	service	high	the day's stage maps, their places, the rally map, weather symbols, arrow
+005040f0	Sv_StageInit	service	high	the information map's boxes and a page per information page
+00503e00	Sv_LegendInit	service	high	the weather legend's entries (Greece's with snow)
+00505e70	Sv_ForecastInit	service	high	the forecast along the day's stages
+00503960	Sv_InfoZoom	service	high	the shown page's stage map zoomed in or out
+005039d0	Sv_ZoomIn	service	high	a page's zoom towards its whole map
+00503aa0	Sv_ZoomOut	service	high	a page's zoom back to its mark
+00505a60	Sv_InfoShow	service	high	another information page shown, taking over the zoom
+00505b40	Sv_InfoAnimate	service	high	the zoom, the strip and inset fades, the pulse
+005059d0	Sv_InfoChoose	service	high	the page for the information value; keys off while zooming
+00503b70	Sv_MapPoint	service	high	a stage-map point where the page is now, on the screen
+00504eb0	Sv_Frame	service	high	a box's outline, optionally clipped to the map box
+00505590	Sv_DrawMap	service	high	the rally map, its texels following the shown box
+005044d0	Sv_DrawPage	service	high	the stage map, forecast strip and rally inset
+005051c0	Sv_DrawMarks	service	high	the other pages' marks and the shown box fading, the pulse
+005057e0	Sv_DrawLegend	service	high	the weather legend column
+00503c80	Sv_DrawTemperature	service	high	the temperature bar
+0050fd30	Sv_RallyNotes	service	high	the rally's four lines of notes
+0050f650	Sv_StageNotes	service	high	the stage's day, number, name, time, length, surfaces
+005043b0	Sv_DrawInfo	service	high	the information map's draws
+0050a880	Sv_InfoMap	service	high	the information page's map: the page chosen, then drawn
+0050c130	Sv_InfoPageDraw	service	high	the information page's rally, stages and forecast
+00500100	Sv_InfoGo	service	high	Information chosen: the zoom toggled

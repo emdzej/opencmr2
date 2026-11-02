@@ -86,7 +86,7 @@ static void back_key(Menu *m)
     if (!(Input_Record(rec)->pressed & MB_BACK)) return;
     int p = Sv_Player();
     if (m->sel == Menu_IndexOf(m, 0)) {
-        PENDING_NOTE(0x503960, "the information pages turned back");
+        Sv_InfoZoom(0, 1);
         return;
     }
     if (m->sel == Menu_IndexOf(m, 2)) {
@@ -162,7 +162,8 @@ void sv_main_frame(Menu *m)
     PENDING_NOTE(0x4ff720, "the save list's frame");
 }
 
-void sv_info_go(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x503960, "the information pages"); }
+/* 0x500100: Information: the stage's map zoomed in or out */
+void sv_info_go(Menu *m, MenuItem *it) { (void)m, (void)it; Sv_InfoZoom(0, 0); }
 
 /* 0x5000b0: Set Up: its page with the time for the part, else the warning */
 void sv_setup_go(Menu *m, MenuItem *it)
