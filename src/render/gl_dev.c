@@ -26,7 +26,7 @@ static struct {
     GLint mode, tl, stage_op, stage_arg, tfactor, alphatest, alpharef, alphafunc, fog, fogmode, fogcolour,
         fogparams, specular, lodbias, tci, texflags, texm0, texm1, tex0, tex1, pointsize, wv, nrm, proj, vp, vpz,
         lighting, colorvertex, has_colour, src, ambient, mat, power, localviewer, normalize, vfog, rangefog,
-        nlights, ltype, ldiff, lspec, lamb, lpos, ldir, lp1, lp2, texc, cube0;
+        nlights, ltype, ldiff, lspec, lamb, lpos, ldir, lp1, lp2, texc, cube0, bumpmat, bumplum;
 } u;
 static struct { GLint tex, gamma, rect; } up;
 
@@ -150,7 +150,8 @@ static const char *FS =
     "precision highp float; precision highp int;\n"
     "in vec4 v_diffuse; in vec4 v_specular; in vec3 v_uv[2];\n"
     "uniform sampler2D u_tex0, u_tex1;\n"
-    "uniform samplerCube u_texc; uniform int u_cube0;\n"   /* stage 0's texture a cube: its direction */
+    "uniform samplerCube u_texc; uniform int u_cube0;\n"
+    "uniform vec4 u_bumpmat; uniform vec2 u_bumplum;\n"   /* stage 0's BUMPENVMAT00, 01, 10, 11; LSCALE, LOFFSET */   /* stage 0's texture a cube: its direction */
     "uniform ivec2 u_stage_op[2];\n"             /* colour op, alpha op (D3DTOP) */
     "uniform ivec4 u_stage_arg[2];\n"            /* colour arg 1, 2, alpha arg 1, 2 (D3DTA) */
     "uniform vec4 u_tfactor;\n"
@@ -188,11 +189,22 @@ static const char *FS =
     "}\n"
     "void main() {\n"
     "  vec4 cur = v_diffuse;\n"
+    "  vec2 bump = vec2(0.0); float lum = 1.0;\n"
     "  for (int s = 0; s < 2; s++) {\n"
     "    int cop = u_stage_op[s].x, aop = u_stage_op[s].y;\n"
     "    if (cop <= 1) break;\n"                  /* a disabled stage ends the cascade */
-    "    vec4 tex = s == 1 ? texture(u_tex1, v_uv[1].xy, u_lodbias[1])\n"
+    "    vec4 tex = s == 1 ? texture(u_tex1, v_uv[1].xy + bump, u_lodbias[1])\n"
     "             : u_cube0 != 0 ? texture(u_texc, v_uv[0]) : texture(u_tex0, v_uv[0].xy, u_lodbias[0]);\n"
+    /* BUMPENVMAP (22), BUMPENVMAPLUMINANCE (23): the bump map's signed du, dv through the matrix move
+       the next stage's coordinates, its luminance (scaled and offset) scales that stage's colour; the
+       stage passes the current colour on */
+    "    if (cop == 22 || cop == 23) {\n"
+    "      vec2 d = floor(tex.rg * 255.0 + 0.5); d = max(mix(d, d - 256.0, step(128.0, d)) / 127.0, -1.0);\n"
+    "      bump = vec2(u_bumpmat.x * d.x + u_bumpmat.z * d.y, u_bumpmat.y * d.x + u_bumpmat.w * d.y);\n"
+    "      if (cop == 23) lum = clamp(tex.b * u_bumplum.x + u_bumplum.y, 0.0, 1.0);\n"
+    "      continue;\n"
+    "    }\n"
+    "    if (s == 1) tex.rgb *= lum;\n"
     "    vec4 c = op(cop, arg(u_stage_arg[s].x, tex, cur), arg(u_stage_arg[s].y, tex, cur), tex, cur);\n"
     "    vec4 a = aop <= 1 ? cur : op(aop, arg(u_stage_arg[s].z, tex, cur), arg(u_stage_arg[s].w, tex, cur), tex, cur);\n"
     "    cur = clamp(vec4(c.rgb, a.a), 0.0, 1.0);\n"
@@ -283,7 +295,7 @@ static bool gl_open(int width, int height, int bpp)
         LOC(nrm); LOC(proj); LOC(vp); LOC(vpz); LOC(lighting); LOC(colorvertex); LOC(has_colour); LOC(src);
         LOC(ambient); LOC(mat); LOC(power); LOC(localviewer); LOC(normalize); LOC(vfog); LOC(rangefog);
         LOC(nlights); LOC(ltype); LOC(ldiff); LOC(lspec); LOC(lamb); LOC(lpos); LOC(ldir); LOC(lp1); LOC(lp2);
-        LOC(texc); LOC(cube0);
+        LOC(texc); LOC(cube0); LOC(bumpmat); LOC(bumplum);
         up.tex = glGetUniformLocation(present_prog, "u_tex");
         up.gamma = glGetUniformLocation(present_prog, "u_gamma");
         up.rect = glGetUniformLocation(present_prog, "u_rect");
@@ -570,6 +582,10 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
     glUniform1i(u.tex1, 1);
     glUniform1i(u.texc, 2);
     glUniform1i(u.cube0, c0 != NULL);
+    const uint32_t *t0 = s->tss[0];
+    glUniform4f(u.bumpmat, bits_float(t0[D3DTSS_BUMPENVMAT00]), bits_float(t0[D3DTSS_BUMPENVMAT01]),
+                bits_float(t0[D3DTSS_BUMPENVMAT10]), bits_float(t0[D3DTSS_BUMPENVMAT11]));
+    glUniform2f(u.bumplum, bits_float(t0[D3DTSS_BUMPENVLSCALE]), bits_float(t0[D3DTSS_BUMPENVLOFFSET]));
     glUniform2iv(u.stage_op, 2, ops);
     glUniform4iv(u.stage_arg, 2, args);
     glUniform1fv(u.lodbias, 2, bias);

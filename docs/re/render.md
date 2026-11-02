@@ -331,8 +331,18 @@ There is no reference capture from the original yet.
 
 ## Open
 
-- Which textures get which blend types at run time; the bump environment map (op 22/23 need a signed
-  texture format, which RGBA8 lacks).
+- Which textures get which blend types at run time.
+
+## The bump environment map (option 0x10)
+
+With option 0x10 a texture whose name has "BU" before its extension gets flag 0x20 and a bump surface
+(the card's bump format) made by 0x4a5880 from the decoded image: du and dv the unsigned differences of
+the red (0x4a5730) to the texel right and below (wrapping), written into the signed bytes, the alpha
+(0x4a57e0) as the luminance. The disk loader 0x4a6370 (for a record given flag 0x20) reads the TGA's
+first byte (blue) and uses the height plus 0x80 past the edges; no caller gives it the flag. The
+reflection pass then binds the polygon's texture on stage 0 with type 8 (BUMPENVMAPLUMINANCE, the
+matrix's diagonal 0x520b24, scale 1, offset 0) and the environment map on stage 1 with type 9. The
+port keeps 8-bit du, dv and luminance in RGBA8 and decodes them as signed in the shader.
 
 ## The cars' cube maps (option 0x80)
 

@@ -1732,3 +1732,7 @@
 004a76d0	Cube_Surfaces	render	high	A cube's surfaces: the cube map with all faces, each face fetched and given a z-buffer
 004b2d70	Render_SetTarget	render	high	The device's render target: a texture record's surface (+0x114)
 004ba160	Mat_FromFloat	math	high	A float matrix in 16.16, each element rounded times 65536
+004a5880	Tex_BumpConvert	render	high	A bump surface from an image: du, dv from the red's differences right and below (wrapping), the alpha as luminance
+004a5730	Surf_Red8	render	high	A locked surface's texel red as 8 bits (16 or 32 bits a pixel)
+004a57e0	Surf_Alpha8	render	high	A locked surface's texel alpha as 8 bits (16 or 32 bits a pixel)
+004a6370	Tex_LoadBumpTga	render	high	A bump surface straight from a TGA (its first byte the height, +0x80 past the edges)

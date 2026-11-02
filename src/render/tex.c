@@ -1,7 +1,7 @@
 /* Textures (see tex.h). The surface's pixel format (the original converts into the mode's 16- or 32-bit
-   surface formats), the bump conversion (FUN_004a5880, with option 0x10) and the mip chains (options
-   bits 0-1 with texture flag 0x10) are not reproduced yet; with the default options (all clear) the
-   original takes none of those paths except the format conversion. */
+   surface formats) and the mip chains (options bits 0-1 with texture flag 0x10) are not reproduced
+   yet; with the default options (all clear) the original takes neither path except the format
+   conversion. */
 #include "render/tex.h"
 #include "exe.h"
 #include "image.h"
@@ -199,6 +199,44 @@ static bool tag(const char *name, size_t back, uint32_t va, size_t n)
     return l >= back && !strncmp(name + l - back, exe_str(va), n);
 }
 
+/* 0x4a5880: a bump map from the decoded image: at each texel the height its red (0x4a5730), du and dv
+   its differences to the texel right of it and below it (wrapping round) as they are, unsigned
+   (written to the surface's signed bytes, so a difference over 127 turns negative), the luminance its
+   alpha (0x4a57e0). The surface takes the card's bump format: the port's has the 8-bit one (du, dv,
+   luminance, 0; the original's 16-bit branch packs them into its masks). */
+static uint8_t *bump_map(const uint8_t *px, int w, int h)
+{
+    uint8_t *b = malloc((size_t)w * (size_t)h * 4);
+    if (!b) return NULL;
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+            int c = px[((size_t)y * w + x) * 4], r = px[((size_t)y * w + (x < w - 1 ? x + 1 : 0)) * 4],
+                d = px[((size_t)(y < h - 1 ? y + 1 : 0) * w + x) * 4];
+            uint8_t *o = b + ((size_t)y * w + x) * 4;
+            o[0] = (uint8_t)abs(c - r);
+            o[1] = (uint8_t)abs(c - d);
+            o[2] = px[((size_t)y * w + x) * 4 + 3];
+            o[3] = 0;
+        }
+    return b;
+}
+
+/* the surface for the decoded pixels: with flag 0x20 and option 0x10 the bump map made from them */
+static void make_surface(Tex *t, uint8_t *px, int w, int h)
+{
+    if (!px) return;
+    bool bump = (t->flags & 0x20) && (g_render_opts & 0x10);
+    if (bump) {
+        uint8_t *b = bump_map(px, w, h);
+        free(px);
+        if (!(px = b)) return;
+    }
+    t->surface = D3dTex_Create(w, h, px);
+    if (t->surface) t->surface->bump = bump;
+    t->width = (int16_t)w;
+    t->height = (int16_t)h;
+}
+
 /* Tex_LoadTga 0x4a6710 (the record's part): 32 bits set flag 1; with option 0x10 a "BU" name is a bump
    map (flag 0x20, no alpha); the DXT flags are cleared. */
 static Tex *load_tga(const uint8_t *data, size_t size, Tex *t)
@@ -208,13 +246,9 @@ static Tex *load_tga(const uint8_t *data, size_t size, Tex *t)
     if (ti.bpp == 4) t->flags |= 1;
     int w, h;
     uint8_t *px = Tga_Decode(data, size, &w, &h);
-    if (px) {
-        t->surface = D3dTex_Create(w, h, px);
-        t->width = (int16_t)w;
-        t->height = (int16_t)h;
-    }
     if ((g_render_opts & 0x10) && tag(t->name, 6, 0x520b68, 2)) t->flags = (t->flags & ~1u) | 0x20;
     t->flags &= ~0x6000u;
+    make_surface(t, px, w, h);
     return t;
 }
 
@@ -233,11 +267,6 @@ static Tex *load_dds(const uint8_t *data, size_t size, Tex *t)
     else if (fourcc == 0x35545844u) t->flags |= 0x2000;
     int w, h;
     uint8_t *px = Dds_Decode(data, size, &w, &h);
-    if (px) {
-        t->surface = D3dTex_Create(w, h, px);
-        t->width = (int16_t)w;
-        t->height = (int16_t)h;
-    }
     if (fourcc == 0x31545844u) t->flags = caps_dxt1 ? t->flags | 0x4000 : t->flags & ~0x4000u;
     else if (fourcc == 0x35545844u) t->flags = caps_dxt5 ? t->flags | 0x2000 : (t->flags & ~0x6000u) | 1;
     if (tag(t->name, 6, 0x520b70, 2)) t->flags = (t->flags & ~0x6000u) | 1;
@@ -246,6 +275,7 @@ static Tex *load_dds(const uint8_t *data, size_t size, Tex *t)
     if (tag(t->name, 9, 0x51c9e4, 5)) t->flags = (t->flags & ~0x6000u) | 1;
     if (tag(t->name, 9, 0x51c9ec, 5)) t->flags = (t->flags & ~0x6000u) | 1;
     if ((g_render_opts & 0x10) && tag(t->name, 6, 0x520b68, 2)) t->flags = (t->flags & ~0x6001u) | 0x20;
+    make_surface(t, px, w, h);
     return t;
 }
 
@@ -266,8 +296,10 @@ Tex *Tex_CreateFromMemory(char *name, const uint8_t *data, uint32_t size, uint32
     return dds ? load_dds(data, size, t) : load_tga(data, size, t);
 }
 
-/* 0x4a49c0: <path>.DDS from disk, else <path>.TGA (both with the CD dialog). The bump loader
-   (FUN_004a6370, flag 0x20 with option 0x10) is not reproduced. */
+/* 0x4a49c0: <path>.DDS from disk, else <path>.TGA (both with the CD dialog). (The bump loader
+   0x4a6370 for a record given flag 0x20 with option 0x10, which differs from 0x4a5880 in taking the
+   TGA's first byte, its blue, as the height and the height plus 0x80 past the last column and row, has
+   no caller that gives the flag.) */
 Tex *Tex_CreateFromFile(char *path, uint32_t flags)
 {
     put_ext(path, 0x520b3c);

@@ -135,6 +135,7 @@ struct D3dTexture {
     unsigned gl;
     bool dirty;
     bool cube;              /* a cube of six width x width faces that can be drawn into */
+    bool bump;              /* a bump map: du, dv (signed bytes), luminance in its red, green, blue */
     unsigned fbo[6], depth; /* the back end's targets for the faces */
 };
 
