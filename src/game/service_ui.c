@@ -10,17 +10,17 @@
 #include "text.h"
 #include <string.h>
 
-static int car_class(void) { return (int)gm32(0x516b40 + 4u * (gm32(0x531350 + 0x30u * (uint32_t)Sv_Player()) & 0x3f)); }   /* 0x4086b0, 0x40ee90 */
+int Sv_CarClass(void) { return (int)gm32(0x516b40 + 4u * (gm32(0x531350 + 0x30u * (uint32_t)Sv_Player()) & 0x3f)); }   /* 0x4086b0, 0x40ee90 */
 static int item_value(Menu *m, int16_t id) { return m->items[Menu_IndexOf(m, id)].value; }
 static void set_item_value(Menu *m, int16_t id, int v) { m->items[Menu_IndexOf(m, id)].value = (uint8_t)v; }
 
 /* the panels a set-up or repair list position stands for (0x526f54, 0x526f70, 0x526f8c) */
 int Sv_SetupView(int i) { return (int)exe_u32(0x526f54 + 4u * (uint32_t)i); }     /* 0x4ff4b0 */
-static int setup_part(int i) { return (int)exe_u32(0x526f70 + 4u * (uint32_t)i); } /* 0x4ff4c0 */
+int Sv_SetupPart(int i) { return (int)exe_u32(0x526f70 + 4u * (uint32_t)i); } /* 0x4ff4c0 */
 int Sv_RepairView(int i) { return (int)exe_u32(0x526f8c + 4u * (uint32_t)i); }    /* 0x4ff4d0 */
 
 /* 0x501280: a view the car's class has: 2 needs 0x516c40, 4 0x516c08 */
-static bool view_allowed(int view, int cls)
+bool Sv_ViewAllowed(int view, int cls)
 {
     if (view == 2) return gm32(0x516c40 + 4u * (uint32_t)cls) != 0;
     if (view == 4) return gm32(0x516c08 + 4u * (uint32_t)cls) != 0;
@@ -46,7 +46,7 @@ void Sv_MainTurn(void)
 }
 
 /* 0x500500, 0x500520, 0x500530, 0x5004c0: the warning blink, for 0.3 s, on and off a tenth each */
-static void blink_on(void) { S.blink = 1, S.blink_at = (int)Timer_Centis(); }
+void Sv_BlinkOn(void) { S.blink = 1, S.blink_at = (int)Timer_Centis(); }
 static void blink_off(void) { S.blink = 0, S.blink_at = 0; }
 static void blink_step(void)
 {
@@ -121,12 +121,12 @@ void sv_main_frame(Menu *m)
     if (m->sel != Menu_IndexOf(m, 5)) set_item_value(&sv_main, 5, 1);
     PENDING_NOTE(0x4ff630, "the main page's Escape on the information, set-up and repair items");
     int v = item_value(&sv_main, 1);
-    while (!view_allowed(Sv_SetupView(v), car_class())) v += S.setup_last < v ? 1 : -1;
+    while (!Sv_ViewAllowed(Sv_SetupView(v), Sv_CarClass())) v += S.setup_last < v ? 1 : -1;
     set_item_value(&sv_main, 1, v);
     if (S.setup_last != v) blink_off(), Sv_TweenClear(5), Sv_TweenClear(7);
     S.setup_last = v;
     v = item_value(&sv_main, 2);
-    while (!view_allowed(Sv_RepairView(v), car_class())) v += S.repair_last < v ? 1 : -1;
+    while (!Sv_ViewAllowed(Sv_RepairView(v), Sv_CarClass())) v += S.repair_last < v ? 1 : -1;
     set_item_value(&sv_main, 2, v);
     if (S.repair_last != v) blink_off(), Sv_TweenClear(5), Sv_TweenClear(7);
     S.repair_last = v;
@@ -149,8 +149,7 @@ void sv_save_go(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x4ffed
 void sv_setup_choose(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x5003d0, "a set-up value"); }
 void sv_save_yes(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x500020, "the championship saved"); }
 
-void Sv_InfoInit(void) { PENDING_NOTE(0x50a080, "the information pages' text"); }
-void Sv_InfoInit2(void) { PENDING_NOTE(0x50a3c0, "the information pages' car"); }
+void Sv_CarsInit(void) { PENDING_NOTE(0x50a3c0, "each player's car on its stand (0x5062d0)"); }
 
 /* 0x502230 */
 void sv_msg_enter(Menu *m, bool back) { (void)m, (void)back; S.save_back = true; }
@@ -163,8 +162,44 @@ void sv_save_enter(Menu *m, bool back)
     S.save_back = true;
 }
 
-void sv_main_draw(Menu *m) { (void)m; PENDING_NOTE(0x50eba0, "the main page's draw"); }
-void sv_setup_draw(Menu *m) { (void)m; PENDING_NOTE(0x50ee10, "the set-up page's draw"); }
-void sv_info_draw(Menu *m) { (void)m; PENDING_NOTE(0x50edf0, "the information page's draw"); }
-void sv_msg_draw(Menu *m) { (void)m; PENDING_NOTE(0x50e740, "the message's draw"); }
-void sv_save_draw(Menu *m) { (void)m; PENDING_NOTE(0x50e780, "the save question's draw"); }
+/* ---- the damage and the set-up's state ---- */
+
+/* 0x502df0: part's damage in percent (1 for any), from the kept set-up (0x82c070) or the car's own
+   (live, 0x52ebc0); the bytes at +0x108-0x121, the largest of a part's four (or two) */
+int Sv_Damage(int p, int part, bool live)
+{
+    uint32_t b = (live ? 0x52ebc0u : 0x82c070u) + 0x148u * (uint32_t)p;
+    static const uint16_t first[12] = {0, 0x116, 0x117, 0x10e, 0x118, 0x112, 0x119, 0x10c, 0x11f, 0x120, 0x121, 0x108};
+    static const uint8_t count[12] = {0, 1, 1, 4, 1, 4, 1, 2, 1, 1, 1, 4};
+    uint32_t v = 0;
+    if (part >= 1 && part <= 11)
+        for (int k = 0; k < count[part]; k++)
+            if (gm8(b + first[part] + (uint32_t)k) > v) v = gm8(b + first[part] + (uint32_t)k);
+    uint32_t pc = v * 100 / 0xff;
+    if (pc == 0) return v ? 1 : 0;
+    return pc > 100 ? 100 : (int)pc;
+}
+
+/* 0x503940: part repaired this service */
+bool Sv_Repaired(int p, int part) { return gm8(0x82c040 + 12u * (uint32_t)p + (uint32_t)part) != 0; }
+
+/* 0x502fc0: the time for part's repair (0x5270b4) left and the part damaged, or repaired already */
+bool Sv_CanRepair(int p, int part)
+{
+    if ((int)gm32(0x5270b4 + 4u * (uint32_t)part) <= S.time[p]) return Sv_Damage(p, part, true) != 0;
+    return Sv_Repaired(p, part);
+}
+
+/* 0x502b10: set-up value i as it came in (0x82bf04 against the kept 0x82bee8) */
+bool Sv_SetupKept(int p, int i)
+{
+    if (i < 0 || i > 6) return false;
+    return gm8(0x82bf04 + 7u * (uint32_t)p + (uint32_t)i) == gm8(0x82bee8 + 7u * (uint32_t)p + (uint32_t)i);
+}
+
+/* 0x502630: the time for the set-up's change (0x527098) left, or changed already (0x82bf20) */
+bool Sv_CanSet(int p, int part)
+{
+    if ((int)gm32(0x527098 + 4u * (uint32_t)part) <= S.time[p]) return true;
+    return gm8(0x82bf20 + 7u * (uint32_t)p + (uint32_t)part) != 0;
+}

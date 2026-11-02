@@ -57,8 +57,21 @@ void Sv_MainReset(void);
 
 /* service_ui.c */
 int Sv_InfoPages(void);                   /* 0x501230 */
-void Sv_InfoInit(void);                   /* 0x50a080 */
-void Sv_InfoInit2(void);                  /* 0x50a3c0 */
+void Sv_CarsInit(void);                   /* 0x50a3c0 */
+int Sv_CarClass(void);                    /* 0x4086b0, 0x40ee90 of the player */
+bool Sv_ViewAllowed(int view, int cls);   /* 0x501280 */
+int Sv_SetupPart(int i);                  /* 0x4ff4c0 */
+void Sv_BlinkOn(void);                    /* 0x500500 */
+bool Sv_BlinkLit(void);                   /* 0x5004c0 */
+int Sv_Damage(int p, int part, bool live);   /* 0x502df0 */
+bool Sv_Repaired(int p, int part);        /* 0x503940 */
+bool Sv_CanRepair(int p, int part);       /* 0x502fc0 */
+bool Sv_SetupKept(int p, int i);          /* 0x502b10 */
+bool Sv_CanSet(int p, int part);          /* 0x502630 */
+
+/* service_draw.c */
+void Sv_Textures(void);                   /* 0x50a080 */
+int Sv_Active(void);                      /* 0x4ff550 */
 void Sv_MainTurn(void);                   /* 0x502520 */
 int Sv_SetupView(int i);                  /* 0x4ff4b0 */
 int Sv_RepairView(int i);                 /* 0x4ff4d0 */

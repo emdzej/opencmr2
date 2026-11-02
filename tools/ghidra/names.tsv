@@ -1233,3 +1233,20 @@
 00500c00	Sv_WeatherCheck	service	confirmed	Weather and set-ups for a new rally
 00502d50	Sv_KeepSetups	service	confirmed	The set-ups kept
 00502db0	Sv_RestoreSetups	service	confirmed	The set-ups back
+0050a080	Sv_Textures	service	high	the service screens' marks, banner, arrows, ticks and part pictures
+004ff550	Sv_Active	service	high	the main page's item whose panel is up
+0050c420	Sv_TopBar	service	high	the service items across the top, the player and name, the network clock
+0050b1c0	Sv_ListPanel	service	high	a service list: stages, repairs, set-up, yes/no, save slots
+0050bfd0	Sv_InfoPanel	service	high	the stages list and the rally banner
+0050eba0	Sv_MainDraw	service	high	the top bar and the shown item's panel
+00501f80	Sv_Type1	service	high	text typed out by a tween, the next letter in a second colour
+005020a0	Sv_Type2	service	high	text typed out by a tween, the rest in a second colour
+00501d50	Sv_TweenGrow	service	high	a box's width or height by a tween
+00501f00	Sv_TweenGrow2	service	high	a box's width and height by a tween
+00501de0	Sv_TweenOpen	service	high	a box opening: a line to full height, then width
+00502df0	Sv_Damage	service	high	a part's damage percent from the kept or live set-up
+00503940	Sv_Repaired	service	high	a part repaired this service
+00502fc0	Sv_CanRepair	service	high	time left for a part's repair
+00502b10	Sv_SetupKept	service	high	a set-up value unchanged
+00502630	Sv_CanSet	service	high	time left for a set-up change
+00407150	Tod_SuperSpecialNo	game	high	the super special's stage number by rally and difficulty

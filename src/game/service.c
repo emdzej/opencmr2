@@ -300,8 +300,8 @@ static void build_pages(void)
     Menu_SetCallbacks(&sv_main, sv_main_enter, sv_main_frame, sv_main_draw, sv_main_leave);
     Menu_Reset(&sv_main);
     Sv_MainReset();
-    Sv_InfoInit();
-    Sv_InfoInit2();
+    Sv_Textures();
+    Sv_CarsInit();
     Menu_SetFlags(&sv_main, false, false, false, false);
     /* 0x5024a0: a set-up value */
     Menu_Init(&sv_setup, NULL, -1, &sv_main, false, NULL, true, 0, 1);
