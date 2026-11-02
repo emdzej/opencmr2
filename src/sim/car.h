@@ -25,6 +25,8 @@ static inline int16_t CI16(const Car *c, uint32_t o) { return (int16_t)(c->s[o] 
 static inline void CW16(Car *c, uint32_t o, uint16_t v) { c->s[o] = (uint8_t)v, c->s[o + 1] = (uint8_t)(v >> 8); }
 
 Car *Car_Get(int n);   /* 0x42b5f0 */
+bool Car_PlainWheels(const Car *c);   /* 0x42cb50 */
+void Car_Textures(char kind, Obj *const wheels[4]);   /* 0x42cb90 */
 /* 0x42b600: wheel w's spin (+0x860) times 0.25, then (unit 0) times 67.07 or (unit 1) 107.98 */
 int32_t Car_WheelSpeed(const Car *c, int w, int unit);
 uint8_t *Damage_Get(int n);   /* 0x469680: the car's 0x4d0-byte damage record (sim/damage.c) */

@@ -48,6 +48,8 @@ int Car_IdByName(const char *name)
     return -1;
 }
 
+static uint32_t rd_flags(const uint8_t *m) { return (uint32_t)m[0x30] | m[0x31] << 8 | m[0x32] << 16 | (uint32_t)m[0x33] << 24; }
+static void gw_flags(uint8_t *m, uint32_t v) { m[0x30] = (uint8_t)v, m[0x31] = (uint8_t)(v >> 8), m[0x32] = (uint8_t)(v >> 16), m[0x33] = (uint8_t)(v >> 24); }
 static void put(uint32_t at, const char *s, size_t n) { for (size_t i = 0; i < n; i++) gw8(at + (uint32_t)i, (uint8_t)s[i]); }
 
 /* 0x457c50: the detail letters (A the most) by the detail setting (0x52afd4, 0 most); with option
@@ -76,8 +78,18 @@ void Car_LodTable(void)
 
 /* the tail of 0x457000: a CPU car of modes 5, 6, 8, 9, 11 and 12 (not with option 16) has a far model,
    <car><letter><set>.C3D with its .bfl under the world root; its body (type 5) and wheels (1-4) into
-   +0x724-+0x734 and hung under the main model. (0x4b2d90's car number in the meshes and 0x4b45d0's
-   shadows, not ported for the main model either.) */
+   +0x724-+0x734 and hung under the main model. */
+/* 0x4b2d90: the car's number in bits 15-17 of its meshes' flags (+0x30; the object and each child's
+   first-child chain, kind 0), which picks its environment map */
+static void mesh_number(Obj *o, int n)
+{
+    if (!o) return;
+    if (o->kind == 0 && o->mesh) gw_flags(o->mesh, ((uint32_t)n & 7) << 0xf | (rd_flags(o->mesh) & 0xfffc7fffu));
+    for (Obj *c = o->child; c; c = c->next)
+        for (Obj *x = c; x; x = x->child)
+            if (x->kind == 0 && x->mesh) gw_flags(x->mesh, ((uint32_t)n & 7) << 0xf | (rd_flags(x->mesh) & 0xfffc7fffu));
+}
+
 static bool far_load(int n, const char *name, char letter, int set, Car *c)
 {
     for (int i = 0; i < 5; i++) c->far[i] = NULL;
@@ -100,9 +112,10 @@ static bool far_load(int n, const char *name, char letter, int set, Car *c)
     static const uint32_t types[5] = {5, 1, 2, 3, 4};
     for (int i = 0; i < 5; i++) c->far[i] = Obj_FindType(root, types[i]);
     if (gm32(0x52afd0) >> 4 & 1) CarShade_Add(c->far[0], false);   /* 0x4b45d0 */
+    mesh_number(c->far[0], n);
     for (int i = 0; i < 5; i++)
         if (c->far[i]) Obj_Reparent(c->far[i], c->main);
-    if (letter != 'A') PENDING_NOTE(0x42cb90, "Car_Textures (the far wheels)");
+    Car_Textures(letter, &c->far[1]);   /* 0x42cb90: the far wheels */
     return true;
 }
 
@@ -188,7 +201,7 @@ bool Car_Load(int n)
     snprintf(tex, sizeof tex, "Game\\Cars\\%s.cin", name);
     cins[n] = File_Load(tex, 1);
     cin_size[n] = cins[n] ? File_LastSize() : 0;
-    PENDING_NOTE(0x4a3dc0, "Car_Load 0x4a3dc0");
+    Tex_SetKeepBodf(Gs_SelBit24());   /* 0x4a3dc0 */
     snprintf(tex, sizeof tex, "Game\\Cars\\%s%c%d.bfl", name, letter, set);
     if (!Bfl_Mount(&textures[n], tex)) return false;
     C3d *m = &models[n];
@@ -216,6 +229,7 @@ bool Car_Load(int n)
         CarShade_Add(s->second, s->kind == 'A');   /* 0x4b45d0 */
         CarShade_Add(s->main, s->kind == 'A');
     }
+    mesh_number(s->second, n), mesh_number(s->main, n);
     /* dents on for the rally modes (0x46b400), never turned off here */
     if (!(mode == 5 || mode == 6 || mode == 7 || mode == 11 || mode == 12) && !(Gs_SelBit28() && Gs_Bit30())) Damage_SetDents(1, n);
     PENDING_NOTE(0x42cb50, "Car_Load (the wheels' other models)");

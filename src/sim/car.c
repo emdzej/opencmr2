@@ -1,6 +1,8 @@
 /* The car state and its set-up (see car.h). */
 #include "game/weather.h"
 #include "sim/car.h"
+#include "c3d.h"
+#include "render/tex.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "game/ghost.h"
@@ -56,9 +58,45 @@ void Obj_Reparent(Obj *o, Obj *np)
     for (Obj *p = o; p; p = p->parent) p->dirty = 1;
 }
 
+/* 0x42cb50: the car's wheels drawn as they are on this surface (+0xb29 below 2, not models 8, 10, 11,
+   13): the L textures and models, else the N ones */
+bool Car_PlainWheels(const Car *c)
+{
+    uint8_t m = Car_Slot(CI8(c, 0xb1a))->model;
+    return c->s[0xb29] < 2 && m != 11 && m != 8 && m != 10 && m != 13;
+}
+
+/* 0x42cb90: but for a kind A car, each wheel's polygons' ten textures whose name has an L (or N) nine
+   letters from its end turned to the other by the worked-on car's wheels (0x42cb50 on 0x53cc18), and
+   made again from the archive */
+void Car_Textures(char kind, Obj *const wheels[4])
+{
+    if (kind == 'A') return;
+    for (int w = 0; w < 4; w++) {
+        const Obj *o = wheels[w];
+        if (!o || !o->mesh || !o->model) continue;
+        const uint8_t *p = C3d_Ref(o->model, o->mesh + 0x24, o->model->polys);
+        uint32_t np = (uint32_t)(o->mesh[0x28] | o->mesh[0x29] << 8 | o->mesh[0x2a] << 16 | (uint32_t)o->mesh[0x2b] << 24);
+        for (uint32_t i = 0; p && i < np; i++)
+            for (uint32_t k = 0; k < 10; k++) {
+                const uint8_t *q = p + (size_t)i * C3D_POLY + 4 + 4 * k;
+                uint32_t id = (uint32_t)(q[0] | q[1] << 8 | q[2] << 16 | (uint32_t)q[3] << 24);
+                Tex *t = id < TEX_MAX ? g_tex[id] : NULL;
+                if (!t) continue;
+                size_t len = strlen(t->name);
+                if (len < 9) continue;   /* (the original reads before the name) */
+                char *c = &t->name[len - 9];
+                bool plain = g_car && Car_PlainWheels(g_car);
+                char from = plain ? 'N' : 'L', to = plain ? 'L' : 'N';
+                if (*c != from) continue;
+                *c = to;
+                Tex_Reload(t);
+            }
+    }
+}
+
 /* 0x43e5a0: the car's two models from its table entry, the wheels (types 1-4) and the parts (0xe,
-   0xf), both models under the world root. For a car whose entry's kind is not 'A', 0x42cb90 first sets
-   up its textures (not ported). */
+   0xf), both models under the world root, a car's wheel textures set up first (0x42cb90). */
 static void attach_models(int n, Car *c)
 {
     CarSlot *s = Car_Slot(n);
@@ -67,7 +105,7 @@ static void attach_models(int n, Car *c)
     for (int i = 0; i < 4; i++) c->wheel[i] = Obj_FindType(c->main, (uint32_t)i + 1);
     c->part74c = Obj_FindType(c->second, 0xe);
     c->part748 = Obj_FindType(c->second, 0xf);
-    if (Car_Slot(CI8(c, 0xb1a))->kind != 'A') PENDING_NOTE(0x42cb90, "Car_Textures");
+    Car_Textures(Car_Slot(CI8(c, 0xb1a))->kind, c->wheel);
     if (c->main && c->main->parent != &g_world) Obj_Reparent(c->main, &g_world);
     if (c->second && c->second->parent != &g_world) Obj_Reparent(c->second, &g_world);
 }

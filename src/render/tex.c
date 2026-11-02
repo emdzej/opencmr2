@@ -218,6 +218,11 @@ static Tex *load_tga(const uint8_t *data, size_t size, Tex *t)
     return t;
 }
 
+/* DAT_00520b14: the cars' "BODF" textures keep their DXT flags (set by Car_Load, 0x4a3dc0: in a
+   time trial, 0x407e50); the exe's initial value until then */
+static int keep_bodf = -1;
+void Tex_SetKeepBodf(bool on) { keep_bodf = on; }   /* 0x4a3dc0 */
+
 /* Tex_LoadDds 0x4a6e30 (the record's part): DXT1 sets 0x4000, DXT5 0x2000 when the card has the format
    (a missing DXT5 marks alpha instead); "BR", "RU", "BODF" (unless 0x520b14), "DIGIT" and "REVCT" names
    are marked alpha without the DXT flags; with option 0x10 a "BU" name is a bump map. */
@@ -237,7 +242,7 @@ static Tex *load_dds(const uint8_t *data, size_t size, Tex *t)
     else if (fourcc == 0x35545844u) t->flags = caps_dxt5 ? t->flags | 0x2000 : (t->flags & ~0x6000u) | 1;
     if (tag(t->name, 6, 0x520b70, 2)) t->flags = (t->flags & ~0x6000u) | 1;
     if (tag(t->name, 6, 0x520b6c, 2)) t->flags = (t->flags & ~0x6000u) | 1;
-    if (exe_u32(0x520b14) == 0 && tag(t->name, 8, 0x51c680, 4)) t->flags = (t->flags & ~0x6000u) | 1;
+    if ((keep_bodf < 0 ? exe_u32(0x520b14) : (uint32_t)keep_bodf) == 0 && tag(t->name, 8, 0x51c680, 4)) t->flags = (t->flags & ~0x6000u) | 1;
     if (tag(t->name, 9, 0x51c9e4, 5)) t->flags = (t->flags & ~0x6000u) | 1;
     if (tag(t->name, 9, 0x51c9ec, 5)) t->flags = (t->flags & ~0x6000u) | 1;
     if ((g_render_opts & 0x10) && tag(t->name, 6, 0x520b68, 2)) t->flags = (t->flags & ~0x6001u) | 0x20;
@@ -410,6 +415,28 @@ void Tex_FreeCopies(void)
     for (int i = 0; i < COPIES; i++) {
         D3dTex_Free(copies[i]);
         copies[i] = NULL;
+    }
+}
+
+/* 0x4a5da0: the record made again from its archive under its (changed) name: its surface let go (a
+   clone's shared one kept for the others), the member found and loaded by its magic; nothing more
+   when the archive does not have it */
+void Tex_Reload(Tex *t)
+{
+    for (int i = 0; i < TEX_MAX; i++) {
+        if (g_tex[i] != t || !t) continue;
+        if (t->surface) {
+            bool shared = false;
+            for (int j = 0; j < TEX_MAX && !shared; j++) shared = j != i && g_tex[j] && g_tex[j]->surface == t->surface;
+            if (!shared) D3dTex_Free(t->surface);
+            if (bound_tex == t) bound_tex = NULL;
+            t->surface = NULL;
+        }
+        uint32_t size = 0;
+        const uint8_t *m = t->archive && t->archive->loaded ? Bfl_FindTextureMember(t->archive, t->name, &size) : NULL;
+        if (!m) return;   /* (the original formats a "couldn't find texture" message) */
+        if (size >= 4 && !memcmp(m, "DDS ", 4)) load_dds(m, size, t);
+        else load_tga(m, size, t);
     }
 }
 
