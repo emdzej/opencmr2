@@ -42,6 +42,17 @@ void Sel_ModeFlags(void)
    rally's over (false), the championship's next rally from stage 0, after the eighth only when a
    player's points place is under 3 (the final), never after a ninth; before an odd rally's last stage
    the super special (10) instead. True with a stage to drive (the mode flags again, 0x408020). */
+/* 0x4074a0: in mode 5 (the arcade) the location's next stage (selection bits 12-13, one up, two
+   bits round): true while it is below the fourth and the location (bits 10-11) is not the third */
+bool Sel_ArcadeNext(void)
+{
+    if (Gs_Mode() != 5) return false;
+    uint32_t w = gm32(0x52f2ac);
+    w = (w & ~0x3000u) | ((w & 0x3000u) + 0x1000u & 0x3000u);
+    gw32(0x52f2ac, w);
+    return (w & 0x3000u) < 0x3000u && (w & 0xc00u) != 0x800u;
+}
+
 bool Sel_NextStage(void)
 {
     uint32_t m = Gs_Mode(), l = Gs_Mode2();

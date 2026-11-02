@@ -1468,3 +1468,4 @@
 00448630	Times_Won	race	high	The head to head won: finished now, its last split, its finish time 180 s more
 00487130	Cars_Touching	sim	high	The last pair of cars whose boxes were tested touched (0x591390)
 004483e0	Times_Estimate	race	high	At the end the unfinished cars put in the finish order, their finishes from their share of the race
+004074a0	Sel_ArcadeNext	game	high	Mode 5: the location's next stage (bits 12-13 up); true while below the fourth and not location 2

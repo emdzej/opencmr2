@@ -7,6 +7,7 @@ void Sel_ModeFlags(void);   /* 0x408020 */
 void Sel_Reset(void);       /* 0x409a30 */
 #include <stdbool.h>
 bool Sel_NextStage(void);   /* 0x4072d0 */
+bool Sel_ArcadeNext(void);  /* 0x4074a0 */
 
 /* 0x4069a0: the CPU cars of an arcade race (0x52f2a9's low four bits); 0x40d640 sets them */
 int Sel_CpuCount(void);

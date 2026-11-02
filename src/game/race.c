@@ -755,7 +755,10 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             if (R.kind == 1 && m == 2 && g->n != 1) return;
         } else if (m == 5) {
             for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
-            PENDING_NOTE(0x4074a0, "the arcade's next race (to the next without the front end)");
+            if (Sel_ArcadeNext()) {   /* 0x4074a0: the location's next race, without the front end */
+                race_exit(g);
+                return;
+            }
         } else if (R.kind == 0 && m == 8) {
             for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
             set_mode(Sel_NextStage() ? 2 : 0);
