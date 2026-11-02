@@ -36,6 +36,11 @@ static int bf_end[4], bf_quiet[4], bf_on[4], det_on[4], idle_on[4];
                                            /* 0x58ddf8, 0x58dd98, 0x58df78, 0x58df20, 0x58dd70 */
 /* the inside and outside mixes (0x47a710): fs, rs, fm, rm, ft, rt */
 static int32_t k_fs, k_rs, k_fm, k_rm, k_ft, k_rt;   /* 0x58df38, 0x51f274, 0x58df3c, 0x51f278, 0x58df40, 0x51f27c */
+/* the backfires and idle (0x51f294) and option 0x13's two loops (0x51f298, 0x51f29c) are kept in the
+   game state, set per camera here; the two loops play each car's sounds 13 and 14, past its own 13 (the
+   next car's fs and rs, or whatever was loaded after the last car's) */
+static int32_t v_x13a[4], v_x13b[4];       /* 0x58ddd8, 0x58df30 */
+static bool option(int n) { return gm32(0x52e890) >> n & 1; }   /* 0x406410 */
 
 /* A band of revs (0x51ea60 slow, 0x51eab8 medium, 0x51ec50 fast): steps over [lo, hi], a frequency
    table (u16) and a volume table (percent bytes) after the header in the exe (set by 0x478dc0) */
@@ -108,6 +113,7 @@ void Engine_Reset(void)
         thr[i] = thr_s[i] = 0;
         gear_was[i] = -1;
         v_fs[i] = v_rs[i] = v_fm[i] = v_rm[i] = v_whine[i] = v_ft[i] = v_rt[i] = v_det[i] = -1;
+        v_x13a[i] = v_x13b[i] = -1;
         high_gear[i] = high_revs[i] = chattered[i] = 0;
         bf_end[i] = bf_quiet[i] = idle_on[i] = det_on[i] = 0;
     }
@@ -433,11 +439,15 @@ static void mix(int car, int player, int rpm2, int rpm, int speed, int gear, int
     }
     whine(car, player, speed, gear, throttle);   /* 0x47a3d0 */
     gear_was[car] = gear_now[car];
+    if (option(0x13)) {
+        if (Voice_Playing(v_x13a[car])) Voice_SetVolume(v_x13a[car], fx_mul(fade, fx_mul(master, fx_mul(gms32(0x51f298), 0x10000))));
+        if (Voice_Playing(v_x13b[car])) Voice_SetVolume(v_x13b[car], fx_mul(fade, fx_mul(master, fx_mul(gms32(0x51f29c), 0x10000))));
+    }
 }
 
 /* 0x478c40: on the pause every engine voice of the players' cars (and the super special's second car
-   with one player, not in mode 3 or a network game) at volume 0; the two voices of option 0x13
-   (0x58ddc8) stop, which the port does not play yet (see Engine_Update) */
+   with one player, not in mode 3 or a network game) at volume 0; the two voices at 0x58ddc8
+   stop (those of 0x47aa70 and 0x47ad20, not ported; option 0x13's two loops play on) */
 void Engine_Pause(void)
 {
     uint32_t n = Gs_SelBits14();
@@ -453,12 +463,19 @@ void Engine_Update(int car, int player)
 {
     /* the mix by the camera: inside (kinds 1-3) the front sounds louder, outside the rear */
     int k = Camera_Kind(player);
-    if (k == 1 || k == 2 || k == 3) k_fs = 0xcccc, k_rs = 0x6666, k_fm = 0xc000, k_rm = 0x6000, k_ft = 0x10000, k_rt = 0x9999;
+    bool in = k == 1 || k == 2 || k == 3;
+    if (in) k_fs = 0xcccc, k_rs = 0x6666, k_fm = 0xc000, k_rm = 0x6000, k_ft = 0x10000, k_rt = 0x9999;
     else k_fs = 0x6666, k_rs = 0xcccc, k_fm = 0x6000, k_rm = 0xc000, k_ft = 0x9999, k_rt = 0x10000;
+    gw32(0x51f294, in ? 0x10000 : 0x20000);
+    gw32(0x51f298, in ? 0x20000 : 0);
+    gw32(0x51f29c, in ? 0 : 0x20000);
     loop_voice(&v_fm[car], car, FM, 0);
     loop_voice(&v_rm[car], car, RM, 0);
     if (!gm8(0x539ed8)) loop_voice(&v_whine[car], car, WHINE, 0);
-    if (gm32(0x52e890) & 0x80000) PENDING_NOTE(0x47a710, "Engine_Update (option 0x13's sounds)");
+    if (option(0x13)) {
+        if (!Voice_Playing(v_x13a[car])) v_x13a[car] = Voice_Play(base[car] + 0xd, 0x10000, 0x2b11, 0, true, false);
+        if (!Voice_Playing(v_x13b[car])) v_x13b[car] = Voice_Play(base[car] + 0xe, 0x10000, 0x2b11, 0, true, false);
+    }
     const Car *c = Car_Get(car);
     /* the revs as rpm (6,500 a unit through +0x798), the speed, the throttle as 0 or 100 */
     int rpm = fx_mul(fx_mul(CI32(c, 0x7ac), CI32(c, 0x798)), 0x19640000) >> 16;
