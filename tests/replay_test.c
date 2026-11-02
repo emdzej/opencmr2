@@ -25,6 +25,7 @@
 #include "vfs.h"
 #include "vfs_host.h"
 #include "world/stage.h"
+#include "world/section.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,9 +34,17 @@
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); fails++; } } while (0)
 
+/* RPL_DEMO=ken03 or swe01 for the other demo runs (the drive's scripted check is fra01's) */
+static const char *demo_stage(void) { return getenv("RPL_DEMO") ? getenv("RPL_DEMO") : "fra01"; }
+
 static bool load_stage(void)
 {
-    return Stage_Load("fra01", "Game\\Tracks\\France\\fra01hi.bfl", "Game\\Tracks\\France\\frahit.bfl");
+    const char *s = demo_stage();
+    char a[64], b[64];
+    const char *country = s[0] == 'k' ? "Kenya" : s[0] == 's' ? "Sweden" : "France";
+    snprintf(a, sizeof a, "Game\\Tracks\\%s\\%shi.bfl", country, s);
+    snprintf(b, sizeof b, "Game\\Tracks\\%s\\%.3shit.bfl", country, s);
+    return Stage_Load(s, a, b);
 }
 
 static bool load_cars(void)
@@ -95,10 +104,39 @@ int main(void)
     Profile_Create(0);
     int car_id = getenv("RPL_CAR") ? atoi(getenv("RPL_CAR")) : Car_IdByName("205");
     gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)car_id);
-    Tod_Select("fra01");
+    Tod_Select(demo_stage());
     gw32(0x52afb4, (gm32(0x52afb4) & 0xfffe1fffu) | 1u << 13);
     Sel_ModeFlags();
     Race_Begin(&host);
+    if (getenv("RPL_REST")) {
+        /* the demo's snapshot (the original's car at rest on the line) put into the car in the
+           countdown: the port's steps should keep it there */
+        while (Race_State(0) != 7) step();
+        for (int q = 0; q < 30; q++) step();
+        char dn0[64];
+        snprintf(dn0, sizeof dn0, "Game\\DemoRuns\\%c%c%c%c%cH.rpl", demo_stage()[0] - 32, demo_stage()[1], demo_stage()[2], demo_stage()[3], demo_stage()[4]);
+        Replay *d0 = Replay_Load(dn0);
+        const uint8_t *im = Replay_Image(d0, NULL) + 0x110 + 0x4d0;
+        Car *c = Car_Get(0);
+        memcpy(c->s, im, 0x3c0);
+        memcpy(c->s + 0x3f0, im + 0x3f0, 0x71c - 0x3f0);
+        memcpy(c->s + 0x754, im + 0x754, 0xb1a - 0x754);
+        memcpy(c->s + 0xb1b, im + 0xb1b, CAR_SIZE - 0xb1b);
+        int32_t c0 = Race_Clock(), last = -1;
+        while ((Race_Clock() - c0) / 4 <= 100 && Race_State(0) == 7) {
+            step();
+            int k = (Race_Clock() - c0) / 4;
+            if (k != last && (k < 10 || k % 10 == 0)) {
+                last = k;
+                int nd = 0;
+                for (uint32_t o = 0; o < 0x400; o += 4) nd += CI32(c, o) != (int32_t)(im[o] | im[o + 1] << 8 | im[o + 2] << 16 | (uint32_t)im[o + 3] << 24);
+                printf("  rest step %3d: y %+.5f (snapshot %.5f) vel %d %d %d  spins %d %d  %d of 256 ints of 0-0x3ff changed\n", k,
+                       (CI32(c, 0x2d4) - (int32_t)(im[0x2d4] | im[0x2d5] << 8 | im[0x2d6] << 16 | (uint32_t)im[0x2d7] << 24)) / 65536.0,
+                       CI32(c, 0x2d4) / 65536.0, CI32(c, 0x408), CI32(c, 0x40c), CI32(c, 0x410), CI32(c, 0x860), CI32(c, 0x868), nd);
+            }
+        }
+        return 0;
+    }
     while (frame < 60 * 20 && Race_State(0) != 8) step();
     CHECK(Race_State(0) == 8);
     /* the race's own replay records from the go: a scripted drive of 250 steps, then played back from
@@ -140,13 +178,21 @@ int main(void)
     printf("own run played: %d of %d steps on the recorded path\n", same, N);
     CHECK(same == N);
     Replay_End(own);
-    Replay *demo = Replay_Load("Game\\DemoRuns\\Fra01H.rpl");
+    char dn[64];
+    snprintf(dn, sizeof dn, "Game\\DemoRuns\\%c%c%c%c%cH.rpl", demo_stage()[0] - 32, demo_stage()[1], demo_stage()[2], demo_stage()[3], demo_stage()[4]);
+    Replay *demo = Replay_Load(dn);
     CHECK(demo != NULL);
     if (!demo || fails) return 1;
     uint32_t size;
     Replay_Image(demo, &size);
     printf("demo: %u bytes, %d frames\n", size, Replay_Frames(demo, 0));
     CHECK(size == 34702 && Replay_Frames(demo, 0) == 725);
+    if (getenv("RPL_SEC")) {
+        int32_t p[3] = {0x7617569, 0x2a109c, 0x4a43ad8};
+        printf("sections: %d, row %d, size %.2f; cell of the start %d; the car's +0xb00 %d\n", g_nsec, g_sec_row, g_sec_size / 65536.0,
+               Section_Find(p), CI16(Car_Get(0), 0xb00));
+        for (int i = 0; i < 3; i++) printf("  section %d at %.1f %.1f\n", i, g_sec[i].x / 65536.0, g_sec[i].z / 65536.0);
+    }
     if (getenv("RPL_DIFF")) {
         const uint8_t *im = Replay_Image(demo, NULL) + 0x110 + 0x4d0;
         Car *c = Car_Get(0);
@@ -156,6 +202,11 @@ int main(void)
         }
     }
     CHECK(Replay_Play(demo, 0, 0, 0));
+    if (getenv("RPL_NUDGE")) {   /* one unit (1/65536) added to the snapshot's x after the restore */
+        Car *c = Car_Get(0);
+        int32_t d = atoi(getenv("RPL_NUDGE"));
+        CW32(c, 0x2d0, CI32(c, 0x2d0) + d);
+    }
     int steps = 0, fin_step = -1, st9 = -1;
     int32_t c0 = Race_Clock();
     while (frame < 60 * 60 * 5 && Replay_Playing(demo)) {

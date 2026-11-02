@@ -1,4 +1,5 @@
 /* The car state and its set-up (see car.h). */
+#include "game/weather.h"
 #include "sim/car.h"
 #include "fixmath.h"
 #include "game/gstate.h"
@@ -469,8 +470,8 @@ static void orient_from_rows(Car *c)
 
 /* Car_Settle 0x43e680: the corners' ground, the normal as the body's up row (+0x36c), the forward row
    made square to it and the side row as their cross product; the car lifted so corner 0 is at its
-   ground height; the contacts; the history (+0x300.., +0x504.., +0x2dc..) started from the pose. Not
-   ported yet: the surface grip (0x4781d0, with the weather value 0x460c80). */
+   ground height; the contacts, the surface grip (0x4781d0, with the weather value 0x460c80); the history (+0x300..,
+   +0x504.., +0x2dc..) started from the pose. */
 void Car_Settle(Car *c)
 {
     g_car = c;
@@ -499,7 +500,7 @@ void Car_Settle(Car *c)
     Car_BoxCorners(c);
     Car_Contacts(c);
     for (uint32_t k = 0; k < 3; k++) CW32(c, 0x3f0 + 4 * k, CI32(c, 0x360 + 4 * k));
-    Car_SurfaceGrip(c, 0);   /* the weather value 0x460c80: dry until the weather is ported */
+    Car_SurfaceGrip(c, Weather_CarWet(c));   /* Weather_CarValue 0x460c80 */
     CW32(c, 0xa74, CI32(c, 0xa78));   /* 0x4789b0 */
     for (uint32_t o = 0x300; o < 0x330; o += 0xc)
         for (uint32_t k = 0; k < 3; k++) {

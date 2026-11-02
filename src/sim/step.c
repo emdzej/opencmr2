@@ -1,4 +1,5 @@
 /* The car part of the simulation step (see step.h). */
+#include "game/weather.h"
 #include "sim/step.h"
 #include "sim/car_internal.h"
 #include "sim/controls.h"
@@ -116,9 +117,9 @@ static void upright(Car *c)
 static void car_cell(Car *c)
 {
     int32_t p[3] = {CI32(c, 0x2d0), CI32(c, 0x2d4), CI32(c, 0x2d8)};
-    int16_t near[3] = {-1, -1, -1};
+    int16_t near[3];
     int16_t cell = (int16_t)Section_Find(p);
-    PENDING_NOTE(0x4b8910, "Section_Neighbours");
+    Section_Neighbours(p, near);
     CW16(c, 0xb00, (uint16_t)cell);
     for (uint32_t i = 0; i < 3; i++) CW16(c, 0xb02 + 2 * i, (uint16_t)near[i]);
     for (uint32_t k = 0; k < 3; k++) CW32(c, 0x2dc + 4 * k, CI32(c, 0x2d0 + 4 * k));
@@ -172,8 +173,7 @@ void Sim_StepCars(const int16_t *list, int n)
         CW32(c, 0x968, CI32(c, 0x964));
         CW32(c, 0x964, CI32(c, 0x960));
         if (!CI32(c, 0xbfc)) damage_latch(c);
-        PENDING_NOTE(0x460c80, "Weather_CarValue");   /* the weather state is not ported: dry */
-        Car_SurfaceGrip(c, 0);
+        Car_SurfaceGrip(c, Weather_CarWet(c));   /* Weather_CarValue 0x460c80 */
         clutch_counter(c);
         Damage_Misfire(c);   /* 0x46b4e0 */
     }

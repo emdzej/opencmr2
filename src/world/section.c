@@ -61,6 +61,27 @@ int Section_Find(const int32_t p[3])
     return (int16_t)i;
 }
 
+void Section_Neighbours(const int32_t p[3], int16_t out[3])
+{
+    out[0] = out[1] = out[2] = -1;
+    int16_t s = (int16_t)Section_Find(p);
+    const Section *c = &g_sec[s];
+    bool left = false, right = false;
+    int k = 0;
+    if (p[0] - 0x48000 < c->x - g_sec_half) left = true, out[0] = (int16_t)(s - 1), k = 1;
+    else if (c->x + g_sec_half < p[0] + 0x48000) right = true, out[0] = (int16_t)(s + 1), k = 1;
+    int16_t row = (int16_t)g_sec_row, v;
+    if (g_sec_half + c->z < p[2] + 0x48000) v = (int16_t)(s - row);   /* the row towards +z */
+    else if (c->z - g_sec_half > p[2] - 0x48000) v = (int16_t)(s + row);
+    else goto clamp;
+    out[k] = v;
+    if (left) out[k + 1] = (int16_t)(v - 1);
+    else if (right) out[k + 1] = (int16_t)(v + 1);
+clamp:
+    for (int i = 0; i < 3; i++)
+        if (out[i] >= (int16_t)g_nsec || out[i] < -1) out[i] = -1;
+}
+
 bool Section_Visible(int i)
 {
     if (all_visible || g_nvisible == 0) return true;

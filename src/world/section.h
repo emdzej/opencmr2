@@ -55,6 +55,9 @@ void Section_Register(const C3d *m);
    cells (Section_LinkObjects 0x4b8450), the corners (Section_Corners 0x4b9170). */
 void Section_Init(Obj *world);
 int Section_Find(const int32_t pos[3]);    /* 0x4b85f0 */
+/* 0x4b8910: the cells beside pos's within 4.5 units of its edges: the one left or right, the one above
+   or below, and the corner between them (-1 for none, or past the grid) */
+void Section_Neighbours(const int32_t pos[3], int16_t out[3]);
 bool Section_Visible(int i);               /* 0x4b7da0 */
 /* Section_BuildVisible 0x4b7de0: the cells whose corners fall in the camera's view wedge, and the nine
    around the camera's cell, within the far plane (Proj_Far). */

@@ -1,4 +1,5 @@
 /* The recovery (see recover.h). */
+#include "game/weather.h"
 #include "sim/recover.h"
 #include "world/particles.h"
 #include "sim/car_internal.h"
@@ -136,8 +137,7 @@ static void reset_at(Car *c, const int32_t pos[3], const int32_t dir[3])
     CW32(c, 0xc08, 1);
     CW32(c, 0x970, 0x320000);
     CW32(c, 0xc14, 1);
-    PENDING_NOTE(0x460c80, "Weather_CarValue");
-    Car_SurfaceGrip(c, 0);
+    Car_SurfaceGrip(c, Weather_CarWet(c));   /* Weather_CarValue 0x460c80 */
     CW32(c, 0xa74, CI32(c, 0xa78));   /* 0x4789b0 */
 }
 
