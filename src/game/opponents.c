@@ -8,6 +8,7 @@
 #include "exe.h"
 #include "game/hud.h"
 #include "game/race.h"
+#include "game/profile.h"
 #include "fixmath.h"
 #include "game/gstate.h"
 #include "game/mem.h"
@@ -34,6 +35,13 @@ static int32_t times[16][N];       /* DAT_00542198: by split, the cumulative tim
 static int8_t racing_n[4];         /* DAT_005425e8: the players whose splits go in, by race */
 static int8_t racing[4][2];        /* DAT_005425f0: their slots */
 static bool racer_done[4];         /* DAT_00542418 */
+/* the head to head (selection bit 27) */
+static int8_t pairs[8][2];         /* DAT_00541f78: by race, its two drivers' slots (a player's, the paired driver's) */
+static int8_t cpu_slot[4];         /* DAT_00541f90: by race, the paired driver's time slot */
+static int32_t lane_ref[2];        /* DAT_00542420: the .tm's two reference times (1/100 s) */
+typedef struct { int32_t a, b; float rate; } Rate;
+static Rate rates[8][2];           /* DAT_00542528: by race and lane, the CPU run's stretch to the driver's time */
+static int race_no;                /* DAT_00542600: the challenge's match */
 
 static int32_t tmi(uint32_t off) { return (int32_t)((uint32_t)tm[off] | tm[off + 1] << 8 | tm[off + 2] << 16 | (uint32_t)tm[off + 3] << 24); }
 static int32_t tmb(int i, int k) { return (int8_t)tm[i * 5 + k]; }
@@ -244,6 +252,153 @@ static void identities(void)
     }
 }
 
+/* 0x40d480: 16.16 s to 1/100 s */
+static int32_t cs_of(int32_t t) { return (int32_t)(((int64_t)(t + 0x147) << 16) / 0x28f5c28); }
+
+/* 0x455db0: a driver's time at the last shown split, 1/100 s */
+static int32_t driver_time(int d)
+{
+    int s = Sectors_Shown();
+    return cs_of(times[s][by_time[s][place[s][d & 15]]]);
+}
+
+/* 0x456a40: race r's CPU run stretched to driver d's time for each lane's reference L: the time over
+   it in quarters, L's quarters by that (at least 10, unless none over), and the replay's steps a
+   second, 100 / (4 T / L) */
+static void set_rates(int r, int d)
+{
+    int32_t t = driver_time(d);
+    for (int k = 0; k < 2; k++) {
+        int32_t l = lane_ref[k], over = t - l;
+        if (over < 0) over = 0;
+        over /= 4;
+        Rate *e = &rates[r & 7][k];
+        e->b = over;
+        if (over != 0) {
+            e->a = (int32_t)((int64_t)(l / 4) / over);
+            if (e->a < 10) e->a = 10;
+        }
+        e->rate = (float)(100.0 / ((double)t / (double)l * 4.0));
+    }
+}
+
+/* 0x455bc0: race r's paired driver d out of the splits' tables (its slot noted for the players'
+   times, 0x455af0) */
+static void take_out(int r, int d)
+{
+    for (int s = 1; s <= Sectors_Count() && s < 16; s++) {
+        int i = place[s][d & 15];
+        cpu_slot[r & 3] = by_time[s][i];
+        for (; i < entries[s] - 1; i++) {
+            by_time[s][i] = by_time[s][i + 1];
+            order[s][i] = order[s][i + 1];
+            place[s][order[s][i]] = (int8_t)i;
+        }
+        entries[s]--;
+    }
+}
+
+static int stand(int i) { return (int8_t)gm8(0x533638 + (uint32_t)i); }   /* 0x40d390: the standings' order */
+
+/* 0x4556f0: each race's pair. A rally's (head to head championship, not kind 1): from the bottom of
+   the standings each player with the computer driver above it (the players' own places kept), or
+   while as many computers are left as players to pair the next of them; a player left unpaired gets
+   the unused ones (as the original, the test is on the last player looked at). The single stage's:
+   each player with the driver in its place of the final order. The challenge's: each match with a
+   player, and its computer driver's rates by the match's number. Kind 1, the two players'. */
+static void make_pairs(void)
+{
+    int n = (int)Gs_Players();
+    switch (Gs_Mode()) {
+    case 0:
+    case 1:
+    case 2:
+        if (Race_Kind() == 1) {
+            pairs[0][0] = player_slot[0];
+            pairs[0][1] = player_slot[1];
+            return;
+        }
+        if (Gs_Mode() == 2) {
+            for (int i = 0; i < n && i < 4; i++) {
+                pairs[i][0] = player_slot[i];
+                pairs[i][1] = (int8_t)Opp_Order(i);
+                set_rates(i, pairs[i][1]);
+                take_out(i, pairs[i][1]);
+            }
+            return;
+        }
+        {
+            bool used[16] = {0};
+            int list[4] = {0}, nl = 0, last = 0;
+            for (int i = 0; i < 16; i++) {
+                int d = stand(i);
+                if (d >= computers) {
+                    last = 0xf - d;
+                    if (nl < 4) list[nl++] = last;
+                    pairs[last & 7][0] = (int8_t)d;
+                    pairs[last & 7][1] = 0x10;
+                }
+            }
+            int left = n, cnt = computers, at = n - 1;
+            for (int k = 0xf; k >= 0 && left >= 1; k--) {
+                int d = stand(k);
+                if (d < computers) {
+                    if (cnt == left) {
+                        last = list[at & 3];
+                        left--;
+                        used[d & 15] = true;
+                        at--;
+                        pairs[last & 7][1] = (int8_t)d;
+                    }
+                    cnt--;
+                } else {
+                    last = 0xf - d;
+                    if (pairs[last & 7][1] == 0x10) {
+                        int j = k, d2;
+                        do {
+                            do d2 = stand(--j);
+                            while (d2 >= computers);
+                        } while (used[d2 & 15]);
+                        left--;
+                        pairs[last & 7][1] = (int8_t)d2;
+                        used[d2 & 15] = true;
+                        at--;
+                    }
+                }
+            }
+            for (int i = 0; i < n && i < 8; i++)
+                if (pairs[last & 7][1] == 0x10)
+                    for (int j = 0xf; j >= 0; j--)
+                        if (!used[j]) pairs[i][1] = (int8_t)j, used[j] = true;
+            for (int i = 0; i < n && i < 4; i++) {
+                set_rates(i, pairs[i][1]);
+                take_out(i, pairs[i][1]);
+            }
+        }
+        return;
+    case 4: {
+        uint32_t rec = gm32(0x52f2b4), round = rec >> 3 & 7;
+        int count = round == 2 ? 4 : round == 3 ? 2 : round == 4 ? 1 : 8, j = 0;
+        uint32_t at = round == 1 ? 0x52f30c : round == 2 ? 0x52f2dc : round == 3 ? 0x52f2c4 : 0x52f2b8;
+        for (int i = 0; i < count; i++) {
+            uint32_t m = gm32(round == 4 ? at : at + 12u * (uint32_t)i);
+            int d[2] = {(int)(m & 0x1f), (int)(m >> 5 & 0x1f)}, v[2], ai = 0;
+            bool player = false, cpu = false;
+            for (int k = 0; k < 2; k++)
+                if (Player_Driver(d[k]) == -1) v[k] = player_slot[d[k] & 15], player = true;
+                else v[k] = ai = d[k] - n, cpu = true;
+            if (!player) continue;
+            /* ("Race %d has player", "... has ai driver %d" to the console) */
+            pairs[j & 7][0] = (int8_t)v[0];
+            pairs[j & 7][1] = (int8_t)v[1];
+            if (cpu) set_rates(i, ai);
+            j++;
+        }
+        return;
+    }
+    }
+}
+
 /* 0x455470 */
 void Opp_Times(bool new_seed)
 {
@@ -259,7 +414,12 @@ void Opp_Times(bool new_seed)
     split_order(P);
     identities();
     if (Gs_SelBit27()) {
-        PENDING_NOTE(0x4556f0, "Opp_Times (the championship's standings)");
+        /* the head to head: the rates' lengths cleared, the reference times, the pairs (0x4556f0) */
+        for (int r = 0; r < 8; r++) rates[r][0].b = rates[r][1].b = 0;
+        lane_ref[0] = cs_of(tmi(0x2d0));
+        lane_ref[1] = cs_of(tmi(0x310));
+        make_pairs();
+        memset(racer_done, 0, sizeof racer_done);   /* 0x455610 */
         return;
     }
     /* 0x455620: the players' slots for the splits (a race, or the alternating players one each) */
@@ -273,20 +433,26 @@ void Opp_Times(bool new_seed)
     memset(racer_done, 0, sizeof racer_done);   /* 0x455610 */
 }
 
+/* 0x4569c0 (0x456a00, 0x456a30): car i's time at a split into the tables as driver `who` (not in the
+   challenge), until it finishes */
+static void step_racer(int i, int who)
+{
+    if (Sectors_Split(i) && Gs_Mode() != 4) Opp_Insert(who, Times_Race(), Sectors_SplitIndex(i));
+    if (Sectors_Finished(i)) racer_done[i] = true;
+}
+
 /* 0x455590: the players' times at their splits into the tables, until they finish (0x4569c0,
    0x456a00, 0x456a30) */
 void Opp_Step(int race)
 {
     if (!loaded) return;
     if (Gs_SelBit27()) {
-        PENDING_NOTE(0x455590, "Opp_Step (the championship)");
+        for (int i = 1; i >= 0; i--)
+            if (!racer_done[i]) step_racer(i, pairs[race & 7][i]);
         return;
     }
-    for (int i = 0; i < racing_n[race]; i++) {
-        if (racer_done[i]) continue;
-        if (Sectors_Split(i) && Gs_Mode() != 4) Opp_Insert(racing[race][i], Times_Race(), Sectors_SplitIndex(i));
-        if (Sectors_Finished(i)) racer_done[i] = true;
-    }
+    for (int i = 0; i < racing_n[race]; i++)
+        if (!racer_done[i]) step_racer(i, racing[race][i]);
 }
 
 /* 0x455d10: the final split's times into the championship's (0x40d120) */
@@ -313,8 +479,7 @@ void Opp_Insert(int who, int32_t cs, int s)
 {
     int32_t t = fdiv((cs % 100) << 16, 0x640000) + (cs / 100) * 0x10000;   /* 0x40d4b0: 1/100 s to 16.16 s */
     if (s < 0 || s >= 16) return;
-    if (who < computers) PENDING_NOTE(0x455af0, "Opp_Insert (a championship driver's slot, 0x541f90)");
-    int slot = who;
+    int slot = who < computers ? cpu_slot[Race_Base() & 3] : who;   /* the paired driver's slot */
     times[s][slot] = t;
     int i = 0;
     while (times[s][by_time[s][i]] < t && i != entries[s]) {
@@ -332,7 +497,14 @@ done:
     entries[s]++;
 }
 
-bool Opp_Loaded(void) { return loaded; }                                                   /* 0x455ae0 */
+bool Opp_Loaded(void) { return loaded; }
+int Opp_Pair(int race) { return pairs[race & 7][1]; }                                       /* 0x455ab0 */
+int Opp_PairDriver(int race, int k) { return pairs[race & 7][k & 1]; }                      /* 0x455ac0 */
+void Opp_SetRace(int r) { race_no = r; }                                                    /* 0x456b00 */
+int Opp_Race(void) { return Gs_Mode() == 4 ? race_no : Race_Base(); }                      /* 0x456b10 */
+/* 0x456ae0: the head to head's CPU run's steps a second, for the race's lane away from the start
+   side (0x4584c0) */
+float Opp_StepRate(void) { return rates[Opp_Race() & 7][(1 - (int)gm32(0x542cb0)) & 1].rate; }                                                   /* 0x455ae0 */
 int Opp_PlaceAt(int player, int s) { return s >= 0 && s < 16 ? place[s][player_slot[player & 15]] : 15; }   /* 0x455c80 */
 int Opp_Entries(int s) { return s >= 0 && s < 16 ? entries[s] : 0; }                       /* 0x455c70 */
 int Opp_DriverAt(int e, int s) { return s < 0 || s >= 16 || e < 0 || e >= entries[s] ? -1 : order[s][e]; }   /* 0x455cc0 */

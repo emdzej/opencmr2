@@ -1539,3 +1539,17 @@
 004759d0	Challenge_Draw	challenge	high	race state 6's draw
 0044cdb0	Results_ChallengeTimes	results	high	the match's two columns of times
 004529c0	Results_DrawChallenge	results	high	the match's result: qualified or out
+004556f0	Opp_MakePairs	opponents	high	the head to head's pairs: a rally's by the standings, the single stage's by the order, the challenge's matches
+00455bc0	Opp_TakeOut	opponents	high	a race's paired driver out of the splits' tables, its time slot noted (0x541f90)
+00456a40	Opp_SetRates	opponents	high	a race's CPU run stretched to its driver's time, per lane (0x542528)
+00456ae0	Opp_StepRate	opponents	high	the head to head CPU run's steps a second for the race's lane
+00455ab0	Opp_Pair	opponents	high	a race's paired driver (0x541f79)
+00455ac0	Opp_PairDriver	opponents	high	a race's pair entry (0x541f78)
+00456b00	Opp_SetRace	opponents	high	the challenge's match number (0x542600)
+00456b10	Opp_Race	opponents	high	the race for the rates: the challenge's match, else the player base
+00455db0	Opp_DriverTime	opponents	high	a driver's time at the last shown split, 1/100 s
+004569c0	Opp_StepRacer	opponents	high	a car's time at its split into the tables, until it finishes
+00456a00	Opp_SplitIn	opponents	high	the car's split time in as a driver (not in the challenge)
+00456a30	Opp_RacerDone	opponents	high	0x542418[car] set
+00455610	Opp_ClearDone	opponents	high	0x542418 cleared
+00458b80	Sectors_NoteStart	sectors	high	each car's point and steps at the go (0x542d58, 0x542d68)

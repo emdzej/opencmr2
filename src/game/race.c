@@ -512,6 +512,10 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
             Cars_Reset((int)Gs_SelBits14(), g_all.n - (int)Gs_SelBits14(), false);   /* 0x42b800: the CPU cars */
             if (Gs_SelBit26()) Ai_Go(false);   /* 0x47bdc0 */
         }
+        /* with computer drivers or head to head (not networked) each car's point and steps at the go
+           (0x458b80, read only by the sectors' restart without the start, which the port does not
+           take); the challenge's match for the opponents' rates (0x456b00) */
+        if ((Gs_SelBit26() || Gs_SelBit27()) && !Gs_ModeBit19() && Gs_Mode() == 4) Opp_SetRace((int)(gm32(0x52f2b4) >> 0xc & 0xf));
         /* the replays from the go: the player's records; with the CPU runs for one player the run of
            each car that is a computer driver's (0x408500; in mode 4 each without a pad, 0x42b710; with
            bit 17 car 1's) plays from its start (0x46d2a0, 0x46cce0), the others' record (0x46c750, as
@@ -595,12 +599,12 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
     if (Gs_SelBit22() || Gs_SelBit24()) Times_Estimate();   /* 0x4483e0 */
     /* the head to head's winners' times into the computer drivers' tables (0x455af0); with one player
        in the arcade or round a circuit, fewer than two through, car 1's time at split 2 as its
-       paired driver's (0x455ab0: 0x541f79, made with the championship's pairs, not ported) */
+       paired driver's (0x455ab0) */
     if (Gs_SelBit27() && !Gs_ModeBit19()) {
         for (int p = 0; p < 2; p++)
             if (gm8(0x537fbc + (uint32_t)p)) Opp_Insert(Opp_PlayerSlot(p), Times_Finish(p), Sectors_Shown());
         if ((Gs_SelBit22() || Gs_SelBit24()) && players() == 1 && gm8(0x53e18c) < 2)
-            PENDING_NOTE(0x455ab0, "the head to head's paired driver (0x541f79)");
+            Opp_Insert(Opp_Pair(Race_Base()), Times_Split(1, 2), Sectors_Shown());
     }
     /* in alternation only once the last player has driven: the stage's times into the championship's
        (rally, single rally, mode 8), and at a championship rally's last stage its points */

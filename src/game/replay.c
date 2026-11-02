@@ -4,6 +4,7 @@
 #include "game/replay.h"
 #include "game/race.h"
 #include "game/gstate.h"
+#include "game/opponents.h"
 #include "game/mem.h"
 #include "game/input.h"
 #include "game/weather.h"
@@ -189,8 +190,12 @@ static void car_restore(const uint8_t *s, Car *c)
     memcpy(c->s + 0x3c0, pts, sizeof pts);
     c->s[0xb1a] = idx;
     if (Gs_SelBit28()) CW32(c, 0xa98, 0x41c80000);
-    if ((int8_t)idx > 0 && Gs_SelBit27() && !Gs_ModeBit19() && Gs_SelBits14() == 1)
-        PENDING_NOTE(0x456ae0, "the head to head's step rate");
+    if ((int8_t)idx > 0 && Gs_SelBit27() && !Gs_ModeBit19() && Gs_SelBits14() == 1) {
+        float r = Opp_StepRate();   /* 0x456ae0 */
+        uint32_t u;
+        memcpy(&u, &r, 4);
+        CW32(c, 0xa98, u);
+    }
 }
 
 /* 0x46c240: the snapshot of car: its damage record, state block and progress record, then the

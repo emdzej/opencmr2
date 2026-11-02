@@ -21,6 +21,11 @@ int Opp_PlaceAt(int player, int split); /* 0x455c80 */
 int Opp_Entries(int split);             /* 0x455c70 */
 int Opp_DriverAt(int place, int split); /* 0x455cc0: -1 none */
 int32_t Opp_TimeAt(int place, int split);   /* 0x455d40: 1/100 s */
+int Opp_Pair(int race);                 /* 0x455ab0: the head to head's paired driver */
+int Opp_PairDriver(int race, int k);    /* 0x455ac0: the race's pair (0 the player's slot, 1 the paired driver) */
+void Opp_SetRace(int race);             /* 0x456b00: the challenge's match */
+int Opp_Race(void);                     /* 0x456b10 */
+float Opp_StepRate(void);               /* 0x456ae0 */
 /* 0x455df0: two computer drivers' times at the last split, by their places (0x54204c, the driver
    less the players) */
 void Opp_PairTimes(int a, int b, int32_t *ta, int32_t *tb);

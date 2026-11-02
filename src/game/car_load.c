@@ -4,6 +4,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/select.h"
+#include "game/opponents.h"
 #include "game/sectors.h"
 #include "game/timer.h"
 #include "crt.h"
@@ -123,7 +124,11 @@ bool Car_Load(int n)
         gw8(0x52f3ec + 0xc4u * (uint32_t)n, gm8(0x52f3ec + 0xc4u * (uint32_t)n) | 2);
     } else if (!cpu) id = (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
     else if (mode == 5 || mode == 6) id = Sel_CpuCar(n);   /* 0x408010: by the car's own slot */
-    else {
+    else if (Gs_SelBit27() && !Gs_ModeBit19()) {
+        /* the head to head: the paired driver's car (0x407fc0 of 0x455ab0; 0x51681c, drivers 0-14) */
+        int d = Opp_Pair(Race_Base());
+        id = d >= 0 && d <= 0xe ? gm8(0x51681c + (uint32_t)d) : 0;
+    } else {
         PENDING_NOTE(0x457000, "Car_Load (the CPU cars of the other modes)");
         id = 0;
     }

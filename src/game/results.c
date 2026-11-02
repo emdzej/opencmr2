@@ -89,9 +89,9 @@ static const char *slot_name(int d)
 
 /* 0x44b7b0: "replay" and the driver the camera follows: in the shared replay (0x41f3a0) the second
    camera's; one player with computer drivers (bit 26) the first camera's (a computer's when it has
-   a driver, 0x408500); a head to head outside the network game its pair's driver (0x455ac0: 0x541f78,
-   which the championship's pairs fill, not ported); else the first camera's car after the player
-   base, by its driver; in mode 4 the match's names (0x4737d0-0x473810). */
+   a driver, 0x408500); a head to head outside the network game its pair's driver (0x455ac0); else
+   the first camera's car after the player base, by its driver; in mode 4 the match's names
+   (0x4737d0-0x473810). */
 static void draw_title(Menu *m)
 {
     (void)m;
@@ -110,7 +110,7 @@ static void draw_title(Menu *m)
         int side = Challenge_Side(ch_match, c0);
         name = !Challenge_IsPlayer(ch_match, side) ? Challenge_Name(ch_match, side) : Challenge_Tag(ch_match, side);
     } else if (Gs_SelBit27() && !Gs_ModeBit19()) {
-        name = slot_name((int8_t)gm8(0x541f78 + 2u * (uint32_t)Race_Base() + (uint32_t)c0));
+        name = slot_name(Opp_PairDriver(Race_Base(), c0));
     } else {
         int d = Player_Driver(c0 + Race_Base());
         name = d == -1 ? player_name(c0 + Race_Base()) : cpu_name(d);
