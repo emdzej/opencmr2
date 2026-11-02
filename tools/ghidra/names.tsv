@@ -910,3 +910,16 @@
 00498db0	Fx_WrapDeg	math	high	An angle into -180..180
 00458f30	Sectors_LapStep	race	high	Round a circuit: a lap more past the last point, less back over it
 004590a0	Sectors_LapSplit	race	high	The laps mode: a new lap restarts the splits
+00447f70	Times_Reset	race	high	The finishes cleared; round a circuit the places and lap tables
+00448730	Times_CarStep	race	high	A car that moved: its split, its lap, its finish
+00448780	Times_Moved	race	high	The time a car last moved
+004487a0	Times_AtSplit	race	high	A split's time and the place through it
+00448920	Times_LapDone	race	high	A lap's time and splits, the records
+00448bf0	Times_Duel	race	med	0x52f2b0 kind 1: the duel's gap
+00448d50	Times_SortStandings	race	high	One pass of neighbour swaps in the standings
+004486a0	Times_Ahead	race	high	Which of two cars is ahead
+004481c0	Times_Place	race	high	A car's place
+004481e0	Times_Standing	race	high	The car in a place
+00458270	Sectors_Lapped	race	high	The line crossed round a circuit this step
+00458310	Sectors_Steps	race	high	The points moved
+00458330	Sectors_LastLap	race	high	The lap of the last split

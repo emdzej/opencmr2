@@ -21,6 +21,9 @@ typedef struct {
 
 /* The port: the race with the host, the top-level mode set to 3 (0x4057e0). */
 void Race_Begin(const RaceHost *h);
+/* the build's players into the selection (0x407500): the original builds the race before its
+   state 3 loads the stage */
+void Race_SetPlayers(void);
 int Race_Frame(void);              /* 0x41b060 */
 Obj *Race_Camera(int player);      /* the host's camera object (0x538e2c[player]), NULL without one */
 int Race_State(int player);        /* the player's process state */

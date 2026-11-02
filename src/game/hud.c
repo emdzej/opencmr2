@@ -9,6 +9,7 @@
 #include "game/gstate.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/car_load.h"
 #include "font.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
@@ -37,12 +38,7 @@ static int32_t my_split[4][12];        /* 0x536e10 + 0x48 n */
 static uint8_t show_for[4];            /* DAT_00536c20 */
 static int32_t last_time[4], ref_time[4];   /* 0x536e04, 0x536e08 + 0x48 n: the time at the last split, the reference */
 
-void Times_Clear(void)
-{
-    shown = clock_ = 0;
-    for (int i = 0; i < CAR_MAX; i++) done[i] = 0;
-    memset(splits, 0, sizeof splits);
-}
+void Times_Clear(void) { shown = clock_ = 0; }
 
 /* The split bar's tables stay at the original's addresses, as its layout reads past their ends (the
    thirteenth box is the first colour): per player (0xa0 apart) 12 boxes (x, y, w, h), 12 colours,
@@ -180,21 +176,198 @@ static void tick(void)
     if (gm32(0x52f2b0) >> 0xb & 1) PENDING_NOTE(0x448de0, "Times_Tick (the clock at 0x53d1a0)");
 }
 
+/* The arcade's records stay at the original's addresses (the results and the front end read them):
+   per car 0x88 bytes at 0x53d968: +0 the time it last moved, +4 its times at the splits (selection
+   bit 25), +0x28 the last lap's splits from its start, +0x4c the lap times by lap, +0x7c the lap's
+   start, +0x80 the car that passed the split next (0xff for the last), +0x81 the place, +0x82 the
+   place at the split, +0x83 passed at the split this step, +0x84, +0x85 the records' flags; per car
+   12 laps of 5 split times at 0x53d1e8; per lap and split (9 a lap) the count through at 0x53ddb0
+   and the cars in order at 0x53de1c (8 each); the standings at 0x53dda8; the finish order at
+   0x53e17c, each car's at 0x53e184, their count 0x53e18c. */
+#define AR(k, o) (0x53d968u + 0x88u * (uint32_t)(k) + (o))
+#define LAPSP(k, lap, s) (0x53d1e8u + 4u * (uint32_t)(((lap) + (k) * 12) * 5 + (s)))
+#define THROUGH(key) (0x53ddb0u + (uint32_t)(key))
+#define ORDER_AT(key, i) (0x53de1cu + 8u * (uint32_t)(key) + (uint32_t)(i))
+#define STANDING(i) (0x53dda8u + (uint32_t)(i))
+
+int Times_Place(int car) { return (int8_t)gm8(AR(car, 0x81)); }    /* 0x4481c0 */
+int Times_Standing(int i) { return (int8_t)gm8(STANDING(i)); }     /* 0x4481e0 */
+static bool circuit(void) { return Gs_SelBit24() || Gs_SelBit25(); }
+static int32_t cap(int32_t t) { return t > 359999 ? 359999 : t; }
+
+/* 0x447f70: the clock and the finishes cleared; round a circuit the records: the places from the
+   grid (the back car last; in a championship of more than two by its order 0x40cec0), the tables;
+   0x53d1d9 (no clock cap) with selection bits 24 and 28 */
+void Times_Reset(void)
+{
+    int n = Cars_Racing();
+    clock_ = 0;
+    if (circuit()) {
+        gw8(0x53e18c, 0);
+        for (uint32_t a = 0; a < 0x1b * 4; a++) gw8(THROUGH(a), 0);
+        memset(splits, 0, sizeof splits);
+        gw8(0x53e18d, 0), gw8(0x53e18e, 0), gw8(0x53e18f, 0);
+        for (int i = 0; i < n; i++)
+            for (int k = 0; k < 12 * 9; k++) gw8(ORDER_AT(k, i), 0xff);
+        for (int i = 0; i < n; i++) {
+            int place = n - i - 1;
+            if (Gs_Mode() == 5 && n > 2) place = n - (int8_t)gm8(0x533620 + (uint32_t)i) - 1;
+            gw8(AR(i, 0x81), (uint8_t)place);
+            gw8(AR(i, 0x82), 0xff);
+            gw32(AR(i, 0), 0);
+            gw8(STANDING(place), (uint8_t)i);
+            gw32(AR(i, 0x7c), 0);
+            if (Gs_SelBit24())
+                for (int k = 0; k < 0x3c; k++) gw32(0x53d1e8u + 0xf0u * (uint32_t)i + 4u * (uint32_t)k, 0);
+            for (int k = 0; k < 9; k++) gw32(AR(i, 4 + 4 * k), 0);
+            gw8(AR(i, 0x80), 0xff);
+            gw8(AR(i, 0x83), 0);
+        }
+        if (gm32(0x52f2b0) >> 0xb & 1) gw32(0x53d1a4, 0), gw8(0x53d1a7, 0), gw8(0x53d1a6, 0);
+    }
+    for (int i = 0; i < n && i < CAR_MAX; i++) done[i] = 0;
+    gw8(0x53d1d9, Gs_SelBit24() && Gs_SelBit28());
+    capped = false;
+}
+
+/* 0x448cf0 */
+static void finished(int k)
+{
+    done[k] = 1;
+    finish[k] = shown;
+    if (!circuit()) return;
+    uint8_t f = gm8(0x53e18c);
+    gw8(0x53e17c + f, (uint8_t)k);
+    gw8(0x53e184 + (uint32_t)k, f);
+    gw8(0x53e18c, (uint8_t)(f + 1));
+}
+
+/* 0x4487a0: at a split, a player's time (in a rally only that); round a circuit the car's time in
+   the lap's table (bit 25: by split), a player's (or bit 27's two) from the lap's start, and its
+   place through the split, the car before it told it was passed */
+static void at_split(int k)
+{
+    int idx = Sectors_SplitIndex(k);
+    if (!circuit()) {
+        if (k < (int)Gs_SelBits14() && idx >= 0 && idx < 9) splits[k][idx] = shown;
+        return;
+    }
+    int n = Cars_Racing(), lap = Sectors_LastLap(k), last = Sectors_Last(k);
+    if (!Gs_SelBit24()) gw32(AR(k, 4 + 4 * idx), (uint32_t)shown);
+    else gw32(LAPSP(k, lap, idx), (uint32_t)shown);
+    if (k < (int)Gs_SelBits14() || Gs_SelBit27()) {
+        gw8(AR(k, 0x84), 0);
+        if (k < 4 && idx >= 0 && idx < 9) splits[k][idx] = Gs_SelBit24() ? shown - (int32_t)gm32(LAPSP(k, lap, 0)) : shown;
+    }
+    if (Gs_SelBit27()) lap = 0, last = idx;
+    int key = last + lap * 9;
+    int pos = (int8_t)gm8(THROUGH(key));
+    gw8(THROUGH(key), (uint8_t)(pos + 1));
+    gw8(AR(k, 0x82), (uint8_t)pos);
+    gw8(ORDER_AT(key, pos), (uint8_t)k);
+    if (pos > 0) {
+        int b = (int8_t)gm8(ORDER_AT(key, pos - 1));
+        gw8(AR(b, 0x80), (uint8_t)k);
+        gw8(AR(b, 0x83), 1);
+    }
+    if (pos == n - 1) gw8(AR(k, 0x80), 0xff);
+}
+
+/* 0x448920: a lap done (the line crossed at split 0): its time (from the table, or with bit 28 or
+   in mode 12 from +0x7c, capped), the lap's splits; the players' records (0x4cf530-0x4cfe80) and
+   time trial's (0x40a3e0) pending; 0x52f2b0 bit 11's duels; the next lap's start */
+static void lap_done(int k)
+{
+    if (!Sectors_LapFirst(k)) return;
+    int lap = Sectors_LastLap(k);
+    uint32_t lt = AR(k, 0x4c + 4 * lap);
+    if (!Gs_SelBit27()) {
+        gw32(LAPSP(k, lap, 0), (uint32_t)shown);
+        if (!Gs_SelBit28() && Gs_Mode() != 12) {
+            int32_t from = (int32_t)gm32(LAPSP(k, lap - 1, 0));
+            gw32(lt, (uint32_t)((int32_t)gm32(LAPSP(k, lap, 0)) - from));
+            for (int j = 0; j < 5; j++) gw32(AR(k, 0x28 + 4 * j), (uint32_t)((int32_t)gm32(LAPSP(k, lap - 1, j)) - from));
+        } else {
+            int32_t from = (int32_t)gm32(AR(k, 0x7c));
+            gw32(lt, (uint32_t)cap(shown - from));
+            gw32(AR(k, 0x28), 0);
+            for (int j = 0; j < 4; j++) gw32(AR(k, 0x2c + 4 * j), (uint32_t)cap((int32_t)gm32(LAPSP(k, lap, 1 + j)) - from));
+        }
+        if (Gs_Mode() == 12) PENDING_NOTE(0x40a3e0, "the time trial's lap records");
+    }
+    if (k < (int)Gs_SelBits14() && !capped) PENDING_NOTE(0x4cf530, "the arcade's lap records");
+    uint32_t w = gm32(0x52f2b0);
+    if (w >> 0xb & 1) {
+        if ((w & 7) == 2) {
+            if (Times_Place(k) == 0) gw8(0x53d1a4 + (uint32_t)k, (uint8_t)(gm8(0x53d1a4 + (uint32_t)k) + 1));
+            if ((int8_t)gm8(0x53d1a4 + (uint32_t)k) == (int)(w >> 7 & 0xf)) {
+                gw8(0x53d1a7, 1);
+                finished(k);
+                finished(1 - k);
+            }
+        }
+        if ((w & 7) == 1) {
+            if (!gm8(0x53d1a6)) {
+                if (Times_Place(k) == 0) gw8(0x53d1a6, 1), gw32(0x53d1a0, 0), gw8(0x53d1a8, (uint8_t)k);
+            } else
+                gw8(0x53d1a6, 0);
+        }
+    }
+    gw32(AR(k, 0x7c), (uint32_t)shown);
+}
+
+/* 0x4486a0: 1 when car a is ahead of b (more points), -1 when behind or level and moved no later */
+static int ahead(int a, int b)
+{
+    int sa = Sectors_Steps(a), sb = Sectors_Steps(b);
+    if (sa == sb) return (int32_t)gm32(AR(b, 0)) <= (int32_t)gm32(AR(a, 0)) ? -1 : 0;
+    return sa < sb ? -1 : sb < sa;
+}
+
+/* 0x448d50: one pass of swaps of neighbours in the standings */
+static void standings_sort(int n)
+{
+    for (int i = 1; i < n; i++) {
+        int a = (int8_t)gm8(STANDING(i)), b = (int8_t)gm8(STANDING(i - 1));
+        if (ahead(a, b) != 1) continue;
+        gw8(AR(b, 0x81), (uint8_t)(gm8(AR(b, 0x81)) + 1));
+        gw8(STANDING(i), (uint8_t)b);
+        gw8(STANDING(i - 1), (uint8_t)a);
+        gw8(AR(a, 0x81), (uint8_t)(gm8(AR(a, 0x81)) - 1));
+    }
+}
+
+/* 0x448bf0: 0x52f2b0's kind 1 duel: the other car more than its seconds behind the leader */
+static void duel(int k)
+{
+    uint32_t w = gm32(0x52f2b0);
+    if ((w & 7) == 1 && gm8(0x53d1a6) && k != (int8_t)gm8(0x53d1a8) && (int)(w >> 3 & 0xf) * 100 < (int)gm16(0x53d1a2)) {
+        gw8(0x53d1a7, 1);
+        finished((int8_t)gm8(0x53d1a8));
+        finished(1 - (int8_t)gm8(0x53d1a8));
+    }
+}
+
+/* 0x448120: the clock; round a circuit the passed flags cleared, the cars that moved timed, the
+   standings sorted; per car not done (0x448730): the split, the lap and the finish */
 void Times_Step(void)
 {
+    int n = Cars_Racing();
     tick();
-    if (Gs_SelBit24() || Gs_SelBit25()) PENDING_NOTE(0x448120, "Times_Step (the arcade cases)");
-    /* 0x448730 per car not yet done whose sectors changed: the splits (0x4487a0, 0x448920, pending) and
-       at the finish 0x448cf0, the time kept */
-    for (int i = 0; i < g_all.n; i++) {
-        int k = g_all.car[i];
-        if (done[k] || !Sectors_Moved(k)) continue;
-        /* 0x4487a0's rally part: a player's time at the split */
-        if (Sectors_Split(k) && k < (int)Gs_SelBits14() && Sectors_SplitIndex(k) >= 0 && Sectors_SplitIndex(k) < 9)
-            splits[k][Sectors_SplitIndex(k)] = shown;
-        if (!Race_Finished(k)) continue;
-        done[k] = 1;   /* 0x448cf0 */
-        finish[k] = shown;
+    if (circuit()) {
+        for (int i = 0; i < n; i++) gw8(AR(i, 0x83), 0);
+        for (int i = 0; i < n; i++)
+            if (!done[i] && Sectors_Moved(i)) gw32(AR(i, 0), (uint32_t)shown);   /* 0x448780 */
+        standings_sort(n);
+    }
+    for (int k = 0; k < n && k < CAR_MAX; k++) {
+        if (done[k]) continue;
+        if (Sectors_Moved(k)) {
+            if (Sectors_Split(k)) at_split(k);
+            if (Sectors_Lapped(k)) lap_done(k);
+            if (Race_Finished(k)) finished(k);
+        }
+        if (gm32(0x52f2b0) >> 0xb & 1) duel(k);
     }
 }
 

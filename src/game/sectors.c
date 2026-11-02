@@ -37,6 +37,9 @@ int Sectors_SplitIndex(int car) { return car >= 0 && car < CAR_MAX ? rec[car].sp
 int Sectors_Last(int car) { return car >= 0 && car < CAR_MAX ? rec[car].last : 0; }
 int Sectors_Most(int car) { return car >= 0 && car < CAR_MAX ? rec[car].most : 0; }
 bool Sectors_LapFirst(int car) { return car >= 0 && car < CAR_MAX && rec[car].first; }
+bool Sectors_Lapped(int car) { return car >= 0 && car < CAR_MAX && rec[car].f18; }
+int Sectors_LastLap(int car) { return car >= 0 && car < CAR_MAX ? rec[car].last_lap : 0; }
+int Sectors_Steps(int car) { return car >= 0 && car < CAR_MAX ? rec[car].steps : 0; }
 int32_t Sectors_Point(int i) { return i >= 0 && i < 64 ? split_at[i] : 0; }
 int Sectors_Shown(void) { return Gs_SelBit24() || Gs_SelBit25() ? nsplits : nsplits - 1; }
 

@@ -5,7 +5,10 @@
 #include <stdint.h>
 
 void Times_Clear(void);          /* 0x448100: at the go */
-void Times_Step(void);           /* 0x448120's rally part: the clock (0x448de0), the finish times */
+void Times_Step(void);           /* 0x448120: the clock (0x448de0), the splits, laps, places, finishes */
+void Times_Reset(void);          /* 0x447f70 (the line, the restart): the finishes, the arcade's records */
+int Times_Place(int car);        /* 0x4481c0: the car's place (0 the leader) */
+int Times_Standing(int i);       /* 0x4481e0: the car in place i */
 int32_t Times_Race(void);        /* 0x448110: the shown race time, 1/100 s */
 int32_t Times_Finish(int car);   /* 0x4483c0 */
 void Hud_LoadSounds(void);        /* 0x411120: up, down, blip, cross, timeout */

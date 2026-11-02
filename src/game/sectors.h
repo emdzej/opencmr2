@@ -20,3 +20,6 @@ int32_t Sectors_Point(int i);         /* 0x4583b0: split i's cat point (16.16) *
 int Sectors_Last(int car);            /* 0x458350 */
 bool Sectors_LapFirst(int car);       /* 0x458290 */
 int Sectors_Most(int car);            /* 0x4589e0: the furthest point reached (+0x10) */
+bool Sectors_Lapped(int car);         /* 0x458270: the line crossed round a circuit this step (+0x18) */
+int Sectors_LastLap(int car);         /* 0x458330: the lap of the last split (+0x04) */
+int Sectors_Steps(int car);           /* 0x458310: the points moved, back ones less (+0x12) */

@@ -288,6 +288,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Lights_Setup();    /* 0x463410, in 0x466360 */
             Effects_Types();   /* 0x45a170, the end of 0x466360 */
             if (Gs_SelBit26()) Ai_Init();   /* 0x48ca70 -> 0x47bda0 */
+            Times_Reset();     /* 0x447f70 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */
             Hud_Init(1);       /* 0x411450 */
             R.place_count = 1;
@@ -424,6 +425,7 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             for (int i = 0; i < g_all.n; i++) Car_ProgressStart(Car_Get(g_all.car[i]));
             Codriver_Reset();   /* 0x416670 */
             if (Gs_SelBit26()) Ai_Go(true);   /* 0x47bdc0 */
+            Times_Reset();      /* 0x447f70 */
             Opp_Times(false);   /* 0x455470 */
             Engine_Reset();
             Times_Clear();
@@ -499,6 +501,28 @@ static const ProcState states[14] = {
     {s10_replay, draw}, {s11_results, draw}, {s12_quit, NULL}, {NULL, draw},
 };
 
+/* Race_Frame's build: the players (0x405d70) and the kind of race; the players into the selection
+   (0x407500) */
+static uint32_t race_kind(uint32_t *np)
+{
+    uint32_t n = gm32(0x52afb4) >> 13 & 0xf;   /* 0x405d70: the players */
+    uint32_t kind;
+    if (Gs_Mode() == 4) {
+        PENDING_NOTE(0x408500, "Race_Frame (championship)");
+        kind = 2, n = 1;
+    } else if (!(Gs_Mode() == 0 && (gm8(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160) && 1 < n) {
+        /* (0x407270: rally 8 stage 11, the super special, races head to head) */
+        if (Gs_Mode() != 3 && n < 3 && !Gs_ModeBit17()) kind = 1, n = 2;
+        else kind = 4, n = 1;
+    } else
+        kind = 0, n = 1;
+    gw32(0x52f2ac, (n & 3) << 14 | (gm32(0x52f2ac) & 0xffff3fff));   /* 0x407500 */
+    *np = n;
+    return kind;
+}
+
+void Race_SetPlayers(void) { uint32_t n; race_kind(&n); }
+
 void Race_Begin(const RaceHost *h)
 {
     H = h;
@@ -524,18 +548,7 @@ int Race_Frame(void)
         return 0;
     }
     if (!R.built) gw8(0x537ef6, 0);   /* 0x41b360 */
-    uint32_t n = gm32(0x52afb4) >> 13 & 0xf;   /* 0x405d70: the players */
-    uint32_t kind;
-    if (Gs_Mode() == 4) {
-        PENDING_NOTE(0x408500, "Race_Frame (championship)");
-        kind = 2, n = 1;
-    } else if (!(Gs_Mode() == 0 && (gm8(0x52f2ac) & 0x1f) == 8 && (gm32(0x52f2ac) & 0x3e0) == 0x160) && 1 < n) {
-        /* (0x407270: rally 8 stage 11, the super special, races head to head) */
-        if (Gs_Mode() != 3 && n < 3 && !Gs_ModeBit17()) kind = 1, n = 2;
-        else kind = 4, n = 1;
-    } else
-        kind = 0, n = 1;
-    gw32(0x52f2ac, (n & 3) << 14 | (gm32(0x52f2ac) & 0xffff3fff));   /* 0x407500 */
+    uint32_t n, kind = race_kind(&n);
     R.kind = kind;
     for (uint32_t i = 0; i < n; i++) Proc_InitSlot(&R.slots[i], R.restart ? 5 : 0, kind);
     Proc_Init(&R.group, (uint8_t)n, R.slots, states, exe_data(0x519120, 26 * 4));

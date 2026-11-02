@@ -132,6 +132,7 @@ static const RaceHost host = {load_stage, load_cars, NULL, input, pose, draw, ca
 bool Play_Begin(void)
 {
     char stage[16], path[128], tex[128];
+    Race_SetPlayers();
     bool found = Stage_Arcade(stage, sizeof stage, path, tex, sizeof path);
     if (!found) {
         Stage_Name(stage, sizeof stage);
