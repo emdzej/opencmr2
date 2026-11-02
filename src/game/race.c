@@ -853,7 +853,10 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
             }
     }
     /* (the super special's run taken as ended) */
-    if (Gs_SuperSpecial()) Fireworks_Launch();   /* 0x480380 */
+    if (Gs_SuperSpecial()) {
+        Fireworks_Launch();            /* 0x480380 */
+        Results_SuperSpecialTick();    /* 0x44a150 */
+    }
     Race_Update(Proc_State(g, 0), true);
     R.first = true;
 }

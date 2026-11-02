@@ -1726,3 +1726,5 @@
 004482d0	Split_TimeAt	hud	high	A car's time at another car's last split
 00410e20	Race_DrawCountdown	race	high	State 7 draw: the view, the head to head pair names, the HUD
 00412390	Hud_PairNames	hud	high	The head to head pair "a vs b" at the countdown
+0044a150	Results_SuperSpecialTick	results	high	The super special results reveal: its tween started once and followed (0x541cf0)
+0044b3a0	Results_SuperSpecial	results	high	The super special lines over the results page: title, text 0x93, each player and place

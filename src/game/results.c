@@ -20,6 +20,7 @@
 #include "game/car_load.h"
 #include "game/standings.h"
 #include "game/challenge.h"
+#include "game/tween.h"
 #include "world/tod.h"
 #include "pending.h"
 #include "render/d3d7.h"
@@ -1160,7 +1161,7 @@ static void champ_end(int best)
     pg_rpoints.items[0].target = &pg_result;
     pg_result.items[0].target = &pg_champ;
     if (Tod_Rally() == 7 && best < 6) {
-        gw8(0x541cf0, 0);
+        gw32(0x541cf0, 0);   /* the super special's reveal */
         pg_champ.items[0].target = &pg_final;
         build_end(0, &pg_final, 0x25);
     } else if (best > 5) {
@@ -1398,13 +1399,63 @@ void Results_Step(void)
     if (to) next = to;
 }
 
+/* 0x44a150 (state 10 of the super special, once its replay has run): the reveal (0x541cf0, from
+   0x53e880's tween, 0 to 1 over 200 steps) started once and followed */
+void Results_SuperSpecialTick(void)
+{
+    if (!Tween_Active(0x53e880) && !gm32(0x541cf0)) Tween_Start(0x53e880, 0, 200, 0, 0, 0x10000, true);   /* 0x4bc290 */
+    if (Tween_Active(0x53e880)) gw32(0x541cf0, (uint32_t)Tween_Value(gm8(0x53e880)));   /* 0x4bc0c0, 0x4bc110 */
+}
+
+/* 0x44b3a0: the super special's lines over the page as the reveal passes a quarter, a half and three
+   quarters (or once it is over): the title by the difficulty (text 0x8e + 0x52afb4 bits 10-12); a
+   2-pixel bar and text 0x93 after it; each player's name (the full one when it has one under 30
+   letters) with " - " and the place (text 0x51-0x53, else 0x54 with the place), in capitals, a line
+   apart below */
+static void super_special(void)
+{
+    int w, h;
+    screen(&w, &h);
+    int x = w * 0x1e / 0x280, y = h * 0xf2 / 0x1e0;
+    int32_t t = gms32(0x541cf0);
+    if (t < 1) return;
+    bool on = Tween_Active(0x53e880);
+    static char b[256];   /* 0x663b60 (the original prints each text as its format) */
+    if (t > 0x4000 || !on) {
+        snprintf(b, sizeof b, "%s", Text_Get((int16_t)((gm32(0x52afb4) >> 10 & 7) + 0x8e)));   /* 0x405d90 */
+        Font_Print(2, b, x, y, C(0x519ecc), 0x11);
+    }
+    if (t > 0x8000 || !on) {
+        int bx = x + Font_TextWidth(2, b) + (w << 3) / 0x280;
+        int16_t r[4] = {(int16_t)bx, (int16_t)(h * 4 / 0x1e0 + h * 0xf2 / 0x1e0 - Font_Height(2)), 2, (int16_t)(h * 0x29 / 0x1e0)};
+        Rect_Fill(r, C(0x519ecc), 2);   /* (at 0x541cc0) */
+        snprintf(b, sizeof b, "%s", Text_Get(0x93));
+        Font_Print(2, b, bx + (w << 3) / 0x280, y, C(0x519ecc), 0x11);
+    }
+    if (t < 0xc001 && on) return;
+    for (int i = 0; i < (int)Gs_Players(); i++) {
+        int place = Stand_Place(Opp_PlayerSlot(i));   /* 0x455de0, 0x40d060 */
+        /* (without a profile 0x408470 gives NULL, which the original's length reads) */
+        const char *full = Player_FullName(i), *n = full && *full && strlen(full) <= 0x1d ? full : Player_Name(i);
+        snprintf(b, sizeof b, "%s", n);
+        size_t l = strlen(b);
+        snprintf(b + l, sizeof b - l, "%s", exe_str(0x519f44));
+        l = strlen(b);
+        if (place < 3) snprintf(b + l, sizeof b - l, "%s", Text_Get((int16_t)(0x51 + place)));
+        else snprintf(b + l, sizeof b - l, Text_Get(0x54), place + 1);
+        Text_ToFontCase(b);
+        Font_Print(0, b, x, y + (h * 10 / 0x1e0 + Font_Height(0)) * (i + 1), C(0x519ecc), 0x11);
+    }
+}
+
 /* 0x44b330: the page, dimmed alone for two frames after a change */
 void Results_Draw(void)
 {
     if (!active) return;
     if (shown == page || page == &pg_title) {
         if (settle < 1) {
-            Menu_Draw(page);
+            Menu_Draw(page);   /* 0x4a0550 */
+            if (Gs_SuperSpecial()) super_special();
             return;
         }
     } else {
