@@ -1000,3 +1000,17 @@
 00478c40	Engine_Pause	audio	confirmed	Every engine voice of the players' cars at volume 0
 004792c0	Engine_StopIdle	audio	confirmed	The detonations' voice stopped if it plays the idle
 00479310	Engine_StopDet	audio	confirmed	The detonations' voice stopped if it plays a detonation
+0048caa0	Tsc_Load	camera	confirmed	The stage's trackside cameras (.tsc: a count, 0x6c bytes each)
+0048cae0	Tsc_Init	camera	confirmed	A trackside camera made: on the car the interior views, else following within the radius
+0048cc30	Tsc_Step	camera	confirmed	A trackside camera's step: the rates eased, the target, aim, field of view and dolly
+0048ce80	Tsc_Start	camera	confirmed	A trackside camera's target and aim taken at once
+0048d0f0	Tsc_Place	camera	confirmed	A trackside camera placed (dolly, shake) and turned to its aim, rolled
+0048d8b0	Tsc_Nearest	camera	confirmed	The trackside camera whose dolly end is nearest a point
+0048d950	Tsc_Track	camera	confirmed	The lead eased, the target and the field of view wanted
+0048db00	Tsc_AimStep	camera	confirmed	The aim moved towards the target at a rate
+0048dc30	Tsc_FovStep	camera	confirmed	The field of view moved towards the wanted at a rate
+0048dca0	Tsc_SlideStep	camera	confirmed	The dolly's share moved on
+0048dce0	Tsc_Lead	camera	confirmed	The lead ahead of the car by its speed
+00421930	Camera_Trackside	camera	confirmed	The nearest trackside camera taken when it is another
+0041d0c0	Race_PlayerStep	race	confirmed	In the replay F1 between trackside and chase, F2 the next car
+004bae10	Vec_Normalize	math	confirmed	A vector made unit, over 512 first beyond 100 units an axis

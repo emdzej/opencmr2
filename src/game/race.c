@@ -11,6 +11,7 @@
 #include "game/skids.h"
 #include "game/proc.h"
 #include "game/camera.h"
+#include "game/input.h"
 #include "game/common.h"
 #include "game/hud.h"
 #include "game/dash.h"
@@ -95,6 +96,39 @@ static void timer_start(int p) { R.t_start[p] = Race_Clock(); }
 static void timer_run(int p) { R.t_elapsed[p] = Race_Clock() - R.t_start[p]; }
 static void timer_clear(int p) { R.t_elapsed[p] = 0; }
 
+/* 0x422fe0: the camera of the current kind (0) on another car */
+static void camera_set(int p, int kind, int car) { Camera_SelectAt(p, kind ? kind : Camera_Kind(p), 0xffff, car, false); }
+
+/* 0x41d0c0 (Race_Update, once every player has finished): while a player's replay plays, F1 (0x1000)
+   between the trackside cameras and the chase camera, F2 (0x2000) the camera on to the next car (one
+   player only); with two players in the replay the second player's keys work the second view (not
+   in modes 0-2), unless the first's replay plays */
+static void player_step(int p)
+{
+    if (!Replay_Playing(Race_Replay(p))) return;   /* 0x41f3d0 */
+    uint32_t keys = Input_Record(p)->pressed;
+    int n = Cars_Racing();
+    if (!(Gs_SelBits14() > 1 && Proc_State(&R.group, 0) == 10)) {   /* 0x41f3a0 */
+        if (keys & 0x1000) {
+            Camera_SelectAt(p, Camera_Kind(p) != 7 ? 7 : 4, 0xffff, Camera_Car(p), false);
+            return;   /* (0x4ae410 for each car, empty) */
+        }
+        if ((keys & 0x2000) && 1 < n && Gs_SelBits14() == 1) {
+            int c = (uint8_t)(Camera_Car(0) + 1);
+            camera_set(0, 0, n <= c ? 0 : c);
+        }
+        return;
+    }
+    if (p != 0 && Replay_Playing(Race_Replay(0))) return;
+    if (keys & 0x1000) {
+        uint32_t m = Gs_Mode();
+        if (m != 2 && m != 1 && m != 0) Camera_SelectAt(1, Camera_Kind(1) != 7 ? 7 : 4, 0xffff, Camera_Car(1), false);
+    } else if (keys & 0x2000) {
+        int c = (uint8_t)(Camera_Car(1) + 1);
+        camera_set(1, 0, n <= c ? 0 : c);
+    }
+}
+
 static void Race_Update(uint8_t state, bool flag)
 {
     uint32_t np = players();
@@ -173,8 +207,11 @@ static void Race_Update(uint8_t state, bool flag)
                 }
             }
         }
-        for (uint32_t i = 0; i < np; i++)
-            if (Car_Get((int)i)->s[0xb43] && flag) PENDING_NOTE(0x41d0c0, "Race_PlayerStep");
+        for (uint32_t i = 0; i < np; i++) {
+            if (!Car_Get((int)i)->s[0xb43]) continue;
+            if (flag) player_step((int)i);   /* 0x41d0c0 */
+            if (Camera_Kind((int)i) == 7) Camera_Trackside((int)i);   /* 0x421930 */
+        }
         Sim_Step();
         if (car0) {
             /* Stage_Step 0x466520 */
@@ -409,6 +446,7 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
         Proc_Event(g, slot, 0, 2);
     }
     if (slot == 0) Race_Update(Proc_State(g, 0), R.nfinished == players());
+    if (fin) Camera_SelectAt((int)slot, 7, 0xffff, Camera_Car((int)slot), false);   /* the trackside cameras */
 }
 
 /* state 9, 0x41db10: after the finish, four seconds (by the clock) before the finish is counted shown;

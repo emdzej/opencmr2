@@ -35,7 +35,7 @@ Every stage archive has the same 25 members plus 48 horizon files. Names use the
 | `temp.sky` | 15 KB | `Stage_LoadSkyGround` 0x46f060 | Sky dome, PP_F kind 5 |
 | `temp.gro` | 7 KB | `Stage_LoadSkyGround` 0x46f060 | Ground/backdrop, PP_F kind 5 |
 | `<stage>.tre` | 3.2 MB | `Stage_Load` 0x41f930 -> 0x4b5620 -> `Tre_Parse` 0x4b4aa0 | Tree shadows: one node per cell with trees, a shadow mesh each (below). Not loaded at low scenery detail (0x405ba0) |
-| `<stage>.tsc` | 5 KB | 0x41f930 | Starts with a count (0x2f) and 16.16 vectors |
+| `<stage>.tsc` | 5 KB | 0x41f930 -> 0x48caa0 | The trackside cameras: a count and 0x6c bytes each ([below](#trackside-cameras-tsc)) |
 | `<stage>.xhi` | 28 KB | 0x41f930 | 16.16 values (0x00010000 runs) |
 | `<stage>.hpc` | 258 KB | `Stage_LoadHpc` 0x41fc90 -> `Hpc_Parse` 0x490d50 | Collision geometry: a five-level grid with record arrays (below) |
 | `<stage>fin.dat` | 106 KB | `Stage_LoadFinDat` 0x490c30 | Array of 0x30-byte records (count = size / 0x30) |
@@ -293,3 +293,26 @@ each time it ends, through a fade (0x41e220).
 The demo runs are the end-to-end test of the port's simulation: played into the car from the go, a run
 must follow the recorded drive to the finish (Fra01H's at step 4,112). The port plays them; its car does
 not yet keep to the recorded path for the whole stage.
+
+## Trackside cameras (.tsc)
+
+A u32 count, then one 0x6c-byte record per camera (fin01 has 40). The cameras are used after the finish
+and in the replay (camera kind 7); each step the camera whose dolly end is nearest the car is taken.
+All values are 16.16 unless noted.
+
+| Offset | Size | Field |
+|---|---|---|
+| +0x00 | u16 | 16 in the files seen (not read) |
+| +0x02 | s16 | Roll (4,096 a turn). Within 0x3f5-0x40a the camera is on the car (the roof view), within -0x40a to -0x3f5 behind it |
+| +0x04 | 3 x 3 | The camera's rows (side, up, forward) while it does not follow the car |
+| +0x28 | 3 | Position |
+| +0x34 | 3 | The far end of the dolly; the nearest camera is chosen by this point |
+| +0x40 | 1 | Radius: the camera follows the car within it, or once the car is behind it |
+| +0x44 | 1 | Field of view at the radius |
+| +0x48 | 1 | The lead ahead of the car, times its speed |
+| +0x4c, +0x50 | 1 each | The aim's rate while the car comes closer, and while it moves away |
+| +0x54 | 1 | Field of view at the camera |
+| +0x58 | 1 | The distance below which the camera shakes, by up to half a unit |
+| +0x5c | 1 | Not read |
+| +0x60 | 1 | The dolly's rate (0: fixed); the camera moves towards +0x34 at twice its share |
+| +0x64, +0x68 | 1 each | The field of view's rate while closing, and while opening |

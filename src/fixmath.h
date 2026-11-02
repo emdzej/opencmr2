@@ -2,6 +2,7 @@
    0x4b7b20 fills at start, and the matrix and vector helpers of 0x4ba000-0x4bb000. Matrices are 16 int32,
    row vectors (v' = v M, translation in the fourth row), as the game's. */
 #pragma once
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef struct { int32_t m[16]; } FxMat;
@@ -56,6 +57,25 @@ static inline void Vec_Unit(int32_t v[3])
     if (!l) { v[0] = v[1] = v[2] = 0; return; }
     int32_t r = (int32_t)(0x100000000LL / (int32_t)l);
     for (int i = 0; i < 3; i++) v[i] = fx_mul(v[i], r);
+}
+/* 0x4bb0a0: a vector's length, the axes over 512 first (and the length times 512) when one is beyond
+   100 units */
+static inline int32_t Vec_Length(const int32_t v[3])
+{
+    bool far = false;
+    for (int i = 0; i < 3; i++) far |= v[i] > 0x640000 || v[i] < -0x640000;
+    if (!far) return (int32_t)Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2]));
+    int32_t s[3] = {v[0] / 512, v[1] / 512, v[2] / 512};
+    return (int32_t)(Fx_Sqrt((uint32_t)fx_mul(s[0], s[0]) + (uint32_t)fx_mul(s[1], s[1]) + (uint32_t)fx_mul(s[2], s[2])) << 9);
+}
+/* 0x4bae10: v made unit, as Vec_Unit but with the axes over 512 first when one is beyond 100 units */
+static inline void Vec_Normalize(int32_t v[3])
+{
+    bool far = false;
+    for (int i = 0; i < 3; i++) far |= v[i] > 0x640000 || v[i] < -0x640000;
+    if (far)
+        for (int i = 0; i < 3; i++) v[i] /= 512;
+    Vec_Unit(v);
 }
 /* 0x4ac820's and 0x429f20's turn of a 3 x 3 (rows `stride` ints apart) by three u16 angles: [1]
    about row 1 (rows 0, 2 turned), [2] about row 2 (0, 1), [0] about row 0 (1, 2), each about the row

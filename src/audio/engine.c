@@ -71,16 +71,6 @@ static uint32_t band_freq(int r, const Band *b)
     return f0;
 }
 
-/* 0x4bb0a0: a vector's length (over 512 first when an axis is beyond 100 units) */
-static int32_t length(const int32_t v[3])
-{
-    bool far = false;
-    for (int i = 0; i < 3; i++) far |= v[i] > 0x640000 || v[i] < -0x640000;
-    if (!far) return (int32_t)Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2]));
-    int32_t s[3] = {v[0] / 512, v[1] / 512, v[2] / 512};
-    return (int32_t)(Fx_Sqrt((uint32_t)fx_mul(s[0], s[0]) + (uint32_t)fx_mul(s[1], s[1]) + (uint32_t)fx_mul(s[2], s[2])) << 9);
-}
-
 /* 0x427d50: full within 2 units of the camera, silent beyond 100 */
 int32_t Engine_DistanceFade(int car, int player)
 {
@@ -89,7 +79,7 @@ int32_t Engine_DistanceFade(int car, int player)
     Camera_Position(player, cam);
     /* (0x423d70: the followed frame's position, the car's orientation for a player) */
     v[0] = CI32(c, 0x30) - cam[0], v[1] = CI32(c, 0x34) - cam[1], v[2] = CI32(c, 0x38) - cam[2];
-    int32_t d = length(v);
+    int32_t d = Vec_Length(v);
     if (d < 0x20000) return 0x10000;
     if (0x640000 < d) return 0;
     return 0x10000 - (int32_t)(((int64_t)(d - 0x20000) << 16) / 0x620000);

@@ -3,7 +3,8 @@
    each step the current one follows its car (Camera_Step 0x4219b0) and each frame the drawn camera is
    blended between the last two steps' (Camera_Frame 0x422140). Kinds: 1, 2 and 10 the interior views,
    3, 4-6 the chase cameras (4 the profile's settings, 5 a far one, 6 the 45 degree view), 7 the
-   trackside cameras, 8 a switch's blend. Ported: the chase cameras and the interior views. */
+   trackside cameras, 8 a switch's blend. Ported: the chase cameras, the interior views and the trackside
+   cameras. */
 #pragma once
 #include "sim/car.h"
 #include "world/obj.h"
@@ -11,7 +12,11 @@
 #include <stdint.h>
 
 void Camera_Reset(int player);                            /* the port: both records cleared */
-void Camera_Select(int player, int kind, bool smooth);    /* 0x422fe0 / 0x421720 */
+void Camera_Select(int player, int kind, bool smooth);    /* 0x422fe0 / 0x421720 (the car's own, the nearest trackside) */
+void Camera_SelectAt(int player, int kind, int idx, int car, bool smooth);   /* 0x421720 */
+bool Camera_LoadTsc(const uint8_t *tsc, uint32_t size);   /* 0x48caa0: the stage's trackside cameras */
+void Camera_Trackside(int player);                        /* 0x421930: the nearest trackside camera */
+int Camera_TscIndex(int player);                          /* 0x421980 */
 int Camera_Car(int player);                               /* 0x422fb0: the car the current camera follows */
 int Camera_Kind(int player);                              /* 0x422f50 */
 void Camera_Step(int player);                             /* 0x4219b0 */

@@ -1,5 +1,6 @@
 /* Stage_Load 0x41f930 (see stage_load.h). */
 #include "game/stage_load.h"
+#include "game/camera.h"
 #include "game/weather.h"
 #include "game/sectors.h"
 #include "game/hud.h"
@@ -67,7 +68,13 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     Opp_Times(true);           /* 0x455470 */
     Ai_LoadLines(stage);       /* 0x47c2f0 */
     /* 4: the trackside cameras' splines (0x48caa0), the sections */
-    PENDING_NOTE(0x48caa0, "Stage_LoadTsc");
+    {
+        char n[80];
+        snprintf(n, sizeof n, "%s.tsc", stage);
+        uint32_t size = 0;
+        const uint8_t *tsc = Bfl_FindFile(&g_stage_bfl, n, NULL, &size, false);
+        Camera_LoadTsc(tsc, tsc ? size : 0);   /* 0x48caa0 */
+    }
     Section_Init(&g_world);
     /* 5: the tree shadows and the .xhi; later the horizon colours (0x460da0) */
     Stage_LoadTre(stage, true);

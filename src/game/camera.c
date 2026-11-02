@@ -8,6 +8,7 @@
 #include "exe.h"
 #include "game/car_load.h"
 #include "pending.h"
+#include "crt.h"
 #include <string.h>
 #include <math.h>
 
@@ -295,10 +296,277 @@ static void interior_step(Cam *k, const int32_t *r, int flag)
     interior_place(k, r);
 }
 
+/* The trackside cameras (kind 7, 0x48caa0-0x48df10): the stage's .tsc, a count and per camera 0x6c
+   bytes (docs/formats/stage.md): +0x02 its roll (about a quarter turn either way: a camera on the car,
+   the interior's roof or behind view), +0x04 three rows (the forward one +0x1c), +0x28 its place,
+   +0x34 the far end of its dolly, +0x40 the radius it follows the car within, +0x44 the field of view
+   at the radius and +0x54 at the camera, +0x48 the lead by the speed, +0x4c/+0x50 the aim's rates
+   (closing, opening), +0x58 the distance below which it shakes, +0x60 the dolly's rate, +0x64/+0x68 the
+   field of view's rates. Per camera record: the camera's index (0x591740), following (0x5916d0),
+   aimed (0x5916f0), the target (0x5916a0) and the aim eased towards it (0x591898), the lead
+   (0x591868), the distance last (0x5916e0), the fields of view wanted and had (0x591710, 0x591690),
+   the rates eased (0x591754, 0x591720, 0x591700) and the dolly's share (0x591730). */
+static const uint8_t *tsc;            /* DAT_00591750 */
+static uint32_t ntsc;                 /* DAT_005918c8 */
+static int32_t ts_idx[8], ts_follow[8], ts_aimed[8], ts_dist[8], ts_fov_t[8], ts_fov[8];
+static int32_t ts_rate[8], ts_rate2[8], ts_speed[8], ts_slide[8];
+static int32_t ts_target[8][3], ts_aim[8][3], ts_lead[8][3];
+
+static int32_t T32(int i, uint32_t o)
+{
+    const uint8_t *b = tsc + 0x6c * (uint32_t)i + o;
+    return (int32_t)((uint32_t)b[0] | b[1] << 8 | b[2] << 16 | (uint32_t)b[3] << 24);
+}
+static void T3(int i, uint32_t o, int32_t v[3]) { for (int k = 0; k < 3; k++) v[k] = T32(i, o + 4u * (uint32_t)k); }
+static int16_t troll(int i) { return (int16_t)(tsc[0x6c * (uint32_t)i + 2] | tsc[0x6c * (uint32_t)i + 3] << 8); }
+/* the cameras on the car: a roll within 0x3f5-0x40a (the roof) or the same below 0 (behind) */
+static int on_car(int i)
+{
+    int16_t a = troll(i);
+    return 0x3f4 < a && a < 0x40b ? 1 : a < -0x3f4 && -0x40b < a ? 2 : 0;
+}
+static int32_t dot3(const int32_t a[3], const int32_t b[3]) { return fx_mul(a[0], b[0]) + fx_mul(a[1], b[1]) + fx_mul(a[2], b[2]); }
+
+/* 0x48caa0 (Stage_Load): the stage's .tsc; false without cameras */
+bool Camera_LoadTsc(const uint8_t *d, uint32_t size)
+{
+    if (!d || size < 4) {
+        ntsc = 0, tsc = NULL;
+        return false;
+    }
+    tsc = d + 4;
+    ntsc = (uint32_t)d[0] | d[1] << 8 | d[2] << 16 | (uint32_t)d[3] << 24;
+    return ntsc != 0;
+}
+
+/* 0x48d8b0: the camera whose dolly's end is nearest a point (the first of equals; 0 without) */
+static int ts_nearest(const int32_t p[3])
+{
+    int best = 0;
+    int32_t d = 0x270f0000;
+    for (uint32_t i = 0; i < ntsc; i++) {
+        int32_t e[3];
+        T3((int)i, 0x34, e);
+        for (int k = 0; k < 3; k++) e[k] -= p[k];
+        int32_t l = Vec_Length(e);
+        if (l < d) d = l, best = (int)i;
+    }
+    return best;
+}
+
+/* 0x48dce0: the lead ahead of the car: its first axis less its +0x408 vector made unit (turned to
+   the axis' side; none under 0.01 of speed), by the speed and the camera's +0x48 */
+static void ts_lead_of(int32_t o[3], const Cam *k, const Car *c, const int32_t *r)
+{
+    int32_t spd = CI32(c, 0x778), v[3] = {CI32(c, 0x408), CI32(c, 0x40c), CI32(c, 0x410)}, f[3];
+    row(f, r, 0);
+    if (spd < 0x28f) v[0] = v[1] = v[2] = 0;
+    else {
+        Vec_Unit(v);
+        if (dot3(v, f) < 0) v[0] = -v[0], v[1] = -v[1], v[2] = -v[2];
+    }
+    int32_t m = fx_mul(CI32(c, 0x778), T32(ts_idx[k->slot], 0x48));
+    for (int q = 0; q < 3; q++) o[q] = fx_mul(f[q] - v[q], m);
+}
+
+/* 0x48d950: the lead eased (0.1 of the new), the target the car's place plus it, the field of view
+   wanted between +0x44 at the radius and +0x54 at the camera */
+static void ts_track(Cam *k, const int32_t *r)
+{
+    int s = k->slot, i = ts_idx[s];
+    int32_t l[3], pos[3], d[3];
+    ts_lead_of(l, k, Car_Get(k->car), r);
+    for (int q = 0; q < 3; q++) ts_lead[s][q] = fx_mul(ts_lead[s][q], 0xe666);
+    for (int q = 0; q < 3; q++) ts_lead[s][q] += fx_mul(l[q], 0x1999);
+    T3(i, 0x28, pos);
+    for (int q = 0; q < 3; q++) ts_target[s][q] = r[12 + q] + ts_lead[s][q], d[q] = ts_target[s][q] - pos[q];
+    int32_t t = (int32_t)(((int64_t)(uint32_t)Vec_Length(d) << 16) / T32(i, 0x40));
+    ts_fov_t[s] = fx_mul(0x10000 - t, T32(i, 0x54)) + fx_mul(t, T32(i, 0x44));
+}
+
+/* 0x48d0f0: the camera at its place (along its dolly by twice the share), shaking by up to half a
+   unit while the car was within +0x58; its own rows while not following, else looking at the aim
+   level across; the field of view's scale (0.625, times the field of view above 1.0), rolled by +0x02 */
+static void ts_place(Cam *k, const int32_t *r)
+{
+    int s = k->slot, i = ts_idx[s];
+    if (on_car(i)) {
+        interior_place(k, r);   /* 0x4869e0 */
+        return;
+    }
+    int32_t p[3], car[3] = {r[12], r[13], r[14]};
+    T3(i, 0x28, p);
+    if (0 < T32(i, 0x60)) {
+        int32_t e[3];
+        T3(i, 0x34, e);
+        for (int q = 0; q < 3; q++) p[q] += fx_mul(fx_mul(e[q] - p[q], ts_slide[s]), 0x20000);
+    }
+    if (ts_dist[s] < T32(i, 0x58)) {
+        uint32_t b = exe_u32(0x5112f0);
+        float kf;
+        memcpy(&kf, &b, 4);
+        int32_t j[3];
+        for (int q = 0; q < 3; q++) j[q] = -(int32_t)lrintf((float)crt_rand() * kf * -65536.0f) - 0x8000;
+        /* (the original takes the length and keeps the vector as it is, zero only when zero) */
+        if (Fx_Sqrt((uint32_t)fx_mul(j[0], j[0]) + (uint32_t)fx_mul(j[1], j[1]) + (uint32_t)fx_mul(j[2], j[2])) == 0) j[0] = j[1] = j[2] = 0;
+        for (int q = 0; q < 3; q++) p[q] += j[q];
+    }
+    int32_t d[3] = {p[0] - car[0], p[1] - car[1], p[2] - car[2]};
+    ts_dist[s] = Vec_Length(d);
+    int32_t fov;
+    if (!ts_follow[s]) {
+        int32_t v[3];
+        T3(i, 0x04, v), set_row(k->m, 0, v);
+        T3(i, 0x10, v), set_row(k->m, 1, v);
+        T3(i, 0x1c, v), set_row(k->m, 2, v);
+        fov = T32(i, 0x54);
+    } else {
+        int32_t f[3] = {ts_aim[s][0] - p[0], ts_aim[s][1] - p[1], ts_aim[s][2] - p[2]};
+        Vec_Normalize(f);
+        int32_t x[3] = {fx_mul(f[2], 0x10000), 0, -fx_mul(f[0], 0x10000)};
+        int32_t u[3] = {fx_mul(f[1], x[2]), fx_mul(f[2], x[0]) - fx_mul(f[0], x[2]), -fx_mul(f[1], x[0])};
+        Vec_Normalize(x), Vec_Normalize(u), Vec_Normalize(f);
+        set_row(k->m, 0, x), set_row(k->m, 1, u), set_row(k->m, 2, f);
+        fov = ts_fov[s];
+    }
+    k->f54 = fov < 0x10000 ? 0xa000 : fx_mul(fov, 0xa000);
+    k->m[12] = k->m[13] = k->m[14] = 0;
+    FxMat rr, a, o;
+    Mat_Identity(&rr);
+    uint32_t ang = (uint16_t)troll(i);
+    rr.m[0] = rr.m[5] = g_sin[(ang + 0x400) & 0xfff];
+    rr.m[4] = g_sin[ang & 0xfff];
+    rr.m[1] = -rr.m[4];
+    memcpy(a.m, k->m, sizeof a.m);
+    Mat_Mul(&o, &rr, &a);
+    memcpy(k->m, o.m, sizeof o.m);
+    k->m[12] = p[0], k->m[13] = p[1], k->m[14] = p[2];
+    k->f48 = 0;
+    k->f4c = fx_mul(0x7ffd, (int32_t)(((int64_t)k->f54 << 16) / 0xa000));
+    k->f50 = 0, k->f58 = 0, k->f5c = 0x10000;
+}
+
+/* 0x48ce80: following, the lead and target at once; else the target on the camera's forward axis at
+   the radius (unless the car is within it or behind the camera); the aim and the field of view taken
+   at once */
+static void ts_start(Cam *k, const int32_t *r)
+{
+    int s = k->slot, i = ts_idx[s];
+    if (on_car(i)) {
+        interior_place(k, r);   /* 0x486910 */
+        return;
+    }
+    ts_slide[s] = 0;
+    if (ts_follow[s]) {
+        ts_lead_of(ts_lead[s], k, Car_Get(k->car), r);
+        ts_track(k, r);
+        if (0 < ts_rate[s]) ts_slide[s] = 0x10000;
+        ts_aimed[s] = 1;
+    } else {
+        int32_t pos[3], f[3], d[3];
+        T3(i, 0x28, pos), T3(i, 0x1c, f);
+        for (int q = 0; q < 3; q++) d[q] = r[12 + q] - pos[q];
+        int32_t rad = T32(i, 0x40);
+        if (Vec_Length(d) < rad || (dot3(f, d) < 0 && 0 < rad)) ts_track(k, r);
+        else {
+            for (int q = 0; q < 3; q++) ts_target[s][q] = fx_mul(f[q], rad) + pos[q];
+            ts_fov_t[s] = T32(i, 0x54);
+        }
+        ts_lead[s][0] = ts_lead[s][1] = ts_lead[s][2] = 0;
+    }
+    ts_speed[s] = 0;
+    memcpy(ts_aim[s], ts_target[s], 12);
+    ts_fov[s] = ts_fov_t[s];
+    ts_place(k, r);
+}
+
+/* 0x48cae0: camera idx; on the car the interior's roof or behind view, else following at once when
+   the car is within the radius or behind it */
+static void ts_init(Cam *k, const int32_t *r, int idx)
+{
+    int s = k->slot;
+    ts_idx[s] = idx;
+    int m = on_car(idx);
+    if (m) {
+        interior_init(k, r, m);   /* 0x486740 */
+        return;
+    }
+    int32_t pos[3], f[3], d[3];
+    T3(idx, 0x28, pos), T3(idx, 0x1c, f);
+    ts_rate[s] = ts_rate2[s] = 0;
+    for (int q = 0; q < 3; q++) d[q] = r[12 + q] - pos[q];
+    int32_t rad = T32(idx, 0x40);
+    ts_follow[s] = ts_aimed[s] = Vec_Length(d) < rad || (dot3(f, d) < 0 && 0 < rad);
+    ts_start(k, r);
+    ts_slide[s] = 0;
+}
+
+/* 0x48db00, 0x48dc30, 0x48dca0: the aim moved towards the target by rate (unit, taken when within
+   it, then kept on it); the field of view by rate; the dolly by v up to its end */
+static void ts_aim_step(int s, int32_t rate)
+{
+    if (!ts_aimed[s]) {
+        int32_t d[3] = {ts_target[s][0] - ts_aim[s][0], ts_target[s][1] - ts_aim[s][1], ts_target[s][2] - ts_aim[s][2]};
+        if (Vec_Length(d) < rate) ts_aimed[s] = 1;
+        else {
+            Vec_Normalize(d);
+            for (int q = 0; q < 3; q++) ts_aim[s][q] += fx_mul(d[q], rate);
+        }
+        if (!ts_aimed[s]) return;
+    }
+    memcpy(ts_aim[s], ts_target[s], 12);
+}
+
+static void ts_fov_step(int s, int32_t rate)
+{
+    int32_t d = ts_fov_t[s] - ts_fov[s];
+    if ((d < 0 ? -d : d) < rate) ts_fov[s] = ts_fov_t[s];
+    else ts_fov[s] += 0 < d ? rate : -rate;
+}
+
+static void ts_slide_step(int s, int32_t v)
+{
+    if (v <= 0) return;
+    ts_slide[s] += v;
+    if (ts_slide[s] > 0x10000) ts_slide[s] = 0x10000;
+}
+
+/* 0x48cc30: on the car the interior's step; else following once the car is within the radius, then
+   the rates eased (0.2 of the new: the closing ones while nearer than the last place's distance),
+   the target, the aim, the field of view and the dolly */
+static void ts_step(Cam *k, const int32_t *r, int flag)
+{
+    int s = k->slot, i = ts_idx[s];
+    if (on_car(i)) {
+        interior_step(k, r, flag);
+        return;
+    }
+    int32_t pos[3], d[3];
+    T3(i, 0x28, pos);
+    for (int q = 0; q < 3; q++) d[q] = pos[q] - r[12 + q];
+    int32_t l = Vec_Length(d);
+    if (ts_follow[s]) {
+        bool closing = l < ts_dist[s];
+        int32_t a = T32(i, closing ? 0x4c : 0x50), b = T32(i, closing ? 0x64 : 0x68);
+        ts_rate[s] = fx_mul(ts_rate[s], 0xcccc) + fx_mul(a, 0x3333);
+        ts_rate2[s] = fx_mul(ts_rate2[s], 0xcccc) + fx_mul(b, 0x3333);
+        ts_speed[s] = fx_mul(ts_speed[s], 0xe666) + fx_mul(T32(i, 0x60), 0x1999);
+        ts_track(k, r);
+        ts_aim_step(s, ts_rate[s]);
+        ts_fov_step(s, ts_rate2[s]);
+        ts_slide_step(s, ts_speed[s]);
+        ts_place(k, r);
+        return;
+    }
+    if (l < T32(i, 0x40)) ts_follow[s] = 1;
+    ts_place(k, r);
+}
+
+int Camera_TscIndex(int p) { return ts_idx[slots[cur[p] + 2 * p].slot]; }   /* 0x421980 (0x48d930) */
+
 /* 0x423300: a camera of a kind made for its car */
 static void cam_init(Cam *k, int kind, int sub)
 {
-    (void)sub;
     k->kind = kind;
     const int32_t *r = follow(k->car);
     switch (kind) {
@@ -308,7 +576,8 @@ static void cam_init(Cam *k, int kind, int sub)
     case 4: chase_init(k, r, 0); break;
     case 5: chase_init(k, r, 4); break;
     case 6: chase_init(k, r, 3); break;
-    default: PENDING_NOTE(0x423300, "Camera_Init (kinds 3, 7)"); chase_init(k, r, 0); break;
+    case 7: ts_init(k, r, sub); break;   /* 0x48cae0 */
+    default: PENDING_NOTE(0x423300, "Camera_Init (kind 3)"); chase_init(k, r, 0); break;
     }
 }
 
@@ -321,7 +590,8 @@ static void cam_step(Cam *k)
     switch (k->kind) {
     case 1: case 2: case 10: interior_step(k, r, flag || CI32(c, 0xb60)); break;
     case 4: case 5: case 6: chase_step(k, r, flag); break;
-    default: PENDING_NOTE(0x423460, "Camera_Step (kinds 3, 7)"); break;
+    case 7: ts_step(k, r, flag || CI32(c, 0xb60)); break;   /* 0x48cc30 */
+    default: PENDING_NOTE(0x423460, "Camera_Step (kind 3)"); break;
     }
     PENDING_NOTE(0x4930b0, "Camera_GroundLift");
     k->f60 = 0;
@@ -359,14 +629,33 @@ void Camera_Reset(int p)
 int Camera_Car(int p) { return slots[cur[p] + 2 * p].car; }   /* 0x422fb0 */
 int Camera_Kind(int p) { return out[p].kind != 8 ? slots[cur[p] + 2 * p].kind : 8; }   /* 0x422f50 */
 
-void Camera_Select(int p, int kind, bool smooth)
+/* 0x4232a0: whether a kind can be had: 7 with the stage's cameras (0x48ca90), 3 open */
+static bool allowed(int kind)
 {
+    switch (kind) {
+    case 1: case 2: case 4: case 5: case 6: case 10: return true;
+    case 3: PENDING_NOTE(0x476520, "Camera_Allowed (kind 3)"); return false;
+    case 7: return ntsc != 0;
+    default: return false;
+    }
+}
+
+/* 0x421720: the player's other record made kind on car (a trackside camera idx, 0xffff the nearest
+   the player's car), switched at once or, with smooth and neither kind 3, blended */
+void Camera_SelectAt(int p, int kind, int idx, int car, bool smooth)
+{
+    bool ok = Camera_Kind(p) != 8 && allowed(kind);
     cam_ref(p);
-    if (Camera_Kind(p) == 8) return;
+    if (!ok) return;
     Cam *c = &slots[cur[p] + 2 * p], *o = &slots[2 * p + 1 - cur[p]];
     bool b = smooth && kind != 3 && c->kind != 3;
+    if (kind == 7 && idx == 0xffff) {
+        const Car *pc = Car_Get(p);
+        int32_t at[3] = {CI32(pc, 0x2d0), CI32(pc, 0x2d4), CI32(pc, 0x2d8)};
+        idx = ts_nearest(at);   /* 0x48d8b0 */
+    }
     o->kind = kind;
-    o->car = c->car;
+    o->car = (uint8_t)car;   /* (0x4ae410 on a change, empty) */
     /* 0x423810, 0x423860: the new camera from the old (chase on the same car: its axes) */
     if ((kind == 4 || kind == 5) && c->car == o->car && (c->kind == 4 || c->kind == 5 || c->kind == 6)) {
         memcpy(chase_up[o->slot], chase_up[c->slot], 12);
@@ -376,7 +665,7 @@ void Camera_Select(int p, int kind, bool smooth)
         row(chase_up[o->slot], r, 1);
         row(chase_fwd[o->slot], r, 0);
     }
-    cam_init(o, kind, 0xffff);
+    cam_init(o, kind, idx);
     o->f60 = 0;
     if (b) {
         sw[p] = 0xc8000;
@@ -384,6 +673,18 @@ void Camera_Select(int p, int kind, bool smooth)
     }
     snap[p] = 1;
     cur[p] = (uint8_t)(1 - cur[p]);
+}
+
+void Camera_Select(int p, int kind, bool smooth) { Camera_SelectAt(p, kind, 0xffff, Camera_Car(p), smooth); }
+
+/* 0x421930 (Race_Update, with a trackside camera): the camera nearest the followed car's place, when
+   it is another */
+void Camera_Trackside(int p)
+{
+    const Car *c = Car_Get(Camera_Car(p));
+    int32_t at[3] = {CI32(c, 0x30), CI32(c, 0x34), CI32(c, 0x38)};   /* 0x423db0: its +0x750's place */
+    int i = ts_nearest(at);
+    if (i != Camera_TscIndex(p)) Camera_SelectAt(p, 7, i, Camera_Car(p), false);
 }
 
 /* 0x423970: a kind the cycle may take: 1, 3, 4, 5 when they can be had, 2 but in the replay */
