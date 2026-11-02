@@ -12,9 +12,11 @@
 #include "game/select.h"
 #include "pending.h"
 #include "render/d3d7.h"
+#include "render/twod.h"
 #include "font.h"
 #include "text.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static uint32_t idle_since;   /* DAT_0081904c */
@@ -273,4 +275,150 @@ void fe_4e2610(Menu *m)
     Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 2, NULL, -1);
     Rows_Draw(m, sound_row, false, false, top, h * 2 / 0x1e0 + h * 0x12 / 0x1e0);
     Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+/* ---- the Cheats page (0x81be78): the eight cheats found so far (0x52afc0 byte 0) turned on or off
+   (byte 1; byte 3 keeps them for a cancel) ---- */
+
+/* 0x4f28c0: the old settings kept (0x4eab80); each row on when found (0x406360) or its cheat option
+   on (the even rows 4-7, the odd 8-11, by 0x406410), and its value whether it is on (0x4063d0) */
+void fe_4f28c0(Menu *m, bool back)
+{
+    (void)back;
+    uint32_t c = gm32(0x52afc0);
+    gw32(0x52afc0, (c & 0x00ffffff) | (c >> 8 & 0xff) << 24);
+    for (int i = 0; i < 8; i++) {
+        MenuItem *it = &m->items[i];
+        it->flags = (uint8_t)((it->flags & ~MIF_ENABLED) | MIF_SELECTABLE);
+        it->value = 0;
+        int opt = i / 2 + (i % 2 ? 8 : 4);
+        if ((gm8(0x52afc0) >> i & 1) || (gm32(0x52e890) >> opt & 1)) {
+            it->flags |= MIF_ENABLED;
+            if (gm8(0x52afc1) >> i & 1) it->value = 1;
+        }
+    }
+}
+
+/* 0x4f2970: back puts the kept settings back (0x4eaba0); else the rows' values in (0x4eab40) */
+void fe_4f2970(Menu *m, bool back)
+{
+    uint32_t c = gm32(0x52afc0);
+    if (back) {
+        gw32(0x52afc0, (c & 0xffff00ff) | (c >> 24) << 8);
+        return;
+    }
+    for (int i = 0; i < 8; i++) {
+        uint32_t bit = (1u << i) << 8;
+        c = m->items[i].value ? c | bit : c & ~bit;
+    }
+    gw32(0x52afc0, c);
+}
+
+/* 0x4f3a50: a row chosen: back to the parent (keeping the settings) */
+void fe_4f3a50(Menu *m, MenuItem *it)
+{
+    (void)it;
+    Menu_Goto(m->parent);
+}
+
+/* 0x4ded80: the selectable rows (all eight) centred as the Sound page's; a row not found shows the
+   unknown mark (0x524dcc) in the third colour, else its name and Off / On (the value's lit) past the
+   widest name; the lines between unlit, lit about the chosen, the third colour between two not found */
+void fe_4ded80(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    int widest = 0;
+    for (int i = 0; i < 8; i++) {
+        int tw = Font_TextWidth(1, Text_Get(i + 0x149));
+        if (widest < tw) widest = tw;
+    }
+    Fe_Header();
+    Fe_Titles(m, w * 0x18 / 0x280, h * 0x26 / 0x1e0, true, 2, NULL, -1);
+    int n = 0;
+    for (int i = 0; i < m->n; i++) n += m->items[i].flags >> 1 & 1;
+    int x = w * 0x7a / 0x280;
+    int row = h * 0x24 / 0x1e0;
+    int16_t top = (int16_t)((h * 8 / 0x1e0 + h * 0x26 / 0x1e0 + h * 0x180 / 0x1e0) / 2 - row * n / 2);
+    uint32_t lo, hi;
+    if (m->sel == 0) lo = 0x524968, hi = 0x524974;
+    else if (!(m->items[0].flags & MIF_ENABLED)) lo = 0x524970, hi = 0x52497c;
+    else lo = 0x52496c, hi = 0x524978;
+    int16_t r[4] = {(int16_t)(w * 99 / 0x280), top, (int16_t)(w * 0x11a / 0x280), 1};
+    Rect_Fill(r, gm(hi), 1);
+    r[1]++;
+    Rect_Fill(r, gm(lo), 1);
+    Tex *a = g_fe.arrow_a;
+    int16_t aw = a ? (int16_t)a->width : 0, ah = a ? (int16_t)a->height : 0;
+    for (int i = 0; i < n; i++) {
+        MenuItem *it = &m->items[i];
+        bool on = m->sel == i, found = it->flags & MIF_ENABLED;
+        Tex *t = on ? g_fe.arrow_a : g_fe.arrow_d;
+        uint32_t c = on ? 0x524968 : found ? 0x52496c : 0x524970;
+        if (t) {
+            Rect16 src = {0, 0, t->width, t->height};
+            Rect16 dst = {(int16_t)(w * 100 / 0x280), (int16_t)(h * 0x14 / 0x1e0 + top + row * i - ah / 2), aw, ah};
+            Sprite_Add(&src, &dst, t, 1, 0, NULL, NULL, gm(c), 8);
+        }
+        int y = h * 0x18 / 0x1e0 + r[1];
+        if (!found)
+            Font_Print(1, exe_str(0x524dcc), x, y, gm(c), 0x11);
+        else {
+            Font_Print(1, Text_Get(it->text), x, y, gm(c), 0x11);
+            const char *off = Text_Get(0x133);
+            Font_Print(1, off, w * 0xf / 0x280 + widest + x, y, gm(it->value ? 0x52496c : 0x524968), 0x11);
+            Font_Print(1, Text_Get(0x134), w * 0x19 / 0x280 + widest + Font_TextWidth(1, off) + x, y,
+                       gm(it->value ? 0x524968 : 0x52496c), 0x11);
+        }
+        if (m->sel == i || m->sel == i + 1) lo = 0x524968, hi = 0x524974;
+        else if (!found && !(m->items[i + 1].flags & MIF_ENABLED)) lo = 0x524970, hi = 0x52497c;
+        else lo = 0x52496c, hi = 0x524978;
+        r[1] = (int16_t)(row * (i + 1) + top);
+        Rect_Fill(r, gm(hi), 1);
+        r[1]++;
+        Rect_Fill(r, gm(lo), 1);
+    }
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+/* ---- the Credits page (0x822958): the credits file's pairs rolling up ---- */
+
+static uint32_t credits_from;   /* DAT_008196e4 */
+static int credits_base;        /* DAT_0081987c: always 0 */
+static int *credits_y;          /* DAT_0081a72c */
+
+/* 0x4f1bd0: the roll from the bottom again (DAT_00819864 set too: never read) */
+void fe_4f1bd0(Menu *m, bool back)
+{
+    (void)m, (void)back;
+    credits_base = 0;
+    credits_from = Fe_Now();
+}
+
+/* 0x4dec30: each pair 40 of 480 apart, rising a pixel each 30 ms from under the screen; those within
+   100 of it drawn either side of the middle; when all are past 10 above the top, again */
+void fe_4dec30(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    const FeCredit *lines;
+    int n = Fe_Credits(&lines);
+    static int cap;
+    if (n > cap) {
+        free(credits_y);
+        credits_y = calloc((size_t)n, sizeof *credits_y);
+        cap = credits_y ? n : 0;
+        if (!credits_y) return;
+    }
+    bool done = true;
+    uint32_t now = Fe_Now();
+    for (int i = 0; i < n; i++) {
+        credits_y[i] = (int)((uint32_t)(h * 0x28 / 0x1e0 * i) - (now - credits_from) / 0x1e) + 1 + credits_base + h + Font_Height(2);
+        if (credits_y[i] < h + 100 && credits_y[i] > -100) {
+            Font_Print(2, lines[i].a, w / 2 - 10, (int16_t)credits_y[i], gm(0x524968), 0x14);
+            Font_Print(2, lines[i].b, w / 2 + 10, (int16_t)credits_y[i], gm(0x524968), 0x11);
+        }
+        if (credits_y[i] > -10) done = false;
+    }
+    if (done) fe_4f1bd0(m, false);
 }

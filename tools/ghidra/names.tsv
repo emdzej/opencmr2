@@ -1092,3 +1092,14 @@
 004f2840	FeSound_Enter	fe	confirmed	The volumes kept and shown
 004f2b00	FeSound_Frame	fe	confirmed	The rows into the volumes
 004f2b70	FeSound_Leave	fe	confirmed	Back restores the kept volumes
+004ded80	FeCheats_Draw	fe	confirmed	The Cheats page
+004f28c0	FeCheats_Enter	fe	confirmed	The cheats found and on into the rows
+004f2970	FeCheats_Leave	fe	confirmed	The rows into the cheats, or back restores
+004f3a50	FeCheats_Choose	fe	confirmed	A row chosen: back to the parent
+004dec30	FeCredits_Draw	fe	confirmed	The credits rolling up
+004f1bd0	FeCredits_Enter	fe	confirmed	The roll restarted
+004eab80	Cheats_Keep	fe	confirmed	The cheats' settings kept in 0x52afc0 byte 3
+004eaba0	Cheats_Restore	fe	confirmed	The kept settings back
+004eab40	Cheats_Set	fe	confirmed	One cheat on or off (0x52afc0 byte 1)
+004063d0	Cheats_On	game	confirmed	A cheat on (0x52afc0 byte 1)
+00406360	Cheats_Found	game	confirmed	A cheat found (0x52afc0 byte 0)
