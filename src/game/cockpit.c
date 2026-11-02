@@ -182,6 +182,17 @@ static void mask_tree(Obj *o, uint8_t m)
     for (Obj *x = o->child; x; x = x->next) mask_tree(x, m);
 }
 
+/* 0x486740's part: an interior view's car's objects: a kind C or A car's type 9 (else its type 5
+   again) and its type 5 under the second model (the port keeps the first two cars') */
+void Cockpit_InteriorObjs(int car)
+{
+    const Car *c = Car_Get(car);
+    if (car >= g_all.n || !c->second || car >= 2) return;
+    char kind = Car_Slot(car)->kind;
+    ck[car].o9 = Obj_FindType(c->second, kind == 'C' || kind == 'A' ? 9 : 5);
+    ck[car].o5 = Obj_FindType(c->second, 5);
+}
+
 /* 0x46b8f0's part: the model's meshes and the type 9 and 5 objects */
 void Cockpit_Masks(int car, uint8_t model, uint8_t objs)
 {

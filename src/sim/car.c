@@ -555,7 +555,7 @@ void Car_PlaceKeep(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3]
     Car *c = Car_Get(n);
     Car_Init(c, main, cls, pos, n, keep);
     Car_Settle(c);
-    if (Gs_ModeBit19()) PENDING_NOTE(0x424dc0, "Car_PlaceTwoPlayer");
+    if (Gs_ModeBit19()) PENDING_NOTE(0x424dc0, "Net_CarStart (the network game's car states, 0x5393d8)");
 }
 
 void Mat_AxisAngleRows(int32_t m[16], const int32_t a[3], int32_t ang)

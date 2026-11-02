@@ -1669,3 +1669,4 @@
 00423f30	Draw_Distance	camera	high	The hint base scaled by the draw distance option
 00422f90	Camera_SetFar	camera	high	A player's far plane (0x538e04)
 00428a00	Car_OutOfView	sim	high	In the arcade, the car out of each player's view (+0xb68) and all (+0xb70)
+00424dc0	Net_CarStart	sim	high	The network game's car state record (0x5393d8) started from the car

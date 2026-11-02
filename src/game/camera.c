@@ -129,13 +129,15 @@ static const int32_t *follow(uint8_t car)
 }
 
 /* 0x447ee0: the camera's offset from the car: the player's settings (kind 4), else the kinds' table
-   at 0x519ea0 (12 bytes each) */
+   at 0x519ea0 (12 bytes each); 0.2 lower and 0.6 nearer on a split screen one above the other */
 static void chase_offset(int32_t o[3], const Cam *k)
 {
     if (chase_kind[k->slot] == 4) memcpy(o, set_off[k->player], 12);
     else
         for (uint32_t i = 0; i < 3; i++) o[i] = (int32_t)exe_u32(0x519ea0 + 12 * chase_kind[k->slot] + 4 * i);
-    PENDING_NOTE(0x411880, "Split_Screen (the chase camera's offset lowered)");
+    /* on a split screen, one view above the other (bit 18), not shared (0x41f3a0): lower and nearer */
+    if (!(Gs_SelBits14() > 1 && Race_State(0) == 10) && Hud_SplitScreen() && Gs_ModeBit18())
+        o[1] -= 0x3333, o[2] -= 0x9999;
 }
 
 /* 0x447a40: the camera put at its offset in the smoothed axes from the followed frame, pitched by the
@@ -274,12 +276,16 @@ static void interior_target(int32_t *t, const int32_t *r, int mode)
 /* 0x4869e0: the camera at the .cin's offset for its mode in its own frame, from the followed frame */
 static void interior_place(Cam *k, const int32_t *r)
 {
-    PENDING_NOTE(0x4869e0, "Interior_Place (the split screen's modes)");
+    /* on a split screen one above the other, not shared (0x41f3a0): modes 0 and 2 take the .cin's
+       offsets 3 and 4 */
+    uint32_t mode = in_mode[k->slot];
+    if (Hud_SplitScreen() && Gs_ModeBit18() && !(Gs_SelBits14() > 1 && Race_State(0) == 10))
+        mode = mode == 0 ? 3 : mode == 2 ? 4 : mode;
     int32_t off[3] = {0, 0, 0};
     const uint8_t *sec = Car_CinSection(in_car[k->slot], 4);
     if (sec)
         for (int q = 0; q < 3; q++) {
-            const uint8_t *b = sec + 12 * in_mode[k->slot] + 4 * q;
+            const uint8_t *b = sec + 12 * mode + 4 * q;
             off[q] = (int32_t)((uint32_t)b[0] | b[1] << 8 | b[2] << 16 | (uint32_t)b[3] << 24);
         }
     FxMat m, a, o;
@@ -300,7 +306,7 @@ static void interior_init(Cam *k, const int32_t *r, int mode)
     in_mode[k->slot] = (uint8_t)mode;
     in_car[k->slot] = k->car;
     in_fov[k->slot] = 0x10000;   /* 0x486b20: set for the interior kinds */
-    PENDING_NOTE(0x486740, "Interior_Init (the cockpit objects, types 9 and 5)");
+    Cockpit_InteriorObjs(k->car);
     int32_t t[16];
     interior_target(t, r, mode);
     memcpy(k->m, t, sizeof t);
