@@ -8,6 +8,7 @@
 #include "sim/walls.h"
 #include "sim/road_follow.h"
 #include "game/gstate.h"
+#include "game/replay.h"
 #include "game/mem.h"
 #include "game/timer.h"
 #include "pending.h"
@@ -117,19 +118,20 @@ void Sim_Step(void)
 {
     PENDING_NOTE(0x427890, "Net_Messages");
     build_lists();
-    PENDING_NOTE(0x46c8e0, "Sim_Step 0x46c8e0, 0x46d270 (replay)");
+    Replay_RecordStep();   /* 0x46c8e0 */
+    Replay_PlayStep();     /* 0x46d270 */
     Sim_StepCars(g_stepped.car, g_stepped.n);
     if (g_second.n) PENDING_NOTE(0x43f630, "Sim_SecondCars");
     if (g_simple.n) PENDING_NOTE(0x425950, "Sim_SimpleCars");
     Sim_Collide(g_collide.car, g_collide.n);
     Knock_Step();   /* 0x470580 */
     Sim_CarsPost(g_stepped.car, g_stepped.n);
-    PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0, 0x444c10");
+    PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0 (the replays' poses), 0x444c10");
     Pose_Spin(&g_listA);
     Pose_Spin(&g_simple);
     Pose_Capture(&g_listA);
     Pose_Capture(&g_simple);
-    PENDING_NOTE(0x46d510, "Sim_Step 0x46d510");
+    PENDING_NOTE(0x46d510, "Sim_Step 0x46d510 (the replays' poses recorded)");
     Parts_Step(&g_listA);   /* 0x480bb0 */
     Damage_Scrapes(g_stepped.car, g_stepped.n);   /* 0x469e40 */
     /* 0x424710: the steering wheel's force feedback (DirectInput effects; gasm has none, left out) */

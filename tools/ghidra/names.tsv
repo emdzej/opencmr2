@@ -962,3 +962,26 @@
 00469de0	Scrape_Surface	sim	confirmed	A surface that sparks under a scrape (off the wheels or +0xb29 6)
 00469e40	Damage_Scrapes	sim	confirmed	Per car the eight contact points' sparks on hard surfaces, then bottoming out
 0046a500	Damage_BottomOut	sim	confirmed	All wheels at their stops: underbody sparks, dent, roll sound, shake, 3% speed
+0046bec0	Replay_UnpackControls	replay	confirmed	A frame into the car's controls and device flags; true once its steps are taken
+0046bfb0	Replay_CarSave	replay	confirmed	The car's 0xc24-byte state block copied
+0046bfd0	Replay_CarRestore	replay	confirmed	The state block back, keeping the car's pointers, contact points and index
+0046c240	Replay_SnapSave	replay	confirmed	Kind 0 snapshot: damage record, state block, progress record; progress started again
+0046c2a0	Replay_SnapRestore	replay	confirmed	Kind 0 snapshot into the car, the weather's records and knocked scenery reset
+0046c450	Replay_Pack	replay	confirmed	The car's controls packed (flags only from a type 3 pad)
+0046c4b0	Replay_Unpack	replay	confirmed	Replay_UnpackControls into the replay's car
+0046c5a0	Replay_New	replay	confirmed	A replay of segs x frames of a kind; at most eight made
+0046c6d0	Replay_FreeAll	replay	confirmed	The exit handler: the made replays freed, the loaded ones in some modes
+0046c750	Replay_Start	replay	confirmed	Recording from the next step; the first state change and the snapshot
+0046c8e0	Replay_RecordStep	replay	confirmed	Sim_Step: each recording replay's controls packed, state changes noted
+0046cc60	Replay_Stop	replay	confirmed	The recording ended (the last frame counted)
+0046cce0	Replay_Play	replay	confirmed	Playing a segment into a car, its snapshot restored
+0046cfa0	Replay_PlayOne	replay	confirmed	A step of playing: the frame into the controls, the recorded race state
+0046d270	Replay_PlayStep	replay	confirmed	Sim_Step: each replay's playing step (not in the demo's mode 6)
+0046d2a0	Replay_End	replay	confirmed	The playing ended
+0046d3f0	Replay_Save	replay	high	The replay's image written to a file
+0046d470	Replay_Layout	replay	confirmed	The block's pointers from its counts and kind
+0041c260	Replay_Setup	race	confirmed	The race's replays: one per player, the CPU runs, the ghost, champend
+0041c1b0	Replay_LoadCpuRun	race	high	A CPU run's .rpl by the stage and time of day
+0041e220	Replay_Again	race	confirmed	A player's replay fade's call: the replays from the start
+004207a0	Progress_Reset	sim	confirmed	A car's progress record started again (the +0x14 of record 2n cleared)
+00421510	Progress_Record	sim	confirmed	Car n's progress record (6 ints at 0x538aa8)

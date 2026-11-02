@@ -213,18 +213,54 @@ is the championship-end run (`%s\CPU_Runs\champend.rpl`, and `%s\CPU_Runs\%s%d%d
 0x41c1b0). A stage's `h.grp` / `l.grp` are the same format. Player replays are saved under `replays\`.
 
 **Replays are input recordings** (confirmed), so playing one back through the simulation reproduces the
-run. Loaded by `Replay_Load` 0x46d2d0, which accepts the file only if its size is one of four:
+run. A replay is one block in memory, written to and read from disk as it is. `Replay_Load` 0x46d2d0
+reads the file (or the stage archive's member of that name) and accepts it only if its size is one of
+four:
 
 ```
-0x110 + cars * 0x114e + cars * frames * 4      (the demo runs: 1 car, 7500 frames = 34,702 bytes)
-0x110 + cars * 0x5e   + cars * frames * 4
-0x110 + cars * 0x114e + cars * frames * 16
-0x110 + cars * 0x5e   + cars * frames * 16
+0x110 + segs * 0x114e + segs * frames * 4      (kind 0; the demo runs: 1 segment, 7500 frames = 34,702 bytes)
+0x110 + segs * 0x5e   + segs * frames * 4      (kind 1; champend.rpl: 6250 frames)
+0x110 + segs * 0x114e + segs * frames * 16
+0x110 + segs * 0x5e   + segs * frames * 16     (kind 2)
 ```
 
-with `cars` the `i16` at `+0xfc` and `frames` the `i16` at `+0xfe`. The 0x110-byte header is a memory image
-of the replay control block (it holds pointers from the recording machine that the loader replaces,
-0x46d470). 7,500 frames at one per 40 ms step is a five-minute buffer; the file always has the full size.
+with `segs` the `i16` at `+0xfc` and `frames` the `i16` at `+0xfe` (frames per segment). Every replay the
+game makes has one segment; a segment that fills up ends the recording. The parts, in order:
+
+| Part | Size | Content |
+|---|---|---|
+| Control block | 0x110 | See below |
+| Snapshots | segs x 0x114c (kind 0) or 0x5c | The car at the segment's start |
+| Frames | segs x frames x 4 (kinds 0, 1) or 16 (kind 2) | Run-length coded controls (kind 2: poses) |
+| Frame counts | segs x 2 | `i16` frames used per segment |
+
+The control block's fields (`Replay_New` 0x46c5a0, `Replay_Start` 0x46c750, `Replay_Play` 0x46cce0):
+
+| Offset | Type | Content |
+|---|---|---|
+| +0x00 | i32 | The recording player's profile word (0x40be60); on playback the device flag `+0xb88` is 2 when it is 0, else 1 |
+| +0x04 | i32 | Playing |
+| +0x08 | i32 | The playing's segment is under way |
+| +0x0c | i32 | Recording |
+| +0x10 | i32 | The recording's segment is under way |
+| +0x1c | i32 | Kind: 0 a car's run with the full snapshot, 1 a run with the short one (the CPU runs), 2 poses (the network game) |
+| +0x20 | u8 | The car |
+| +0x21 | u8 | Playing: steps taken of the current frame |
+| +0x24-+0x40 | | Pointers into the block (the recording machine's; the loader sets them again, 0x46d470) |
+| +0xfc, +0xfe | i16 | Segments, frames per segment |
+| +0x100 | i16 | Segments recorded |
+| +0x104 | | Pointer to the frame counts |
+| +0x108, +0x10a | i16 | Playing: the segment and frame (negative: steps of the snapshot held first) |
+| +0x10c | u8 | Playing: the race state the car was in |
+
+**The kind 0 snapshot** (0x114c bytes, taken at the go by 0x46c240): the car's damage record (0x4d0 bytes),
+its whole state block (0xc24 bytes at +0x4d0), its progress record along the centre line (6 ints at
++0x10f4), then up to ten changes of the car's race state, 6 bytes each at +0x110c (the `i16` frame, the
+`i16` steps into it, the state byte), with their count at +0x1148. The first change is the state the go
+leads to (8, the stage); the demo runs also have the finish (9). Restoring it (0x46c2a0) puts the damage
+back (`Damage_Reset`, then with damage on the record), the state block but for the car's own pointers,
+contact points and index, the progress record, the weather's records and the knocked scenery. So the
+car's handling comes from the replay, not from the car loaded.
 
 A 4-byte frame is packed by `Replay_PackControls` 0x46bdc0 from the car's controls at `+0x1d0`:
 
@@ -232,21 +268,28 @@ A 4-byte frame is packed by `Replay_PackControls` 0x46bdc0 from the car's contro
 |---|---|---|
 | 0 | 0 | Flag from the car's `+0xb8c` |
 | 0 | 1 | Flag from `+0xb90` |
-| 0 | 2-7 | Control byte `+0x1d2` (0-63) |
-| 1 | 0-1 | Control byte `+0x1d4` + 1 (a -1/0/+1 value: the gear change) |
-| 1 | 2-7 | Control byte `+0x1d3` (0-63) |
+| 0 | 2-7 | The throttle `+0x1d2` (0-63) |
+| 1 | 0-1 | The gear change `+0x1d4` + 1 (-1, 0, +1) |
+| 1 | 2-7 | The brake `+0x1d3` (0-63) |
 | 2 | 0-5 | Repeat count: the frame stands for this many steps |
 | 2 | 6 | Bit 0 of `+0x1dc` |
-| 2 | 7 | `+0x1d8` |
-| 3 | 0-5 | Steering amount: `+0x1d0` if non-zero, else `+0x1d1` |
+| 2 | 7 | The handbrake `+0x1d8` |
+| 3 | 0-5 | Steering amount: `+0x1d0` (right) if non-zero, else `+0x1d1` (left) |
 | 3 | 6 | Steering side: set when `+0x1d0` is used |
 | 3 | 7 | Flag from `+0xb88` |
 
 The three flags are only stored when the controller in use is of type 3 (0x46c450). `Replay_SameFrame`
-0x46cbe0 compares a new frame with the last one: if all fields but the count match and the count is
-below 63, the count grows, otherwise a new frame starts. So frames are run-length coded and 7,500 is a
-capacity, not a length. Which of `+0x1d2` / `+0x1d3` is throttle and which brake is read from the input
-code (0x47b0e0) when it is ported.
+0x46cbe0 compares the step's controls with the last frame: if all fields but the count match and the
+count is below 63, the count grows, otherwise a new frame starts. So frames are run-length coded and
+7,500 is a capacity, not a length (Fra01H uses 725 frames for its 4,211 steps).
 
-Demo runs are the natural end-to-end test of the port: a replayed run must reproduce the original's car
-path, which a headless gasm run can check frame by frame.
+**Recording and playing** happen at the start of each `Sim_Step` (0x46c8e0, then 0x46cfa0 per replay),
+after the cars' controls were read and before the cars are stepped: recording packs the controls,
+playing unpacks the frame over them. While a player's replay plays, `Race_Update` runs the car in the
+recorded race state. The race makes one replay per player (0x41c260, 7,500 frames for one player alone),
+records from the go, stops four seconds after the finish, and in state 10 plays it again from the start
+each time it ends, through a fade (0x41e220).
+
+The demo runs are the end-to-end test of the port's simulation: played into the car from the go, a run
+must follow the recorded drive to the finish (Fra01H's at step 4,112). The port plays them; its car does
+not yet keep to the recorded path for the whole stage.

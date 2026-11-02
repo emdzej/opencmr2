@@ -42,6 +42,7 @@
 #include "game/results.h"
 #include "game/opponents.h"
 #include "game/car_load.h"
+#include "game/replay.h"
 #include "audio/codriver.h"
 #include <string.h>
 
@@ -79,6 +80,7 @@ static void set_mode(uint32_t m) { gw32(0x52ea4c, m); }   /* 0x4057e0 */
 static uint32_t players(void) { return Gs_SelBits14(); }
 void Race_Skip(void) { R.skip = true; }
 int Race_State(int p) { return p < R.group.n ? Proc_State(&R.group, (uint32_t)p) : -1; }
+uint32_t Race_ProcWord(int p) { return p >= 0 && p < R.group.n ? R.group.slots[p].word : 0; }
 int32_t Race_Clock(void) { return R.clock << 2; }
 int32_t Race_StageTime(int p) { return R.t_elapsed[p]; }
 int32_t Race_Countdown(void) { return R.countdown; }
@@ -107,7 +109,8 @@ static void Race_Update(uint8_t state, bool flag)
             uint8_t kind;
             uint32_t held = 0, pressed = 0;
             if ((uint32_t)i < np) {
-                kind = Proc_State(&R.group, (uint32_t)i);
+                /* a player's replay playing: the state it recorded (0x41f3d0, +0x10c) */
+                kind = Replay_Playing(Race_Replay(i)) ? Replay_State(Race_Replay(i)) : Proc_State(&R.group, (uint32_t)i);
                 if (H->read_input) H->read_input(i, &held, &pressed);
             } else {
                 /* a CPU car: on the line until player 0 races, then racing; head to head (bit 27, not
@@ -117,8 +120,10 @@ static void Race_Update(uint8_t state, bool flag)
                 else if (kind == 8 && Gs_SelBit27() && !Gs_ModeBit19() && Race_Finished(i)) kind = 9;
             }
             bool cpu = (uint32_t)i >= np;   /* no pad (0x42b710 -1) */
+            Replay *rp = Race_Replay(i);   /* (0x537f3c by the car: the CPU runs' for the CPU cars) */
             switch (kind) {
             case 5: case 7:
+                R.start_count = 0;
                 if (cpu) Car_StartLineControlsCpu(c);
                 else Car_StartLineControls(c, held, pressed);
                 break;
@@ -129,27 +134,34 @@ static void Race_Update(uint8_t state, bool flag)
             case 9:
                 /* after the finish: with the computer drivers (bit 26) a player's car driven on
                    (0x47d330), a CPU car still racing; else braking to a stop, the player's input read
-                   first once finished */
+                   first once finished while the replay records or plays (0x41f3f0, 0x41f3d0) */
                 if (Gs_SelBit26()) {
                     if (!cpu) Ai_AutoDrive(i, false);
                     else Car_RaceControlsCpu(c, i);
-                } else if (R.finished[i] && !cpu) Car_FinishedPlayerControls(c, held, pressed);
+                } else if (i < 4 && R.finished[i] && (Replay_Recording(rp) || Replay_Playing(rp)))
+                    Car_FinishedPlayerControls(c, held, pressed);
                 else Car_FinishedControls(c);
                 break;
             case 10:
-                if (Gs_SelBit26() && !cpu) Ai_AutoDrive(i, false);
-                else Car_FinishedControls(c);
+                /* the replay's state: as racing while a replay plays (the frames then give the
+                   controls), else stopping, a player driven on with the computer drivers */
+                if (Gs_SelBit26() && !cpu && !Replay_Playing(rp)) Ai_AutoDrive(i, false);
+                else if (Replay_Playing(rp)) {
+                    if (cpu) Car_RaceControlsCpu(c, i);
+                    else Car_RaceControls(c, held, pressed);
+                } else Car_FinishedControls(c);
                 break;
             }
             if ((uint32_t)i < np) {
-                PENDING_NOTE(0x445ea0, "Replay_Record");
-                Hud_Update(i, kind == 5 || kind == 7);   /* 0x411f70 */
+                PENDING_NOTE(0x445ea0, "the players' gauge smoothing (0x53ce44, 0x53cfa0)");
+                if (kind == 5 || kind == 7) Hud_Update(i, true);   /* 0x411f70 */
+                else if (kind == 8 || kind == 9) Hud_Update(i, false);
                 if (state == 8 || state == 9) Codriver_Step(i);   /* 0x417090 */
                 else if (state == 7) Codriver_Start(i);           /* 0x416f70 */
                 /* 0x404e10: the pause, on the line, in the countdown (not in a network game) and on the
-                   stage, not while a fade runs or in the demo (0x41f3d0's check not ported) */
-                if ((state == 8 || state == 5 || (state == 7 && !Gs_ModeBit19())) && Pause_Pressed((int)i) &&
-                    !Fade_Active((int)i) && !gm8(0x52ea52)) {
+                   stage (by the step's state), not while the replay plays, a fade runs or in the demo */
+                if ((kind == 8 || kind == 5 || (kind == 7 && !Gs_ModeBit19())) && Pause_Pressed((int)i) &&
+                    !Replay_Playing(rp) && !Fade_Active((int)i) && !gm8(0x52ea52)) {
                     Pause_Begin((int)i);   /* 0x404ea0 */
                     PENDING_NOTE(0x478c40, "the sounds' pause (0x478c40, 0x418ee0)");
                     Crash_StopSounds();   /* 0x418780 */
@@ -215,6 +227,7 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
     R.loading = true;
     R.start_count = 0;
     if (slot == 0) {
+        Replay_FreeAll();   /* the last race's (the original's exit handlers, 0x41e670: 0x46c6d0) */
         /* 0x427c10: the engines at a third of the effects volume, the collisions at two thirds (the
            other volume, 0x41b040, not ported) */
         Engine_Volume((int32_t)(gm32(0x52afb8) >> 7 & 0x7f));
@@ -308,6 +321,9 @@ static void s5_line(ProcGroup *g, uint32_t slot)
             Lights_Setup();    /* 0x463410, in 0x466360 */
             Effects_Types();   /* 0x45a170, the end of 0x466360 */
             if (Fireworks_On()) Fireworks_Setup(20);   /* 0x47e4d0, the end of 0x466360 */
+            /* the replays (Stage_Load's in mode 3); the demo's run (0x41c510) */
+            if (gm8(0x52ea52)) PENDING_NOTE(0x41c510, "Replay_LoadDemo");
+            else if (Gs_Mode() != 3) Replay_Setup();   /* 0x41c260 */
             if (Gs_SelBit26()) Ai_Init();   /* 0x48ca70 -> 0x47bda0 */
             Times_Reset();     /* 0x447f70 */
             Sectors_Start();   /* 0x458100, in 0x424c50 */
@@ -353,12 +369,15 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
     PENDING_NOTE(0x44a120, "Countdown_Sounds");
     if (R.countdown >= 500 || R.skip) {
         Proc_Event(g, slot, 0, 2);
-        PENDING_NOTE(0x46c750, "Replay_Start");
         Times_Clear();            /* 0x448100 */
         if (Gs_SelBit22() && !Gs_SelBit25() && !Gs_ModeBit19()) {
             PENDING_NOTE(0x42b800, "the CPU cars' states");
             if (Gs_SelBit26()) Ai_Go(false);   /* 0x47bdc0 */
         }
+        /* the replay records from the go (the CPU runs' and the network game's not ported) */
+        if (Gs_ModeBit19() || (players() == 1 && Gs_SelBit25())) PENDING_NOTE(0x41d2b0, "the replays' start (CPU runs, network)");
+        else Replay_Start(Race_Replay((int)slot), (int)slot);   /* 0x46c750 */
+        if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x466030, "the ghost's run");
         timer_start((int)slot);   /* the stage time runs from the go */
     }
 }
@@ -387,7 +406,8 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
     if (400 <= Timer_Centis() - R.finish_at[slot] && !R.shown[slot]) {
         R.shown[slot] = 1;
         R.done++;
-        PENDING_NOTE(0x46cc60, "Replay_Save");
+        Replay_Stop(Race_Replay((int)slot));   /* 0x46cc60 (the network game's every replay) */
+        if (Gs_Mode() == 3) PENDING_NOTE(0x46d3f0, "the time trial's best run saved as the .grp");
     }
     int fading = 0;
     for (uint32_t i = 0; i < players(); i++) fading += Fade_Active((int)i);
@@ -403,20 +423,50 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
     R.first = true;
 }
 
-/* state 10, 0x41e350: the replay (not ported: the cars run on after the finish) with the results'
-   pages over it (Results_Step in the steps); the demo's skip (0x4d0580) ends it, 0x41f2b0: every process
-   on to the results state (the results' choices go there through their fades) */
+/* 0x41e220, a player's replay fade's call: the replay from its start (the network game's others, the
+   championship's and the CPU runs' replays of the other cars not ported) */
+static void replay_again(int p)
+{
+    Replay_Play(Race_Replay(p), 0, 0, p);   /* 0x46cce0 */
+    if (Gs_ModeBit19() || Gs_Mode() == 4 || Gs_SelBit25()) PENDING_NOTE(0x41e220, "the other cars' replays");
+}
+
+/* 0x41f2b0: every process on to the results, the players' damage stored (0x469b50), their replays
+   ended (the ghost's and the championship's rest not ported) */
+static void end_replay(ProcGroup *g)
+{
+    for (int i = 0; i < (int)players(); i++) Damage_Store(i);
+    for (uint32_t i = 0; i < g->n; i++) {
+        Proc_Event(g, i, 0, 2);
+        Replay_End(Race_Replay((int)i));
+    }
+    if ((Gs_SelBit28() && Gs_Bit30()) || Gs_Mode() == 4) PENDING_NOTE(0x41f2b0, "Race_EndReplay (the ghost, the championship)");
+}
+
+/* state 10, 0x41e350: the replay with the results' pages over it (Results_Step in the steps): while no
+   player's replay plays each player's fade (from the finish's shown flag a fade in at once, then out
+   and in) starts it again from the start; the skip key (0x4d0580) ends it (0x41f2b0), the results'
+   choices go on through their fades. The super special plays its CPU run (champend.rpl, not ported)
+   and launches a rocket each frame once it has ended. */
 static void s10_replay(ProcGroup *g, uint32_t slot)
 {
+    if (Gs_Mode() == 10) PENDING_NOTE(0x41e350, "the arcade replay's time-out");
     if (R.skip || gm8(0x817574)) {
         R.skip = false;
-        for (int i = 0; i < (int)players(); i++) Damage_Store(i);   /* 0x469b50 */
-        for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
+        end_replay(g);
     }
     if (slot != 0) return;
-    PENDING_NOTE(0x46cce0, "Replay_Play");
-    /* the super special: a rocket each frame while the replay runs (its record 0x537f3c +4, taken as
-       clear) */
+    if (!Gs_SuperSpecial() || !Race_Replay(0)) {
+        bool any = false;
+        for (int i = 0; i < (int)players(); i++) any |= Replay_Playing(Race_Replay(i));
+        if (!any)
+            for (uint32_t i = 0; i < players(); i++) {
+                int mode = 3;
+                if (R.shown[i]) mode = 2, R.shown[i] = 0;
+                Fade_Start((int)i, 0xc8000, replay_again, mode, 2, 0, 0, false);   /* 0x428410 */
+            }
+    }
+    /* (the super special's run taken as ended) */
     if (Gs_SuperSpecial()) Fireworks_Launch();   /* 0x480380 */
     Race_Update(Proc_State(g, 0), true);
     R.first = true;
@@ -428,6 +478,9 @@ static void s11_results(ProcGroup *g, uint32_t slot)
 {
     (void)slot;
     Results_Stop();
+    /* the players' replays ended (0x41e8d0 on each way out; nothing steps them here) */
+    for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
+        Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
     if (Pause_QuitAsked()) {
         /* the pause's exit: every process to state 0, back to the front end (0x41e670, 0x41b300) */
         Pause_ClearAsks();
@@ -457,7 +510,10 @@ static void s11_results(ProcGroup *g, uint32_t slot)
             Skids_Reset();   /* 0x465530 */
             Knock_Restore();   /* 0x4702a0 */
             Lights_Reset();   /* 0x463d00 */
-            PENDING_NOTE(0x41e6b0, "Race_Restart's splits and replay (0x4584d0, 0x42b800)");
+            PENDING_NOTE(0x41e6b0, "Race_Restart's splits (0x4584d0, 0x42b800)");
+            /* the replays ended, for the championship and the CPU runs the first two */
+            for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
+                Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
             R.nfinished = 0, R.done = 0;
             memset(R.finished, 0, sizeof R.finished);
             memset(R.shown, 0, sizeof R.shown);

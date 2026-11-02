@@ -19,3 +19,6 @@ void Car_ProgressStart(Car *c);
 void Car_Progress(Car *c);                /* 0x420a30 */
 int32_t Car_StageShare(const Car *c);     /* 0x421470: 0 to 1.0, 1.0 at the finish */
 int Car_PointsPassed(const Car *c);       /* the record's +0x08 */
+void Progress_Save(int n, uint8_t out[0x18]);       /* 0x421510's record, in the original's layout */
+void Progress_Load(int n, const uint8_t in[0x18]);
+void Progress_Reset(int n);                          /* 0x4207a0 */

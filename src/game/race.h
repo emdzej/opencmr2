@@ -27,6 +27,7 @@ void Race_SetPlayers(void);
 int Race_Frame(void);              /* 0x41b060 */
 Obj *Race_Camera(int player);      /* the host's camera object (0x538e2c[player]), NULL without one */
 int Race_State(int player);        /* the player's process state */
+uint32_t Race_ProcWord(int player);   /* the process's state word (0x41b390's slots), 0 past them */
 int32_t Race_Clock(void);          /* 0x41d290: the steps run since the start, in 1/100 s */
 int32_t Race_StageTime(int player);   /* 0x4781c0 */
 int32_t Race_Countdown(void);      /* DAT_00537fc0: 1/100 s into the countdown */

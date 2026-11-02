@@ -220,3 +220,31 @@ int Car_PointsPassed(const Car *c) { return (int)rec[CI8(c, 0xb1a)].passed; }
 int Car_CatIndex(const Car *c) { return finish ? (int)rec[CI8(c, 0xb1a)].idx : 0; }
 int Car_CatIndex16(const Car *c) { return finish ? (int)rec[CI8(c, 0xb1a)].idx16 : 0; }
 const uint8_t *Cat_Record(int i) { return finish ? cat + (size_t)i * CAT_REC : NULL; }
+
+/* 0x421510: car n's record (6 ints at 0x538aa8 + 0x18 n) in the original's layout, for the replays'
+   snapshots */
+void Progress_Save(int n, uint8_t out[0x18])
+{
+    const Rec *r = &rec[n];
+    uint32_t v[6] = {r->idx, r->x4, r->passed, r->dist, (uint32_t)r->frac, r->idx16};
+    for (int i = 0; i < 6; i++)
+        for (int b = 0; b < 4; b++) out[4 * i + b] = (uint8_t)(v[i] >> 8 * b);
+}
+
+void Progress_Load(int n, const uint8_t in[0x18])
+{
+    Rec *r = &rec[n];
+    r->idx = (uint32_t)rd32(in), r->x4 = (uint32_t)rd32(in + 4), r->passed = (uint32_t)rd32(in + 8);
+    r->dist = (uint32_t)rd32(in + 0xc), r->frac = rd32(in + 0x10), r->idx16 = (uint16_t)rd32(in + 0x14);
+}
+
+/* 0x4207a0: car n's record started again at its +0x04 point; the original clears the +0x14 word of
+   record 2n (its index scaled by 0x30), and for the two players the search's cursor and best */
+void Progress_Reset(int n)
+{
+    rec[n].idx = rec[n].x4;
+    rec[n].passed = 0;
+    rec[n].dist = 0;
+    if (2 * n < CAR_MAX) rec[2 * n].idx16 = 0;   /* (past the records it writes other variables) */
+    if (n < 2) since[n] = 0, best_d[n] = 0, best_idx[n] = 0, cursor[n] = 0;
+}
