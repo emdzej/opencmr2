@@ -19,6 +19,7 @@
 #include "game/proc.h"
 #include "game/timer.h"
 #include "game/weather.h"
+#include "render/mesh.h"
 #include "pending.h"
 #include "render/d3d7.h"
 #include "render/dlight.h"
@@ -407,7 +408,15 @@ static void s0_init(ProcGroup *g, uint32_t s)
     Sv_LoadTextures();
     Sv_StageInit();
     Sv_ForecastInit();
-    PENDING_NOTE(0x4b2970, "the service area's environment map (option 15, 16)");
+    /* the environment map: <setup>\\textures\\environment\\environment.tga from the common archive,
+       the second stage bound too unless with option 15 of 0x52e890 (0x4b2970; option 16 only picks
+       the cube targets' flags) */
+    {
+        char n[0x110];
+        snprintf(n, sizeof n, exe_str(0x527070), Path_SetupRep());
+        Env_SetBoth(!(gm32(0x52e890) >> 15 & 1));
+        Env_Load(Sv_Common(), n);
+    }
     Champs_Scan();   /* 0x4f4ef0 */
     load_sounds();
     menu_sounds();

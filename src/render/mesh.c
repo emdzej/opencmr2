@@ -7,6 +7,7 @@
 #include "render/rstate.h"
 #include "render/tex.h"
 #include "fixmath.h"
+#include "pending.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -284,10 +285,126 @@ static void draw_polys(const C3d *m, uint8_t *part, bool clamp_by_flags)
     }
 }
 
+/* ---- the environment map (Tex_LoadEnvMap 0x4b23c0, 0x4b2460, 0x4b2610) ---- */
+
+static int32_t env_tex = -1;   /* DAT_005210b8: the reflection texture, -1 none */
+static bool env_both = true;   /* DAT_005210bc: the second stage bound as well (0x4b2970; 1 in the exe) */
+
+void Env_SetBoth(bool on) { env_both = on; }   /* 0x4b2970 */
+
+/* 0x4b23c0: the stage's (or the service area's) reflection texture from the archive, blend type 4.
+   The cars' own cube targets (0x6de95c, with option 0x80) are not made: the port has no render
+   targets. */
+bool Env_Load(const BflSlot *archive, char *name)
+{
+    env_tex = -1;
+    Tex *t = Bfl_FindTexture(archive, name, NULL, false, 0x8000);
+    if (!t) return false;
+    env_tex = t->index;
+    Tex_SetBlend(t, 4);
+    return true;
+}
+
+/* 0x4b2460: each polygon corner's second coordinates from its position plus normal halved, through
+   the view times the world (0x4b9ff0, in that order): u = (p . column 0 + 1) / 2, v = (1 - p . column
+   1) / 2; the part's vertices uploaded again */
+static void env_coords(const C3d *m, uint8_t *part)
+{
+    D3DMATRIX view, world;
+    D3d_GetTransform(D3DTS_VIEW, &view);
+    D3d_GetTransform(D3DTS_WORLD, &world);
+    float o[4][4];
+    for (int r = 0; r < 4; r++)
+        for (int c = 0; c < 4; c++) {
+            float s = 0;
+            for (int k = 0; k < 4; k++) s += view.m[r][k] * world.m[k][c];
+            o[r][c] = s;
+        }
+    uint8_t *v = (uint8_t *)C3d_Ref(m, part + 0x0c, m->verts);
+    const uint8_t *p = C3d_Ref(m, part + 0x24, m->polys);
+    int32_t np = (int32_t)rd32(part + 0x28);
+    for (int32_t i = 0; v && p && i < np; i++)
+        for (int j = 0; j < 3; j++) {
+            uint8_t *x = v + (size_t)rd16(p + (size_t)i * C3D_POLY + 0x40 + 2 * j) * C3D_VERTEX;
+            float f[6];
+            memcpy(f, x, sizeof f);
+            float a = (f[3] + f[0]) * 0.5f, b = (f[4] + f[1]) * 0.5f, c = (f[5] + f[2]) * 0.5f;
+            float u = (a * o[0][0] + b * o[1][0] + c * o[2][0] + 1.0f) * 0.5f;
+            float w = (1.0f - (a * o[0][1] + b * o[1][1] + c * o[2][1])) * 0.5f;
+            memcpy(x + 0x28, &u, 4), memcpy(x + 0x2c, &w, 4);
+        }
+    Mesh_UploadVerts(m, part);
+}
+
+/* a polygon's second texture: index number +0x30 of its ten */
+static int32_t poly_tex2(const uint8_t *q)
+{
+    uint32_t f = rd32(q + 0x30);
+    return f < (C3D_POLY - 4) / 4 ? (int32_t)rd32(q + 4 + 4 * f) : -1;
+}
+
+static void env_bind(int32_t t)
+{
+    Tex *e = tex_at(env_tex), *s = tex_at(t);
+    if (!(g_render_opts & 0x10)) {
+        Tex_SetBlend(e, 4);
+        Tex_Bind(0, e);
+        Tex_SetBlend(s, 5);
+        if (env_both) Tex_Bind(1, s);
+    } else {
+        Tex_SetBlend(s, 8);
+        Tex_Bind(0, s);
+        Tex_SetBlend(e, 9);
+        if (env_both) Tex_Bind(1, e);
+    }
+}
+
+/* 0x4b2610: the reflection pass over the part: blended, stage 0 wrapping; runs of one second texture
+   (a polygon without one is left out), the reflection under it (or it over the reflection with
+   option 0x10's bump pass) */
+static void env_pass(const C3d *m, uint8_t *part)
+{
+    env_coords(m, part);
+    Render_AlphaBlend(1);
+    Render_ClampStage0(0);
+    int32_t np = (int32_t)rd32(part + 0x28);
+    const uint8_t *p = C3d_Ref(m, part + 0x24, m->polys);
+    if (env_tex >= 0 && p && np > 0) {
+        if ((uint32_t)np * 3 > tris_cap) {
+            tris_cap = (uint32_t)np * 3;
+            tris = realloc(tris, tris_cap * sizeof *tris);
+        }
+        D3dVB *vb = part_vb(part);
+        int32_t last = -1;
+        uint32_t n = 0;
+        for (int32_t k = 0; k < np; k++) {
+            const uint8_t *q = p + (size_t)k * C3D_POLY;
+            int32_t t = poly_tex2(q);
+            if (t != last) {
+                if (n) D3d_DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, vb, rd32(part + 0x18), rd32(part + 0x10), tris, n, 0);
+                n = 0;
+                last = t;
+                if (t >= 0) env_bind(t);
+            }
+            if (t < 0) continue;
+            for (int j = 0; j < 3; j++) tris[n++] = rd16(q + 0x40 + 2 * j);
+            g_polys_drawn++;
+        }
+        int32_t t = poly_tex2(p + (size_t)(np - 1) * C3D_POLY);
+        if (n && t >= 0) {
+            env_bind(t);
+            D3d_DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, vb, rd32(part + 0x18), rd32(part + 0x10), tris, n, 0);
+        }
+    }
+    Render_ClampStage0(1);
+    Tex_Bind(1, NULL);
+    Tex_Bind(2, NULL);
+}
+
 /* Part flags (+0x30): 1 two-sided, 8 blended (when 0x5207b4 is set), 0x20 keeps the lighting mode
-   (else mode 2, or 3 with 0x40000), 0x200 reflective (a second pass with option 8: Render_EnvMapped
-   0x4b2980 with option 0x80, else 0x4b2610; not ported yet, and off by default), 0x2000 drawn polygon by
-   polygon unless asked otherwise. */
+   (else mode 2, or 3 with 0x40000), 0x200 reflective (a second pass with option 8, off by default:
+   0x4b2610, or with option 0x80 Render_EnvMapped 0x4b2980, the cars' cube maps, not ported), 0x2000
+   drawn polygon by polygon unless asked otherwise. */
 void Mesh_Draw(const C3d *m, uint8_t *mesh, uint32_t batched, uint32_t clamp_flags, uint32_t batched_tex10)
 {
     uint8_t *part = mesh + (size_t)mesh[0x112] * 0x108;
@@ -303,6 +420,10 @@ void Mesh_Draw(const C3d *m, uint8_t *mesh, uint32_t batched, uint32_t clamp_fla
     Render_AlphaBlend(exe_u32(0x5207b4) ? f >> 3 & 1 : 0);
     if (!batched) draw_polys(m, part, clamp_flags != 0);
     else draw_batches(part, batched_tex10 != 0);
+    if ((f & 0x200) && !(f & 0x40000) && (g_render_opts & 8)) {
+        if (!(g_render_opts & 0x80)) env_pass(m, part);
+        else PENDING_NOTE(0x4b2980, "Render_EnvMapped (the cars' cube maps)");
+    }
     if (!(f & 0x20)) Light_SetMode(saved);
 }
 

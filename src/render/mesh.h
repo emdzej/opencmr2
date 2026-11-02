@@ -4,9 +4,11 @@
    in it, +0x24 polygons, +0x28 count, +0x30 flags, +0x38 batches (50), +0x100 batch count. The original
    stores batch pointers at +0x38; the port stores indices into its batch pool there. */
 #pragma once
+#include "bfl.h"
 #include "c3d.h"
 #include "render/d3d7.h"
 #include "fixmath.h"
+#include <stdbool.h>
 #include <stdint.h>
 
 enum { VB_POOL = 100, VB_VERTS = 2000, MESH_BATCHES = 50 };
@@ -30,6 +32,8 @@ void C3d_Build(const C3d *m);
 void Mesh_AddToVB(const C3d *m, uint8_t *part);             /* 0x4b1d00 */
 void Mesh_Batches(const C3d *m, uint8_t *part);             /* 0x4b1ac0 */
 void Mesh_UploadVerts(const C3d *m, uint8_t *part);         /* 0x4b2020 */
+bool Env_Load(const BflSlot *archive, char *name);          /* Tex_LoadEnvMap 0x4b23c0 */
+void Env_SetBoth(bool on);                                  /* 0x4b2970 */
 void Mesh_SetColour(const C3d *m, uint8_t *part, uint32_t argb);   /* 0x4b2090 */
 /* 0x4b1ea0: every vertex's colour (+0x18) back from its polygons' corner colours (+0x34-+0x3c, red and
    blue swapped), then the upload */

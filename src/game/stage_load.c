@@ -19,6 +19,7 @@
 #include "game/lights.h"
 #include "game/replay.h"
 #include "game/records.h"
+#include "render/mesh.h"
 #include "pending.h"
 #include "exe.h"
 #include "game/mem.h"
@@ -34,6 +35,23 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     /* 1: the country's textures and the stage archive; the loading bar (0x40fec0) */
     if (!Stage_Mount(path, tex)) return false;
     Hud_LoadMap();   /* 0x411280 */
+    /* the reflection texture (Tex_LoadEnvMap 0x4b23c0) from the track's archive: the replays' name
+       (0x538340, "...\\fra02hi") with the stage's two digits replaced by the detail, "...\\frahi.tga"; in
+       a time trial (0x407e50) the archive's name (0x538548) with its "t.bfl" for ".tga", the same */
+    {
+        char n[0x110];
+        if (Gs_SelBit24()) {
+            snprintf(n, sizeof n, "%s", (const char *)gm(0x538548));
+            size_t l = strlen(n);
+            if (l >= 5) snprintf(n + l - 5, sizeof n - (l - 5), "%s", exe_str(0x519484));
+        } else {
+            snprintf(n, sizeof n, "%s", (const char *)gm(0x538340));
+            size_t l = strlen(n);
+            if (l >= 4) n[l - 4] = n[l - 2], n[l - 3] = n[l - 1], n[l - 2] = 0;
+            strncat(n, exe_str(0x519484), sizeof n - strlen(n) - 1);
+        }
+        Env_Load(g_track_tex.loaded ? &g_track_tex : NULL, n);
+    }
     PENDING_NOTE(0x40fec0, "LoadBar_Step");
     /* 2: the horizons for the selection's time of day, the BSP (0x420020), TEMP.C3D */
     Stage_LoadHorizons();

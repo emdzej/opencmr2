@@ -1688,3 +1688,6 @@
 0042cb50	Car_PlainWheels	sim	high	The wheels drawn as they are on this surface (L textures and models)
 0042cb90	Car_Textures	sim	high	The wheels' L/N textures swapped by the surface and reloaded
 004a3dc0	Tex_SetKeepBodf	render	high	DAT_00520b14: BODF textures keep their DXT flags
+004b2460	Env_Coords	render	high	The second coordinates from position plus normal through view x world
+004b2610	Env_Pass	render	high	The static reflection pass over a mesh part
+004b2970	Env_SetBoth	render	high	DAT_005210bc: the second stage bound in the reflection pass
