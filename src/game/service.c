@@ -148,6 +148,7 @@ static void tweens_queue(void)
 static Obj *world, *camera;   /* DAT_0082b1b4, DAT_0082b1b0 */
 
 Obj *Sv_World(void) { return world; }
+Obj *Sv_Camera(void) { return camera; }
 
 static void scene_view(int16_t v[4])
 {
@@ -449,7 +450,7 @@ static void s2_player(ProcGroup *g, uint32_t s)
         if (p == Sv_Player()) {
             Sv_CarShow(p, true);
             Sv_CarView(p, Sv_SetupView(0), false);
-            Sv_CarTyres(p, Sv_RepairView(0), true);
+            Sv_CarLines(p, Sv_RepairView(0), true);
         } else
             Sv_CarShow(p, false);
     }

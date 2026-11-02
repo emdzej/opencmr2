@@ -579,11 +579,11 @@ void sv_main_draw(Menu *m)
         list_panel(7, value_of(1), 2, (int16_t)gm32(0x5293a0), 0xf2, false);   /* 0x50a8a0 */
         sliders(false);
         part_panel(false);
-        PENDING_NOTE(0x500550, "the lines to the car's parts (0x82ac68)");
+        Sv_PartLines(Sv_Player(), t_circle);
         v = Sv_SetupView(value_of(1));
         if (last_view != v) {
             Sv_CarView(Sv_Player(), v, false);
-            Sv_CarTyres(Sv_Player(), v, false);
+            Sv_CarLines(Sv_Player(), v, false);
             last_view = v;
         }
         break;
@@ -591,11 +591,11 @@ void sv_main_draw(Menu *m)
         time_panel();
         list_panel(0xb, value_of(2), 1, (int16_t)gm32(0x5293a0), 0xaa, false);   /* 0x50a8e0 */
         part_panel(true);
-        PENDING_NOTE(0x500550, "the lines to the car's parts (0x82ac68)");
+        Sv_PartLines(Sv_Player(), t_circle);
         v = Sv_RepairView(value_of(2));
         if (last_view != v) {
             Sv_CarView(Sv_Player(), v, false);
-            Sv_CarTyres(Sv_Player(), v, false);
+            Sv_CarLines(Sv_Player(), v, false);
             last_view = v;
         }
         break;
@@ -616,7 +616,7 @@ void sv_setup_draw(Menu *m)
     list_panel(7, value_of(1), 2, (int16_t)gm32(0x5293a0), 0xf2, true);   /* 0x50a8a0 */
     sliders(true);
     part_panel(false);
-    PENDING_NOTE(0x500550, "the lines to the car's parts (0x82ac68)");
+    Sv_PartLines(Sv_Player(), t_circle);
 }
 
 /* 0x50edf0 */

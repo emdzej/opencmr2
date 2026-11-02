@@ -306,7 +306,9 @@ When `0x5210c0` is 0, lights 1 and 2 are then switched off again.
 
 The game branches on the device caps it reads at start. The port emulates one hardware T&L card. So far
 two flags are used:
-- `0x6e0c34`: `DRAWPRIMITIVES2EX`, on, so `Render_ClearZ` does nothing.
+- `0x6e0c34`: the triangle raster caps' `ZBUFFERLESSHSR` (`dpcTriCaps.dwRasterCaps & 0x8000`, read at
+  0x4b7262; a tiler without a z-buffer), off, so `Render_ClearZ` clears. (Read earlier as
+  `DRAWPRIMITIVES2EX`; the disassembly takes the dword at +0x44 of the `D3DDEVICEDESC7`.)
 - `0x6e0c14`: the alpha reference switch, on.
 
 The rest of `Render_ReadCaps` (which caps fields each flag comes from, and the texture formats and

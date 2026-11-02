@@ -3,6 +3,7 @@
 #include "bfl.h"
 #include "fe/menu.h"
 #include "game/proc.h"
+#include "render/tex.h"
 #include "world/obj.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -45,6 +46,7 @@ BflSlot *Sv_Common(void);
 BflSlot *Sv_Day(void);
 ProcGroup *Sv_Group(void);
 Obj *Sv_World(void);
+Obj *Sv_Camera(void);
 Menu *Sv_Current(void);
 int Sv_Player(void);
 void Sv_TweenStart(int i, int len, int curve);
@@ -114,6 +116,7 @@ void Sv_StageInit(void);                  /* 0x5040f0 */
 void Sv_ForecastInit(void);               /* 0x505e70 */
 void Sv_CarShow(int p, bool on);          /* 0x506b20 */
 void Sv_CarView(int p, int view, bool now);    /* 0x506930 */
-void Sv_CarTyres(int p, int view, bool now);   /* 0x5009c0 */
+void Sv_CarLines(int p, int view, bool now);   /* 0x5009c0 */
+void Sv_PartLines(int p, Tex *circle);         /* 0x500550 */
 void Sv_CarTurn(void);                    /* 0x506720 */
 void Sv_Free(void);

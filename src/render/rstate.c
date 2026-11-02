@@ -3,7 +3,7 @@
 #include "exe.h"
 #include "render/d3d7.h"
 
-RenderCaps g_caps = {true, true, true, true};
+RenderCaps g_caps = {true, false, true, true};
 
 static uint8_t clear_rgb[3];      /* DAT_0059ce24 */
 static uint32_t cull;             /* DAT_00597cb8 */
@@ -43,11 +43,11 @@ void Render_ClearTarget(void)
               1.0f, 0);
 }
 
-/* Render_ClearZ 0x49d9d0: the z-buffer (and the stencil when the mode has one), but only on a device
-   without DRAWPRIMITIVES2EX. */
+/* Render_ClearZ 0x49d9d0: the z-buffer (and the stencil when the mode has one), but not on a device
+   that removes hidden surfaces without one (ZBUFFERLESSHSR). */
 void Render_ClearZ(bool stencil)
 {
-    if (g_caps.dp2ex) return;
+    if (g_caps.zless_hsr) return;
     const D3dState *s = D3d_State();
     int32_t r[4] = {0, 0, s->width, s->height};
     D3d_Clear(1, r, stencil ? D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL : D3DCLEAR_ZBUFFER, 0xff000000u, 1.0f, 0);

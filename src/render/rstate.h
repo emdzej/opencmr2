@@ -8,7 +8,8 @@
    emulates one card; the values are a hardware T&L card's (docs/re/render.md#caps). */
 typedef struct {
     bool alpha_ref_switch;  /* DAT_006e0c14: blending off sets the alpha reference instead (Render_AlphaBlend) */
-    bool dp2ex;             /* DAT_006e0c34: D3DDEVCAPS_DRAWPRIMITIVES2EX (Render_ClearZ) */
+    bool zless_hsr;         /* DAT_006e0c34: the triangle raster caps' ZBUFFERLESSHSR (0x8000, a tiler
+                               without a z-buffer: Render_ClearZ then does nothing) */
     bool fog_vertex;        /* DAT_006e0c40: vertex fog (raster caps FOGVERTEX) */
     bool fog_table;         /* DAT_006e0c44: table fog */
 } RenderCaps;

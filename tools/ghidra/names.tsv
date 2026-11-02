@@ -1304,3 +1304,20 @@
 0050a880	Sv_InfoMap	service	high	the information page's map: the page chosen, then drawn
 0050c130	Sv_InfoPageDraw	service	high	the information page's rally, stages and forecast
 00500100	Sv_InfoGo	service	high	Information chosen: the zoom toggled
+005062d0	Sv_CarLoad	service	high	a player's stand car: A1N with A1L, A1S wheels, textures, lenses, part points
+0050a3c0	Sv_CarsInit	service	high	every player's stand car
+00506080	Sv_CarWheels	service	high	the stand car's wheels for the set-up's tyres
+00506b20	Sv_CarShow	service	high	a player's stand car shown or hidden
+00506930	Sv_CarView	service	high	the stand car turning to a view
+005009c0	Sv_CarLines	service	high	the part lines' ends towards a view's points
+00500920	Sv_LinesStep	service	high	the part lines on the way
+00500550	Sv_PartLines	service	high	the lines from the panel to the part's points
+00506720	Sv_CarTurn	service	high	each stand car turning, its lines following
+005068b0	Sv_CarPoint	service	high	a car point turned to a view's angles
+0050f120	Sv_ViewPoints	service	high	each view's part points on the screen
+00509dc0	Sv_WheelTurns	service	high	the stand wheels' matrices
+00505f10	Sv_CarFree	service	high	the stand cars' files and archives freed
+00501690	Sv_ToScreen	service	high	a point on the screen, two thirds
+0050a020	Sv_HasSnowWheels	service	high	the class has snow wheels for tyre 6
+0050a050	Sv_HasTarmacWheels	service	high	the class has tarmac wheels for tyres 0-1
+004b7210	Render_ReadCaps	render	high	device caps; 0x6e0c34 is ZBUFFERLESSHSR (dwRasterCaps 0x8000)

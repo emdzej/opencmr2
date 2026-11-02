@@ -224,7 +224,6 @@ void sv_setup_choose(Menu *m, MenuItem *it)
 
 void sv_save_yes(Menu *m, MenuItem *it) { (void)m, (void)it; PENDING_NOTE(0x500020, "the championship saved"); }
 
-void Sv_CarsInit(void) { PENDING_NOTE(0x50a3c0, "each player's car on its stand (0x5062d0)"); }
 
 /* 0x502230 */
 void sv_msg_enter(Menu *m, bool back) { (void)m, (void)back; S.save_back = true; }
