@@ -172,6 +172,13 @@ const char *Player_Name(int n)
     return k == 0xf ? "" : (const char *)gm(0x52fa18 + k * 0x650);
 }
 
+/* 0x408cb0: the profile's records (+0x84, 0x52fa8c), 0 without a profile */
+uint32_t Player_Records(int n)
+{
+    uint32_t w = Player_Word(n);
+    return (w & 0x3c0000) == 0x3c0000 ? 0 : 0x52fa8c + (w >> 0x12 & 0xf) * 0x650;
+}
+
 /* 0x408470: the profile's full name (0x52fa24), NULL without one */
 char *Player_FullName(int n)
 {

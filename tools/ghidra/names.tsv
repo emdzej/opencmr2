@@ -1145,3 +1145,25 @@
 004f3980	FeScores_StageFrame	fe	confirmed	Scroller 7 updated
 004f3990	FeScores_ClassFrame	fe	confirmed	The second class off for novice; scroller 8
 00405fe0	Records_Base	game	confirmed	The default leaderboards (0x52b044)
+004f8b30	Codes_Make	fe	confirmed	A driver's record codes, all five kinds
+004fb8d0	Code_Encode	fe	confirmed	A packed record keyed by the tables at 0x526ea4
+004fb9c0	Code_Digits	fe	confirmed	A code's digits and check group
+004f8a90	Code_Space	fe	confirmed	A space after every fourth digit
+004f9240	Codes_Stage	fe	confirmed	A stage record's code
+004f9260	Codes_Rally	fe	confirmed	A single rally record's code
+004f9280	Codes_Champ	fe	confirmed	A championship record's code
+004f92a0	Codes_Arcade	fe	confirmed	An arcade championship record's code
+004f92c0	Codes_Lap	fe	confirmed	A lap record's code
+004e3a80	FeMyScores_RallyChamp	fe	confirmed	A driver's championship record
+004e48b0	FeMyScores_SingleRally	fe	confirmed	A driver's single rally record
+004e5630	FeMyScores_StageTimes	fe	confirmed	A driver's stage records
+004e63d0	FeMyScores_ArcadeChamp	fe	confirmed	A driver's arcade championship record
+004e7120	FeMyScores_LapTimes	fe	confirmed	A driver's lap records
+004d4040	FeMyScores_Titles	fe	confirmed	The trail Personal High Scores, the driver, the page
+00408cb0	Player_Records	game	confirmed	The profile's records (+0x84)
+004d9a40	FeDrivers_Draw	fe	confirmed	The Drivers page
+004f2620	FeDrivers_Enter	fe	confirmed	The saved drivers as View items
+004f2750	FeDrivers_New	fe	confirmed	A new driver from the Drivers page
+004f27d0	FeDrivers_View	fe	confirmed	A saved driver to the View page
+004d4c40	FeView_Draw	fe	confirmed	A driver's View page
+004f3ac0	FeView_Enter	fe	confirmed	The first row unless back

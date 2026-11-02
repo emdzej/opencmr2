@@ -30,6 +30,7 @@ static Menu *players_page;      /* DAT_00819870 */
 static bool from_tag;           /* DAT_00819879 */
 static int tag_player;          /* DAT_00819880 */
 static Menu *after_tag;         /* DAT_00819030 */
+static Menu *after_date;        /* DAT_00819124 */
 static int shown_player;        /* DAT_008182b4: the n of "Player n" */
 static char player_title[64];   /* DAT_00818274 */
 static bool tag_new;            /* DAT_008189a4: the tag page names a new driver */
@@ -733,7 +734,6 @@ void fe_4d6f10(Menu *m)
 /* ---- a new driver (0x4f0960): the tag (0x824a38), the full name (0x81d8b8), the birth date
    (0x81bc98), then the page after the drivers ---- */
 
-static Menu *after_date;         /* DAT_00819124 */
 static bool naming;              /* DAT_00819038: the name page takes typing */
 static char full_name[0x2c];     /* DAT_008190f4: the name as the page shows it */
 
@@ -986,6 +986,75 @@ void fe_4d7750(Menu *m)
     Fe_Titles(m, title_x(), title_y(), true, 3, names, 2);
     Fe_Header();
     Rows_Draw(m, date_row, false, false, Rows_Top(m), Rows_ArrowDy());
+    Fe_Hint(Text_Get(0x57), true);
+}
+
+/* ---- the Drivers page (0x8212d8): the options, a new driver, the saved drivers to view ---- */
+
+/* 0x4f2620: back here, the first player's new profile (from the tag) undone and dropped; one player,
+   one to set; the free profiles as "View <name>" items 2-5, the first of them chosen */
+void fe_4f2620(Menu *m, bool back)
+{
+    if (back) {
+        if (from_tag) {
+            Player_SetGuest(0, false);
+            Profile_Create(0);
+        }
+        Player_DropProfile(0);
+    }
+    from_tag = false;
+    shown_player = 1;   /* 0x4e7770 */
+    gw32(0x52afb4, (gm32(0x52afb4) & 0xfffe1fffu) | 1u << 13);   /* 0x4ea8c0 */
+    to_set = 1;
+    players_page = m->parent;
+    for (int i = 0; i < 4; i++) {
+        MenuItem *it = &m->items[2 + i];
+        if (i < Profiles_Free()) {
+            snprintf(profile_names[i], sizeof profile_names[i], Text_Get(0x17f), Profile_FreeName(i));
+            it->flags |= MIF_ENABLED | MIF_SELECTABLE;
+            it->label = profile_names[i];
+        } else
+            it->flags &= (uint8_t)~(MIF_ENABLED | MIF_SELECTABLE);
+    }
+    m->sel = Profiles_Free() > 0 ? 2 : 0;
+}
+
+/* 0x4f2750: a new driver: the tag, the name and the birth date, then back here */
+void fe_4f2750(Menu *m, MenuItem *it)
+{
+    (void)it;
+    from_tag = true;
+    tag_player = 0;   /* 0x4f2bf0 */
+    Player_AssignProfile(tag_player, -1);
+    Profile_Create(tag_player);
+    Player_SetGuest(tag_player, false);
+    Menu_SetParent(&pg_824a38, m);
+    after_tag = &pg_81d8b8;   /* 0x4f83d0 */
+    after_date = m;
+    snprintf(player_title, sizeof player_title, "%s", Text_Get(0xb));   /* 0x4e7780 */
+    to_set--;
+    Menu_Goto(&pg_824a38);
+}
+
+/* 0x4f27d0: a saved driver to the View page (0x81c058) */
+void fe_4f27d0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    int prof = Profile_FreeIndex(m->sel - 2);
+    tag_player = 0;
+    Player_AssignProfile((int)players() - to_set, prof);
+    Player_SetGuest((int)players() - to_set, false);
+    Menu_Goto(&pg_81c058);   /* 0x4f8490 */
+    to_set--;
+}
+
+/* 0x4d9a40: the trail, the list, the main menu's strip unlit, the hint */
+void fe_4d9a40(Menu *m)
+{
+    Fe_Header();
+    Fe_Titles(m, title_x(), title_y(), true, 1, NULL, 1);
+    List_Draw(m, NULL, -1, -1, 0, true);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
     Fe_Hint(Text_Get(0x57), true);
 }
 
@@ -1316,4 +1385,22 @@ void fe_4f0110(Menu *m, MenuItem *it)
     gw32(0x52afbc, (opts() & 0xfffff7ffu) | (m->items[2].value & 1u) << 0xb);
     duel_keep(duel_kind(), (uint32_t)m->items[1].value + 1);
     Menu_Goto(&pg_8214b8);
+}
+
+/* ---- a driver's View page (0x81c058): Identity, High Scores, Trophies ---- */
+
+/* 0x4f3ac0: the first row, unless back */
+void fe_4f3ac0(Menu *m, bool back)
+{
+    if (!back) m->sel = 0;
+}
+
+/* 0x4d4c40: the trail Drivers, View, the driver; the list under the driver's name */
+void fe_4d4c40(Menu *m)
+{
+    Fe_Header();
+    const char *names[3] = {Text_Get(0xb), Text_Get(m->text), Player_Name(0)};
+    Fe_TitleRow(title_x(), title_y(), names, 3);
+    List_Draw(m, Player_Name(0), -1, -1, 0, true);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
 }

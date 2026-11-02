@@ -22,6 +22,7 @@ void Profile_Create(int player);
 uint32_t Player_Word(int player);          /* the player record's first word (0x531350 + 0x30 n) */
 const char *Player_Name(int player);        /* 0x408400: the profile's name ("" without one) */
 bool Player_HasProfile(int player);
+uint32_t Player_Records(int player);                        /* 0x408cb0: 0 without a profile */
 char *Player_FullName(int player);                          /* 0x408470 */
 void Player_SetFullName(int player, const char *s);         /* 0x4eaf90 */
 void Player_BirthDate(int player, int *day, int *month, int *year);   /* 0x408b10 */
