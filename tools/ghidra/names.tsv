@@ -1045,3 +1045,9 @@
 004da710	Fe_SetupDraw	fe	confirmed	The single race's options page (one player)
 004daf90	Fe_DuelSetupDraw	fe	confirmed	The single race's options page (two players)
 004dbd80	Fe_ArcadeLocation	fe	confirmed	The arcade location's banner, map, facts and records
+004ea5e0	GameInfo_Load	fe	confirmed	Configuration\GameInfo.rcf into 0x52afa0 (0x399c bytes, version 0x11)
+004ea840	GameInfo_Save	fe	confirmed	Configuration\GameInfo.rcf from 0x52afa0
+004eb2e0	Profile_Path	fe	confirmed	A profile's pps file name
+004eb340	Profile_Save	fe	confirmed	A profile's 0x650 bytes to its file
+004eb3e0	Profiles_Save	fe	confirmed	The changed profiles in use saved
+004aa5a0	File_Save	file	confirmed	A file written under the save or game folder

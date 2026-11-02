@@ -60,7 +60,7 @@ static void profile_camera(int player, int kind)
     if (t == 0xf) return;
     if (gm32(0x52fa1c + t * 0x650) & 0x200000) PENDING_NOTE(0x405fd0, "Profile_Camera (0x405fd0)");
     gw32(0x52fa60 + t * 0x650, (uint32_t)kind);
-    gw32(0x52fa00 + 4 * t, 1);
+    gw8(0x52fa00 + t, 1);
 }
 
 void Car_ControlsFromInput(Car *c, uint32_t held, uint32_t pressed)

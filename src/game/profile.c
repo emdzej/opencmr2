@@ -20,7 +20,7 @@ static void set_camera(int n, const uint32_t v[5])
     }
     if (t == 0xf) return;
     for (uint32_t i = 0; i < 5; i++) gw32(0x53003c + t * 0x650 + 4 * i, v[i]);
-    gw32(0x52fa00 + 4 * t, 1);
+    gw8(0x52fa00 + t, 1);
 }
 
 /* 0x4ec260: the chase camera's defaults: 1.5 up, 6.5 back, angle 0x2d, distance 14 (the same as the
@@ -39,7 +39,7 @@ void Profiles_Init(void)
     for (int i = 0; i < 4; i++) {
         uint32_t p = 0x52fa1c + 0x650u * (uint32_t)i;
         gw32(p + 0x44, 4);   /* the camera: the chase */
-        gw32(0x52fa00 + 4u * (uint32_t)i, 0);
+        gw8(0x52fa00 + (uint32_t)i, 0);
         gw32(p, (gm32(p) & 0xffe1f17e) | 0x1017e);
         gw32(0x531654 + 4u * (uint32_t)i, 0);
         gw32(p + 0x40, gm32(p + 0x40) | 0x20);   /* the automatic box */
@@ -68,7 +68,7 @@ void Profile_Create(int player)
     gw32(p + 0x38, 0xf11);
     gw8(0x52ff90 + t * 0x650, (uint8_t)((gm8(0x52ff90 + t * 0x650) & 0xfc) | 0x3c));   /* the HUD panels */
     default_camera(player);
-    gw32(0x52fa00 + 4 * t, 0);
+    gw8(0x52fa00 + t, 0);
 }
 
 static void copy_str(uint32_t to, uint32_t from)
@@ -229,7 +229,7 @@ void Player_DefaultCamera(int n)
     uint32_t p = Player_Word(n) >> 0x12 & 0xf;
     if (p == 0xf) return;
     for (int i = 0; i < 5; i++) gw32(0x53003c + p * 0x650 + 4u * (uint32_t)i, v[i]);
-    gw32(0x52fa00 + 4 * p, 1);
+    gw8(0x52fa00 + p, 1);
 }
 
 /* 0x408d00: player n's record marked changed (mode 4: its challenge record's flag) */
@@ -240,7 +240,7 @@ void Player_Touch(int n)
         return;
     }
     uint32_t p = Player_Word(n) >> 0x12 & 0xf;
-    if (p != 0xf) gw32(0x52fa00 + 4 * p, 1);
+    if (p != 0xf) gw8(0x52fa00 + p, 1);
 }
 
 /* 0x408a60: player n's tyre wear record (its profile's +0x57c, mode 4's challenge record +4); none on

@@ -24,6 +24,7 @@
 #include "render/twod.h"
 #include "render/view.h"
 #include "text.h"
+#include "game/saves.h"
 #include "world/frame.h"
 #include "world/obj.h"
 #include "world/relight.h"
@@ -216,9 +217,9 @@ static void st_startup(ProcGroup *g, uint32_t s)
         Options_Defaults();
         for (int i = 0; i < 0x16; i++) gw32(0x52e898 + 4 * (uint32_t)i, 0x03030303);   /* 0x406560 */
         PENDING_NOTE(0x406580, "the unlocks' new marks");
-        /* 0x49eaf0(2): the input devices; GameInfo.rcf (0x4ea5e0), the leaderboards (0x40e3c0,
-           0x40e3f0) and Controller.rcf (0x40bf70) are not saved by the port yet */
-        bool loaded = false;
+        /* 0x49eaf0(2): the input devices; GameInfo.rcf (0x4ea5e0); the network leaderboards
+           (0x40e3c0, 0x40e3f0) and Controller.rcf (0x40bf70) are not kept by the port yet */
+        bool loaded = GameInfo_Load();
         gw32(0x52afb4, gm32(0x52afb4) & ~0x80000u);
         Input_SetMenuMode(true);
         gw32(0x81777c, 0);
@@ -263,7 +264,7 @@ static void st_startup(ProcGroup *g, uint32_t s)
         gw8(0x52ea52, 0);
     }
     PENDING_NOTE(0x406580, "the unlocks' new marks");
-    /* the saves (0x4ea840, 0x40e470, 0x40bff0) are not written by the port yet */
+    GameInfo_Save();   /* 0x4ea840 (the leaderboards 0x40e470 and Controller.rcf 0x40bff0 not kept yet) */
     Input_SetMenuMode(true);
     if (!fe_init(false)) return;
     if (gm8(0x52ea50)) Render_SetClearColour(0, 0, 0);
@@ -409,8 +410,10 @@ static void st_leave(ProcGroup *g, uint32_t s)
                 uint32_t sel = gm32(0x52f2ac);   /* 0x4ea9c0: rally and stage into bits 23-30 */
                 gw32(0x52afb4, (((sel >> 5 & 0xf) << 4 | (sel & 0xf)) << 0x17) | (gm32(0x52afb4) & 0x807fffffu));
             }
-            /* GameInfo.rcf, the leaderboards, Controller.rcf and the profiles are saved here
-               (0x4ea840, 0x40e470, 0x40bff0, 0x4eb3e0): not yet by the port */
+            /* GameInfo.rcf and the profiles (0x4ea840, 0x4eb3e0); the leaderboards and Controller.rcf
+               (0x40e470, 0x40bff0) not kept yet */
+            GameInfo_Save();
+            Profiles_Save();
         }
     }
     Fe_Teardown();   /* 0x49c0f0 to the front end's mark, 0x4a5be0, 0x4a5d10 */

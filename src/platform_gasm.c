@@ -121,19 +121,48 @@ int plat_key_presses(uint8_t *codes, int cap)
 
 /* ---- storage ---- */
 
+/* A file name as a storage key (1-128 of [A-Za-z0-9._-]): the separators '\\' and '/' become '_',
+   letters, digits and '.' stay, any other byte (so '-' and '_' too) becomes "-XX" in hex; reversible.
+   0 when too long. */
+static uint32_t storage_key(const char *name, char *key, size_t cap)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    size_t n = 0;
+    for (const unsigned char *p = (const unsigned char *)name; *p; p++) {
+        unsigned char c = *p;
+        bool keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.';
+        if (c == '\\' || c == '/') {
+            if (n + 1 > cap) return 0;
+            key[n++] = '_';
+        } else if (keep) {
+            if (n + 1 > cap) return 0;
+            key[n++] = (char)c;
+        } else {
+            if (n + 3 > cap) return 0;
+            key[n++] = '-', key[n++] = hex[c >> 4], key[n++] = hex[c & 15];
+        }
+    }
+    return n <= 128 ? (uint32_t)n : 0;
+}
+
 uint8_t *plat_load_user_file(const char *name, size_t *size)
 {
-    int32_t n = gasm_storage_get(name, (uint32_t)strlen(name), NULL, 0);
+    char key[128];
+    uint32_t k = storage_key(name, key, sizeof key);
+    if (!k) return NULL;
+    int32_t n = gasm_storage_get(key, k, NULL, 0);
     if (n < 0) return NULL;
     uint8_t *b = malloc(n ? (size_t)n : 1);
-    if (gasm_storage_get(name, (uint32_t)strlen(name), b, (uint32_t)n) != n) { free(b); return NULL; }
+    if (gasm_storage_get(key, k, b, (uint32_t)n) != n) { free(b); return NULL; }
     *size = (size_t)n;
     return b;
 }
 
 bool plat_save_user_file(const char *name, const void *data, size_t size)
 {
-    return gasm_storage_set(name, (uint32_t)strlen(name), data, (uint32_t)size) == 0;
+    char key[128];
+    uint32_t k = storage_key(name, key, sizeof key);
+    return k && gasm_storage_set(key, k, data, (uint32_t)size) == 0;
 }
 
 /* ---- data: the game's files as assets ---- */

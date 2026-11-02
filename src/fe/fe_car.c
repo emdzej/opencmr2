@@ -54,7 +54,7 @@ static void set_car(int p, int car)
     }
     uint32_t w = Player_Word(p), prof = w >> 0x12 & 0xf;
     if (prof == 0xf) return;
-    gw32(0x52fa00 + 4 * prof, 1);
+    gw8(0x52fa00 + prof, 1);   /* the profile changed (a byte each) */
     gw32(0x531350 + 0x30u * (uint32_t)p, (w & ~0x3fu) | ((uint32_t)car & 0x3f));
     uint32_t a = 0x52fa5c + prof * 0x650;
     gw32(a, (gm32(a) & ~0x1fu) | ((uint32_t)car & 0x1f));
@@ -78,7 +78,7 @@ static void set_auto_box(int p, uint8_t v)
     }
     uint32_t prof = Player_Word(p) >> 0x12 & 0xf;
     if (prof == 0xf) return;
-    gw32(0x52fa00 + 4 * prof, 1);
+    gw8(0x52fa00 + prof, 1);   /* the profile changed (a byte each) */
     uint32_t a = 0x52fa5c + prof * 0x650;
     gw32(a, (gm32(a) & ~0x20u) | (uint32_t)(v & 1) << 5);
 }
