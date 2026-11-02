@@ -13,6 +13,7 @@
 #include "game/car_load.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/ghost.h"
 #include "game/weather.h"
 #include "game/skids.h"
 #include "game/stage_load.h"
@@ -82,6 +83,7 @@ static bool load_cars(void)
     Skids_Reset();                                     /* 0x465530 */
     for (int i = 0; i < n; i++) Pose_Snap(i);          /* 0x42c840 */
     for (int i = 0; i < n; i++) Car_PoseToObjects(Car_Get(i));   /* 0x43ecd0 */
+    if (Ghost_On()) Ghost_SetCar(Car_Get(n - 1));   /* 0x465fc0: the last car */
     Frame_SetRate(0x190000);   /* 25 frames a second, Cars_Load 0x466630 */
     int k = 0;
     for (int i = 0; i < n; i++) {
@@ -149,7 +151,9 @@ static void draw(int player, int state)
     Race_DrawOverlays(player);
     Camera_Projection(player);   /* 0x422d40 */
     World_Render(camera, view, (uint32_t)player, true);
-    /* after the world, as Race_DrawView 0x40f0c0 (the marks' triangles drawn with the next frame's) */
+    /* after the world, as Race_DrawView 0x40f0c0: the ghost's see-through level (0x466100); the marks'
+       triangles (drawn with the next frame's) */
+    if (Ghost_On()) Ghost_Fade(player, camera);
     if (!gm8(0x52af40)) {
         Skids_Centres(player);   /* 0x4657d0 */
         Skids_Add(player);       /* 0x464cb0 */

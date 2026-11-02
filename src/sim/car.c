@@ -3,6 +3,10 @@
 #include "sim/car.h"
 #include "fixmath.h"
 #include "game/gstate.h"
+#include "game/ghost.h"
+#include "game/car_load.h"
+#include "game/profile.h"
+#include "exe.h"
 #include "pending.h"
 #include "world/hpc.h"
 #include "sim/grip.h"
@@ -193,8 +197,9 @@ static void row(Car *c, uint32_t o, const Obj *ob, int r)
 }
 
 /* The set-up bytes: 0x407630 (n), the defaults 0x494a40 (bit 24), 0x494a70 (per rally), 0x406890. */
-static uint32_t setup_for(Car *c, int n, bool alt)
+static uint32_t setup_for(Car *c, int n, bool alt, bool own)
 {
+    if (own) return Gs_Setup(Ghost_Owner());   /* the ghost's owner's */
     if (Gs_SelBit24()) {
         uint32_t a = gm32(0x52f2ac) >> 10 & 3, b = gm32(0x52f2ac) >> 12 & 3;
         return 0x5200e8 + (a * 3 + b) * 7;
@@ -208,10 +213,8 @@ static uint32_t setup_for(Car *c, int n, bool alt)
     default: rally_default = 0x520128; break;
     }
     if (Gs_Mode() == 4) return rally_default;
-    if (Gs_SelBit25() && !Gs_ModeBit19()) {
-        PENDING_NOTE(0x408500, "Champ_DriverIndex");   /* only reached in the arcade modes */
-        if (alt) return rally_default;
-    }
+    /* the CPU runs' cars (a computer driver's, 0x408500) and the ownerless ghost with them */
+    if (Gs_SelBit25() && !Gs_ModeBit19() && (Player_Driver(CI8(c, 0xb1a)) != -1 || alt)) return rally_default;
     if (Gs_ModeBit17() && n == 1 && Gs_SelBit25()) {
         if (alt) return 0x51682c + Tod_Rally() * 7;
         if (!Gs_ModeBit19()) return rally_default;
@@ -224,8 +227,13 @@ static uint32_t setup_for(Car *c, int n, bool alt)
 void Car_Init(Car *c, Obj *obj, int cls, const int32_t pos[3], int n, bool keep)
 {
     g_car = c;
-    bool alt = false;   /* local_8: the challenge's own car (bit 28 with 0x52afb8 bit 30) */
-    if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x456ca0, "Challenge_CarCount");
+    /* the ghost (the last car with bit 28 and the ghost option): the class of its owner's car and its
+       set-up (local_c), without an owner class 0 (local_8) */
+    bool alt = false, own = false;
+    if (Ghost_On() && n == Cars_Count() - 1) {
+        if (Ghost_Owner() == -1) cls = 0, alt = true;
+        else cls = (int)exe_u32(0x516b40 + 4u * (Player_Word(Ghost_Owner()) & 0x3f)), own = true;   /* 0x4086b0, 0x40ee90 */
+    }
     CW8(c, 0xb1a, (uint8_t)n);
     CW8(c, 0xb1b, (uint8_t)cls);
     if (!keep) attach_models(n, c);
@@ -275,7 +283,7 @@ void Car_Init(Car *c, Obj *obj, int cls, const int32_t pos[3], int n, bool keep)
     CW32(c, 0x828, 0x5555);
     CW32(c, 0xb7c, (int32_t)Gs_ClassB7c(CI8(c, 0xb1b)));
     CW32(c, 0xb80, (int32_t)Gs_ClassB80(CI8(c, 0xb1b)));
-    uint32_t su = setup_for(c, n, alt);
+    uint32_t su = setup_for(c, n, alt, own);
     int8_t s[7];
     for (uint32_t i = 0; i < 7; i++) s[i] = gms8(su + i);
     setup_suspension(c, pct(s[2]));
@@ -333,7 +341,9 @@ void Car_Init(Car *c, Obj *obj, int cls, const int32_t pos[3], int n, bool keep)
     CW32(c, 0x91c, 0);
     CW32(c, 0x920, 0x10000);
     CW32(c, 0x924, 0);
-    if (!alt && CI8(c, 0xb1a) < (int)Gs_SelBits14()) {
+    if (own) {
+        CW32(c, 0xb48, Champ_CarFlag((uint8_t)Ghost_Owner()) ? 2 : 1);
+    } else if (!alt && CI8(c, 0xb1a) < (int)Gs_SelBits14()) {
         CW32(c, 0xb48, Champ_CarFlag((uint8_t)(Gs_Byte537ef6() + c->s[0xb1a])) ? 2 : 1);
     } else {
         CW32(c, 0xb48, 2);

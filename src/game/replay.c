@@ -5,6 +5,7 @@
 #include "game/race.h"
 #include "game/gstate.h"
 #include "game/opponents.h"
+#include "game/ghost.h"
 #include "game/mem.h"
 #include "game/input.h"
 #include "game/weather.h"
@@ -87,8 +88,11 @@ Replay *Replay_New(int s, int f, int k)
 
 Replay *Replay_Load(const char *path)
 {
-    uint8_t *d = File_Load(path, 1);
-    uint32_t size = File_LastSize();
+    /* (the port: a file the game wrote, the ghost's .grp, is in the user's storage) */
+    size_t usz = 0;
+    uint8_t *d = plat_load_user_file(path, &usz);
+    uint32_t size = (uint32_t)usz;
+    if (!d) d = File_Load(path, 1), size = File_LastSize();
     bool owned = d != NULL;
     if (!d) {
         /* the stage archive's member, used in place (the playing's flags are written into it) */
@@ -464,6 +468,15 @@ void Replay_Layout(const Replay *r, uint32_t *snap, uint32_t *frames, uint32_t *
 bool Replay_Playing(const Replay *r) { return r && h32(r, 4); }
 bool Replay_Recording(const Replay *r) { return r && h32(r, 0xc); }
 uint8_t Replay_State(const Replay *r) { return r ? r->b[0x10c] : 0; }
+/* 0x46d3f0: the image written as a file (File_Save 0x4aa5a0; the port's user storage) */
+bool Replay_Save(const Replay *r, const char *path)
+{
+    if (!r) return false;
+    uint32_t n = image_size(segs(r), per_seg(r), (int)kind(r));
+    plat_log(path);   /* (puts of the name and a blank line) */
+    return plat_save_user_file(path, r->b, n <= r->size ? n : r->size);
+}
+
 const uint8_t *Replay_Image(const Replay *r, uint32_t *size) { if (size) *size = r ? r->size : 0; return r ? r->b : NULL; }
 int Replay_Frames(const Replay *r, int seg) { return r ? h16(count_of(r, seg)) : 0; }
 
@@ -531,5 +544,10 @@ void Replay_Setup(void)
         int f = Gs_SelBit28() ? (np == 1 ? 0x1d4c : 0x186a) : (np != 1 || cpu_runs) ? 0x186a : 0x1d4c;
         race[i] = Replay_New(1, f, 0);
     }
-    if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x465f90, "Replay_Setup (the ghost's .grp)");
+    if (Ghost_On()) {
+        /* the ghost: the stage's .grp (0x5192b0 on 0x41f920's name) */
+        char path[0x104];
+        snprintf(path, sizeof path, exe_str(0x5192b0), Ghost_StageName());
+        Ghost_Load(path);   /* 0x465f90 */
+    }
 }

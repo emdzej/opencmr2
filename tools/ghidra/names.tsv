@@ -1557,3 +1557,16 @@
 00420820	Progress_ClearSearch	progress	high	the first two cars' search variables cleared
 004236b0	Camera_Place	camera	high	a camera put back at its car by its kind
 00477850	Cockpit_Place	cockpit	high	the cockpit camera's frame along the car, pitched, then at the head
+00465ec0	Ghost_SeeThrough	ghost	high	a mesh object blended at an alpha, optionally grey
+00465f20	Ghost_SeeThroughList	ghost	high	a sibling list and its children see-through
+00465f60	Ghost_New	ghost	high	a new empty ghost replay
+00465f80	Ghost_Reset	ghost	high	the ghost's owner and alpha cleared
+00465f90	Ghost_Load	ghost	high	the stage's .grp, else a new ghost replay
+00465fc0	Ghost_SetCar	ghost	high	the last car made the ghost: no contact, grey at 100
+00466030	Ghost_Start	ghost	high	the ghost's run played into its car
+00466080	Ghost_End	ghost	high	the ghost's replay stopped
+00466090	Ghost_Playing	ghost	high	whether the ghost's replay is playing
+004660a0	Ghost_Take	ghost	high	a player's run swapped in as the ghost
+004660e0	Ghost_TakeFrom	ghost	high	the player whose run becomes the ghost
+004660f0	Ghost_Owner	ghost	high	the player whose car the ghost shows
+00466100	Ghost_Fade	ghost	high	the ghost's alpha by its size on the view

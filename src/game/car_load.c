@@ -5,6 +5,7 @@
 #include "game/mem.h"
 #include "game/select.h"
 #include "game/opponents.h"
+#include "game/ghost.h"
 #include "game/sectors.h"
 #include "game/timer.h"
 #include "crt.h"
@@ -122,6 +123,10 @@ bool Car_Load(int n)
         id = (int)exe_u32(0x516b98 + 4u * (uint32_t)k);
         gw32(0x52f3e8 + 0xc4u * (uint32_t)n, (uint32_t)id & 0xff);
         gw8(0x52f3ec + 0xc4u * (uint32_t)n, gm8(0x52f3ec + 0xc4u * (uint32_t)n) | 2);
+    } else if ((mode == 3 || mode == 7) && Gs_Bit30() && n == Cars_Count() - 1) {
+        /* the ghost: its owner's car (0x4660f0, none: 0) */
+        int o = Ghost_Owner();
+        id = (int)(gm32(0x531350 + 0x30u * (uint32_t)(o == -1 ? 0 : o)) & 0x3f);
     } else if (!cpu) id = (int)(gm32(0x531350 + 0x30u * pl) & 0x3f);
     else if (mode == 5 || mode == 6) id = Sel_CpuCar(n);   /* 0x408010: by the car's own slot */
     else if (Gs_SelBit27() && !Gs_ModeBit19()) {
@@ -140,8 +145,11 @@ bool Car_Load(int n)
     const uint32_t L = 0x51a3d0;
     switch (mode) {
     case 3: case 7:
-        PENDING_NOTE(0x457000, "Car_Load (the time trial's ghost car letters)");
-        letter = (char)gm8(L + (split ? 0xe : 1));
+        /* the time trials: with the ghost its letter (3, the split screen's 0xf) and the players' (2,
+           0x10), else 1 (0xe) */
+        if (!Gs_Bit30()) letter = (char)gm8(L + (split ? 0xe : 1));
+        else if (n == Cars_Count() - 1) letter = (char)gm8(L + (split ? 0xf : 3));
+        else letter = (char)gm8(L + (split ? 0x10 : 2));
         set = letter < 'E' ? 1 : 3;
         break;
     case 5: case 6: case 8: case 9: case 11: case 12:

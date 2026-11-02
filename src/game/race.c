@@ -59,6 +59,7 @@
 #include "game/pause.h"
 #include "game/results.h"
 #include "game/opponents.h"
+#include "game/ghost.h"
 #include "game/car_load.h"
 #include "game/replay.h"
 #include "audio/codriver.h"
@@ -85,6 +86,7 @@ static struct {
     uint8_t nfinished;      /* DAT_00537f88 */
     uint8_t finished[4];    /* DAT_00537f98 */
     uint32_t shown[4];      /* DAT_00537fd8 */
+    uint8_t trial[4];       /* DAT_00537ff8: the time trial's best looked at */
     uint32_t finish_at[4];  /* DAT_00537f34: Timer_Centis at the finish */
     uint32_t load_at;       /* DAT_00537ffc */
     int place;              /* DAT_005297f0: the cars to be put on the line */
@@ -171,10 +173,11 @@ static void Race_Update(uint8_t state, bool flag)
                 if (H->read_input && rec >= 0) H->read_input(i, Input_Record(rec));
             } else {
                 /* a CPU car: on the line until player 0 races, then racing; head to head (bit 27, not
-                   networked) stopped once it has finished. (Bit 28's ghost, 0x466090, is open.) */
+                   networked) stopped once it has finished; the ghost once its run has ended (0x466090) */
                 kind = Proc_State(&R.group, 0) < 8 ? 7 : 8;
-                if (kind == 8 && Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x466090, "the ghost's controls");
-                else if (kind == 8 && Gs_SelBit27() && !Gs_ModeBit19() && Race_Finished(i)) kind = 9;
+                if (kind == 8 && Ghost_On()) {
+                    if (!Ghost_Playing()) kind = 9;
+                } else if (kind == 8 && Gs_SelBit27() && !Gs_ModeBit19() && Race_Finished(i)) kind = 9;
             }
             bool cpu = (uint32_t)i >= np;   /* no pad (0x42b710 -1) */
             Replay *rp = Race_Replay(i);   /* (0x537f3c by the car: the CPU runs' for the CPU cars) */
@@ -252,6 +255,29 @@ static void Race_Update(uint8_t state, bool flag)
         /* the particles (not while a replay plays); the original passes the camera after the last
            player's (0x538e2c[players]), read only by the types' callbacks */
         if (car0) Particles_Step(NULL);   /* 0x4b0110 */
+        /* a circuit's time trial (bits 24 and 28; mode 12's lap records 0x427950, 0x40af00 not
+           ported): at each lap car 0's run ended; a lap at or under the location's lap record
+           (0x52c308, with the low-detail clouds 0x52d5cc; +0x1214, 8 bytes a stage: the time in bits
+           7-22, the car in 0-5) is the record, its run saved as the .grp and with the ghost option the
+           ghost (0x4660e0, 0x4660a0); then recording again and the ghost from its start */
+        if (car0 && Gs_SelBit24() && Gs_SelBit28() && Sectors_LapFirst(0)) {
+            Replay_End(Race_Replay(0));
+            Replay_Stop(Race_Replay(0));
+            if (Gs_Bit30()) Ghost_End();
+            uint32_t sel = gm32(0x52f2ac), tab = (gm32(0x52afd0) >> 0x1b & 3) == 0 ? 0x52c308 : 0x52d5cc;
+            uint32_t at = tab + 0x1214 + ((sel >> 10 & 3) * 3 + (sel >> 12 & 3)) * 8;
+            int32_t t = gms32(0x53d9b4 + 4u * (uint32_t)Sectors_LastLap(0));   /* 0x4481f0 */
+            if (t <= (int32_t)(gm32(at) >> 7 & 0xffff)) {
+                gw32(at, ((uint32_t)t & 0xffff) << 7 | (gm32(at) & 0xff80007fu));
+                gw32(at, (Player_Word(0) & 0x3f) | (gm32(at) & 0xffffffc0u));
+                char path[0x104];
+                snprintf(path, sizeof path, exe_str(0x5192b0), Ghost_StageName());
+                if (Race_Replay(0)) Replay_Save(Race_Replay(0), path);
+                if (Gs_Bit30()) Ghost_TakeFrom(0), Ghost_Take(0, 0);
+            }
+            Replay_Start(Race_Replay(0), 0);   /* 0x46c750 */
+            if (Gs_Bit30()) Ghost_Start(0, 0);
+        }
         /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60, 0x418b00) */
         if (car0 && state > 6 && !gm8(0x52af40))
             for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i), Surface_Step((int)i, (int)i), Crash_UpdateSounds();
@@ -488,6 +514,7 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
     R.winner = -1;
     R.finished[slot] = 0;
     R.shown[slot] = 0;
+    R.trial[slot] = 0;   /* 0x537ff8 */
     if (Gs_SelBit27() && !Gs_ModeBit19()) gw8(0x537fbc, 0), gw8(0x537fbd, 0);   /* the head to head's winners */
     timer_run((int)slot);
     int32_t t = Race_StageTime((int)slot);
@@ -535,7 +562,7 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
                 } else Replay_Start(Race_Replay(i), (int)slot);
             }
         } else Replay_Start(Race_Replay((int)slot), (int)slot);   /* 0x46c750 */
-        if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x466030, "the ghost's run");
+        if (Ghost_On()) Ghost_End(), Ghost_Start(0, 0);   /* 0x466080, 0x466030 */
         timer_start((int)slot);   /* the stage time runs from the go */
     }
 }
@@ -587,7 +614,25 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
         R.shown[slot] = 1;
         R.done++;
         Replay_Stop(Race_Replay((int)slot));   /* 0x46cc60 (the network game's every replay) */
-        if (Gs_Mode() == 3) PENDING_NOTE(0x46d3f0, "the time trial's best run saved as the .grp");
+        /* the time trial, once a player (0x537ff8): a time at or under the stage's best (0x52c308,
+           with the low-detail clouds 0x52d5cc; +0x658, 8 bytes a stage) is the best, with the player
+           base's car (flagged at 0x538128, the stage and rally at 0x519228, 0x51922c), its run saved
+           as the stage's .grp */
+        if (Gs_Mode() == 3 && !R.trial[slot]) {
+            uint32_t tab = (gm32(0x52afd0) >> 0x1b & 3) == 0 ? 0x52c308 : 0x52d5cc;
+            uint32_t at = tab + 0x658 + (Tod_Rally() * 0xb + Tod_Stage()) * 8;
+            if (Times_Finish((int)slot) <= (int32_t)(gm32(at) >> 7 & 0xffff)) {
+                gw32(at, ((uint32_t)Times_Finish((int)slot) & 0xffff) << 7 | (gm32(at) & 0xff80007fu));
+                gw32(at, (Player_Word(Race_Base()) & 0x3f) | (gm32(at) & 0xffffffc0u));
+                gw32(0x538128, 1);
+                gw32(0x519228, Tod_Stage());
+                gw32(0x51922c, Tod_Rally());
+                char path[0x104];
+                snprintf(path, sizeof path, exe_str(0x5192b0), Ghost_StageName());
+                if (Race_Replay((int)slot)) Replay_Save(Race_Replay((int)slot), path);
+            }
+            R.trial[slot] = 1;
+        }
     }
     int fading = 0;
     for (uint32_t i = 0; i < players(); i++) fading += Fade_Active((int)i);
@@ -632,8 +677,8 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
 
 /* 0x41e220, a player's replay fade's call: the replay from its start; the challenge's cars without a
    pad, or with the CPU runs (not networked) the computer drivers' cars (with bit 17 car 1), theirs
-   again; the camera put back at the car (0x421d80). The network game's others and the ghost's
-   (0x466080, 0x466030) are not ported. */
+   again; the camera put back at the car (0x421d80); the ghost's from its start. The network game's
+   others are not ported. */
 static void replay_again(int p)
 {
     Replay_Play(Race_Replay(p), 0, 0, p);   /* 0x46cce0 */
@@ -652,7 +697,7 @@ static void replay_again(int p)
             }
     }
     Camera_Replace(p);   /* 0x421d80 */
-    if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x466080, "the ghost's replay again (0x466080, 0x466030)");
+    if (Ghost_On()) Ghost_End(), Ghost_Start(0, 0);   /* 0x466080, 0x466030 */
 }
 
 /* 0x41f2b0: every process on to the results, the players' damage stored (0x469b50), their replays
@@ -665,7 +710,7 @@ static void end_replay(ProcGroup *g)
         Proc_Event(g, i, 0, 2);
         Replay_End(Race_Replay((int)i));
     }
-    if (Gs_SelBit28() && Gs_Bit30()) PENDING_NOTE(0x41f2b0, "Race_EndReplay (the ghost)");
+    if (Ghost_On()) Ghost_End();   /* 0x466080 */
     if (Gs_Mode() != 4) return;
     if (!(gm32(0x52f2b4) & 0x800000)) {
         Challenge_KeepRestart(true);      /* 0x4728b0 */
@@ -718,10 +763,15 @@ static void race_exit(ProcGroup *g)
    loading (state 3) */
 static void alternate(ProcGroup *g)
 {
+    int base = Race_Base();
     Voices_StopAll();
     Surface_Reset();
     gw8(0x537ef6, (uint8_t)(gm8(0x537ef6) + 1));
-    if (Gs_SelBit28()) PENDING_NOTE(0x466080, "the ghosts' replays for the next player");
+    /* (with bit 28, 0x41e8d0's end: the ghost's run ended, a run named to become it does) */
+    if (Ghost_On()) {
+        Ghost_End();
+        for (int i = 0; i < (int)players(); i++) Ghost_Take(i, base + i);
+    }
     reenter = ENTER_PLAYER;
     race_exit(g);
 }
@@ -752,9 +802,14 @@ static void restart_line(ProcGroup *g)
     Times_Clear();
     Input_SetMenuMode(false);   /* 0x49ea90 */
     if (Gs_Mode() != 4) gw8(0x537ef6, 0);   /* 0x41b360 */
-    /* the replays ended, for the championship and the CPU runs the first two */
+    /* the replays ended, for the championship and the CPU runs the first two; the ghost's, and a
+       player's run named to become it does (0x4660a0) */
     for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
         Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
+    if (Ghost_On()) {
+        Ghost_End();
+        for (int i = 0; i < (int)players(); i++) Ghost_Take(i, Race_Base() + i);
+    }
     R.nfinished = 0, R.done = 0;
     memset(R.finished, 0, sizeof R.finished);
     memset(R.shown, 0, sizeof R.shown);

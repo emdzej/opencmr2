@@ -22,6 +22,7 @@ bool Replay_Stop(Replay *r);                          /* 0x46cc60: the recording
 /* 0x46cce0: play segment seg into car, after `pre` steps of the snapshot held (0: none) */
 bool Replay_Play(Replay *r, int seg, int pre, int car);
 bool Replay_End(Replay *r);                           /* 0x46d2a0: the playing ended */
+bool Replay_Save(const Replay *r, const char *path);  /* 0x46d3f0 */
 void Replay_RecordStep(void);                         /* 0x46c8e0 (Sim_Step) */
 void Replay_PlayStep(void);                           /* 0x46d270 (Sim_Step) */
 bool Replay_Playing(const Replay *r);                 /* +0x04 */
