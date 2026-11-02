@@ -18,6 +18,7 @@
 #include "world/tod.h"
 #include "game/lights.h"
 #include "game/replay.h"
+#include "game/records.h"
 #include "pending.h"
 #include "exe.h"
 #include "game/mem.h"
@@ -62,6 +63,7 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     Stage_LoadCat(stage);
     Sectors_Init();   /* 0x458090 */
     Hud_Init(0);      /* 0x411450 */
+    if (Gs_Mode() != 4) Rec_StageStart();   /* 0x4d0180 */
     Codriver_LoadCod(stage);   /* 0x416720 */
     if (!gm8(0x52ea52) && Gs_Mode() == 3) Replay_Setup();   /* 0x41c260: mode 3's replays here */
     Weather_StageLoad();       /* 0x45ea70 */

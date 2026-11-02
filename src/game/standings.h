@@ -6,6 +6,10 @@
 #include <stdint.h>
 
 void Stand_SetPoints(int i, int points);   /* 0x40d090 */
+uint32_t Stand_Time(int i);                /* 0x40d3d0: in 1/100 s */
+int Stand_TimePlace(int i);                /* 0x40d3a0 */
+int Stand_Place(int i);                    /* 0x40d060 */
+int Stand_Points(int i);                   /* 0x40d070 */
 void Stand_SetTime(int i, uint32_t cs);    /* 0x40d3f0: from 1/100 s */
 void Stand_Sort(void);                     /* 0x40d0c0 */
 void Stand_AddTimes(const int8_t *order, const int8_t *by, const int32_t *t);   /* 0x40d120 */

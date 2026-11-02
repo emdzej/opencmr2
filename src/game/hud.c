@@ -16,6 +16,7 @@
 #include "game/challenge.h"
 #include "game/mem.h"
 #include "game/race.h"
+#include "game/records.h"
 #include "game/car_load.h"
 #include "font.h"
 #include "render/d3d7.h"
@@ -32,6 +33,7 @@
 
 static int32_t shown, clock_;          /* DAT_0053d1b0, DAT_0053d1b4 */
 static bool capped;                    /* DAT_0053d1d8 */
+bool Hud_LapCapped(void) { return capped; }
 static int32_t finish[CAR_MAX];        /* 0x53d1b8 */
 const int32_t *Hud_FinishTimes(void) { return finish; }
 static uint8_t done[CAR_MAX];          /* 0x53d1da */
@@ -418,7 +420,19 @@ static void lap_done(int k)
         }
         if (Gs_Mode() == 12) PENDING_NOTE(0x40a3e0, "the time trial's lap records");
     }
-    if (k < (int)Gs_SelBits14() && !capped) PENDING_NOTE(0x4cf530, "the arcade's lap records");
+    /* a circuit's lap records (as the results': without the cheats' options or a recovery's
+       penalty, nor for "cmr"): the lap's time, the profile's best (0x53e18d), the lap's record
+       (0x53e18f, +0x84), the session's best (+0x85) */
+    if (k < (int)Gs_SelBits14() && !gm8(0x52afc2) && !(gm32(0x52afbc) >> 0xb & 1) && !capped &&
+        strncmp(Player_Name(0), exe_str(0x519ec4), 3) && Gs_SelBit24()) {
+        int id = Race_Base() + k;
+        Rec_SetLap(id, gm32(lt));
+        gw8(0x53e18d + (uint32_t)k, (uint8_t)(gm8(0x53e18d + (uint32_t)k) | Rec_BestLap(id)));
+        bool rec = Rec_LapTable(k, id);
+        gw8(0x53e18f, (uint8_t)(gm8(0x53e18f) | rec));
+        gw8(AR(k, 0x84), rec);
+        gw8(AR(k, 0x85), Rec_SessionLap(id));
+    }
     uint32_t w = gm32(0x52f2b0);
     if (w >> 0xb & 1) {
         if ((w & 7) == 2) {
@@ -669,10 +683,34 @@ void Hud_Update(int p, bool on_line)
         bar_layout();   /* 0x411b20 */
         lw = w, lh = h, lb = b;
     }
-    /* 0x411f70's first frame: the reference splits, the leader's (0x455d40(0, i)) */
-    if (!hud_ready && Opp_Loaded() && Gs_Mode() != 3 && Gs_Mode() != 7) {
-        hud_ready = true;
-        for (int i = 0; i < 12; i++) ref_split[i] = Opp_TimeAt(0, i);
+    /* 0x411f70's first frame: the reference splits, in the time trial and mode 7 the record's
+       (0x817448, read on past its ten) with the record's and the profile's best times (0x536c40,
+       0x536c3c: a circuit's lap, else the stage's), else the leader's (0x455d40(0, i)) with, in the
+       arcade, the lap's */
+    uint32_t m0 = Gs_Mode();
+    if (!hud_ready && (m0 != 7 || !gm8(0x536c20 + (uint32_t)p))) {
+        uint32_t b = Player_Records(Race_Base() + p), sel = gm32(0x52f2ac);
+        if (m0 == 3 || m0 == 7) {
+            memset(ref_split, 0, sizeof ref_split);   /* 0x4111a0 */
+            hud_ready = true;
+            if (m0 == 7) {
+                gw32(0x536c40, Rec_LapRecord());
+                gw32(0x536c3c, b ? gm32(b + 0x4c0 + ((sel >> 10 & 3) * 3 + (sel >> 12 & 3)) * 8) : 0);
+            } else {
+                gw32(0x536c40, gm32(0x52b044 + 0x658 + (Tod_Rally() * 0xb + Tod_Stage()) * 8) >> 7 & 0xffff);
+                gw32(0x536c3c, b ? gm32(b + 0x154 + (Tod_Stage() + Tod_Rally() * 0xc) * 8) : 0);
+            }
+            for (int i = 0; i < 12; i++) ref_split[i] = gms32(0x817448 + 4u * (uint32_t)i);   /* 0x4d0220 */
+        } else {
+            if (Opp_Loaded()) {
+                hud_ready = true;
+                for (int i = 0; i < 12; i++) ref_split[i] = Opp_TimeAt(0, i);
+            }
+            if (m0 == 5 || m0 == 6) {
+                gw32(0x536c40, Rec_LapRecord());
+                gw32(0x536c3c, b ? gm32(b + 0x4c0 + ((sel >> 10 & 3) * 3 + (sel >> 12 & 3)) * 8) : 0);
+            }
+        }
     }
     if (on_line) hud_time[p] = 0;
     else hud_time[p] = Race_Finished(p) ? Times_Finish(p) : Times_Race();

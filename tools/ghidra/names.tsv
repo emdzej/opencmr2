@@ -1604,3 +1604,29 @@
 004d0ba0	Fe_DrawRallyLoading	frontend	high	the rally's loading screen: the welcome and the rally's name on black
 004d0d30	Fe_LoadingWord	frontend	high	a loading screen word fading to black, a bar after it
 004d20f0	Fe_RallyMovieDue	frontend	high	the rally's movie is due (DAT_00817fec)
+004cf260	Rec_Tally	game	high	The new record marks counted into the profiles (0x817420)
+004cf390	Rec_RallyStart	game	high	A rally's stage wins cleared in the profile
+004cf3b0	Rec_StageWin	game	high	A stage win counted in the profile's rally word
+004cf3f0	Rec_ChampStart	game	high	The profile's championship sums cleared
+004cf420	Rec_ChampAdd	game	high	A rally's time and podium into the championship sums
+004cf450	Rec_SetTime	game	high	The stage time into the profile's race block
+004cf470	Rec_SetRally	game	high	The rally's result into the profile's race block
+004cf4d0	Rec_SetChamp	game	high	The championship's result into the profile's race block
+004cf530	Rec_SetLap	game	high	The lap time into the profile's race block
+004cf550	Rec_SetArcade	game	high	The arcade's result into the profile's race block
+004cf5b0	Rec_BestStage	game	high	The profile's stage best
+004cf660	Rec_BestRally	game	high	The profile's rally best
+004cf740	Rec_BestChamp	game	high	The profile's championship best
+004cf830	Rec_BestLap	game	high	The profile's lap best
+004cf8e0	Rec_BestArcade	game	high	The profile's arcade best
+004cf9d0	Rec_SessionStage	game	high	The session's best stage time (0x817570)
+004cfa10	Rec_StageRecord	game	high	The stage's record and splits in 0x52b044
+004cfb30	Rec_RallyTable	game	high	The rallies' top five
+004cfc90	Rec_ChampTable	game	high	The championship's top five
+004cfe20	Rec_SessionLap	game	high	The session's best lap
+004cfe50	Rec_LapRecord	game	high	The lap record's time
+004cfe80	Rec_LapTable	game	high	The lap record and splits in 0x52b044
+004cfff0	Rec_ArcadeTable	game	high	The arcade's top five
+004d0180	Rec_StageStart	game	high	The record's splits to race against, the session best reset
+004d0220	Rec_Split	game	high	A split of 0x817448
+004d0230	Rec_Context	game	high	The record context's rally, stage, location

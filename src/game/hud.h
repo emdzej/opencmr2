@@ -26,3 +26,4 @@ void Hud_Message(const char *text, const uint8_t *rgba, int p, bool shadow, int 
 void Hud_MessageReset(void);     /* 0x417e60 (each view, 0x40f0c0): the next message is drawn */
 int32_t Times_Split(int player, int k);   /* 0x448680: the race time at split k */
 const int32_t *Hud_FinishTimes(void);   /* 0x53d1b8: each car's finish time (16.16 s) */
+bool Hud_LapCapped(void);   /* 0x4481b0: the lap clock reached its cap (DAT_0053d1d8) */

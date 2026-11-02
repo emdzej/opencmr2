@@ -3,6 +3,7 @@
    (0x502240-0x5024a0, 0x50f180) and the main page's items (0x4ff4e0-0x500210). */
 #include "game/service.h"
 #include "game/service_int.h"
+#include "game/records.h"
 #include "game/saves.h"
 #include "audio/music.h"
 #include "audio/snd.h"
@@ -571,10 +572,10 @@ void Sv_RaceNow(void)
     S.to_go = 1;
 }
 
-/* 0x5001c0: Quit: the leaderboards' entries cleared (0x4cf260), to the front end */
+/* 0x5001c0: Quit: the new marks counted into the profiles (0x4cf260), to the front end */
 void Sv_QuitNow(bool keep_net)
 {
-    PENDING_NOTE(0x4cf260, "the stage's leaderboard entries on a quit");
+    Rec_Tally();   /* 0x4cf260 */
     S.quit = true;
     S.fade_at = Timer_Centis();
     Proc_Event(&group, 0, 0, 2);

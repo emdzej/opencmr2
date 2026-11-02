@@ -42,6 +42,7 @@ void Race_EventAll(uint32_t event, uint32_t prio);   /* 0x49c1c0 on every race p
 int Race_Cars(void);           /* 0x42b700: the cars in the race */
 int32_t Race_Frac(void);       /* 0x41f270: car 0's step fraction (DAT_00537f60) */
 void View_Rect(int player, int16_t r[4]);   /* 0x464b10 */
+int Rally_LastStage(uint32_t rally, uint32_t level);   /* 0x4071c0 */
 int Race_Base(void);           /* 0x41b370: the first player of the race (DAT_00537ef6) */
 void Race_EndReplay(void);   /* 0x41f2b0: every process on from the replay */
 bool Race_Exited(void);      /* torn down by the results for the next stage (0x41e670) */

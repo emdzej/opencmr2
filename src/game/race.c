@@ -3,6 +3,7 @@
 #include "game/balls.h"
 #include "game/shadow.h"
 #include "game/race.h"
+#include "game/records.h"
 #include "sim/knock.h"
 #include "sim/aerials.h"
 #include "game/ai.h"
@@ -598,7 +599,7 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
 
 /* 0x4071c0 (not in the network game): a rally's last stage, the super special (10) of an odd rally,
    else by the level 3, 7 or 9 */
-static int Rally_LastStage(uint32_t rally, uint32_t level)
+int Rally_LastStage(uint32_t rally, uint32_t level)
 {
     if (Gs_ModeBit19()) PENDING_NOTE(0x4071c0, "the network rally's last stage");
     if (rally & 1) return 10;
@@ -877,8 +878,12 @@ static void s11_results(ProcGroup *g, uint32_t slot)
         return;
     }
     if (Pause_QuitAsked()) {
-        /* the pause's exit: every process to state 0, back to the front end (0x41e670, 0x41b300) */
+        /* the pause's exit: the damage stored, the new marks counted, every process to state 0, back
+           to the front end (0x41e670, 0x41b300) */
         Pause_ClearAsks();
+        for (int i = 0; i < (int)players(); i++) Damage_Store(i);   /* 0x469b50 */
+        Damage_Store(0);
+        Rec_Tally();   /* 0x4cf260 */
         for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
         set_mode(0);
         R.built = false;

@@ -15,6 +15,12 @@ void Stand_SetTime(int i, uint32_t cs)
     gw32(TIMES + 4u * (uint32_t)i, (uint32_t)(((int64_t)(int32_t)cs * 0x28f5c28) >> 16));
 }
 
+/* 0x40d3d0 with 0x40d480: the time back in 1/100 s */
+uint32_t Stand_Time(int i) { return (uint32_t)(int32_t)(((int64_t)(gms32(TIMES + 4u * (uint32_t)i) + 0x147) << 16) / 0x28f5c28); }
+int Stand_TimePlace(int i) { return (int8_t)gm8(T_PLACE + (uint32_t)i); }    /* 0x40d3a0 */
+int Stand_Place(int i) { return (int8_t)gm8(P_PLACE + (uint32_t)i); }        /* 0x40d060 */
+int Stand_Points(int i) { return gms32(POINTS + 4u * (uint32_t)i) >> 16; }   /* 0x40d070 */
+
 static int8_t idx(uint32_t order, int i) { return (int8_t)gm8(order + (uint32_t)i); }
 static int32_t val(uint32_t v, int i) { return gms32(v + 4u * (uint32_t)i); }
 

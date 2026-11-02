@@ -15,6 +15,8 @@
 #include "game/profile.h"
 #include "game/sectors.h"
 #include "game/opponents.h"
+#include "game/records.h"
+#include "game/ghost.h"
 #include "game/car_load.h"
 #include "game/standings.h"
 #include "game/challenge.h"
@@ -194,12 +196,12 @@ static void draw_times(Menu *m)
         Font_Print(1, Text_Get(0x8a), x, h * 0x19 / 0x1e0 + h * 0x91 / 0x1e0 + shown * h * 0x1e / 0x1e0 + dy, C(c), 0x11);
         int tx = w * 0xb1 / 0x280 + (w * 0x166 / 0x280) * col, i = 0;
         for (; i < shown; i++) {
-            int32_t v = record ? gms32(0x817448 + 4u * (uint32_t)(i + 1)) - gms32(0x817448 + 4u * (uint32_t)i)
+            int32_t v = record ? gms32(0x541ab8 + 4u * (uint32_t)(i + 1)) - gms32(0x541ab8 + 4u * (uint32_t)i)
                                : Times_Split(col, i + 1) - Times_Split(col, i);
             print_time(b, sizeof b, v);
             Font_Print(1, b, tx, h * 0x91 / 0x1e0 + dy + (h * 0x1e / 0x1e0) * i, C(c), 0x11);
         }
-        int32_t total = record ? gms32(0x817448 + 4u * (uint32_t)shown) : Times_Finish(col);
+        int32_t total = record ? gms32(0x541ab8 + 4u * (uint32_t)shown) : Times_Finish(col);
         snprintf(b, sizeof b, exe_str(0x519f58), total / 6000, total / 100 % 60, total % 100);
         Font_Print(1, b, tx, h * 0x19 / 0x1e0 + h * 0x91 / 0x1e0 + dy + (h * 0x1e / 0x1e0) * i, C(c), 0x11);
     }
@@ -237,29 +239,6 @@ static void draw_record(Menu *m)
     Text_ToFontCase(b);
     Font_Print(0, b, w * 0x1e / 0x280, h * 10 / 0x1e0 + h * 0xf2 / 0x1e0 + Font_Height(0), C(0x519ecc), 0x11);
     Font_SetLayer(2);
-}
-
-/* 0x4cfa10: a player's stage time into the stage's record when faster (the holder, the car, the box,
-   the time in bits 7-22, the ten split times at +0x914 and 0x817448; the original reads the tenth from
-   the next player's row); true if it was */
-static bool stage_record(int p, int id, const char *name)
-{
-    uint32_t idx = gm32(0x8173fc) + gm32(0x8173f8) * 0xb, e = 0x52b044 + 0x654 + idx * 8;
-    int32_t t = Times_Finish(p);   /* 0x4d0280: the champion tables' time */
-    if (t < 0 || (int32_t)(gm32(e + 4) >> 7 & 0xffff) <= t) return false;
-    snprintf((char *)gm(e), 4, "%s", name);
-    uint32_t v = gm32(e + 4);
-    uint32_t prof = gm32(0x531350 + 0x30u * (uint32_t)id) >> 0x12 & 0xf;
-    uint32_t car = gm32(0x531350 + 0x30u * (uint32_t)id) & 0x3f, box = prof == 0xf ? 1 : gm32(0x52fa5c + prof * 0x650) >> 5 & 1;
-    v = (v & 0xff80003fu) | ((uint32_t)t & 0xffff) << 7 | box << 6 | car;
-    gw32(e + 4, v);
-    for (int i = 0; i < 10; i++) {
-        int32_t sp = Times_Split(p + i / 9, i % 9);
-        gw16(0x52b044 + 0x914 + idx * 0x14 + 2u * (uint32_t)i, (uint16_t)sp);
-        gw32(0x817448 + 4u * (uint32_t)i, (uint32_t)(uint16_t)sp);
-    }
-    gw8(0x817410, 1);
-    return true;
 }
 
 /* 0x44ec30: a box around row k's place, dy lower (the list's scroll, 0x540c60 and 0x53e698, is not
@@ -1201,12 +1180,72 @@ static void champ_end(int best)
     }
 }
 
+/* 0x44a1b0's records (not in a challenge, with the cheats' options, after a recovery's penalty, nor
+   for the "cmr" driver; 0x4481b0 the lap clock's cap): for each player with a time, outside a circuit
+   the stage's time, a rally's stage wins, the stage's best, the stage's record (the last such player's
+   answer is kept) and the session's best (the ghost's, into *best); at the arcade's last race its
+   result, best and table. Then, once the last player has driven, at a rally's last stage the rally's
+   result (in the championship its sums), best and table, after the championship's last rally its
+   result, best and table. */
+static bool take_records(bool *best)
+{
+    bool record = false;
+    *best = false;
+    if (mode() == 4 || gm8(0x52afc2) || (gm32(0x52afbc) >> 0xb & 1) || Hud_LapCapped() || !strncmp(player_name(0), exe_str(0x519ec4), 3))
+        return false;
+    for (int i = 0; i < (int)Gs_SelBits14(); i++) {
+        int id = Race_Base() + i;
+        int32_t t = Times_Finish(i);
+        if (t <= 0) continue;
+        if (!Gs_SelBit24()) {
+            int place = Opp_Place(id);
+            Rec_SetTime(id, t);
+            if (mode() == 0 || mode() == 1) {
+                if (Tod_Stage() == 0) Rec_RallyStart(id);
+                Rec_StageWin(id, place);
+            }
+            Rec_BestStage(id);
+            record = Rec_StageRecord(i, id, Player_Name(id));
+            *best = Rec_SessionStage(id);
+        }
+        if (mode() == 5 && race_no() == 2) {
+            Rec_SetArcade(id, (uint32_t)(int8_t)gm8(0x533618 + (uint32_t)i), (uint32_t)(gms32(0x5335b8 + 4u * (uint32_t)i) >> 16), gm32(0x5335f0 + 4u * (uint32_t)i));   /* 0x40ceb0, 0x40ced0, 0x40cef0 */
+            Rec_BestArcade(id);
+            Rec_ArcadeTable(id, Player_Name(id));
+        }
+    }
+    if (!last_player) return record;
+    for (int i = 0; i < (int)Gs_Players(); i++) {
+        bool last = (int)Tod_Stage() == Rally_LastStage(Tod_Rally(), Gs_Mode2());
+        if ((mode() == 0 || mode() == 1) && last) {
+            int slot = Opp_PlayerSlot(i);
+            uint32_t t = Stand_Time(slot), place = (uint32_t)Stand_TimePlace(slot);
+            Rec_SetRally(i, t, place, (uint32_t)Stand_Points(slot));
+            if (mode() == 0) {
+                if (Tod_Rally() == 0) Rec_ChampStart(i);
+                Rec_ChampAdd(i, (int32_t)t, (int)place);
+            }
+            Rec_BestRally(i);
+            Rec_RallyTable(i, Player_Name(i));
+        }
+        if (mode() == 0 && Tod_Rally() == 7 && last) {
+            int slot = Opp_PlayerSlot(i);
+            Rec_SetChamp(i, (uint32_t)Stand_Place(slot), (uint32_t)Stand_Points(slot));
+            Rec_BestChamp(i);
+            Rec_ChampTable(i, Player_Name(i));
+        }
+    }
+    return record;
+}
+
 void Results_Start(bool again)
 {
-    PENDING_NOTE(0x44a1b0, "the results' records and championship tables (0x4cf3b0-0x4cfff0)");
     /* the stage record's holder (0x52b044 + 0x654), lower case */
     snprintf(holder, sizeof holder, "%s", (const char *)gm(0x52b044 + 0x654 + ((gm32(0x52f2ac) & 0x1f) * 0xb + (gm32(0x52f2ac) >> 5 & 0x1f)) * 8));
     Text_Lower(holder);
+    /* the record's splits as they stood (0x541ab8, ten; the last the record's time) */
+    for (int i = 0; i < 10; i++) gw32(0x541ab8 + 4u * (uint32_t)i, (uint32_t)Rec_Split(i));
+    gw32(0x541adc, gm32(0x52b044 + 0x658 + ((gm32(0x52f2ac) & 0x1f) * 0xb + (gm32(0x52f2ac) >> 5 & 0x1f)) * 8) >> 7 & 0xffff);
     if (!again) Input_SetMenuMode(true);
     Menu_Start();
     /* 0x449100's pages on the one-player stage's way */
@@ -1245,13 +1284,9 @@ void Results_Start(bool again)
         Menu_Reset(&pg_chal);
     }
     if (mode() >= 8) PENDING_NOTE(0x44a1b0, "the results' pages of the other modes");
-    /* the stage record (not in a challenge, with the cheats' options, after a recovery's penalty, or
-       for the "cmr" driver) */
-    bool record = false;
-    const char *pn = player_name(0);
-    if (mode() != 4 && !gm8(0x52afc2) && !(gm32(0x52afbc) >> 0xb & 1) && strncmp(pn, exe_str(0x519ec4), 3))
-        for (int i = 0; i < (int)Gs_SelBits14(); i++)
-            if (Times_Finish(i) > 0 && !Gs_SelBit24() && stage_record(i, Race_Base() + i, player_name(Race_Base() + i))) record = true;
+    last_player = !Gs_ModeBit17() || Race_Base() == (int)Gs_Players() - 1;
+    bool best, record = take_records(&best);
+    if (Gs_SelBit28() && Gs_Bit30() && best) Ghost_TakeFrom(0);   /* the session's best into the ghost */
     snprintf(record_name, sizeof record_name, "%s", (const char *)gm(0x52b044 + 0x654 + ((gm32(0x52f2ac) & 0x1f) * 0xb + (gm32(0x52f2ac) >> 5 & 0x1f)) * 8));
     /* with a new record the times go on to the congratulations, else to the board */
     if (record) pg_times.items[0].target = &pg_splits, pg_board.parent = &pg_splits;
@@ -1262,7 +1297,6 @@ void Results_Start(bool again)
         if (ch_kind() == 1 || ch_kind() == 2) pg_title.items[0].target = &pg_order, pg_order.parent = &pg_title;
         else pg_times.items[0].target = &pg_order, pg_order.parent = &pg_times;
     }
-    last_player = !Gs_ModeBit17() || Race_Base() == (int)Gs_Players() - 1;
     last_stage = false;
     if (mode() == 0 || mode() == 1) {
         /* a rally: the board on to the rally's times (0x53e4d8), then the choices (0x53f028) */
