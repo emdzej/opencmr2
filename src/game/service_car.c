@@ -194,7 +194,26 @@ static void wheels(int p)
     tyre_shown[p] = t;
     SvCar *c = &cars[p];
     if (detail() != 0) {
-        PENDING_NOTE(0x506080, "the stand car's tyre textures at lower detail (Tex_Reload)");
+        /* without the tyre models: the first wheel's polygons' first textures, whose name has an L or
+           N nine from its end, switched to L for the tarmac tyres and to N otherwise, and reloaded;
+           the original walks the first wheel four times (the second time finds nothing to switch) */
+        const Obj *o = c->wheel[0];
+        if (!o || !o->mesh || !o->model) return;
+        uint32_t np = (uint32_t)(o->mesh[0x28] | o->mesh[0x29] << 8 | o->mesh[0x2a] << 16 | (uint32_t)o->mesh[0x2b] << 24);
+        const uint8_t *poly = C3d_Ref(o->model, o->mesh + 0x24, o->model->polys);
+        bool l = has_l(c->cls, t);
+        for (int pass = 0; pass < 4 && poly; pass++)
+            for (uint32_t i = 0; i < np; i++) {
+                const uint8_t *q = poly + (size_t)i * C3D_POLY + 4;
+                uint32_t id = (uint32_t)(q[0] | q[1] << 8 | q[2] << 16 | (uint32_t)q[3] << 24);
+                Tex *x = id < TEX_MAX ? g_tex[id] : NULL;
+                size_t len = x ? strlen(x->name) : 0;
+                if (len < 9) continue;   /* (the original reads before the name) */
+                char *ch = &x->name[len - 9];
+                if (*ch != (l ? 'N' : 'L')) continue;
+                *ch = l ? 'L' : 'N';   /* 0x519c94, 0x519c98 */
+                Tex_Reload(x);
+            }
         return;
     }
     uint8_t **m = has_s(c->cls, t) ? c->mesh_s : has_l(c->cls, t) ? c->mesh_l : c->mesh;
