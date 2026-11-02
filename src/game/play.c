@@ -116,6 +116,7 @@ static void draw(int player, int state)
     camera->world.m[15] = 0x10000;
     camera->dirty = 1;
     int32_t cp[3] = {camera->world.m[12], camera->world.m[13], camera->world.m[14]};
+    Scenery_ViewFor(player);   /* 0x471bf0 */
     Knock_Draw();   /* 0x471a60 */
     /* (0x4292c0, each car's models shifted 1.5 units on its line to the camera (inferred), runs only on a
        device without a depth buffer: 0x4b74b0, the triangle caps' ZBUFFERLESSHSR read by

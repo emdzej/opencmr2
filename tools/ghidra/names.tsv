@@ -1718,3 +1718,4 @@
 004a50f0	Tex_LockRect	render	high	A texture's rect locked for writing (the lock list 0x65aa88)
 004a52d0	Tex_PutPixel	render	high	A pixel written into a locked texture (16-bit blended; 32-bit only blue blended)
 004a56c0	Tex_Unlock	render	high	A locked texture unlocked
+00471bf0	Scenery_ViewFor	sim	high	Split screen: the movable objects shown or put down as the view's player knocked them

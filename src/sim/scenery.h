@@ -36,4 +36,5 @@ int Scenery_Movables(void);                     /* 0x471bd0 */
 struct Scenery *Scenery_Movable(int i);
 void Scenery_MovedPos(int i, int32_t p[3]);     /* 0x471cc0 */
 bool Scenery_UpFor(int i, int car);             /* 0x471d40 */
+void Scenery_ViewFor(int player);               /* 0x471bf0: the movables as player sees them (split screen) */
 void Scenery_SetUp(int i, int car, bool up);    /* 0x471d80 */

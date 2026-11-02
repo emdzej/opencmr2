@@ -230,6 +230,27 @@ void Scenery_MovedPos(int i, int32_t p[3])
 }
 static void moved_pos(int32_t p[3], const Entry *e) { Scenery_MovedPos((int)(e - ent_m), p); }
 
+/* 0x471bf0: with two players or more, before player p's view, each movable object shown (1,000
+   units up, drawn) when it stands for p but is down, or put down (and not drawn) when it is up but
+   knocked over by p; with one player nothing (the knock moves it then) */
+void Scenery_ViewFor(int p)
+{
+    if (Gs_SelBits14() < 2) return;   /* (0x4083f0 only) */
+    for (int i = 0; i < n_m; i++) {
+        bool up = (standing[i] & (1u << (p & 31))) != 0;
+        Scenery *sc = ent_m[i].sc;
+        if (up && !up_flag[i]) {
+            sc->pos[1] += 0x3e80000;
+            sc->rec[0x14] = 0xff;
+            up_flag[i] = 1;
+        } else if (!up && up_flag[i]) {
+            sc->pos[1] -= 0x3e80000;
+            sc->rec[0x14] = 0;
+            up_flag[i] = 0;
+        }
+    }
+}
+
 /* 0x471d40: the movable entry still up for car n */
 bool Scenery_UpFor(int i, int n) { return i >= 0 && i < n_m && (standing[i] & (1u << (n & 31))) != 0; }
 static bool up_for(const Entry *e, int n) { return Scenery_UpFor((int)(e - ent_m), n); }
