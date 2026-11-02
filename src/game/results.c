@@ -27,6 +27,9 @@
 static Menu pg_title, pg_times, pg_splits, pg_board, pg_end;   /* 0x53ea68, 0x541218, 0x53f5b0, 0x53e4b8, 0x541400 */
 static Menu pg_rally, pg_restart, pg_quit;   /* 0x53f008, 0x5402f8, 0x5418d8 */
 static Menu pg_order, pg_points, pg_stand, pg_last;   /* 0x53fb70, 0x53ec48, 0x53e888, 0x53ee28: the arcade's */
+static Menu pg_alt;                /* 0x53f3c8: the time trial's players in alternation */
+static int32_t alt_time[4];        /* 0x541cdc: each player's time, by Race_Base */
+static uint8_t alt_who[4];         /* 0x541cec: and whose it is */
 static bool last_stage, last_player;   /* DAT_00541210, DAT_00540898 */
 static Menu *page, *next;          /* DAT_00541cc8, DAT_00541ccc */
 static Menu *shown;                /* DAT_00541dfc */
@@ -209,12 +212,13 @@ static bool stage_record(int p, int id, const char *name)
     return true;
 }
 
-/* 0x44ec30: a box around row k's place */
-static void place_box(int k)
+/* 0x44ec30: a box around row k's place, dy lower (the list's scroll, 0x540c60 and 0x53e698, is not
+   ported; nothing passes the closer rows of its third argument) */
+static void place_box(int k, int dy)
 {
     int w, h;
     screen(&w, &h);
-    int x0 = w * 0x20 / 0x280, x1 = w * 0x41 / 0x280, y0 = h * 0x82 / 0x1e0 + k * (h * 0x34 / 0x1e0), y1 = h * 0xa3 / 0x1e0 + k * (h * 0x34 / 0x1e0);
+    int x0 = w * 0x20 / 0x280, x1 = w * 0x41 / 0x280, y0 = h * 0x82 / 0x1e0 + k * (h * 0x34 / 0x1e0) + dy, y1 = h * 0xa3 / 0x1e0 + k * (h * 0x34 / 0x1e0) + dy;
     int16_t a[4] = {(int16_t)(x0 + 2), (int16_t)y0, (int16_t)(x1 - x0 - 4), 2};
     Rect_Fill(a, C(0x519ecc), 2);
     int16_t b[4] = {(int16_t)(x0 + 2), (int16_t)(y1 - 2), (int16_t)(x1 - x0 - 4), 2};
@@ -264,7 +268,7 @@ static void draw_board(Menu *m)
             int car = driver >= 0 && driver <= 0xe ? gm8(0x51681c + (uint32_t)driver) : 0;   /* 0x407fc0 */
             snprintf(b, sizeof b, "%s", car_name(car));
             Text_ToFontCase(b);
-            place_box(k);
+            place_box(k, 0);
         }
         Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k, C(0x519ecc), 0x21);
         if (Opp_Time(idx - 1) == tm) snprintf(b, sizeof b, "%s", exe_str(0x519f70));
@@ -284,6 +288,59 @@ static void board_enter(Menu *m, bool back)
         if (Opp_Place(p) < best) best = Opp_Place(p);
     if (best > 5) m->items[0].value = (uint8_t)(best - 5);
     if (m->items[0].value > 10) m->items[0].value = 10;
+}
+
+/* 0x44b270: the players' times so far in order, the shortest first (a 0 is left out; when only
+   0s are left the swap is with the last place picked, 0 at first, as in the original) */
+static void alt_sort(void)
+{
+    int pick = 0;
+    for (int i = 0; i < Race_Base() + 1; i++) {
+        int32_t best = 0xffff;
+        for (int j = i; j < Race_Base() + 1; j++)
+            if (alt_time[j] && alt_time[j] < best) pick = j, best = alt_time[j];
+        int32_t t = alt_time[i];
+        alt_time[i] = alt_time[pick], alt_time[pick] = t;
+        uint8_t a = alt_who[pick], b = alt_who[i];
+        alt_who[i] = a, alt_who[pick] = b;
+    }
+}
+
+/* 0x44d260: the rally, the stage and 0x9a; a row for each player so far (lower the fewer: 80, 50, 20
+   of 480 for the second to the fourth; the first's offset is the original's uninitialised local, 0
+   here): the name, the car, the time, the place in its box */
+static void draw_alt(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    dim();
+    char stage[64];
+    uint32_t st = Tod_Stage();
+    if (st == 10) snprintf(stage, sizeof stage, "%s", Text_Get(0xba));
+    else snprintf(stage, sizeof stage, exe_str(0x516098), Text_Get(0x40), (int)st + 1);
+    const char *t[3] = {Text_Get((int)Tod_Rally()), stage, Text_Get(0x9a)};
+    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 3);
+    int base = Race_Base(), dy = 0;
+    if (base == 1) dy = h * 0x50 / 0x1e0;
+    else if (base == 2) dy = h * 0x32 / 0x1e0;
+    else if (base == 3) dy = h * 0x14 / 0x1e0;
+    for (int k = 0; k < base + 1 && k < 4; k++) {
+        char b[96];
+        int row = h * 0x82 / 0x1e0 + (h * 0x34 / 0x1e0) * k - h * 8 / 0x1e0 + dy;
+        snprintf(b, sizeof b, "%s", player_name(alt_who[k]));
+        Text_Lower(b);
+        Font_Print(1, b, w * 0x5c / 0x280, row, C(0x519ecc), 9);
+        snprintf(b, sizeof b, "%s", car_name((int)(gm32(0x531350 + 0x30u * alt_who[k]) & 0x3f)));
+        Text_ToFontCase(b);
+        Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + dy + (h * 0x34 / 0x1e0) * k, C(0x519ecc), 0x11);
+        print_time(b, sizeof b, alt_time[k]);
+        Font_Print(1, b, w * 0x21e / 0x280, h * 6 / 0x1e0 + row, C(0x519ecc), 9);
+        place_box(k, dy);
+        snprintf(b, sizeof b, exe_str(0x517dd0), k + 1);
+        int x0 = w * 0x20 / 0x280, y0 = h * 0x82 / 0x1e0;
+        Font_Print(1, b, (w * 0x41 / 0x280 - x0) / 2 + x0, h * 8 / 0x1e0 + (h * 0x34 / 0x1e0) * k + y0 + (h * 0xa3 / 0x1e0 - y0) / 2 + dy, C(0x519ecc), 0x12);
+    }
 }
 
 /* The arcade's pages */
@@ -387,7 +444,7 @@ static void row_car(int k, int car, bool player)
                         (int16_t)(w * 0x41 / 0x280 - w * 0x20 / 0x280), (int16_t)(h * 0xa3 / 0x1e0 - h * 0x82 / 0x1e0 + 1)};
         Rect_Fill(r, C(0x519ed8), 2);
     } else
-        place_box(k);
+        place_box(k, 0);
     Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k, C(0x519ecc), 0x21);
 }
 static void row_place(int k, bool tie)
@@ -637,7 +694,7 @@ static void list_rows(Menu *m, int kind)
             int car = driver >= 0 && driver <= 0xe ? gm8(0x51681c + (uint32_t)driver) : 0;   /* 0x407fc0 */
             snprintf(b, sizeof b, "%s", car_name(car));
             Text_ToFontCase(b);
-            place_box(k);
+            place_box(k, 0);
         }
         Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x34 / 0x1e0) * k + dy, C(0x519ecc), 0x21);
         snprintf(b, sizeof b, exe_str(0x517dd0), idx + 1);
@@ -924,13 +981,13 @@ static void build_end(int param, Menu *parent, int16_t restart_text)
     Menu_Reset(&pg_end);
 }
 
-/* 0x449100's questions: restart (0x5402f8: restart, at the service area, back) and quit (0x5418d8:
-   quit, back), each from its last item */
+/* 0x449100's questions: restart (0x5402f8: restart, at the service area in the single stage and the
+   time trial, back) and quit (0x5418d8: quit, back), each from its last item */
 static void build_questions(int16_t restart_text)
 {
     Menu_Init(&pg_restart, NULL, 0, &pg_end, false, NULL, 1, 0, 1);
     Menu_AddPage(&pg_restart, NULL, restart_text, NULL, restart_fn, 1000);
-    Menu_AddPage(&pg_restart, NULL, 0x8b, NULL, service_fn, 0x3e9);
+    if (mode() == 2 || mode() == 3) Menu_AddPage(&pg_restart, NULL, 0x8b, NULL, service_fn, 0x3e9);
     Menu_AddBack(&pg_restart, NULL, 0xa6, NULL, -1);
     Menu_SetCallbacks(&pg_restart, last_enter, NULL, draw_end, NULL);
     Menu_Reset(&pg_restart);
@@ -1065,6 +1122,9 @@ void Results_Start(bool again)
     Menu_Init(&pg_last, NULL, 0, &pg_stand, false, NULL, 1, 0, 0);
     Menu_AddPage(&pg_last, NULL, 0, &pg_end, NULL, 0);
     Menu_SetCallbacks(&pg_last, NULL, NULL, draw_last, NULL);
+    Menu_Init(&pg_alt, NULL, 0, &pg_title, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_alt, NULL, 0, &pg_end, NULL, 0);
+    Menu_SetCallbacks(&pg_alt, NULL, NULL, draw_alt, NULL);
     if (mode() == 4 || mode() >= 8) PENDING_NOTE(0x44a1b0, "the results' pages of the other modes");
     /* the stage record (not in a challenge, with the cheats' options, after a recovery's penalty, or
        for the "cmr" driver) */
@@ -1120,8 +1180,35 @@ void Results_Start(bool again)
         build_end(0, &pg_order, 0x29);
         pg_order.items[0].target = &pg_end;
         build_questions(0x29);
+    } else if (mode() == 2 || mode() == 3) {
+        /* the single stage: the board on to the choices (0x53e4d8); the time trial: the times (or the
+           record's page) on to them. In alternation before the last player the choices go on to the
+           next; at the last the single stage's board goes to the choices without building them again
+           (the last player's keep the one before's, as in the original), the time trial's to the
+           players' times in order (0x53f3c8) first. */
+        Menu *after = pg_times.items[0].target == &pg_splits ? &pg_splits : &pg_times;
+        if (mode() == 3 && Gs_ModeBit17()) {
+            alt_time[Race_Base() & 3] = Times_Split(0, Sectors_Shown());
+            alt_who[Race_Base() & 3] = (uint8_t)Race_Base();
+        }
+        if (!Gs_ModeBit17()) {
+            Menu *p = mode() == 2 ? &pg_board : after;
+            p->items[0].target = &pg_end;
+            build_end(0, p, 0x23);
+        } else if (!last_player) {
+            after->items[0].target = &pg_end;
+            build_end(1, after, 0x23);
+        } else if (mode() == 2) {
+            pg_board.items[0].target = &pg_end;
+            pg_end.parent = &pg_board;
+        } else {
+            alt_sort();
+            after->items[0].target = &pg_alt;
+            pg_alt.parent = after;
+            build_end(0, &pg_alt, 0x23);
+        }
+        build_questions(0x23);
     } else {
-        /* single stage and time trial: the board on to the choices (0x53e4d8) */
         build_end(0, &pg_board, 0x23);
         build_questions(0x23);
         pg_board.items[0].target = &pg_end;

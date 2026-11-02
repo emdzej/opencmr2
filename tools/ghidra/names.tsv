@@ -1478,3 +1478,5 @@
 00407ec0	Cpu_Driver	select	high	a computer car's driver (0x5166b4 records)
 00407fc0	Cpu_Car	select	high	a computer car's model
 00405610	Pause_Crt	pause	high	the crtna640 texture (0x52af50)
+0044d260	Results_DrawAltTimes	results	high	the time trial's players in alternation: each in order with car, time, place
+0044b270	Results_SortAlt	results	high	the alternation's times sorted, the shortest first
