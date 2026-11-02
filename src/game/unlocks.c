@@ -11,7 +11,7 @@ enum { PROG = 0x52b03c, PROG2 = 0x52b040, FLAGS = 0x537f68, CAR = 0x537f78, BONU
 static bool no_profile(int p) { return (Player_Word(p) & 0x3c0000) == 0x3c0000; }
 static uint32_t prof_of(int p) { return (Player_Word(p) >> 0x12 & 0xf) * 0x650u; }
 static void put_bits(uint32_t va, uint32_t mask, uint32_t v) { gw32(va, (gm32(va) & ~mask) | (v & mask)); }
-static void dirty(void) { gw8(0x52ea51, 1); }   /* 0x4057c0: the game's settings to be saved */
+static void dirty(void) { gw8(0x52ea51, 1); }   /* 0x4057c0: a flag no code reads */
 static bool option(int n) { return gm32(0x52e890) >> n & 1; }   /* 0x406410 */
 static void flag(int p, uint32_t f) { gw32(FLAGS + 4u * (uint32_t)p, gm32(FLAGS + 4u * (uint32_t)p) | f); }
 
@@ -157,7 +157,7 @@ static int player_car(int p)
    bits), and for a win at levels 1 and 2 an odd rally's car (the table 0x519198) or an even rally's
    bonus stage. In the arcade (mode 5) at its last kind the medal, and for a win cars 5, 2, 6, 3 and
    the progress bits by the kind and level; in mode 6 cars 13 or 14 for a win in car 12 driven. Then
-   car 1 for all the medals at 2. The settings to be saved when a bonus stage opened. */
+   car 1 for all the medals at 2. 0x52ea51 set when a bonus stage opened (no code reads it). */
 void Unlocks_AfterStage(void)
 {
     int np = (int)Gs_Players();
