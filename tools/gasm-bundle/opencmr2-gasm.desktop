@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Colin McRae Rally 2.0 (gasm)
+GenericName=Racing game
+Comment=OpenCMR2, a reimplementation of Colin McRae Rally 2.0 (2000), on gasm. Needs your Colin McRae Rally 2.0 CD.
+Exec="@DIR@/opencmr2.sh"
+Icon=@DIR@/opencmr2.png
+Terminal=false
+Categories=Game;SportsGame;

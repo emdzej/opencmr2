@@ -23,6 +23,15 @@ gasm-run opencmr2.wasm --asset cd=CMR2.ISO
 gasm-run opencmr2.wasm --asset-dir cd --headless 600 --screenshot /tmp/frame.png   # unattended test run
 ```
 
-In the browser: the [player](/play/){target="_self"} ([Playing in the browser](playing.md)). Releases will
-include ready bundles (macOS app, Linux and Windows folders) with the runner; none exist yet: see
-[Status](status.md).
+In the browser: the [player](/play/){target="_self"} ([Playing in the browser](playing.md)). Releases
+come as ready bundles with the runner: a macOS app (universal), Linux folders (x86_64, arm64) with
+`opencmr2.sh`, and a Windows folder with `OpenCMR2.cmd`. Each launcher asks for the CD image or a folder
+with the CD files once and remembers it (`--change-data` picks another, `--help` lists the options);
+anything after the data goes to gasm-run. None is published yet: see [Status](status.md).
+
+To make one yourself (`tools/fetch-gasm-runner.sh` fetches the released runner for a platform):
+
+```sh
+tools/package-gasm.sh 0.1.0 macos-universal "$(tools/fetch-gasm-runner.sh macos-universal)" dist
+tools/smoke-gasm-bundle.sh dist/opencmr2-gasm-0.1.0-macos-universal.zip   # OPENCMR2_SMOKE_DATA=CMR2.ISO also plays it
+```
