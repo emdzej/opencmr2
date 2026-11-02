@@ -4,6 +4,7 @@
 #include "game/gstate.h"
 #include "game/shadow.h"
 #include "game/play.h"
+#include "world/carshade.h"
 #include "sim/knock.h"
 #include "sim/aerials.h"
 #include "game/fireworks.h"
@@ -133,6 +134,21 @@ static void draw(int player, int state)
         if (Cockpit_Model(i)) cars[k++] = Cockpit_Model(i);
     World_SetCars(cars, k);
     Obj_Frame(&g_world, camera);
+    /* the trees' shadows on the cars, once a frame in the first view (0x536ad0): each car's items
+       from its far model when shown, else its main one, then its second, main and far models shaded */
+    if (player == 0) {
+        CarShade_Begin();   /* 0x4b5e60 */
+        for (int i = g_all.n - 1; i >= 0; i--) {
+            const Car *c = Car_Get(g_all.car[i]);
+            const Obj *at = c->far[0] && c->far[0]->mask ? c->far[0] : c->main;
+            CarShade_Gather(at, CI32(c, 0x758), CI16(c, 0xb00));   /* 0x4b5f90 */
+            uint8_t passes = Car_Shown(CI8(c, 0xb1a));   /* 0x46bd40 */
+            CarShade_Shade(c->second, CI32(c, 0xa70), passes);   /* 0x4b5ee0 */
+            CarShade_Shade(c->main, CI32(c, 0xa70), passes);
+            if (c->far[0]) CarShade_Shade(c->far[0], CI32(c, 0xa70), passes);
+        }
+        CarShade_End();   /* 0x4b5eb0 */
+    }
     /* the cars' pass 0x466570: each car's shadow but those the view hides (0x46bd20's 7) */
     bool multi = Gs_SelBits14() > 1 && Race_State(0) == 10;   /* 0x41f3a0, as weather.c */
     for (int i = 0; i < g_all.n; i++) {
@@ -203,6 +219,7 @@ void Play_End(void)
     World_SetCars(NULL, 0);
     Sim_InitLists(0);   /* the cars' lists emptied with the cars (the next race's first draws run before its load) */
     Cockpit_Free();
+    CarShade_Free();   /* 0x4b5380 (in the cars' free 0x457ed0) */
     Scenery_CollFree();   /* 0x472720 */
     Scenery_FreeAll();
     Fin_Free();

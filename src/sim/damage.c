@@ -12,6 +12,7 @@
 #include "sim/sim.h"
 #include "sim/walls.h"
 #include "sim/parts.h"
+#include "world/carshade.h"
 #include "c3d.h"
 #include "crt.h"
 #include "fixmath.h"
@@ -132,13 +133,14 @@ bool Damage_Vert(int n, int s, int v, int32_t p[3])
     return true;
 }
 
-/* the mesh uploaded again; 0x4b4100 marks it in the car's relighting table (0x6e0124, not ported) */
+/* the mesh uploaded again and marked for the trees' shadows on the car (0x4b4100, against the
+   car's second model) */
 static void upload(const Dmg *d, int s)
 {
     const Obj *o = d->obj[s];
     if (!o || !o->mesh) return;
     Mesh_UploadVerts(o->model, o->mesh);
-    PENDING_NOTE(0x4b4100, "Relight_MarkMesh");
+    CarShade_Mark(Car_Get((int)(d - dmg))->second, o->mesh);
 }
 
 /* ---- the records and logs ---- */
@@ -834,7 +836,7 @@ static void restore(Car *c)
             for (uint32_t a = 0; a < 6; a++) vset(v + (size_t)k * C3D_VERTEX, 4 * a, (int32_t)rd32(d->rest[s] + 0x20 * k + 4 * a));
         if (d->obj[s] && d->obj[s]->mesh) {
             Mesh_RestoreColours(d->obj[s]->model, d->obj[s]->mesh);
-            PENDING_NOTE(0x4b4100, "Relight_MarkMesh");
+            CarShade_Mark(c->second, d->obj[s]->mesh);   /* 0x4b4100 */
         }
     }
     for (uint32_t o = 0x21c; o < 0x240; o += 4) W(d, o, 0);

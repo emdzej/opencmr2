@@ -5,6 +5,7 @@
 #include "render/rstate.h"
 #include "world/relight.h"
 #include "fixmath.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -146,6 +147,31 @@ bool Tre_Parse(uint8_t *d, uint32_t size)
         Mesh_AddToVB(&g_tre, me);
     }
     return true;
+}
+
+const int32_t *Tre_Header(void)
+{
+    static int32_t h[12];
+    if (!g_tre_have || !g_tre.data) return NULL;
+    for (int i = 0; i < 12; i++) h[i] = (int32_t)rd32(g_tre.data + 4 * (uint32_t)i);
+    return h;
+}
+
+const uint8_t *Tre_NodeItems(int node, int *count)
+{
+    *count = 0;
+    if (!g_tre_have || !g_tre.data || node < 0 || node >= g_tre_nodes) return NULL;
+    const uint8_t *nd = g_tre.data + 0x32 + (uint32_t)node * 0x14;
+    *count = rd16(nd + 2);
+    return g_tre.data + rd32(nd + 0x0c);
+}
+
+const Scenery *Tre_ItemScenery(const uint8_t *item)
+{
+    if (!g_tre_have || !item_scenery || g_tre_nodes <= 0) return NULL;
+    const uint8_t *first = g_tre.data + rd32(g_tre.data + 0x32 + 0x0c);
+    ptrdiff_t i = (item - first) / 0x30;
+    return i >= 0 && i < g_tre_items ? item_scenery[i] : NULL;
 }
 
 /* The original first steps a time-driven value (FUN_004bcc60, from the centisecond clock) that nothing

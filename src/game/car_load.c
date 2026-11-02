@@ -1,5 +1,6 @@
 /* Car_Load 0x457000 (see car_load.h). */
 #include "game/car_load.h"
+#include "world/carshade.h"
 #include "game/race.h"
 #include "game/gstate.h"
 #include "game/mem.h"
@@ -98,6 +99,7 @@ static bool far_load(int n, const char *name, char letter, int set, Car *c)
     if (!root) return false;
     static const uint32_t types[5] = {5, 1, 2, 3, 4};
     for (int i = 0; i < 5; i++) c->far[i] = Obj_FindType(root, types[i]);
+    if (gm32(0x52afd0) >> 4 & 1) CarShade_Add(c->far[0], false);   /* 0x4b45d0 */
     for (int i = 0; i < 5; i++)
         if (c->far[i]) Obj_Reparent(c->far[i], c->main);
     if (letter != 'A') PENDING_NOTE(0x42cb90, "Car_Textures (the far wheels)");
@@ -208,6 +210,12 @@ bool Car_Load(int n)
     Car *c = Car_Get(n);
     c->main = s->main;
     c->second = s->second;
+    /* the trees' shadows on the car, with the shadow map option (0x405ba0): a kind A car's meshes as
+       they are, else its main model's as cylinders */
+    if (gm32(0x52afd0) >> 4 & 1) {
+        CarShade_Add(s->second, s->kind == 'A');   /* 0x4b45d0 */
+        CarShade_Add(s->main, s->kind == 'A');
+    }
     /* dents on for the rally modes (0x46b400), never turned off here */
     if (!(mode == 5 || mode == 6 || mode == 7 || mode == 11 || mode == 12) && !(Gs_SelBit28() && Gs_Bit30())) Damage_SetDents(1, n);
     PENDING_NOTE(0x42cb50, "Car_Load (the wheels' other models)");

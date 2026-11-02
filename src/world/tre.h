@@ -23,5 +23,10 @@ void Tre_Free(void);
 /* 0x4b6340: the .xhi's light (16.16 per collision vertex) at p's x and z, on the plane through the
    triangle's three vertices (x, light, z); -1000 (0xfc190000) without the .xhi or for an edge-on plane */
 int32_t Xhi_At(const uint16_t idx[3], const int32_t tri[9], const int32_t p[3]);   /* the port; 0x4b5510 frees the original's */
+/* For the shadows on the cars (carshade.c): the header's sun direction (+0x00, 16.16) and three axes
+   (+0x0c), a node's items (0x30 bytes each, NULL past the nodes) and an item's matched scenery */
+const int32_t *Tre_Header(void);
+const uint8_t *Tre_NodeItems(int node, int *count);
+const Scenery *Tre_ItemScenery(const uint8_t *item);
 /* Stage_DrawOverlay 0x49cf80: the listed cells' shadow meshes, identity world, z writes off. */
 void Stage_DrawOverlay(void);

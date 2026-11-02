@@ -1,5 +1,6 @@
 /* The world frame (see frame.h). */
 #include "world/frame.h"
+#include "world/carshade.h"
 #include "render/readback.h"
 #include "world/glow.h"
 #include "world/particles.h"
@@ -184,6 +185,7 @@ bool World_Render(Obj *cam, const int16_t view[4], uint32_t pass, bool world)
         Light_SetMode(5);
         Line3d_Flush();       /* 0x4bb4c0 */
         Sprite3d_Draw(cam);   /* 0x4b1530 */
+        CarShade_Draw(pass);  /* 0x4b6240: the trees' shadows on the cars */
     }
     Screen_ColourMeasure();   /* 0x4bc490 (0, 0, 0): the sun glow's test, over the 3D */
     Render_ZWrite(0);

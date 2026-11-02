@@ -1196,3 +1196,40 @@ matrix, the inverse view, and all 672 triangles drawn through `Obj_Draw`. The st
 `Stage_LoadC3d` and draws what `Section_BuildVisible` lists for a camera object (about 25 of 360 cells
 with the far plane at 250). `tests/world_test.c` checks fra02's grid (18 x 20 cells of 64), the lookup
 and a camera's visible cells without a GPU.
+
+## The trees' shadows on the cars (0x4b4100-0x4b6340)
+
+Confirmed by porting (src/world/carshade.c); on only with the shadow map option (0x52afd0 bit 4), which
+also loads the .tre.
+
+- `CarShade_Add` 0x4b45d0 (Car_Load, for the second and main models, and the far model's body with 0):
+  a 0x14-byte record in 0x6e0124 (count 0x6deab8, at most 0x1d): the object, its 0x58-byte mesh
+  entries (the object and each child's first-child chain, kind 0 with a mesh, not types 6, 0xe, 0xf),
+  their count (+0x08), "again" (+0x0c), "shaded" (+0x10). With the second argument 0 and the root's type
+  below 5 every mesh is replaced by a cylinder (0x4b67f0, cached by name at 0x6e01c4, at most 9): 22
+  vertices, 20 triangles, ten sides of radius the farthest corner (from the z axis) that is alone on its
+  side of z = 0 in a polygon, from the lowest z to the highest.
+- An entry: +0x00 the sun and +0x0c, +0x18, +0x24 the .tre header's three axes, in the object's frame
+  (floats); +0x30 the mesh; +0x34 its object; +0x38 normals; +0x3c positions 0.005 out along them;
+  +0x40 normal on the sun; +0x44 chosen positions; +0x48 their 0x30-byte copies (specular 0xff000000);
+  +0x4c triangle corners (pointers into +0x48); +0x50, +0x52 the counts; +0x54 dirty (0x4b4100, from the
+  dents, against the second model).
+- Race_DrawView, view 0 only (0x536ad0): VB 0x33c locked (0x4b5e60; 28,800 vertices, no bound check),
+  per car from the last: 0x4b5f90 gathers the tree items (0x6dfe14, count 0x6e01c0, at most 99) of
+  the car's cell (+0xb00) and its eight neighbours (row width 0x71f600) with |d . a0| - r <= item +0x10
+  and |d . a2| - r <= item +0x14 (d from item +0x08/+0x0c, a0 and a2 the header's first and third axes
+  flattened, 0x6e0b28 and 0x6dfda0; r the car's +0x758), from the far model when shown else the main;
+  then 0x4b5ee0 for the second, main and far models (strength +0xa70, passes 0x46bd40): per item 0x4b4490
+  (after "again", the dirty entries' positions and normals; after "shaded", 0x4b4180 per entry, once a
+  frame) and 0x4b5770. 0x4b5eb0 closes the run and unlocks.
+- 0x4b4180: the triangles with a corner whose normal faces the sun, each corner once (map 0x6e0354), in
+  the world (the object's float world matrix +0x118), colour the shadow colour (0x6e0098) with alpha the
+  shadow alpha (0x6e0b38) by the strength: full from a dot of 0.1, dot x 10 x it below, 0 facing away.
+- 0x4b5770: the tree's billboard (item +0x2c's scenery: its scales +0x18 and +0x2c, its mesh's
+  coordinates +0x20/+0x24) projected along the sun onto the plane through the tree with the second axis
+  as normal; the coordinates from the axes' dots, scaled by the billboard's extent (x by 1 + item +0x18;
+  y by 1 + item +0x1c, the low y left unscaled); the triangles overlapping the billboard's coordinate
+  rectangle copied into the VB. Runs of 16 bytes at 0x6dead0 (start, count, texture, passes), a new one
+  when the texture (the billboard's first polygon's) or the passes change.
+- 0x4b6240 (World_Render, after the sprites): z writes off, no culling, each run in the view's pass with
+  its texture bound under blend 10 (the texture's own kept), as a triangle list.

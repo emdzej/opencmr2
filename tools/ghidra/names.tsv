@@ -1671,3 +1671,16 @@
 00428a00	Car_OutOfView	sim	high	In the arcade, the car out of each player's view (+0xb68) and all (+0xb70)
 00424dc0	Net_CarStart	sim	high	The network game's car state record (0x5393d8) started from the car
 00469c30	Damage_RandomPoint	sim	high	A random point on an edge of a random polygon of a damage slot's mesh
+004b45d0	CarShade_Add	world	high	A car model listed for the trees' shadows on it
+004b67f0	CarShade_Cylinder	world	high	A mesh's stand-in cylinder for the shadows
+004b4180	CarShade_Copy	world	high	The sun-facing triangles copied and coloured
+004b4490	CarShade_Prepare	world	high	Positions and normals again; the copies once a frame
+004b5770	CarShade_Project	world	high	A tree's billboard projected along the sun onto the copies
+004b5ee0	CarShade_Shade	world	high	A model shaded by the gathered trees
+004b5f90	CarShade_Gather	world	high	The tree items whose shadow boxes the car reaches
+004b5e60	CarShade_Begin	world	high	The shadows' buffer locked
+004b5eb0	CarShade_End	world	high	The shadows' buffer closed
+004b6240	CarShade_Draw	world	high	The shadows' runs drawn
+004b5380	CarShade_Free	world	high	The shadows' records freed
+004b9ec0	VecF_Into	math	high	A float vector by a matrix's rows
+004b9d40	VecF_OutOf	math	high	A float vector by a matrix's columns
