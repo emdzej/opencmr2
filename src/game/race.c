@@ -17,6 +17,7 @@
 #include "audio/crash.h"
 #include "audio/engine.h"
 #include "audio/codriver.h"
+#include "audio/surface.h"
 #include "game/intro.h"
 #include "render/rstate.h"
 #include "game/gstate.h"
@@ -165,7 +166,8 @@ static void Race_Update(uint8_t state, bool flag)
                 if ((kind == 8 || kind == 5 || (kind == 7 && !Gs_ModeBit19())) && Pause_Pressed((int)i) &&
                     !Replay_Playing(rp) && !Fade_Active((int)i) && !gm8(0x52ea52)) {
                     Pause_Begin((int)i);   /* 0x404ea0 */
-                    PENDING_NOTE(0x478c40, "the sounds' pause (0x478c40, 0x418ee0)");
+                    PENDING_NOTE(0x478c40, "the engines' pause (0x478c40)");
+                    Surface_Silence();    /* 0x418ee0 */
                     Crash_StopSounds();   /* 0x418780 */
                 }
             }
@@ -193,10 +195,9 @@ static void Race_Update(uint8_t state, bool flag)
         /* the particles (not while a replay plays); the original passes the camera after the last
            player's (0x538e2c[players]), read only by the types' callbacks */
         if (car0) Particles_Step(NULL);   /* 0x4b0110 */
-        /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60 not ported,
-           0x418b00) */
+        /* the players' sounds once the countdown runs, not while paused (0x47a710, 0x41af60, 0x418b00) */
         if (car0 && state > 6 && !gm8(0x52af40))
-            for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i), Crash_UpdateSounds();
+            for (uint32_t i = 0; i < np; i++) Engine_Update((int)i, (int)i), Surface_Step((int)i, (int)i), Crash_UpdateSounds();
         Sim_StepDone(&g_all);
     }
     Knock_Interp(R.frac);   /* 0x471950, first in Race_PoseInterp */
@@ -230,9 +231,10 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
     R.start_count = 0;
     if (slot == 0) {
         Replay_FreeAll();   /* the last race's (the original's exit handlers, 0x41e670: 0x46c6d0) */
-        /* 0x427c10: the engines at a third of the effects volume, the collisions at two thirds (the
-           other volume, 0x41b040, not ported) */
+        /* 0x427c10: the engines and the surfaces at a third of the effects volume, the collisions at
+           two thirds */
         Engine_Volume((int32_t)(gm32(0x52afb8) >> 7 & 0x7f));
+        Surface_Volume(fx_mul((int32_t)(gm32(0x52afb8) >> 7 & 0x7f) * 0x10000 / 100, 0x5555));   /* 0x41b040 */
         Codriver_Volume((int32_t)(gm32(0x52afb8) >> 0xe & 0x7f));   /* 0x418560 */
         Crash_Volume(fx_mul((int32_t)(gm32(0x52afb8) >> 7 & 0x7f) * 0x10000 / 100, 0xaaaa));   /* 0x418d20 */
         PENDING_NOTE(0x41f560, "Race_Setup 0x41f560, 0x41f260, 0x40efa0, 0x475f00");
@@ -285,7 +287,7 @@ static void s3_stage(ProcGroup *g, uint32_t slot)
 {
     if (!load_or_quit(g, slot, H->load_stage)) return;
     if (slot == 0) {
-        PENDING_NOTE(0x418ff0, "Race_LoadSounds (the surfaces')");
+        Surface_LoadSounds();    /* 0x418ff0 */
         Crash_LoadSounds();      /* 0x4188c0 */
         Codriver_LoadSpeech();   /* 0x416710 */
         Hud_LoadSounds();        /* 0x411120 */

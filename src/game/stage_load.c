@@ -6,6 +6,7 @@
 #include "game/opponents.h"
 #include "game/ai.h"
 #include "audio/codriver.h"
+#include "audio/surface.h"
 #include "sim/progress.h"
 #include "sim/scenery.h"
 #include "world/fin.h"
@@ -45,7 +46,14 @@ bool Stage_Load(const char *stage, const char *path, const char *tex)
     /* 3: the collision mesh, the surfaces (0x41fcd0), the walls, the scenery, the start, the centre
        line, the co-driver's notes (0x416720) */
     if (!Stage_LoadHpc(stage)) return false;
-    PENDING_NOTE(0x41fcd0, "Stage_LoadSrf");
+    {
+        /* Stage_LoadSrf 0x41fcd0: <stage>.srf, the surfaces whose sound sets are loaded */
+        char n[80];
+        snprintf(n, sizeof n, "%s.srf", stage);
+        uint32_t size = 0;
+        const uint8_t *srf = Bfl_FindFile(&g_stage_bfl, n, NULL, &size, false);
+        Surface_Mark(srf, srf ? size : 0);   /* 0x41afe0 */
+    }
     Stage_LoadFinDat(stage);
     Stage_LoadScenery();
     Stage_LoadCsp(stage);

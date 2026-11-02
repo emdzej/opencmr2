@@ -237,14 +237,21 @@ int main(void)
                 CHECK(na == 0 || most > 0);
             }
             printf("HUD race time %d\n", Times_Race());
-            /* the engine (0x47a710): its 13 sounds loaded (after the collisions' 21, the co-driver's 59 and
-               the HUD's 5), the mixer not silent */
+            /* the engine (0x47a710): its 13 sounds loaded (after the stage's surface sounds, 0x5375a8, the
+               collisions' 21, the co-driver's 59 and the HUD's 5), the mixer not silent */
             static float pcm[1470 * 2];
             Dsb_Mix(pcm, 1470);
             double e = 0;
             for (int q = 0; q < 1470 * 2; q++) e += pcm[q] * pcm[q];
             printf("engine: %d sounds, rms %.4f\n", Snd_Count(), sqrt(e / (1470 * 2)));
-            CHECK(Snd_Count() == 21 + 59 + 5 + 13 && e > 0);
+            CHECK(Snd_Count() == gm8(0x5375a8) + 21 + 59 + 5 + 13 && gm8(0x5375a8) > 0 && e > 0);
+            /* the surface sounds (0x41af60): the car's surface taken from its wheels, its loop (voice 4)
+               playing once the start's transition has ended */
+            int16_t surf = (int16_t)gm16(0x5377a8 + 0x18);
+            int32_t loop = gms32(0x5377a8 + 0x1c + 4 * 4);
+            printf("surface: type %d, class %d, transition %d, loop %d playing %d\n", surf, gms32(0x5377a8 + 0xa4),
+                   gms32(0x5377a8 + 0xa8), loop, Voice_Playing(loop));
+            CHECK(surf >= 0 && gms32(0x5377a8 + 0xa8) == 0x19 && Voice_Playing(loop));
             CHECK(Times_Race() >= 290 && Times_Race() <= 310);
             CHECK(Race_StageTime(0) >= 290 && Race_StageTime(0) <= 310 && CI32(c, 0x778) > 0x8000);
             fin = frame;
@@ -330,8 +337,8 @@ int main(void)
                    v0 / 65536.0, v2 / 65536.0, CI32(c, 0x5c4) / 65536.0, CI32(c, 0x5cc) / 65536.0);
             CHECK(ef >= b[B_EXT_F] + tr - 0x100);
             /* a hit's sound (Car_Damage 0x466ef0): an impulse of 0.55 on the wheels plays COLLIS2 (0x418ba0:
-               the collisions load first, so id 5) in a slot, heard, the car's +0xb46 raised to 4, the view
-               shaken (0x4241d0); off the wheels a roll (0x418c30: ROLL1-4, ids 10-13) */
+               the collisions load after the surfaces, so id 5 past them) in a slot, heard, the car's +0xb46 raised to 4, the view
+               shaken (0x4241d0); off the wheels a roll (0x418c30: ROLL1-4, ids 10-13 past them) */
             int32_t keep[3], pt[3] = {CI32(c, 0x2d0), CI32(c, 0x2d4), CI32(c, 0x2d8)}, up[3] = {0, 0x10000, 0};
             for (uint32_t i = 0; i < 3; i++) keep[i] = CI32(c, 0x5c4 + 4 * i);
             CW32(c, 0x5c4, 0x8ccc), CW32(c, 0x5c8, 0), CW32(c, 0x5cc, 0);
@@ -340,7 +347,7 @@ int main(void)
             Car_Damage(c, pt, up, 0, 0, false);
             int32_t h = -1;
             for (int i = 0; i < 4; i++)
-                if (Crash_Voice(i) >> 8 == 5) h = Crash_Voice(i);
+                if (Crash_Voice(i) >> 8 == 5 + gm8(0x5375a8)) h = Crash_Voice(i);
             printf("crash: COLLIS2's voice %d at volume %.3f, +0xb46 %d, shake %.2f\n", h,
                    h < 0 ? 0.0 : Voice_Volume(h) / 65536.0, c->s[0xb46], Camera_ShakeLevel(0, 10) / 65536.0);
             CHECK(h >= 0 && Voice_Playing(h) && Voice_Volume(h) > 0 && c->s[0xb46] == 4 && Camera_ShakeLevel(0, 10) > 0);
@@ -348,7 +355,7 @@ int main(void)
             CW32(c, 0xb74, 0);
             Car_Damage(c, pt, up, 0, 0, false);
             for (int i = 0; i < 4; i++)
-                if (Crash_Voice(i) >> 8 >= 10 && Crash_Voice(i) >> 8 <= 13) roll = Crash_Voice(i) >> 8;
+                if (Crash_Voice(i) >> 8 >= 10 + gm8(0x5375a8) && Crash_Voice(i) >> 8 <= 13 + gm8(0x5375a8)) roll = (Crash_Voice(i) >> 8) - gm8(0x5375a8);
             printf("crash: off the wheels sound %d\n", roll);
             CHECK(roll >= 10);
             /* a scrape (0x469e40): off its wheels on tarmac (surface 1) at 0.5, a body point touching
