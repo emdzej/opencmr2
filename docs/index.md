@@ -4,9 +4,13 @@ layout: home
 hero:
   name: OpenCMR2
   text: Colin McRae Rally 2.0, reimplemented
-  tagline: "A faithful reimplementation of Colin McRae Rally 2.0 (Codemasters, 2000) in C11, ported function by function from the Windows game. It runs the game from your own CD, as one WebAssembly module for the gasm runtime, natively and in the browser. Early in the port: nothing is playable yet."
+  tagline: "A faithful reimplementation of Colin McRae Rally 2.0 (Codemasters, 2000) in C11, ported function by function from the Windows game. It runs the game from your own CD, as one WebAssembly module for the gasm runtime, natively and in the browser. Every offline mode plays; the network game is next."
   actions:
     - theme: brand
+      text: Play in the browser
+      link: /play/
+      target: _self
+    - theme: alt
       text: Get started
       link: /guide/
     - theme: alt
@@ -40,15 +44,16 @@ features:
 
 <p><a class="gasm-badge" href="https://gasm.emdzej.pl"><img class="gasm-badge-light" src="https://gasm.emdzej.pl/badge/built-for-gasm-light.svg" alt="Built for gasm" width="120" height="44"><img class="gasm-badge-dark" src="https://gasm.emdzej.pl/badge/built-for-gasm-dark.svg" alt="Built for gasm" width="120" height="44"></a></p>
 
-OpenCMR2 will be one WebAssembly module, `opencmr2.wasm`, running on [gasm](https://gasm.emdzej.pl), a
+OpenCMR2 is one WebAssembly module, `opencmr2.wasm`, running on [gasm](https://gasm.emdzej.pl), a
 portable game runtime: the same module natively (`gasm-run`) and in the browser. See
 [Running on gasm](/guide/gasm).
 
 ## Status
 
-The disc and the program are analysed and the plan is written. Steps 1 and 2 are done: the file layer runs
-on gasm from the CD or its image, the installer cabinet included, and every texture, sound, font, text
-table and model on the disc decodes. Details in [Status](/guide/status).
+The game runs from your CD or its image, through its own menus, into every offline mode: single stages,
+rallies and championships, the arcade, time trials, the challenge and two players on a split screen, with
+the replays, the service area, the saves and the movies. The network game is being ported. Details in
+[Status](/guide/status).
 
 ## Sibling projects
 

@@ -12,9 +12,10 @@ OpenCMR2 is one WebAssembly module for the [gasm](https://gasm.emdzej.pl) game r
 natively on macOS, Linux and Windows, and in the browser. The original's Direct3D 7 rendering goes to
 OpenGL ES 3.0 (WebGL 2 in the browser).
 
-- [Status](status.md): what works today (the research is done; the port is starting).
+- [Status](status.md): what works today (every offline mode; the network game is next).
 - [Game data](game-data.md): what you need from your copy of the game.
-- [Running on gasm](gasm.md): how OpenCMR2 will be packaged and run.
+- [Playing in the browser](playing.md): the player on this site, and the keys.
+- [Running on gasm](gasm.md): how OpenCMR2 is packaged and run.
 
 The [file formats](../formats/index.md) of the disc are documented here.
 

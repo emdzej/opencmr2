@@ -9,8 +9,8 @@ Web Worker. You need:
   **OffscreenCanvas** (the game draws with WebGL 2 inside the worker);
 - about 610 MB of browser storage to import the data once, or none to play without importing.
 
-The game is a work in progress: the menus and a single stage run, much is still missing
-([Status](/guide/status)).
+Every offline mode plays: single stages, rallies and championships, the arcade, time trials, the
+challenge and the two-player modes. The network game is not ported yet ([Status](/guide/status)).
 
 ## Choosing the game
 
@@ -32,7 +32,19 @@ storage for this site (IndexedDB).
 ## While playing
 
 The game reads the keyboard with the original's default keys: the cursor keys and <kbd>Enter</kbd> in the
-menus, <kbd>Esc</kbd> to go back, and to pause on a stage. The game draws at the size it is shown: use
+menus, <kbd>Esc</kbd> to go back, and to pause on a stage.
+
+| Action | Player 1 | Player 2 |
+|---|---|---|
+| Steer | <kbd>&larr;</kbd> <kbd>&rarr;</kbd> | keypad <kbd>4</kbd> <kbd>6</kbd> |
+| Accelerate, brake | <kbd>&uarr;</kbd> <kbd>&darr;</kbd> | keypad <kbd>8</kbd> <kbd>2</kbd> |
+| Handbrake | <kbd>Space</kbd> | keypad <kbd>3</kbd> |
+| Gear up, down (manual box) | <kbd>]</kbd> <kbd>[</kbd> | <kbd>Page Up</kbd> <kbd>Page Down</kbd> |
+| Camera | <kbd>C</kbd> | keypad <kbd>9</kbd> |
+| Look back | <kbd>R</kbd> | keypad <kbd>7</kbd> |
+
+Game controllers work through the browser's gamepad support. The keys and controllers are set up in the
+game's own options, as in the original. The game draws at the size it is shown: use
 **Fullscreen** (or double-click) for the full resolution. Holding <kbd>Esc</kbd> for a second stops the
 game; in fullscreen the browser takes <kbd>Esc</kbd> to leave fullscreen first. The line under the game
 shows the frames per second.
