@@ -220,11 +220,14 @@ static void top_bar(bool lit)
     if (!Gs_ModeBit19()) return;
     uint32_t left;
     if (Gs_Mode() == 10) {
-        PENDING_NOTE(0x406710, "the network time trial's clock");
-        return;
+        /* the time trial's time left: its minutes (0x406710; none, no clock) from the start (0x40af30) */
+        uint32_t limit = gm32(0x52e91c), since = Timer_Centis() - gm32(0x5320a4);
+        if (limit == 0) return;
+        left = since < limit * 6000u ? limit * 6000u - since : 0;
+    } else {
+        int32_t t = (int32_t)(S.turn_at - Timer_Centis()) + 0x17d5;   /* 0x5012c0 */
+        left = t < 0 ? 0 : (uint32_t)t;
     }
-    int32_t t = (int32_t)(S.turn_at - Timer_Centis()) + 0x17d5;   /* 0x5012c0 */
-    left = t < 0 ? 0 : (uint32_t)t;
     snprintf(b, sizeof b, exe_str(0x51a904), left / 100 / 0x3c, left / 100 % 0x3c);
     Font_Print(2, b, Font_TextWidth(0, name) + X(0x1e) + x, y, C_TEXT, 0x11);
 }

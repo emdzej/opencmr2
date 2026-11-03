@@ -17,6 +17,7 @@
 #include "c3d.h"
 #include "exe.h"
 #include "net/records.h"
+#include "net/session.h"
 #include "pending.h"
 #include "sim/car.h"
 #include "sim/damage.h"
@@ -383,8 +384,16 @@ int Cars_Count(void)
    start (0x542d38 + 4 k) the last point (a whole number, which 0x458480 takes as 16.16: point 0).
    Case 1, the head to head (bit 27, two cars): the side (0x542cb0, kept in 0x542cd4 when `keep`)
    drawn, rand() <= 0x3fff after srand(the time); the car on it starts at point 0, the other at the
-   second split (Csp_StartPos gives its place). The other cases are the network game's (bit 31 is set
-   only in modes 11 and 12, 0x408020) and pending. */
+   second split (Csp_StartPos gives its place). Case 2 (bit 31, set only in modes 11 and 12, 0x408020),
+   the network circuits: case 0's grid over the grid's order. Case 3, the network rally's super
+   special: the cars on alternate sides (0x542cb4). */
+/* the network grid's i-th car: 0 for this player's, else the slot of the player's record */
+static int grid_car(int i)
+{
+    uint32_t id = NetRec_OrderId(i);   /* 0x40b1a0 */
+    return id == Net_LocalPlayer() ? 0 : (int)NetRec_Slot(NetRec_Find(id));   /* 0x4a1a00, 0x40a7a0, 0x40b010 */
+}
+
 void Cars_Grid(bool keep)
 {
     int n = Cars_Racing();
@@ -410,8 +419,14 @@ void Cars_Grid(bool keep)
         for (uint32_t k = 0; k < 2; k++) gw32(0x542d38 + 4 * k, (side + k) & 1 ? (uint32_t)Sectors_Point(1) : 0);
         return;
     }
-    if (kind != 0) {
-        PENDING_NOTE(0x4584d0, "Cars_Grid (the network grids)");
+    if (kind == 3) {
+        /* the network rally's super special: the cars in the grid's order on alternate sides, side 0
+           from point 0, side 1 from the second split */
+        for (int i = 0; i < (int)(int8_t)NetRec_OrderCount(); i++) {
+            int car = grid_car(i);
+            gw32(0x542d38 + 4u * (uint32_t)car, i % 2 ? (uint32_t)Sectors_Point(1) : 0);
+            gw32(0x542cb4 + 4u * (uint32_t)car, (uint32_t)(i % 2));
+        }
         return;
     }
     int32_t a[3], b[3];
@@ -419,16 +434,21 @@ void Cars_Grid(bool keep)
     Cat_Point(0, b);
     int idx = Fx_DegIndex(Fx_Atan2Deg(b[2] - a[2], b[0] - a[0]));
     int32_t s = fx_mul(0x40000, g_sin[idx]), c = fx_mul(0x40000, g_sin[(idx + 0x400) & 0xfff]);
+    /* kind 2, the network circuits: the grid's order (0x40b1b0), slot i its i-th car */
+    if (kind == 2) n = (int8_t)NetRec_OrderCount();
     for (int i = 0; i < n; i++) {
-        int k = i;
-        if (Gs_Mode() == 5 && n > 2) k = (int8_t)gm8(0x533620 + (uint32_t)i);   /* 0x40cec0 */
-        if (Gs_SelBits14() == 2) k = 1 - i;
-        gw32(0x542d38 + 4u * (uint32_t)k, (uint32_t)(Cat_FinishPoint() - 1));
+        int k = i, car = i;
+        if (kind == 2) car = grid_car(i);
+        else {
+            if (Gs_Mode() == 5 && n > 2) k = (int8_t)gm8(0x533620 + (uint32_t)i);   /* 0x40cec0 */
+            if (Gs_SelBits14() == 2) k = 1 - i;
+        }
+        gw32(0x542d38 + 4u * (uint32_t)(kind == 2 ? car : k), (uint32_t)(Cat_FinishPoint() - 1));
         int32_t back = n > 2 ? fx_mul(0x50000, k << 16) - ((n * 5) << 16) : (int32_t)0xfff60000;
         int32_t dx = fx_mul(back, g_sin[(idx + 0x400) & 0xfff]), dz = fx_mul(back, g_sin[idx]);
         if (k % 2 == 0) dx += s, dz -= c;
         else dx -= s, dz += c;
-        Csp_SetGrid(i, b[0] + dx, b[2] + dz);
+        Csp_SetGrid(car, b[0] + dx, b[2] + dz);
     }
 }
 

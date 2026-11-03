@@ -374,6 +374,26 @@ void Times_Estimate(void)
     }   /* (the count 0x53e18c is not written back) */
 }
 
+/* 0x448550 (the network game, a retirement): car 0 finished, a finisher more, its time the shown one
+   over the share it has covered (its furthest point over the finish point, times the laps in mode 11)
+   when that is more than a half, else twice the time shown */
+void Times_Retire(void)
+{
+    done[0] = 1;
+    gw8(0x53e18c, (uint8_t)(gm8(0x53e18c) + 1));
+    int32_t whole = Gs_Mode() == 11
+        ? (int32_t)((uint32_t)(gm32(0x52f2ac) >> 0x10 & 0xf) * (uint32_t)Cat_FinishPoint() * 0x10000u)   /* Gs_Laps 0x406990 */
+        : (int32_t)((uint32_t)Cat_FinishPoint() << 16);
+    int32_t share = (int32_t)(((int64_t)(int16_t)Sectors_Most(0) << 32) / whole);
+    if (share > 0x8000) {
+        int32_t t = (int32_t)((shown % 100) * 0x10000 / 100) + (shown / 100) * 0x10000;   /* 0x40d4b0 */
+        int32_t inv = (int32_t)(0x100000000LL / share);
+        int32_t v = (int32_t)(((int64_t)inv * t) >> 16);
+        finish[0] = (int32_t)(((int64_t)(v + 0x147) << 16) / 0x28f5c28);   /* 0x40d480 */
+    } else
+        finish[0] = shown * 2;
+}
+
 /* 0x448630: the head to head won by k (the cars touching near each other): finished at the time
    shown, its time at the last split that, its finish time 18000 more (the winner's 180 s), a finisher
    more */

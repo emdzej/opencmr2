@@ -1947,3 +1947,7 @@
 0040e790	Boards_EntryOrder	net	high	qsort order: total descending, then name descending
 0040e850	Boards_Sort	net	high	Sort a board's entries, copy it to the network board
 0040e8a0	Boards_ToNet	net	high	Copy a board to 0x533900, 0x535b8c set
+00448550	Times_Retire	game	high	Car 0 retired: its finish time by the share covered (network)
+00500ba0	Sv_NetMessages	game	high	The service area's network messages
+00500a70	Sv_NetSysMessage	game	high	The service area's system messages
+00500aa0	Sv_NetMessage	game	high	The service area's player messages

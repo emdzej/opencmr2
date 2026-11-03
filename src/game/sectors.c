@@ -3,6 +3,7 @@
 #include "game/camera.h"
 #include "game/gstate.h"
 #include "game/car_load.h"
+#include "net/records.h"
 #include "sim/car.h"
 #include "sim/progress.h"
 #include "pending.h"
@@ -125,12 +126,16 @@ static void start(int n, bool fresh)
 }
 
 /* 0x458100: every racing car's record; a head to head (bit 27) its two, the car on 0x542cb0's side
-   first (the network game's by their sides, 0x542cb4, not ported) */
+   first (the network game's those with a side, 0x542cb4, in order) */
 void Sectors_Start(bool fresh)
 {
     if (Gs_SelBit27()) {
-        if (Gs_ModeBit19()) PENDING_NOTE(0x458100, "Sectors_Start (the network game's head to head)");
-        else {
+        if (Gs_ModeBit19()) {
+            /* the network game's: each car in the grid's order (one in mode 10) on side 0 or 1 */
+            int n = Gs_Mode() == 10 ? 1 : (int)NetRec_OrderCount();   /* 0x40b1b0 */
+            for (int i = 0; i < n; i++)
+                if (gm32(0x542cb4 + 4u * (uint32_t)i) <= 1) start(i, fresh);
+        } else {
             int a = (int)gm32(0x542cb0);
             start(a, fresh);
             start(1 - a, fresh);

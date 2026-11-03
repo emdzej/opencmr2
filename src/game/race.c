@@ -782,7 +782,7 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
         if ((all || R.skip) && Gs_ModeBit19()) {
             Camera_SelectAt(0, 7, 0xffff, Camera_Car(0), false);
             if (!gm8(0x53811f)) {
-                if (gm8(0x53811e)) PENDING_NOTE(0x448550, "the network game's retirement time");
+                if (gm8(0x53811e)) Times_Retire();   /* 0x448550 */
                 Net_SendFinished(Times_Finish(0));
                 if (!gm8(0x538120) && (int32_t)gm32(0x52e92c) >= 0) {
                     gw8(0x538120, 1);
@@ -795,11 +795,25 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
     if (fin) Camera_SelectAt((int)slot, 7, 0xffff, Camera_Car((int)slot), false);   /* the trackside cameras */
 }
 
-/* 0x4071c0 (not in the network game): a rally's last stage, the super special (10) of an odd rally,
-   else by the level 3, 7 or 9 */
+/* The network rally's stages (0x52ea68, a byte each, from the host): bit 0 chosen, bit 1 only with
+   the cheat option 13 on (0x406410), bit 2 left out */
+bool Rally_StageOn(int i)
+{
+    uint8_t f = gm8(0x52ea68 + (uint32_t)i);
+    return (f & 1) && (!(f & 2) || (gm32(0x52e890) >> 0xd & 1)) && !(f & 4);
+}
+
+/* 0x4071c0: a rally's last stage: in the network game the last of the rally's stages (10, one more
+   for an odd rally; 0x407150) the host chose (Rally_StageOn), 0 for none; else the super special (10)
+   of an odd rally, else by the level 3, 7 or 9 */
 int Rally_LastStage(uint32_t rally, uint32_t level)
 {
-    if (Gs_ModeBit19()) PENDING_NOTE(0x4071c0, "the network rally's last stage");
+    if (Gs_ModeBit19()) {
+        int last = 0, n = (int)(rally & 1) + 10;
+        for (int i = 0; i < n; i++)
+            if (Rally_StageOn(i)) last = i;
+        return last;
+    }
     if (rally & 1) return 10;
     return level == 0 ? 3 : level == 1 ? 7 : level == 2 ? 9 : 0;
 }
@@ -1198,7 +1212,8 @@ static void s11_results(ProcGroup *g, uint32_t slot)
         } else if (R.kind == 0 && m == 8) {
             for (uint32_t i = 0; i < g->n; i++) Proc_Event(g, i, 0, 2);
             set_mode(Sel_NextStage() ? 2 : 0);
-            PENDING_NOTE(0x409ab0, "the network records cleared (0x409ab0, 0x409e30)");
+            NetRec_Clear(false, false);       /* 0x409ab0 */
+            NetRec_ResetRace(false, false);   /* 0x409e30 */
             race_exit(g);
             return;
         } else fe = false;

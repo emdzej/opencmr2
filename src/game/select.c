@@ -4,6 +4,7 @@
 #include "game/mem.h"
 #include "game/profile.h"
 #include "game/opponents.h"
+#include "game/race.h"
 #include "pending.h"
 #include "crt.h"
 #include "exe.h"
@@ -41,7 +42,8 @@ void Sel_ModeFlags(void)
    stage one on; past the rally's last (0x407150) or the super special (10) the rally ends: the single
    rally's over (false), the championship's next rally from stage 0, after the eighth only when a
    player's points place is under 3 (the final), never after a ninth; before an odd rally's last stage
-   the super special (10) instead. True with a stage to drive (the mode flags again, 0x408020). */
+   the super special (10) instead. In the network game the next stage the host chose. True with a
+   stage to drive (the mode flags again, 0x408020). */
 /* 0x4074a0: in mode 5 (the arcade) the location's next stage (selection bits 12-13, one up, two
    bits round): true while it is below the fourth and the location (bits 10-11) is not the third */
 bool Sel_ArcadeNext(void)
@@ -57,8 +59,16 @@ bool Sel_NextStage(void)
 {
     uint32_t m = Gs_Mode(), l = Gs_Mode2();
     if (Gs_ModeBit19()) {
-        PENDING_NOTE(0x4072d0, "the network rally's next stage (the stage table 0x52ea68)");
-        return false;
+        /* the next of the stages the host chose (Rally_StageOn), false past the rally's last */
+        uint32_t s = gm32(0x52f2ac), n = (s & 1) + 10;   /* 0x407150 */
+        for (;;) {
+            s = (s & ~0x3e0u) | ((s & ~0x1fu) + 0x20 & 0x3e0);
+            gw32(0x52f2ac, s);
+            if ((s >> 5 & 0x1f) >= n) return false;
+            if (Rally_StageOn((int)(s >> 5 & 0x1f))) break;
+        }
+        Sel_ModeFlags();
+        return true;
     }
     uint32_t s = gm32(0x52f2ac), n = (s & 1) + (l == 0 ? 4u : l == 1 ? 8u : 10u);   /* 0x407150 */
     if (m != 0 && m != 1) return false;

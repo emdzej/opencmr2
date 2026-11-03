@@ -198,11 +198,22 @@ static void draw_times(Menu *m)
         Font_Print(1, b, x, h * 0x1e / 0x1e0 + y0, C(c), 0x11);
         Font_Print(1, Text_Get(0x8a), x, h * 0x19 / 0x1e0 + h * 0x91 / 0x1e0 + shown * h * 0x1e / 0x1e0 + dy, C(c), 0x11);
         int tx = w * 0xb1 / 0x280 + (w * 0x166 / 0x280) * col, i = 0;
-        for (; i < shown; i++) {
-            int32_t v = record ? gms32(0x541ab8 + 4u * (uint32_t)(i + 1)) - gms32(0x541ab8 + 4u * (uint32_t)i)
-                               : Times_Split(col, i + 1) - Times_Split(col, i);
-            print_time(b, sizeof b, v);
-            Font_Print(1, b, tx, h * 0x91 / 0x1e0 + dy + (h * 0x1e / 0x1e0) * i, C(c), 0x11);
+        if (!Gs_ModeBit19() || record)
+            for (; i < shown; i++) {
+                int32_t v = record ? gms32(0x541ab8 + 4u * (uint32_t)(i + 1)) - gms32(0x541ab8 + 4u * (uint32_t)i)
+                                   : Times_Split(col, i + 1) - Times_Split(col, i);
+                print_time(b, sizeof b, v);
+                Font_Print(1, b, tx, h * 0x91 / 0x1e0 + dy + (h * 0x1e / 0x1e0) * i, C(c), 0x11);
+            }
+        else {
+            /* the network game: the splits passed (0x427660), dashes for the rest (0x516e30) */
+            for (; i < Net_LastStageTime(); i++) {
+                print_time(b, sizeof b, Times_Split(col, i + 1) - Times_Split(col, i));
+                Font_Print(1, b, tx, h * 0x91 / 0x1e0 + dy + (h * 0x1e / 0x1e0) * i, C(c), 0x11);
+            }
+            for (i = Net_LastStageTime(); i < shown; i++)
+                if (i >= 0) Font_Print(1, exe_str(0x516e30), tx, h * 0x91 / 0x1e0 + dy + (h * 0x1e / 0x1e0) * i, C(c), 0x11);
+            i = Net_LastStageTime() > shown ? Net_LastStageTime() : shown;
         }
         int32_t total = record ? gms32(0x541ab8 + 4u * (uint32_t)shown) : Times_Finish(col);
         snprintf(b, sizeof b, exe_str(0x519f58), total / 6000, total / 100 % 60, total % 100);
@@ -581,8 +592,18 @@ static void draw_arcade_times(Menu *m)
         Font_Print(1, Text_Get(0x8a), cx, top + dy + (laps + 1) * row, C(0x519ecc), 0x11);
         int tx = w * 0xb1 / 0x280 + (w * 0x166 / 0x280) * p, i = 1;
         int32_t total = 0;
-        if (Gs_ModeBit19()) PENDING_NOTE(0x44bcd0, "the network game's lap times");
-        else
+        if (Gs_ModeBit19()) {
+            /* the network game: car 0's laps done (0x427670), dashes for the rest (0x516e30), the
+               total its finish */
+            for (; i <= Net_LastLapTime(); i++) {
+                print_time(b, sizeof b, gms32(0x53d9b4 + 4u * (uint32_t)i));   /* 0x4481f0(0, i) */
+                Font_Print(1, b, tx, top + dy + row * i, C(0x519ecc), 0x11);
+            }
+            for (i = Net_LastLapTime() + 1; i < laps + 1; i++)
+                if (i > 0) Font_Print(1, exe_str(0x516e30), tx, top + dy + row * i, C(0x519ecc), 0x11);
+            i = Net_LastLapTime() + 1 > laps + 1 ? Net_LastLapTime() + 1 : laps + 1;
+            total = Times_Finish(0);
+        } else
             for (; i < laps + 1; i++) {
                 int32_t v = gms32(0x53d9b4 + 4u * (uint32_t)(i + p * 0x22));   /* 0x4481f0 */
                 print_time(b, sizeof b, v);

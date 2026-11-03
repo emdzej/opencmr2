@@ -19,6 +19,9 @@
 #include "game/proc.h"
 #include "game/timer.h"
 #include "game/weather.h"
+#include "net/dplay.h"
+#include "net/records.h"
+#include "net/session.h"
 #include "render/display.h"
 #include "render/mesh.h"
 #include "pending.h"
@@ -386,12 +389,62 @@ static void restore_setups(void)
     for (uint32_t i = 0; i < 4; i++) memcpy(gm(0x52f0e0 + 7 * i), gm(0x82bee8 + 7 * i), 7);
 }
 
+/* 0x500ba0: the messages in the service area: a system message (0x500a70: a player gone out of the
+   players and the records; this game the host) or a player's (0x500aa0: the records' messages as in the
+   race, the splits taken whatever 0x539cc8; 0xc the quit without leaving the session, 0x10 the race,
+   to the front end after it; the board), the lobby's list again after the last three */
+static void sv_messages(void)
+{
+    uint32_t from;
+    const uint8_t *m;
+    while (Net_Receive(&from, &m)) {
+        if (from == DPID_SYSMSG) {
+            const DpSysMsg *y = (const DpSysMsg *)m;
+            if (y->type == 5) {
+                Net_RemovePlayer(y->player);   /* 0x4a1940 */
+                NetRec_Remove(y->player);      /* 0x409c80 */
+            } else if (y->type == 0x101)
+                Net_SetHost(1);
+            continue;
+        }
+        uint32_t a, b;
+        switch (m[0]) {
+        case 6: NetRec_SetState(from, m[1]); break;   /* 0x40ac70 */
+        case 7: NetRec_SetReady(from); break;         /* 0x409e90 */
+        case 8:
+            memcpy(&a, m + 4, 4);
+            NetRec_StageTime(from, m[1], a);   /* 0x409fd0 */
+            break;
+        case 10:
+            memcpy(&a, m + 4, 4);
+            memcpy(&b, m + 8, 4);
+            NetRec_SetFinished(from);      /* 0x409f80 */
+            NetRec_Finished(from, a, b);   /* 0x409f00 */
+            break;
+        case 0xb: NetRec_Splits(from, m + 2); break;   /* 0x409d50 */
+        case 0xc:
+            Sv_QuitNow(true);   /* 0x5001c0 */
+            NetRec_Lobby();
+            break;
+        case 0x10:
+            S.race_to_fe = true;
+            Proc_Event(&group, 0, 0, 2);
+            NetRec_Lobby();
+            break;
+        case 0x11:
+            NetRec_TakeBoard(m[1] != 0, m + 4);   /* 0x40afb0 */
+            NetRec_Lobby();
+            break;
+        }
+    }
+}
+
 static void s0_init(ProcGroup *g, uint32_t s)
 {
     memset(&S, 0, sizeof S);
     S.race_to_fe = false;   /* 0x82b0ac */
     Input_SetMenuMode(true);
-    if (networked()) PENDING_NOTE(0x40ac40, "the network's service message");
+    if (networked()) Net_SendState(1);   /* 0x40ac40: in the service area */
     Menu_SoundsOn(false);
     Menu_SetSounds(-1, -1, -1, -1, -1);
     S.to_go = (int)Gs_Players();   /* 0x82b0a8 */
@@ -487,7 +540,7 @@ static void s3_service(ProcGroup *g, uint32_t s)
         Proc_Event(g, s, 0, 2);
         S.fade_at = Timer_Centis();
     }
-    if (networked()) PENDING_NOTE(0x500ba0, "the network's service messages");
+    if (networked()) sv_messages();
 }
 
 static void d3_service(ProcGroup *g, uint32_t s)
@@ -589,7 +642,11 @@ void Sv_QuitNow(bool keep_net)
     S.quit = true;
     S.fade_at = Timer_Centis();
     Proc_Event(&group, 0, 0, 2);
-    if (networked() && !keep_net) PENDING_NOTE(0x4a1a90, "the network game left on a quit");
+    if (networked() && !keep_net) {
+        Net_DestroyPlayer();   /* 0x4a1a90 */
+        Net_Close();           /* 0x4a1280 */
+        gw8(0x52ea58, 1);      /* 0x4067d0: the front end told the network game is left */
+    }
 }
 
 /* 0x500110: Race chosen: the tweens done, the race two frames on (0x4ffab0) */
