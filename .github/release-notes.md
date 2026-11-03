@@ -1,3 +1,10 @@
+**0.1.1** fixes stutter in the race:
+
+- Steady frame rate with the cubic environment map (Advanced Graphics): the car's reflection, drawn from
+  six views of the stage every frame, made the game drop frames where the scenery is dense.
+- Smoother skid marks, dust and mud: their drawing no longer stalls the graphics driver.
+- No more periodic slowdowns every few seconds: the sound now follows the real time between frames.
+
 OpenCMR2 needs your own copy of Colin McRae Rally 2.0: the PC CD, as an `.iso` image or a folder with its files
 (`data1.hdr`, `data1.cab`, `Game`, `FrontEnd`). No game data is included. See the
 [status](https://opencmr2.emdzej.pl/guide/status) for what works.
