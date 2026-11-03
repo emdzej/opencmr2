@@ -1,9 +1,11 @@
-**0.1.2** fixes the pause menu:
+**0.1.3** brings the network game to a whole rally:
 
-- Esc pauses the race (graphics, sound, restart stage, exit, continue). Races started from the menus
-  ignored it.
-- The browser player exports the saves (options, controller set-up, driver profiles, replays) as a zip
-  and imports them, so they move between browsers and to or from the desktop version.
+- The network game: the stage's and the rally's results pages list every player; a rally goes on
+  from stage to stage to its end, with its points; the replay shows every player's car; a player who
+  leaves mid-stage disappears from it. Still being tested: reports welcome.
+- Network play from the browser: the play page takes a relay and a room. How to set up a relay and
+  race others: https://opencmr2.emdzej.pl/guide/network
+- The site in the game's menu colours, with the main menu's ribbon of letters on the home page.
 
 OpenCMR2 needs your own copy of Colin McRae Rally 2.0: the PC CD, as an `.iso` image or a folder with its files
 (`data1.hdr`, `data1.cab`, `Game`, `FrontEnd`). No game data is included. See the
