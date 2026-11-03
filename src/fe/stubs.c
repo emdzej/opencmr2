@@ -2,13 +2,8 @@
 #include "fe/pages.h"
 #include "pending.h"
 
-void fe_4dc7b0(Menu *m) { (void)m; PENDING_NOTE(0x4dc7b0, "front-end callback"); }
-void fe_4dc930(Menu *m) { (void)m; PENDING_NOTE(0x4dc930, "front-end callback"); }
-void fe_4dce00(Menu *m) { (void)m; PENDING_NOTE(0x4dce00, "front-end callback"); }
-void fe_4dd4b0(Menu *m) { (void)m; PENDING_NOTE(0x4dd4b0, "front-end callback"); }
 void fe_4de1d0(Menu *m) { (void)m; PENDING_NOTE(0x4de1d0, "front-end callback"); }
 void fe_4e2b40(Menu *m) { (void)m; PENDING_NOTE(0x4e2b40, "front-end callback"); }
-void fe_4e77c0(Menu *m) { (void)m; PENDING_NOTE(0x4e77c0, "front-end callback"); }
 void fe_4e7ed0(Menu *m) { (void)m; PENDING_NOTE(0x4e7ed0, "front-end callback"); }
 void fe_4e8500(Menu *m) { (void)m; PENDING_NOTE(0x4e8500, "front-end callback"); }
 void fe_4e8b60(Menu *m) { (void)m; PENDING_NOTE(0x4e8b60, "front-end callback"); }

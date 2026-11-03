@@ -30,6 +30,7 @@ bool Net_Close(void);                         /* 0x4a1280 */
 int Net_EnumSessions(uint32_t password);      /* 0x4a12d0: 1, 0, -1 connecting, -2 cancelled */
 int Net_StopEnumSessions(void);               /* 0x4a13b0 */
 int Net_Sessions(void);                       /* 0x4a1480 */
+const char *Net_FoundName(int i);             /* 0x4a1490 */
 uint32_t Net_SessionName(void);               /* 0x4a14c0: the address of the session's name */
 uint32_t Net_SessionPassword(void);           /* 0x4a14d0 */
 bool Net_SetSessionDesc(void);                /* 0x4a14e0 */

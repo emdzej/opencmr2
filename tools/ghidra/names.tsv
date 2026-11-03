@@ -1881,3 +1881,4 @@
 004d0620	Fe_NetChat	fe	high	A chat line "name> text" into the five lines
 004d0700	Fe_NetSay	fe	high	Message 0: the local chat line sent and shown
 004081d0	Fe_RallyWeathers	fe	high	The rally's distinct weathers (0x52ea74) and their count (0x52eab8)
+004a1490	Net_FoundName	net	high	A found session's name

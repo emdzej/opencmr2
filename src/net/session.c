@@ -191,6 +191,8 @@ int Net_EnumSessions(uint32_t password) { return enum_sessions(password, false);
 int Net_StopEnumSessions(void) { return enum_sessions(gm32(DESC + 0x34), true); }
 
 int Net_Sessions(void) { return gm8(NFOUND); }               /* 0x4a1480 */
+/* 0x4a1490: a found session's name */
+const char *Net_FoundName(int i) { return i < gm8(NFOUND) ? gs(gm32(FOUND + 0x50u * (uint8_t)i + 0x30)) : NULL; }
 uint32_t Net_SessionName(void) { return gm32(DESC + 0x30); }      /* 0x4a14c0 */
 uint32_t Net_SessionPassword(void) { return gm32(DESC + 0x34); }  /* 0x4a14d0 */
 
