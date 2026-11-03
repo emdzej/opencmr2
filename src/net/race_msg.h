@@ -18,3 +18,4 @@ void Net_SendContinue(void);                     /* 0x427a30: type 0xd */
 void Net_SendRestart(void);                      /* 0x427a50: type 0xe */
 void Net_SendService(void);                      /* 0x427a80: type 0xf */
 void Net_Messages(void);                         /* 0x427890 */
+void Results_NetDone(int ch);                    /* 0x449090: the network results' fade end */

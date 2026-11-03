@@ -493,6 +493,12 @@ void Net_SendState(uint8_t v)
 }
 
 /* 0x40ac70 (message 6): a player's state (bits 18-21) */
+/* 0x40af00: the local best (0x531df8, -1 none) kept the lower */
+void NetRec_LocalBestTake(uint32_t t)
+{
+    if (gm32(0x531df8) == 0xffffffffu || t < gm32(0x531df8)) gw32(0x531df8, t);
+}
+
 void NetRec_SetState(uint32_t id, uint32_t v)
 {
     if (Net_LocalPlayer() == id) return;

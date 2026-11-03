@@ -1909,4 +1909,6 @@
 00427a30	Net_SendContinue	net	high	Type 0xd
 00427a50	Net_SendRestart	net	high	Type 0xe
 00427a80	Net_SendService	net	high	Type 0xf
-00449090	Results_NetDone	results	high	The network results fade end: to the results, the host the leaderboards, the exit
+00449090	Results_NetDone	results	high	The network results fade end: to the results, the host the leaderboards, the exit00413520	Hud_NetSplit	hud	high	Modes 8-10: a split kept, sent and against the network best
+00413610	Hud_NetLap	hud	high	Modes 11, 12: a lap kept, sent and against the network best
+0040af00	NetRec_LocalBestTake	net	high	The local best (0x531df8) kept the lower

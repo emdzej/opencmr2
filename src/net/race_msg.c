@@ -99,7 +99,7 @@ void Net_SendService(void)
 /* 0x449090, the results' fade's end in the network game (types 0xc and 0x10): the pause left, every
    race process to the results; the host the leaderboards (0x41b3a0) and the go to the others; the
    lobby's records, and the exit asked */
-static void results_done(int ch)
+void Results_NetDone(int ch)
 {
     (void)ch;
     if (Pause_Active()) Pause_End();   /* 0x404f20, 0x404ef0 */
@@ -150,7 +150,7 @@ static void message(uint32_t from, const uint8_t *m)
         gw32(0x537f34, Timer_Centis());
         /* fall through */
     case 0xc:
-        Fade_OutIn(0, results_done, 1, 0, colour, true);
+        Fade_OutIn(0, Results_NetDone, 1, 0, colour, true);
         return;
     case 0xd:
         Fade_OutIn(0, Results_ContinueDone, 1, 0, colour, true);

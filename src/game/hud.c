@@ -1,4 +1,5 @@
 /* The race times and the HUD (see hud.h). */
+#include "net/race_msg.h"
 #include "game/hud.h"
 #include "net/records.h"
 #include "game/replay.h"
@@ -668,6 +669,72 @@ static void rally_split(int p)
     if (m != 5 && m != 6 && m != 7 && m != 4) hud_place[p] = Opp_Loaded() ? Opp_PlaceAt(Race_Base() + p, idx) : 0xf;
 }
 
+/* the network splits' state: a split (or lap) taken and not yet shown (0x536c14), the last split's
+   index (0x536ed8), the last lap's (0x537064); 0x536e90: the time equal to the best */
+enum { NET_PENDING = 0x536c14, NET_SPLIT = 0x536ed8, NET_LAP = 0x537064, NET_EQUAL = 0x536e90 };
+
+/* the time against the network's best: slower or faster beeps (0x411ab0), equal sets 0x536e90 */
+static void net_compare(int p, int32_t best)
+{
+    ref_time[p] = best;
+    if (last_time[p] < best || best != 0) {
+        split_beep(p, last_time[p] < best);
+        gw32(NET_PENDING, 0);
+    } else gw32(NET_EQUAL, 1);
+}
+
+/* 0x413520 (modes 8-10): at a split (1-8) the time kept and sent (0x427990); against the network's
+   best there (0x40a410) */
+static void net_split(int p)
+{
+    gw32(NET_EQUAL, 0);
+    if (Sectors_Split(p)) {
+        int k = Sectors_SplitIndex(p);   /* 0x458370 */
+        gw32(NET_SPLIT, (uint32_t)k);
+        if (k > 0 && k < 9) {
+            my_split[p][k] = hud_time[p];
+            last_time[p] = hud_time[p];
+            split_idx[p] = k;
+            Net_SendStageTime(k, hud_time[p]);
+        }
+        gw32(NET_PENDING, 1);
+    } else if (!gm32(NET_PENDING)) return;
+    net_compare(p, (int32_t)NetRec_BestSplit((int)gm32(NET_SPLIT)));
+    if (gm32(NET_SPLIT)) gw8(0x5170e3 + 4u * (uint32_t)p, 0xff), show_for[p] = 0x4b;
+}
+
+/* 0x413610 (modes 11, 12): at a lap (0x458290, 0x458330) its time kept and sent (0x4279d0; in mode 12
+   the lap's own time, 0x4481f0, else laps 1-9 the running time); against the network's best lap
+   (0x40a420; in mode 12 the local best's second when there is one, 0x40a3c0, 0x40a440) */
+static void net_lap(int p)
+{
+    gw32(NET_EQUAL, 0);
+    bool trial = Gs_Mode() == 12;
+    if (Sectors_LapFirst(p)) {
+        int k = Sectors_LastLap(p);
+        gw32(NET_LAP, (uint32_t)k);
+        if (trial) {
+            int32_t t = gms32(0x53d9b4);   /* 0x4481f0(0, 0) */
+            hud_time[p] = t;
+            if (k < 12) my_split[p][k] = t;
+            last_time[p] = t;
+            split_idx[p] = k;
+            Net_SendLapTime(k, t);
+        } else if (k > 0 && k < 10) {
+            my_split[p][k] = hud_time[p];
+            last_time[p] = hud_time[p];
+            split_idx[p] = k;
+            Net_SendLapTime(k, hud_time[p]);
+        }
+        gw32(NET_PENDING, 1);
+    } else if (!gm32(NET_PENDING)) return;
+    int k = (int)gm32(NET_LAP);
+    int32_t best = (int32_t)NetRec_BestLap(k);
+    if (trial && NetRec_LocalBest()) best = (int32_t)NetRec_SecondLap();
+    net_compare(p, best);
+    if (k || trial) gw8(0x5170e3 + 4u * (uint32_t)p, 0xff), show_for[p] = 0x4b;
+}
+
 /* 0x414720: the three places around the player's at its last split */
 static void standings_rows(int p)
 {
@@ -798,12 +865,13 @@ void Hud_Update(int p, bool on_line)
         for (int i = 0; i < 4; i++) gw16(BAR_DONE(p) + 2u * (uint32_t)i, (uint16_t)a[i]), gw16(BAR_REST(p) + 2u * (uint32_t)i, (uint16_t)z[i]);
     }
     /* 0x413160: out of the network game the rally's split, or the arcade's in modes 5 and 6 and the
-       head to head; the network game's (modes 8-12: 0x413520, 0x413610) not yet */
+       head to head; the network game's (modes 8-10: 0x413520, 11 and 12: 0x413610) */
     if (!Gs_ModeBit19()) {
         uint32_t ms = Gs_Mode();
         if (ms == 5 || ms == 6 || Gs_SelBit27()) arcade_split(p);
         else rally_split(p);   /* 0x413330 */
-    }
+    } else if (Gs_Mode() >= 8 && Gs_Mode() <= 10) net_split(p);   /* 0x413520 */
+    else if (Gs_Mode() == 11 || Gs_Mode() == 12) net_lap(p);      /* 0x413610 */
     if (Gs_SelBit26() && (gm32(0x52f2b0) >> 0xb & 1)) lap_sounds(p);   /* 0x4118b0 */
     uint32_t m = Gs_Mode();
     if (m == 5 || m == 6 || m == 7 || Gs_SelBit25()) arcade_rows(p);   /* 0x415870 */

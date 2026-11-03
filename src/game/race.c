@@ -1,5 +1,8 @@
 /* The race (see race.h). The original keeps the race's variables at 0x537dd0-0x538124; they are the
    fields of R, named by address where the meaning is open. */
+#include "net/session.h"
+#include "net/records.h"
+#include "net/race_msg.h"
 #include "game/balls.h"
 #include "game/shadow.h"
 #include "game/race.h"
@@ -288,6 +291,12 @@ static void Race_Update(uint8_t state, bool flag)
            (0x52c308, with the low-detail clouds 0x52d5cc; +0x1214, 8 bytes a stage: the time in bits
            7-22, the car in 0-5) is the record, its run saved as the .grp and with the ghost option the
            ghost (0x4660e0, 0x4660a0); then recording again and the ghost from its start */
+        /* the network time trial (mode 12): each lap's time to the others and as the local best */
+        if (car0 && Gs_Mode() == 12 && Sectors_LapFirst(0)) {
+            int32_t t = gms32(0x53d9b4 + 4u * (uint32_t)Sectors_LastLap(0));   /* 0x4481f0 */
+            Net_SendFinished(t);
+            NetRec_LocalBestTake((uint32_t)t);
+        }
         if (car0 && Gs_SelBit24() && Gs_SelBit28() && Sectors_LapFirst(0)) {
             Replay_End(Race_Replay(0));
             Replay_Stop(Race_Replay(0));
@@ -405,6 +414,9 @@ int Race_Reentry(void) { return reenter; }
    common archives, the car tables */
 static void s0_setup(ProcGroup *g, uint32_t slot)
 {
+    gw8(0x538100, 0);   /* the time trial's time-out taken */
+    Net_SetSplitsOn(false);   /* 0x427640 */
+    gw8(0x537fd4, 0);   /* the ready to be sent */
     R.loading = true;
     R.start_count = 0;
     /* 0x409dd0: the seven ghost and network records at 0x531788 (0x80 bytes apart), their first
@@ -507,6 +519,10 @@ static void s4_cars(ProcGroup *g, uint32_t slot)
    one round of steps on the line, then the countdown */
 static void s5_line(ProcGroup *g, uint32_t slot)
 {
+    if (Gs_ModeBit19()) Net_SendState(2);   /* 0x40ac40: on the line */
+    Net_SetSplitsOn(false);
+    Net_ForgetTimes();   /* 0x427650 */
+    gw8(0x537fd4, 0);
     if (slot == 0) {
         if (R.place) {
             if (H->place_cars) H->place_cars();
@@ -620,7 +636,7 @@ static void s13_demo(ProcGroup *g, uint32_t slot)
         Pause_Ask(false, false, true);   /* 0x41f2a0 */
     }
     Race_Update(Proc_State(g, 0), true);
-    gw8(0x537f08, 1);
+    R.first = true;   /* DAT_00537f08 */
 }
 
 /* 0x410fa0: the view, "demo" at the top left */
@@ -636,6 +652,10 @@ static void draw_demo(ProcGroup *g, uint32_t slot)
    (500 1/100 s) on the line */
 static void s7_countdown(ProcGroup *g, uint32_t slot)
 {
+    if (!gm8(0x537fd4)) {
+        Net_SendReady();   /* 0x427930 (with no session, sent to no one) */
+        gw8(0x537fd4, 1);
+    }
     R.winner = -1;
     R.finished[slot] = 0;
     R.shown[slot] = 0;
@@ -643,6 +663,37 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
     if (Gs_SelBit27() && !Gs_ModeBit19()) gw8(0x537fbc, 0), gw8(0x537fbd, 0);   /* the head to head's winners */
     timer_run((int)slot);
     int32_t t = Race_StageTime((int)slot);
+    /* the network game: the splits taken (not in mode 10), the messages; the countdown held at its
+       start while a player has not said ready (0x409cb0, 0x409ee0; the time of it 0x40af20). In modes
+       10 and 12 the host ends the stage for everyone once its time (0x406710, minutes) is up since
+       then: the start sent (0x40af40) and the results' fade (0x449090); the steps go on meanwhile */
+    if (Gs_ModeBit19()) {
+        if (Gs_Mode() != 10) Net_SetSplitsOn(true);
+        Net_Messages();   /* 0x427890 */
+        if (Gs_Mode() != 10)
+            for (int i = 0; i < 7; i++)
+                if (NetRec_Used(i) && !NetRec_Ready(i)) {
+                    gw32(0x5320a4, Timer_Centis());
+                    R.first = true;
+                    Net_SetSplitsOn(false);
+                }
+        uint32_t limit = gm32(0x52e91c);
+        if (limit * 6000u < Timer_Centis() - gm32(0x5320a4) && limit && Net_IsHost() &&
+            (Gs_Mode() == 10 || Gs_Mode() == 12)) {
+            if (!gm8(0x538100)) {
+                Net_SendStart();
+                gw8(0x538100, 1);
+                Fade_OutIn(0, Results_NetDone, 1, 0, (int32_t)gm32(0x5191a4), true);
+                return;
+            }
+            Race_Update(Proc_State(g, slot), true);
+            return;
+        }
+        if (gm8(0x538100)) {
+            Race_Update(Proc_State(g, slot), true);
+            return;
+        }
+    }
     if (R.first) {
         R.clock = 0;
         timer_start((int)slot);
@@ -711,13 +762,33 @@ static void s8_stage(ProcGroup *g, uint32_t slot)
         }
     }
     if (fin) {
+        if (Gs_ModeBit19()) Net_SendState(3);   /* 0x40ac40: finished */
         R.nfinished++;
         R.finished[slot] = 1;
         Damage_Finish((int)slot);   /* 0x469a80 */
         R.finish_at[slot] = Timer_Centis();
         Proc_Event(g, slot, 0, 2);
     }
-    if (slot == 0) Race_Update(Proc_State(g, 0), R.nfinished == players());
+    bool all = R.nfinished == players();
+    if (Gs_ModeBit19() && Gs_Mode() == 10) all = fin;   /* the special stage: each on its own */
+    if (slot == 0) {
+        Race_Update(Proc_State(g, 0), all);
+        /* the network game, once through: the trackside camera, the time to the others (a retirement's,
+           0x53811e, by its point 0x448550; not after the skip 0x53811f), the time trial's first finish
+           time (0x406770 at 0 or more, 0x538120, 0x537f30) and the local best (0x40af00) */
+        if ((all || R.skip) && Gs_ModeBit19()) {
+            Camera_SelectAt(0, 7, 0xffff, Camera_Car(0), false);
+            if (!gm8(0x53811f)) {
+                if (gm8(0x53811e)) PENDING_NOTE(0x448550, "the network game's retirement time");
+                Net_SendFinished(Times_Finish(0));
+                if (!gm8(0x538120) && (int32_t)gm32(0x52e92c) >= 0) {
+                    gw8(0x538120, 1);
+                    gw32(0x537f30, Timer_Centis());
+                }
+                NetRec_LocalBestTake((uint32_t)Times_Finish(0));
+            }
+        }
+    }
     if (fin) Camera_SelectAt((int)slot, 7, 0xffff, Camera_Car((int)slot), false);   /* the trackside cameras */
 }
 
@@ -763,6 +834,17 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
     for (uint32_t i = 0; i < players(); i++) fading += Fade_Active((int)i);
     bool all = R.done == players() && !fading;
     Race_Update(Proc_State(g, 0), true);
+    /* the network game: the messages; outside modes 10 and 12 held (the time noted, 0x537f34) while
+       another player has not finished (0x409cb0, 0x40a450) */
+    if (Gs_ModeBit19()) {
+        Net_Messages();
+        if (Gs_Mode() != 10 && Gs_Mode() != 12)
+            for (int i = 0; i < 7; i++)
+                if (NetRec_Used(i) && !NetRec_Done(i)) {
+                    gw32(0x537f34, Timer_Centis());
+                    return;
+                }
+    }
     if (!all && !R.skip) {
         R.first = true;
         return;
@@ -851,8 +933,26 @@ static void end_replay(ProcGroup *g)
    launches a rocket each frame once it has ended. */
 static void s10_replay(ProcGroup *g, uint32_t slot)
 {
-    /* (mode 10's time-out, the network time trial's clock 0x406710 against 0x40af30, needs a network
-       session, 0x4a15a0; without one the original goes on as here) */
+    /* mode 10's time-out: the host ends the stage for everyone once its time (0x406710, minutes) is up
+       since the start (0x40af30): the start sent (0x40af40) and the results' fade (0x449090) */
+    if (Gs_Mode() == 10) {
+        uint32_t limit = gm32(0x52e91c);
+        if (limit * 6000u < Timer_Centis() - gm32(0x5320a4) && Net_IsHost() && limit) {
+            if (!gm8(0x538100)) {
+                Net_SendStart();
+                gw8(0x538100, 1);
+                Fade_OutIn(0, Results_NetDone, 1, 0, (int32_t)gm32(0x5191a4), true);
+                return;
+            }
+            Race_Update(Proc_State(g, slot), true);
+            return;
+        }
+        if (gm8(0x538100)) {
+            Race_Update(Proc_State(g, slot), true);
+            return;
+        }
+    }
+    Net_SetSplitsOn(false);
     if (R.skip || gm8(0x817574)) {
         R.skip = false;
         end_replay(g);
@@ -889,6 +989,14 @@ static void s10_replay(ProcGroup *g, uint32_t slot)
         }
     }
     Race_Update(Proc_State(g, 0), true);
+    /* the network game: the messages (in modes 10 and 12 the lobby's records again, 0x40ad20); held
+       while another player has not finished (0x409cb0, 0x40a450) */
+    if (Gs_ModeBit19()) {
+        Net_Messages();
+        if (Gs_Mode() == 10 || Gs_Mode() == 12) NetRec_Lobby();
+        for (int i = 0; i < 7; i++)
+            if (NetRec_Used(i) && !NetRec_Done(i)) return;
+    }
     R.first = true;
 }
 
@@ -1011,6 +1119,7 @@ static void challenge_out(ProcGroup *g)
 static void s11_results(ProcGroup *g, uint32_t slot)
 {
     (void)slot;
+    if (Gs_Mode() == 10) NetRec_LocalTimes(Net_LastStageTime());   /* 0x40a230, 0x427660 */
     Results_Stop();
     R.winner = -1;   /* 0x41f250 */
     /* the players' replays ended (0x41e8d0 on each way out; nothing steps them here) */

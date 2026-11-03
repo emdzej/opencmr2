@@ -1,4 +1,7 @@
 /* The stage's results (see results.h), ported from 0x448e60-0x44b7b0 and 0x453c50. */
+#include "net/session.h"
+#include "net/records.h"
+#include "net/race_msg.h"
 #include "game/results.h"
 #include "fe/menu.h"
 #include "exe.h"
@@ -1006,11 +1009,17 @@ static void restart_fn(Menu *m, MenuItem *it)
 {
     (void)m, (void)it;
     for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : restart_done, 1, 0, fade_colour(), true);
+    /* the network game's host (not in modes 10 and 12): the others' ready cleared, the restart to them */
+    if (Gs_ModeBit19() && Net_IsHost() && mode() != 10 && mode() != 12) {
+        NetRec_ClearReady();   /* 0x409bc0 */
+        Net_SendRestart();     /* 0x427a50 */
+    }
 }
 static void service_fn(Menu *m, MenuItem *it)
 {
     (void)m, (void)it;
     for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : service_done, 1, 0, (int32_t)gm32(0x519ec8), true);
+    if (Gs_ModeBit19() && Net_IsHost() && mode() != 10) Net_SendService();   /* 0x427a80 */
 }
 static void quit_fn(Menu *m, MenuItem *it)
 {
@@ -1029,10 +1038,16 @@ void Results_ContinueDone(int ch)
     Input_SetMenuMode(false);
 }
 
-/* 0x44a000 (not the network game's): every car's fade, the first calling back */
+/* 0x44a000: every car's fade, the first calling back; in the network game the first's alone, the host
+   sending the continue to the others */
 static void continue_fn(Menu *m, MenuItem *it)
 {
     (void)m, (void)it;
+    if (Gs_ModeBit19()) {
+        Fade_OutIn(0, Results_ContinueDone, 1, 0, (int32_t)gm32(0x519ec8), true);
+        if (Net_IsHost()) Net_SendContinue();   /* 0x427a30 */
+        return;
+    }
     for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : Results_ContinueDone, 1, 0, (int32_t)gm32(0x519ec8), true);
 }
 

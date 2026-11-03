@@ -58,6 +58,7 @@ uint32_t NetRec_ResultPoints(int p);
 uint32_t NetRec_Total(void);
 void Net_SendState(uint8_t v);
 void NetRec_SetState(uint32_t id, uint32_t v);
+void NetRec_LocalBestTake(uint32_t t);   /* 0x40af00 */
 void NetRec_Lobby(void);
 uint32_t NetRec_LobbyCount(void);
 const char *NetRec_LobbyName(int k);

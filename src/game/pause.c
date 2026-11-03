@@ -1,4 +1,7 @@
 /* The race's pause menu (see pause.h), ported from 0x401000-0x405500. */
+#include "net/session.h"
+#include "net/records.h"
+#include "net/race_msg.h"
 #include "game/pause.h"
 #include "audio/codriver.h"
 #include "audio/crash.h"
@@ -258,11 +261,17 @@ static void restart_fn(Menu *m, MenuItem *it)
 {
     (void)m, (void)it;
     for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : Pause_RestartDone, 1, 0, fade_colour(), true);
+    /* the network game's host (not in mode 10): the others' ready cleared, the restart to them */
+    if (Gs_ModeBit19() && Net_IsHost() && mode() != 10) {
+        NetRec_ClearReady();   /* 0x409bc0 */
+        Net_SendRestart();     /* 0x427a50 */
+    }
 }
 static void service_fn(Menu *m, MenuItem *it)
 {
     (void)m, (void)it;
     for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : Pause_ServiceDone, 1, 0, (int32_t)gm32(0x516090), true);
+    if (Gs_ModeBit19() && Net_IsHost() && mode() != 10) Net_SendService();   /* 0x427a80 */
 }
 static void quit_fn(Menu *m, MenuItem *it)
 {
