@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DISC=${1:-${OPENCMR2_DATA:-}}
-[ -n "$DISC" ] || { [ -e "$HOME/Downloads/CMR2.ISO" ] && DISC=$HOME/Downloads/CMR2.ISO || DISC=cd; }
+if [ -z "$DISC" ]; then if [ -e "$HOME/Downloads/CMR2.ISO" ]; then DISC=$HOME/Downloads/CMR2.ISO; else DISC=./cd; fi; fi
 WASM=${2:-build-gasm/opencmr2.wasm}
 OUT=docs/public/screenshots
 [ -f "$WASM" ] || { echo "no $WASM: build it first (./play builds it)" >&2; exit 1; }
