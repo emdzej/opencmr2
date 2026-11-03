@@ -32,7 +32,7 @@ h2 { font-size: 1.25rem; margin: 0 0 .6rem; font-weight: 400; text-transform: lo
 
 .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   padding: 0 24px; height: 64px; background: var(--sage); }
-.bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -10px; height: 8px; background: var(--dots); pointer-events: none; }
+.bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -10px; height: 10px; background: var(--dots), var(--sage); pointer-events: none; }
 .brand { display: flex; align-items: center; gap: .55rem; color: var(--ink); font-size: 20px; text-decoration: none; letter-spacing: -0.01em; }
 .bar nav { display: flex; font-size: 15px; }
 .bar nav a { color: var(--ink); text-decoration: none; padding: 0 12px; }

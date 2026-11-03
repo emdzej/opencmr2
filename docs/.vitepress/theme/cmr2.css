@@ -132,15 +132,16 @@
   --vp-home-hero-name-color: #ffffff;
 }
 
-/* The flag's dots under the navigation bar. */
+/* The flag's dots under the navigation bar, on the bar's own colour (the page scrolls under the bar, so
+   the strip is solid and joins it). */
 .VPNav::after {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   bottom: -10px;
-  height: 8px;
-  background: var(--cm-dots);
+  height: 10px;
+  background: var(--cm-dots), var(--vp-c-bg);
   pointer-events: none;
 }
 
