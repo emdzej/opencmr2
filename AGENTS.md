@@ -27,7 +27,7 @@ each step with its check), `docs/re/architecture.md` and `docs/formats/`.
 Build and check: `cmake -S . -B build && cmake --build build && ctest --test-dir build` (native tests);
 gasm: `tools/fetch-gasm-sdk.sh`, then the `build-gasm` commands in `CMakeLists.txt`, run with
 `gasm-run build-gasm/opencmr2.wasm --headless 10 --asset cd=CMR2.ISO` (the runner is in
-`.deps/gasm-runner-macos-universal/`; add `--param car=205c1 --screenshot out/car.png` for the viewer). `tools/bfl.py --summary cd` gives the
+`.deps/gasm-runner-macos-universal/`; `--param frametime=1` in a window logs the slow frames; add `--param car=205c1 --screenshot out/car.png` for the viewer). `tools/bfl.py --summary cd` gives the
 hash `bfl_test` must match (`OPENCMR2_BFL_SUMMARY`); `tools/cmr2fmt.py --summary cd` the three `fmt_test`
 hashes (`OPENCMR2_FMT_IMAGES`, `_MODELS`, `_SOUNDS`; about a minute on all cores). `tools/cmr2fmt.py
 png|wav|obj <file[:member]>` exports into `out/`.
