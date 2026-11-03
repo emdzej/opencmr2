@@ -37,6 +37,7 @@
 #include "world/fin.h"
 #include "world/hpc.h"
 #include "world/obj.h"
+#include "world/particles.h"
 #include "world/stage.h"
 #include "world/section.h"
 #include "world/tod.h"
@@ -120,7 +121,10 @@ static void on_code(uc_engine *u, uint64_t addr, uint32_t size, void *user)
     last_pc[last_i++ & 7] = (uint32_t)addr;
     /* the original's calls out of the simulation, returned at once: Voice_Play (stdcall, 6 arguments:
        no voice, -1, as the port's without a device) */
-    static const struct { uint32_t fn, pop, eax; } stubs[] = {{0x4b7790, 0x18, 0xffffffff}};
+    static const struct { uint32_t fn, pop, eax; } stubs[] = {{0x4b7790, 0x18, 0xffffffff},
+        /* the knocked record's start 0x46f810 (stdcall, 2): the knock pool and its mesh copies are the
+           port's own; Scenery_Knock 0x46fe70 around it still runs (the up flags, the pool count) */
+        {0x46f810, 8, 0}};
     if (addr == 0x4a9b80) {   /* Timer_Centis: the port's clock */
         uint32_t sp, ret, v = Timer_Centis();
         uc_reg_read(u, UC_X86_REG_ESP, &sp);
@@ -128,6 +132,21 @@ static void on_code(uc_engine *u, uint64_t addr, uint32_t size, void *user)
         sp += 4;
         uc_reg_write(u, UC_X86_REG_ESP, &sp);
         uc_reg_write(u, UC_X86_REG_EAX, &v);
+        uc_reg_write(u, UC_X86_REG_EIP, &ret);
+        return;
+    }
+    if (addr == 0x4b07a0) {
+        /* Particle_Emit (stdcall, 9 arguments): the particles aren't mirrored, so only its three rand
+           draws, when the port's type is on (its gate) */
+        uint32_t sp, ret, type;
+        uc_reg_read(u, UC_X86_REG_ESP, &sp);
+        uc_mem_read(u, sp, &ret, 4);
+        uc_mem_read(u, sp + 4, &type, 4);
+        PType *t = PType_Get((int)type);
+        if (t && (t->flags & 1))
+            for (int k = 0; k < 3; k++) emu_seed = emu_seed * 214013u + 2531011u;
+        sp += 4 + 0x24;
+        uc_reg_write(u, UC_X86_REG_ESP, &sp);
         uc_reg_write(u, UC_X86_REG_EIP, &ret);
         return;
     }
