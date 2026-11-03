@@ -17,10 +17,12 @@ executable. **Fidelity is the product.** Reproduce the original's behaviour, inc
 If something looks wrong, check the disassembly; if the original does it, keep it and add a comment. Only
 fix deviations *of the port* from the original.
 
-**State:** steps 1-2 done; step 3 mostly (`src/render/`: D3D7 device + GLES 3 back end, state layer,
-textures, meshes, 2D queues, text; docs/re/render.md); step 5 started (`src/world/`: object trees,
-stage sections and terrain; docs/re/world.md); the simulation and race (`src/sim/`, `src/game/`) and the
-front end (`src/fe/`, docs/re/frontend.md): with no parameter the game runs from its menus to a stage.
+**State:** the whole offline game is ported and released (0.1.x): the renderer (`src/render/`, D3D7 on
+GLES 3; docs/re/render.md), the world (`src/world/`; docs/re/world.md), the simulation and race
+(`src/sim/`, `src/game/`), the front end (`src/fe/`; docs/re/frontend.md) and the sound. The network
+game (`src/net/`, DirectPlay onto gasm:net and gasm-relay; docs/re/network.md) runs a rally from stage to
+stage to its end with two instances on a relay; what is left is play-testing it in real races.
+`docs/guide/status.md` is the public record.
 Viewers: `--param car=` / `--param stage=`. Read `docs/re/port-plan.md` (the order of work,
 each step with its check), `docs/re/architecture.md` and `docs/formats/`.
 

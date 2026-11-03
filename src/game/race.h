@@ -2,7 +2,7 @@
    runs one process per player through the race states (table 0x5190b0, transitions 0x519120): 0 set-up,
    1 the loading screen, 2-4 the loads, 5 the cars on the line, 7 the countdown, 8 the stage, 9 after
    the finish, 10 the replay, 11 the results, 12 back to the front end. Race_Update 0x41c5a0 runs the
-   steps due in each of 5 and 7-10. The network game's branches are not ported. */
+   steps due in each of 5 and 7-10, with the network game's branches. */
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>

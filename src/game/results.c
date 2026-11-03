@@ -502,8 +502,8 @@ static void row_place(int k, bool tie)
 /* 0x44bcd0's arcade part: the title, "record, <holder>, <time>" of the location's race (0x52b044 +
    0x1210, 8 a race: the name, the time in bits 7-22), then per player a column (360 apart; the rows
    moved down by ten less the laps): "laps" (0xac, not with ten), the driver, each lap's time
-   (0x4481f0) and their total ("total", 0x8a). The network game's (the lap counter 0x539dcc and
-   Times_Finish) is not ported. */
+   (0x4481f0) and their total ("total", 0x8a); in the network game car 0's laps done (the lap counter
+   0x539dcc), dashes for the rest and its finish time. */
 /* 0x44cdb0: the match's two columns, as the stage's (the driver, each split's time and the total):
    the two players' names, or the player's first and the computer's (0x407ec0) second */
 static void draw_ch_times(void)
