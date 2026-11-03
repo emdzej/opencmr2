@@ -407,7 +407,15 @@ GASM_EXPORT("gasm_frame") void cmr2_gasm_frame(void)
         app_exit();
         __wasi_proc_exit(0);
     }
-    audio_acc += APP_AUDIO_RATE / frame_hz;
+    /* The sound for the time since the previous frame (the runner's clock), as OpenNFSPU's: a frame
+       rate that drifts from the one asked for (a window's vsync, a slow frame) keeps the queue at its
+       level instead of draining or flooding it; headless the clock is the frames' own, the same share.
+       At most the buffer: a longer gap is lost. */
+    double now = gasm_time_ms();
+    static double last_ms = -1;
+    audio_acc += 0 <= last_ms ? (now - last_ms) * APP_AUDIO_RATE / 1000.0 : APP_AUDIO_RATE / frame_hz;
+    last_ms = now;
+    if (audio_acc > 2048) audio_acc = 2048;
     unsigned n = (unsigned)audio_acc;
     audio_acc -= n;
     app_audio(audio_buf, n);
