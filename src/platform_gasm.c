@@ -402,19 +402,10 @@ GASM_EXPORT("gasm_frame") void cmr2_gasm_frame(void)
     if (!running) return;
     for (uint32_t p = 0; p < 4; p++) pads[p] = gasm_input_pad(p);
     poll_key_events();
-    double t0 = gasm_time_ms();
     if (!app_frame()) {
         running = false;
         app_exit();
         __wasi_proc_exit(0);
-    }
-    /* after a long frame (a stage's load; any gap above the runner's 60 ms queue) the queue has run dry. gasm-run 0.16.0's window,
-       while it buffers again, takes the samples off the queue as they come and drops them, so steady
-       pushing never fills it and the sound stays off. One push of 160 ms of silence, more than its
-       largest buffering target (150 ms), starts it again; its trim takes the latency back off. */
-    if (gasm_time_ms() - t0 > 60.0) {
-        static float hush[7056 * 2];
-        gasm_audio_push(hush, 7056);
     }
     audio_acc += APP_AUDIO_RATE / frame_hz;
     unsigned n = (unsigned)audio_acc;

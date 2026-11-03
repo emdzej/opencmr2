@@ -14,9 +14,9 @@ WASI_SDK_VERSION=${WASI_SDK_VERSION:-34}
 # The one place the gasm version is set (CI, release and Pages builds all call this script; the gasm
 # bundles' runners too, via --version).
 # Keep it in step with @emdzej/gasm-host in docs/package.json (the browser player's runner).
-# 0.16.0: the latest release. The game draws through gasm:gl (OpenGLES 3.0 / WebGL 2) as the original
+# 0.16.1: the latest release. The game draws through gasm:gl (OpenGLES 3.0 / WebGL 2) as the original
 # draws through Direct3D 7; gasm:gl in the browser player's Worker mode (glCanvas) needs 0.14.0 or later.
-GASM_VERSION=${GASM_VERSION:-0.16.0}
+GASM_VERSION=${GASM_VERSION:-0.16.1}
 if [ "${1:-}" = --version ]; then echo "$GASM_VERSION"; exit 0; fi
 case "$(uname -s)-$(uname -m)" in
   Darwin-arm64)  PLAT=arm64-macos ;;

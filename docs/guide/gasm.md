@@ -6,7 +6,7 @@ runs everywhere and produces the same frames.
 
 <p><a class="gasm-badge" href="https://gasm.emdzej.pl"><img class="gasm-badge-light" src="https://gasm.emdzej.pl/badge/built-for-gasm-light.svg" alt="Built for gasm" width="120" height="44"><img class="gasm-badge-dark" src="https://gasm.emdzej.pl/badge/built-for-gasm-dark.svg" alt="Built for gasm" width="120" height="44"></a></p>
 
-What OpenCMR2 uses from gasm (0.16.0):
+What OpenCMR2 uses from gasm (0.16.1):
 
 | gasm | For |
 |---|---|

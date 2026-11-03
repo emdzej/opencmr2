@@ -7,7 +7,7 @@ Guidance for coding agents working in this repository. Humans: see [README.md](R
 
 OpenCMR2 is a faithful, from-scratch reimplementation of **Colin McRae Rally 2.0** (Codemasters, 2000), the
 Windows program `CMR2.exe` version 1.11 (1,228,800 bytes, CRC-32 `44c022f4`), in C11. It targets
-[gasm](https://github.com/emdzej/gasm) **0.16.0** (`opencmr2.wasm`: native runners on macOS, Linux and
+[gasm](https://github.com/emdzej/gasm) **0.16.1** (`opencmr2.wasm`: native runners on macOS, Linux and
 Windows, and the browser). A native build exists for tools and headless tests only. Sibling projects with
 the same conventions: `../openrf` (Return Fire, complete), `../opennfspu` (Porsche Unleashed, in progress);
 copy their proven pieces (file layer, gasm backend, bundles, play page) rather than reinventing them.
