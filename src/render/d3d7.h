@@ -135,6 +135,7 @@ struct D3dTexture {
     int width, height;
     uint8_t *rgba;          /* width * height * 4 (NULL for a cube) */
     unsigned gl;
+    int glw, glh;           /* the size the back end's texture was made at (later uploads replace) */
     bool dirty;
     bool cube;              /* a cube of six width x width faces that can be drawn into */
     bool bump;              /* a bump map: du, dv (signed bytes), luminance in its red, green, blue */

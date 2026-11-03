@@ -251,7 +251,7 @@ void CarShade_End(void)
 {
     if (!g_tre_have) return;
     runs[run].count = nverts - runs[run].start;
-    if (vb && vbp) D3dVB_Unlock(vb);
+    if (vb && vbp) D3dVB_UnlockRange(vb, 0, (uint32_t)nverts);
     vbp = NULL;
 }
 

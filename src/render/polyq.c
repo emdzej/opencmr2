@@ -115,7 +115,7 @@ void Poly_Flush(uint32_t bucket)
         for (uint32_t i = 0; i < n; i++) {
             const Poly *p = &q[i];
             if (p->tex != tex || p->flags != flags) {
-                D3dVB_Unlock(vb);
+                D3dVB_UnlockRange(vb, 0, nv);
                 if (nv) {
                     D3d_DrawPrimitiveVB(D3DPT_TRIANGLELIST, vb, 0, nv, 0);
                     nv = 0;
@@ -130,7 +130,7 @@ void Poly_Flush(uint32_t bucket)
             nv += 3;
             Twod_CountPrims(1);
         }
-        D3dVB_Unlock(vb);
+        D3dVB_UnlockRange(vb, 0, nv);
         if (nv) {
             set_state(&q[n - 1]);
             set_flags(q[n - 1].flags);

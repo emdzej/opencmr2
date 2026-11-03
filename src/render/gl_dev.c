@@ -924,8 +924,15 @@ static void gl_texture_upload(D3dTexture *t)
     if (!t->gl) glGenTextures(1, &t->gl);
     glBindTexture(GL_TEXTURE_2D, t->gl);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, t->width, t->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t->rgba);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+    /* a texture changed each frame (the mud on the body, the movies) is replaced in place: made
+       again, the driver may wait for the frames still drawing with it */
+    if (t->glw == t->width && t->glh == t->height)
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, t->width, t->height, GL_RGBA, GL_UNSIGNED_BYTE, t->rgba);
+    else {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, t->width, t->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t->rgba);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        t->glw = t->width, t->glh = t->height;
+    }
     t->dirty = false;
     shadow_reset();
 }
@@ -968,6 +975,7 @@ static void gl_texture_free(D3dTexture *t)
     }
     if (t->gl) glDeleteTextures(1, &t->gl);
     t->gl = 0;
+    t->glw = t->glh = 0;
 }
 
 static void gl_vb_free(D3dVB *vb)
