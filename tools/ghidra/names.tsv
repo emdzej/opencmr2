@@ -1925,3 +1925,20 @@
 00426fc0	Net_CarsAfter	net	high	After the collisions: the remote cars' velocity and spin back into the predictors
 00427580	Net_SetRate	net	med	The send rate (0x5393d4, 40 or 41) from the link's bytes, bits and players
 0041d2a0	Race_Steps	race	high	The race's steps since the start (DAT_00537f24)
+004de170	Time_Print	fe	high	A time in hundredths as mm:ss.hh (0x519f58)
+004de1d0	Fe_NetStandingsDraw	fe	high	The network standings page: the players' totals and the best board
+004e2b40	Fe_WaitingRoomDraw	fe	high	A waiting-room mock-up with placeholder text; its page is never opened
+004e96d0	Fe_NetErrorDraw	fe	high	The network error page: one of four messages by 0x826138 (unanalysed code in Ghidra)
+004e9820	Fe_PasswordDraw	fe	high	The session password page, the cursor blinking
+004e9990	Fe_BoardsDraw	fe	high	The stored leaderboards page: which board, its ten rows, the arrows
+004eef30	Fe_BoardsOpen	fe	high	The leaderboards page opened: the list from the boards
+004eefb0	Fe_BoardsChoose	fe	high	A board chosen and the page left
+004eefe0	Fe_BoardsNew	fe	high	A new board (up to 32), shown
+004ef000	Fe_BoardsDelete	fe	high	The listed board deleted
+004ef030	Fe_BoardsUpdate	fe	high	Each frame: the list and the new/delete items kept to the boards
+0040e4f0	Boards_Current	net	high	The board shown (DAT_00516a0c)
+0040e500	Boards_SetCurrent	net	high	The board shown set
+0040e510	Boards_Get	net	high	Board k (0x533a08 + 0x104 k), 0 when not in use
+0040e540	Boards_Count	net	high	The stored boards (DAT_00535b88)
+0040e550	Boards_Add	net	high	A new board, blank, named after player 0 (over its first entry)
+0040e5e0	Boards_Delete	net	high	Board k out, the later ones moved down

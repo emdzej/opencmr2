@@ -14,6 +14,7 @@
 #include "game/timer.h"
 #include "net/records.h"
 #include "net/session.h"
+#include "pending.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
 #include "sim/car.h"
@@ -389,3 +390,269 @@ static void rx_damage_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_
 
 /* 0x4e90f0: the network page of 0xd8 (track, damage) */
 void fe_4e90f0(Menu *m) { setup_page(m, 0xd8, rx_damage_row); }
+
+/* 0x4de170: a time in hundredths as mm:ss.hh */
+static void print_time(char *b, uint32_t t) { snprintf(b, 0x100, exe_str(0x519f58), (int)t / 6000, (int)t % 6000 / 100, (int)t % 100); }
+
+/* 0x4de1d0: the network game's standings: two faint boxes (the players, the best times); the players'
+   names, totals (none: text 0x200) and the leader's mark (0x524dc8) on the players with the first
+   row's total, the local player lit, the empty rows to eight dashed; the board's ten names and times
+   (0x40e8c0: 0x533900 when 0x535b8c is set; none: text 0x202) */
+void fe_4de1d0(Menu *m)
+{
+    (void)m;
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    static const uint8_t faint[4] = {0xff, 0xff, 0xff, 0x20};
+    int16_t a[4] = {(int16_t)(w * 100 / 0x280), (int16_t)(h * 0x5a / 0x1e0), (int16_t)(w * 300 / 0x280), (int16_t)(h * 0x118 / 0x1e0)};
+    int16_t b[4] = {(int16_t)(w * 10 / 0x280 + w * 100 / 0x280 + w * 300 / 0x280), (int16_t)(h * 0x5a / 0x1e0),
+                    (int16_t)(w * 0x82 / 0x280), (int16_t)(h * 0x118 / 0x1e0)};
+    Rect_Fill(a, faint, 1);
+    Rect_Fill(b, faint, 1);
+    titles(Gs_Mode() == 10 ? 0x1c9 : 0x1f6);
+    Fe_Header();
+    int hy = h * 100 / 0x1e0, row = h * 0x14 / 0x1e0, top = h * 0x82 / 0x1e0;
+    int x1 = w * 0x96 / 0x280, x2 = w * 0xfa / 0x280, x3 = w * 0x15e / 0x280;
+    Font_Print(1, Text_Get(0x7f), x1, hy, C(PLAIN), 10);
+    Font_Print(1, Text_Get(0x1ca), x2, hy, C(PLAIN), 10);
+    Font_Print(1, Text_Get(0x1f8), x3, hy, C(PLAIN), 10);
+    int k = 0;
+    for (; k < (int)NetRec_LobbyCount(); k++) {
+        const uint8_t *c = C(k == NetRec_LobbyLocal() ? LIT : PLAIN);
+        int y = top + row * k;
+        const char *name = NetRec_LobbyName(k);
+        Font_Print(0, name ? name : "", x1, y, c, 10);
+        if (NetRec_LobbyBest(k) == 0xffffffffu) snprintf(buf(), 0x100, "%s", Text_Get(0x200));
+        else print_time(buf(), NetRec_LobbyBest(k));
+        Font_Print(0, buf(), x2, y, c, 10);
+        bool lead = NetRec_LobbyBest(0) != 0xffffffffu && NetRec_LobbyBest(k) == NetRec_LobbyBest(0);
+        Font_Print(0, (const char *)C(lead ? 0x524dc8 : 0x519fb0), x3, y, c, 10);
+    }
+    for (; k < 8; k++) {
+        int y = top + row * k;
+        Font_Print(0, (const char *)C(0x519fb4), x1, y, C(PLAIN), 10);
+        Font_Print(0, Text_Get(0x200), x2, y, C(PLAIN), 10);
+        Font_Print(0, (const char *)C(0x519fb0), x3, y, C(PLAIN), 10);
+    }
+    int bx = b[2] / 2 + b[0];
+    Font_Print(1, Text_Get(0x201), bx, hy, C(PLAIN), 10);
+    if (!gm8(0x535b8c)) {
+        Font_Print(0, Text_Get(0x202), bx, row + top, C(PLAIN), 10);
+        return;
+    }
+    for (uint32_t i = 0; i < 10; i++) {
+        uint32_t e = 0x533900 + 8 * i + 4;
+        int y = top + row * (int)(i + 1);
+        if (!gm8(e)) {
+            Font_Print(0, (const char *)C(0x519fb4), w * 0x1c2 / 0x280, y, C(PLAIN), 10);
+            Font_Print(0, (const char *)C(0x519fb0), w * 0x1fe / 0x280, y, C(PLAIN), 10);
+        } else {
+            Font_Print(0, (const char *)C(e), w * 0x1c2 / 0x280, y, C(PLAIN), 10);
+            snprintf(buf(), 0x100, exe_str(0x517dd0), (int)gm32(e + 4));
+            Font_Print(0, buf(), w * 0x1fe / 0x280, y, C(PLAIN), 10);
+        }
+    }
+}
+
+/* the title row of names[0..n) after the header (0x4d41e0, 0x4d3fa0) */
+static void header_titles(const char *const *names, int n)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    Fe_Header();
+    Fe_TitleRow(w * 0x18 / 0x280, h * 0x26 / 0x1e0, names, n);
+}
+
+/* 0x4e96d0 (code Ghidra leaves unanalysed): the network error page, one of four messages (text
+   0x1e3 on, by 0x4f92f0's code, DAT_00826138) in the middle */
+void fe_4e96d0(Menu *m)
+{
+    (void)m;
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    const char *names[2] = {Text_Get(0), Text_Get(0x1e2)};
+    header_titles(names, 2);
+    uint32_t code = gm32(0x826138);
+    if (code <= 3) Font_Print(1, Text_Get(0x1e3 + (int)code), w / 2, h / 2, C(LIT), 0x12);   /* 0x40b880 */
+    Strip_DrawMain(&pg_81d6d8, false, NULL);   /* 0x4f8410, 0x4d45b0 */
+}
+
+/* 0x4e9820: the session's password: the prompt, the label and the password typed (0x818da8), the cursor
+   blinking on the second half of every fifth of a second */
+void fe_4e9820(Menu *m)
+{
+    (void)m;
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    const char *names[3] = {Text_Get(0), Text_Get(0x12), Text_Get(0x1e7)};
+    header_titles(names, 3);
+    Font_Print(1, Text_Get(0x1e8), w / 2, h / 4, C(LIT), 0x12);
+    snprintf(buf(), 0x100, exe_str(0x524d64), Text_Get(0x1c3), (const char *)C(0x818da8));
+    if ((int)(Timer_Centis() % 0x14) > 9) strcat(buf(), exe_str(0x524d60));
+    Font_Print(1, buf(), w * 0x104 / 0x280, h / 2, C(LIT), 0x11);
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+/* 0x4e2b40: a waiting room the shipped menus never open (pg_8205b8): a mock-up at fixed 640 x 480
+   places with the developers' placeholder chat, set-up and car names (the exe's strings) */
+void fe_4e2b40(Menu *m)
+{
+    (void)m;
+    const char *names[2] = {exe_str(0x524e34), exe_str(0x524e24)};
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    Fe_TitleRow(w * 0x18 / 0x280, h * 0x26 / 0x1e0, names, 2);
+    Fe_Header();
+    int16_t r[4] = {0x1e, 0x46, 400, 0x96};   /* DAT_008189a8 */
+    Rect_Fill(r, C(LINE), 4);
+    Font_Print(1, exe_str(0x524f00), r[0] + 10, r[1] + 10, C(LIT), 9);
+    Font_Print(1, exe_str(0x524ee8), r[0] + 10, r[1] + 0x1e, C(LIT), 9);
+    Font_Print(1, exe_str(0x524ed0), r[0] + 10, r[1] + 0x32, C(LIT), 9);
+    r[1] = (int16_t)(r[1] + r[3] + 10), r[3] = 0x14;
+    Rect_Fill(r, C(LINE), 4);
+    Font_Print(1, exe_str(0x524ec0), r[0] + 10, r[1], C(LIT), 9);
+    /* the set-up box (0x4d39a0: its rows at 370 of 480) */
+    PENDING_NOTE(0x4d39a0, "the waiting room mock-up's set-up rows (never shown)");
+    Font_Print(1, exe_str(0x524e70), 0x1b8, 0x46, C(LIT), 9);
+    Font_Print(1, exe_str(0x524e58), 0x1b8, 0x5a, C(LIT), 9);
+    Font_Print(1, exe_str(0x524e50), 0x1b8, 0x78, C(LIT), 9);
+    Font_Print(1, exe_str(0x524e3c), 0x1b8, 0x8c, C(LIT), 9);
+}
+
+/* The stored leaderboards (0x40e4f0-0x40e5e0): 32 boards of 0x104 bytes at 0x533a08 (+0 in use, +4
+   the entries: a tag and a total, 8 bytes each), their count DAT_00535b88, the one shown DAT_00516a0c */
+enum { BOARDS = 0x533a08, BOARD_SIZE = 0x104, NBOARDS = 0x535b88, CUR_BOARD = 0x516a0c };
+static int boards(void) { return gms32(NBOARDS); }                       /* 0x40e540 */
+static int cur_board(void) { return gms32(CUR_BOARD); }                  /* 0x40e4f0 */
+static void set_board(int k) { gw32(CUR_BOARD, (uint32_t)k); }           /* 0x40e500 */
+static uint32_t board(int k)                                             /* 0x40e510 (0 not in use) */
+{
+    uint32_t b = BOARDS + BOARD_SIZE * (uint32_t)k;
+    return gm8(b) ? b : 0;
+}
+
+/* 0x40e550: a new board, its entries blank (0x52ea5c) with no totals, named after player 0 */
+static void board_add(void)
+{
+    uint32_t b = BOARDS + BOARD_SIZE * (uint32_t)boards();
+    gw8(b, 1);
+    for (uint32_t i = 0; i < 0x100; i += 8) {
+        snprintf((char *)gm(b + 4 + i), 8, "%s", exe_str(0x52ea5c));
+        gw32(b + 8 + i, 0);
+    }
+    const char *name = Player_Name(0);
+    snprintf((char *)gm(b + 4), 0x100, "%s", name ? name : "");   /* (the original's sprintf of the name) */
+    gw32(NBOARDS, (uint32_t)(boards() + 1));
+}
+
+/* 0x40e5e0: board k out, the later ones moved down (the one past the last marked in use, as the
+   original does), the shown one back by one when at or after it */
+static void board_delete(int k)
+{
+    if (k <= cur_board()) set_board(cur_board() - 1);
+    gw8(BOARDS + BOARD_SIZE * (uint32_t)boards(), 1);
+    if (k < 0x1f)
+        for (uint32_t b = BOARDS + BOARD_SIZE * (uint32_t)k; b + BOARD_SIZE < 0x535984 + 4; b += BOARD_SIZE)
+            memmove(gm(b), gm(b + BOARD_SIZE), BOARD_SIZE);
+    gw32(0x535984, 0);
+    gw32(NBOARDS, (uint32_t)(boards() - 1));
+}
+
+/* 0x4e9990: a stored board: which of how many (or text 0x1eb without one), its ten tags and totals, the
+   arrows when there are boards, the page's other items under it; lit while its list is chosen */
+void fe_4e9990(Menu *m)
+{
+    int w, h;
+    D3d_ScreenSize(&w, &h);
+    const char *names[3] = {Text_Get(0x12), Text_Get(0x1e9), Text_Get(0x1c4)};
+    header_titles(names, 3);
+    const uint8_t *c = C(m->items[m->sel].id ? PLAIN : LIT);
+    if (boards() == 0)
+        Font_Print(1, Text_Get(0x1eb), w / 2, h / 4, c, 0x12);
+    else {
+        MenuItem *list = Menu_Item(m, 0);
+        snprintf(buf(), 0x100, Text_Get(0x1ea), list->value + 1, list->count);
+        Font_Print(1, buf(), w / 2, h * 0x46 / 0x1e0, c, 0x12);
+        uint32_t b = board(list->value);
+        for (int i = 0; b && i < 10; i++) {
+            uint32_t e = b + 4 + 8 * (uint32_t)i;
+            int y = h * 0x5a / 0x1e0 + h * 0xf / 0x1e0 * i;
+            const char *v = (const char *)C(0x519fb0);
+            if (!gm8(e)) Font_Print(0, (const char *)C(0x519fb4), w * 0x118 / 0x280, y, c, 0x12);
+            else {
+                Font_Print(0, (const char *)C(e), w * 0x118 / 0x280, y, c, 0x12);
+                snprintf(buf(), 0x100, exe_str(0x517dd0), (int)gm32(e + 4));
+                v = buf();
+            }
+            Font_Print(0, v, w * 0x154 / 0x280, y, c, 0x12);
+        }
+        if (list->count) {
+            Font_Print(1, (const char *)C(0x5250d8), w * 0x118 / 0x280 - w * 0x32 / 0x280, h * 0xa0 / 0x1e0, c, 0x12);
+            Font_Print(1, (const char *)C(0x5250d4), w * 0x3c / 0x280 + w * 0x154 / 0x280, h * 0xa0 / 0x1e0, c, 0x12);
+        }
+    }
+    List_Draw(m, NULL, h * 0x140 / 0x1e0, -1, 1, true);   /* 0x4d3360 */
+    Strip_DrawMain(&pg_81d6d8, false, NULL);
+}
+
+/* 0x4eef30: the page opened: the list's values the boards, on with the shown one (0 when none was) */
+void fe_4eef30(Menu *m, bool back)
+{
+    (void)back;
+    MenuItem *list = Menu_Item(m, 0);
+    list->count = (uint8_t)boards();
+    if (!list->count) {
+        list->flags &= (uint8_t)~MIF_ENABLED;
+        return;
+    }
+    list->flags |= MIF_ENABLED;
+    if (cur_board() == -1) set_board(0);
+    list->value = (uint8_t)cur_board();
+}
+
+/* 0x4eefb0: a board chosen: shown from now on, the page left */
+void fe_4eefb0(Menu *m, MenuItem *it)
+{
+    (void)it;
+    set_board(Menu_Item(m, 0)->value);
+    Menu_Back(m);
+}
+
+/* 0x4eefe0: a new board (up to 32), shown */
+void fe_4eefe0(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    if (boards() < 0x20) {
+        board_add();
+        set_board(boards() - 1);
+    }
+}
+
+/* 0x4ef000: the board in the list deleted */
+void fe_4ef000(Menu *m, MenuItem *it)
+{
+    (void)it;
+    if (boards() > 0) board_delete(Menu_Item(m, 0)->value);
+}
+
+/* 0x4ef030: each frame: the list kept to the boards; delete (item 2) only with boards, new (item 1)
+   only under 32; without boards new on, delete off */
+void fe_4ef030(Menu *m)
+{
+    MenuItem *list = Menu_Item(m, 0), *add = Menu_Item(m, 1), *del = Menu_Item(m, 2);
+    list->count = (uint8_t)boards();
+    if (!list->count) {
+        del->flags &= (uint8_t)~MIF_ENABLED;
+        add->flags |= MIF_ENABLED;
+        return;
+    }
+    del->flags |= MIF_ENABLED;
+    if (!(list->flags & MIF_ENABLED)) {
+        list->flags |= MIF_ENABLED;
+        if (cur_board() == -1) set_board(0);
+        list->value = (uint8_t)cur_board();
+    }
+    if (boards() < 0x20) add->flags |= MIF_ENABLED;
+    else add->flags &= (uint8_t)~MIF_ENABLED;
+    if (list->value >= list->count) list->value = (uint8_t)(list->count - 1);
+}
