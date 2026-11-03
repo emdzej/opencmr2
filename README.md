@@ -7,13 +7,14 @@ and Windows, and in the browser.
 
 [![Built for gasm](https://gasm.emdzej.pl/badge/built-for-gasm-flat.svg)](https://gasm.emdzej.pl)
 
-**Status: step 2 of the port.** The disc and the program are analysed, the formats documented, the port
-planned; the file layer runs on gasm from the CD or its image, and every texture, sound, font, text table
-and model on the disc decodes. Nothing is playable yet.
+**Status: 0.1.3.** The whole offline game plays, from the start-up movies to the end of a championship:
+rallies, the arcade, time trials, the challenge and two players. The network game runs over a gasm-relay
+(desktop and browser) and goes through a rally to its end; it is still being play-tested. Releases:
+[GitHub](https://github.com/emdzej/opencmr2/releases); or [play in the browser](https://opencmr2.emdzej.pl/play/).
 
 Site: [opencmr2.emdzej.pl](https://opencmr2.emdzej.pl) (sources in `docs/`):
 
-- [Status](docs/guide/status.md) and [game data](docs/guide/game-data.md)
+- [Status](docs/guide/status.md), [game data](docs/guide/game-data.md) and [network play](docs/guide/network.md)
 - [Architecture of CMR2.exe](docs/re/architecture.md), [function inventory](docs/re/inventory.md),
   [port plan](docs/re/port-plan.md)
 - [File formats](docs/formats/index.md)

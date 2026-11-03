@@ -92,3 +92,34 @@ velocity its direction (+0x94) and the place moved onto the line through the car
 
 `Net_SetRate` 0x427580 (from 0x424ed0 with 20,000, 1,000,000 and 2) sets 0x5393d4 to 40 or 41; nothing
 the port has read uses it.
+
+## State and how it was checked (2026-11-03, 0.1.3)
+
+Ported: the DirectPlay subset over a gasm-relay room (one session a room; the host migrates), the
+front end's network pages (sessions, waiting room, chat, leaderboards), the race messages and the cars
+above, the stage's network kind 2 replays (each player's poses, 0x46d510, 0x46d610), a departed
+player's car hidden (0x46bb40's tail, 0x40b1e0), state 9's results and board points (0x41db10's
+network block, 0x40a820, 0x40a980, 0x408340), the results pages (0x44e130, 0x4505b0, 0x44f8a0,
+0x452430) and the choices (0x4541c0 with 0x449ce0's chat), the next stage (0x4072d0's network branch).
+Left as notes only: 0x4d39a0 (the waiting room mock-up's set-up rows, never shown).
+
+Checked headless with two instances on a local relay (`gasm-relay 127.0.0.1:9100`, two `gasm-run
+--headless N --realtime --allow-net --param relay=... --param room=...` with scripted input; a script
+like this is not in the tree): both reach the waiting room, start a stage, see each other's car, the
+replay plays the other car at its recorded poses, the results list both players, the host's continue
+loads the next stage on both, and a rally cut to two stages ends with the rally's points and the final
+choices. The finishes were simulated (a test-only hack ending the sector record after 400 steps); a
+real race over a whole rally has not been run. The browser player joins a relay room (its run hashes
+as gasm-run's).
+
+Test notes:
+
+- Instances must run `--realtime`: at full headless speed the two never meet in one race.
+- Scripted keys must be held 5 frames or so (`9000-9004:KEY(Enter)`): a one-frame tap is lost in a
+  frame without a sim step (the race polls the input per step).
+- The host's choices page opens on the chat line (typing on); Down takes it to the first choice.
+- `Ai_AutoDrive` 0x47d330 can drive a player's car in a test build (the controls first, for the
+  gearbox): it finishes an offline stage for real, but at the network start it sticks on the barrier.
+- One early run showed a stage time and rally total that differed (11.01 and 10.80) and none since;
+  the finish time is the HUD clock with the original's jitter at the moment the finish is seen.
+- gasm-relay lets 2 peers into a room by default: `--max-peers 8` for more (docs/guide/network.md).

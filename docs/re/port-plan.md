@@ -255,6 +255,10 @@ DirectPlay sessions become `gasm:net` messages through a relay (gasm-relay or sw
 original synchronises (`gnNetworkFrame`, 0x425a90; 0x4a0000-0x4a2000) and keep its model if it is
 deterministic enough, else lockstep on the input like OpenRF's plan.
 
+**Done (0.1.3):** the original's model kept (each car's state sent every step, predicted between;
+[network](network.md)), DirectPlay emulated over a gasm-relay room. Checked with two instances on a
+relay through a rally to its end, the finishes simulated; a real raced rally is still to be played.
+
 ## Open questions
 
 Answered (details in the linked pages):

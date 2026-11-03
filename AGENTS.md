@@ -92,7 +92,11 @@ Chrome against `gasm-run`.
 
 ## Unattended runs
 
-Always `--headless` for gasm-run; never open a window, never use macOS `screencapture`.
+Always `--headless` for gasm-run; never open a window, never use macOS `screencapture`. Hold scripted
+keys a few frames (`9000-9004:KEY(Enter)`): a one-frame tap can fall in a frame without a sim step.
+Network tests: two `gasm-run --headless N --realtime --allow-net --param relay=ws://127.0.0.1:<port>
+--param room=<r>` instances on a local `gasm-relay` (kill only your own relay's PID); the method and
+its limits are in docs/re/network.md.
 
 ## Commits
 
