@@ -1,11 +1,9 @@
-**0.1.3** brings the network game to a whole rally:
+**0.1.4** adds widescreen:
 
-- The network game: the stage's and the rally's results pages list every player; a rally goes on
-  from stage to stage to its end, with its points; the replay shows every player's car; a player who
-  leaves mid-stage disappears from it. Still being tested: reports welcome.
-- Network play from the browser: the play page takes a relay and a room. How to set up a relay and
-  race others: https://opencmr2.emdzej.pl/guide/network
-- The site in the game's menu colours, with the main menu's ribbon of letters on the home page.
+- 16:9 and 16:10 display modes (1280 x 720 to 2560 x 1440; Options, Graphics, Advanced Graphics,
+  Display Mode). In the race the view fills the whole width and shows more of the stage at the sides;
+  the menus, movies and HUD stay 4:3 in the middle, the menus with black sides. The original's 4:3
+  modes are unchanged, and 640 x 480 is still the default.
 
 OpenCMR2 needs your own copy of Colin McRae Rally 2.0: the PC CD, as an `.iso` image or a folder with its files
 (`data1.hdr`, `data1.cab`, `Game`, `FrontEnd`). No game data is included. See the

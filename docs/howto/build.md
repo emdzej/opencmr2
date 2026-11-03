@@ -31,8 +31,8 @@ The release bundles (the module with the runner and a launcher) come from `tools
 `tools/fetch-gasm-runner.sh` fetches the released runner for a platform:
 
 ```sh
-tools/package-gasm.sh 0.1.3 macos-universal "$(tools/fetch-gasm-runner.sh macos-universal)" dist
-tools/smoke-gasm-bundle.sh dist/opencmr2-gasm-0.1.3-macos-universal.zip   # OPENCMR2_SMOKE_DATA=CMR2.ISO also plays it
+tools/package-gasm.sh 0.1.4 macos-universal "$(tools/fetch-gasm-runner.sh macos-universal)" dist
+tools/smoke-gasm-bundle.sh dist/opencmr2-gasm-0.1.4-macos-universal.zip   # OPENCMR2_SMOKE_DATA=CMR2.ISO also plays it
 ```
 
 The platforms are `macos-universal`, `linux-x86_64`, `linux-arm64` and `windows-x86_64`.
