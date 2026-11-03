@@ -1,9 +1,9 @@
-**0.1.1** fixes stutter in the race:
+**0.1.2** fixes the pause menu:
 
-- Steady frame rate with the cubic environment map (Advanced Graphics): the car's reflection, drawn from
-  six views of the stage every frame, made the game drop frames where the scenery is dense.
-- Smoother skid marks, dust and mud: their drawing no longer stalls the graphics driver.
-- No more periodic slowdowns every few seconds: the sound now follows the real time between frames.
+- Esc pauses the race (graphics, sound, restart stage, exit, continue). Races started from the menus
+  ignored it.
+- The browser player exports the saves (options, controller set-up, driver profiles, replays) as a zip
+  and imports them, so they move between browsers and to or from the desktop version.
 
 OpenCMR2 needs your own copy of Colin McRae Rally 2.0: the PC CD, as an `.iso` image or a folder with its files
 (`data1.hdr`, `data1.cab`, `Game`, `FrontEnd`). No game data is included. See the
