@@ -48,3 +48,14 @@ uint8_t *plat_load_user_file(const char *name, size_t *size);
 bool plat_save_user_file(const char *name, const void *data, size_t size);
 /* The user files' names in a stable (sorted) order: false past the last */
 bool plat_user_file_name(int i, char *name, size_t cap);
+/* Message connections (gasm:net: WebSocket semantics, reliable and ordered, binary), non-blocking.
+   plat_net_open: a handle > 0, or -1 if denied or invalid; plat_net_state: PLAT_NET_*; plat_net_send: 0,
+   or -1 if not open; plat_net_recv: the next message's length (copied only if it fits cap, else left
+   queued), 0 if none, -1 once closed and drained. The native build is an in-memory gasm-relay (rooms by
+   the URL's path) for the tests. */
+enum { PLAT_NET_CONNECTING, PLAT_NET_OPEN, PLAT_NET_CLOSED, PLAT_NET_ERROR };
+int plat_net_open(const char *url);
+int plat_net_state(int conn);
+int plat_net_send(int conn, const void *data, uint32_t len);
+int plat_net_recv(int conn, void *dst, uint32_t cap);
+void plat_net_close(int conn);

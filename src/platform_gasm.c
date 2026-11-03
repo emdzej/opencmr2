@@ -200,6 +200,14 @@ bool plat_save_user_file(const char *name, const void *data, size_t size)
 }
 
 /* storage_key's reverse */
+/* ---- network: gasm:net ---- */
+
+int plat_net_open(const char *url) { return gasm_net_open(url, (uint32_t)strlen(url)); }
+int plat_net_state(int conn) { return (int)gasm_net_state(conn); }
+int plat_net_send(int conn, const void *data, uint32_t len) { return gasm_net_send(conn, data, len); }
+int plat_net_recv(int conn, void *dst, uint32_t cap) { return gasm_net_recv(conn, dst, cap); }
+void plat_net_close(int conn) { gasm_net_close(conn); }
+
 bool plat_user_file_name(int i, char *name, size_t cap)
 {
     char key[129];
