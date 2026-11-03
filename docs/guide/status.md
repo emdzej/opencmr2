@@ -23,8 +23,9 @@ championship. The network game is being finished.
 ## Not yet
 
 - **The network game.** Players can meet in the waiting room, start a stage together and see each
-  other's cars on it, and the results, leaderboards and service area are in. It hasn't been played
-  through a whole rally yet, and the network game's replays and ghosts are still missing.
+  other's cars on it, and the results, leaderboards and service area are in. The stage's replay
+  shows every player's car. It hasn't been played through a whole rally yet, and the network game's
+  ghosts are still missing.
 
 ## Planned
 
