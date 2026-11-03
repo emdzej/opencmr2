@@ -1893,3 +1893,20 @@
 004f4d80	Fe_ReloadFonts	fe	high	The four front-end fonts into their slots again
 004d21e0	Fe_MountRes	fe	high	Res640 or Res1024 and the language's FERes archive
 004ef190	Fe_ScrollWidths	fe	high	Every scroller's widths again
+00427640	Net_SetSplitsOn	net	high	DAT_00539cc8: the splits messages taken
+00427650	Net_ForgetTimes	net	high	The last stage and lap time sent, none
+00427660	Net_LastStageTime	net	high	DAT_00539ed0
+00427670	Net_LastLapTime	net	high	DAT_00539dcc
+00427680	Net_RaceSysMessage	net	high	A player gone; this game the host
+004276c0	Net_RaceMessage	net	high	The race dispatcher by the type byte
+00427890	Net_Messages	net	high	Every message waiting in the race
+004278f0	Net_SendSplits	net	high	Type 0xb: 30 bytes of splits
+00427930	Net_SendReady	net	high	Type 7
+00427950	Net_SendFinished	net	high	Type 10: the time and the total with it
+00427990	Net_SendStageTime	net	high	Type 8
+004279d0	Net_SendLapTime	net	high	Type 9
+00427a10	Net_SendResultsGo	net	high	Type 0xc
+00427a30	Net_SendContinue	net	high	Type 0xd
+00427a50	Net_SendRestart	net	high	Type 0xe
+00427a80	Net_SendService	net	high	Type 0xf
+00449090	Results_NetDone	results	high	The network results fade end: to the results, the host the leaderboards, the exit

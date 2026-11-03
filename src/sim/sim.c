@@ -15,6 +15,7 @@
 #include "game/replay.h"
 #include "game/mem.h"
 #include "game/timer.h"
+#include "net/race_msg.h"
 #include "pending.h"
 #include "exe.h"
 #include <math.h>
@@ -157,7 +158,7 @@ static void build_lists(void)
 
 void Sim_Step(void)
 {
-    PENDING_NOTE(0x427890, "Net_Messages");
+    Net_Messages();   /* 0x427890 */
     build_lists();
     Replay_RecordStep();   /* 0x46c8e0 */
     if (g_sim_probe) g_sim_probe(8, g_stepped.car, g_stepped.n);

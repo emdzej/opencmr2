@@ -6,6 +6,7 @@
 #pragma once
 #include <stdbool.h>
 
+void Results_ContinueDone(int ch);   /* 0x449fe0: the continue fade's end */
 void Results_Start(bool again);   /* 0x44a1b0 */
 bool Results_Active(void);
 void Results_Stop(void);

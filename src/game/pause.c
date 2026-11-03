@@ -223,14 +223,14 @@ static void continue_fn(Menu *m, MenuItem *it)   /* 0x401850 */
 }
 
 /* the fades' ends: every race process to the results (event 1), the flag */
-static void restart_done(int ch)   /* 0x401540 */
+void Pause_RestartDone(int ch)   /* 0x401540 */
 {
     (void)ch;
     Race_EventAll(1, 3);
     ask_restart = true;
     Pause_End();
 }
-static void service_done(int ch)   /* 0x4014f0 */
+void Pause_ServiceDone(int ch)   /* 0x4014f0 */
 {
     (void)ch;
     Race_EventAll(1, 3);
@@ -257,12 +257,12 @@ static int32_t fade_colour(void)
 static void restart_fn(Menu *m, MenuItem *it)
 {
     (void)m, (void)it;
-    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : restart_done, 1, 0, fade_colour(), true);
+    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : Pause_RestartDone, 1, 0, fade_colour(), true);
 }
 static void service_fn(Menu *m, MenuItem *it)
 {
     (void)m, (void)it;
-    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : service_done, 1, 0, (int32_t)gm32(0x516090), true);
+    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : Pause_ServiceDone, 1, 0, (int32_t)gm32(0x516090), true);
 }
 static void quit_fn(Menu *m, MenuItem *it)
 {

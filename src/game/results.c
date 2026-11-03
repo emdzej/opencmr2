@@ -1021,7 +1021,7 @@ static void quit_fn(Menu *m, MenuItem *it)
 static void to_target(Menu *m, MenuItem *it) { (void)it; Menu_Goto(m->items[0].target); }   /* 0x449e90 */
 
 /* 0x449fe0, the continue fade's end: every process on from the replay, out of the menus */
-static void continue_done(int ch)
+void Results_ContinueDone(int ch)
 {
     (void)ch;
     Race_EndReplay();
@@ -1033,7 +1033,7 @@ static void continue_done(int ch)
 static void continue_fn(Menu *m, MenuItem *it)
 {
     (void)m, (void)it;
-    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : continue_done, 1, 0, (int32_t)gm32(0x519ec8), true);
+    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : Results_ContinueDone, 1, 0, (int32_t)gm32(0x519ec8), true);
 }
 
 /* 0x449b80: the championship's end goes on at once */
