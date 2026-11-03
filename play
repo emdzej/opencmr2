@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Build opencmr2.wasm and play it in a gasm-run window.
+#   ./play [disc image or extracted CD dir] [gasm-run options...]
+# The disc: the first argument if it is a file or directory, else $OPENCMR2_DATA, else ~/Downloads/CMR2.ISO,
+# else ./cd. Extra options go to gasm-run (--fullscreen, --window 1280x960, --param car=205c1 ...).
+# Fetches the gasm SDK and runner into .deps/ the first time.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+DISC=
+if [ $# -gt 0 ] && [ -e "$1" ]; then DISC=$1; shift; fi
+if [ -z "$DISC" ]; then
+  for d in "${OPENCMR2_DATA:-}" "$HOME/Downloads/CMR2.ISO" ./cd; do
+    if [ -n "$d" ] && [ -e "$d" ]; then DISC=$d; break; fi
+  done
+fi
+[ -n "$DISC" ] || { echo "play: no disc found; pass the CMR2 image or set OPENCMR2_DATA" >&2; exit 1; }
+
+case "$(uname -s)-$(uname -m)" in
+  Darwin-*) PLATFORM=macos-universal ;;
+  Linux-x86_64) PLATFORM=linux-x86_64 ;;
+  Linux-aarch64|Linux-arm64) PLATFORM=linux-arm64 ;;
+  *) echo "play: unsupported platform $(uname -sm)" >&2; exit 1 ;;
+esac
+
+[ -d .deps/gasm-c-sdk ] || tools/fetch-gasm-sdk.sh >/dev/null
+RUNNER=$(tools/fetch-gasm-runner.sh "$PLATFORM")
+if [ ! -f build-gasm/CMakeCache.txt ]; then
+  cmake -S . -B build-gasm -DOPENCMR2_PLATFORM=gasm -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=.deps/gasm-c-sdk/cmake/gasm-toolchain.cmake -DWASI_SDK_PREFIX="$PWD/.deps/wasi-sdk" >/dev/null
+fi
+cmake --build build-gasm --parallel >/dev/null
+
+# a directory is offered file by file, an image as the single asset cd
+if [ -d "$DISC" ]; then ASSET=(--asset-dir "$DISC"); else ASSET=(--asset "cd=$DISC"); fi
+exec "$RUNNER/gasm-run" build-gasm/opencmr2.wasm "${ASSET[@]}" --allow-net "$@"
