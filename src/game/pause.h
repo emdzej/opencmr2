@@ -11,6 +11,7 @@
 void Pause_Build(void);            /* 0x403500, with the menus' arrows 0x4054f0 */
 bool Pause_Pressed(int player);    /* 0x404e10 */
 void Pause_Begin(int player);      /* 0x404ea0 */
+void Pause_NewHost(void);         /* 0x402c90 (keep): the main page again for this game made the host */
 void Pause_RestartDone(int ch);   /* 0x401540: the restart fade's end */
 void Pause_ServiceDone(int ch);   /* 0x4014f0: the service fade's end */
 void Pause_End(void);              /* 0x404ef0 */

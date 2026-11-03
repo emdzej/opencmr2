@@ -666,6 +666,46 @@ static void draw_osd(Menu *m)
 /* 0x4054b0: paused by player p (0x52af58's byte 1) on the on-screen display page (0x52aa70) */
 bool Pause_OsdPage(int p) { return Pause_Active() && base == (uint8_t)p && page == &pg_osd; }
 
+/* 0x402c90: the main page: graphics, sound, controls, the restart (in the network game the host's
+   but in mode 12, a guest's in mode 10), the host's quit to the waiting room, exit and continue; again
+   with keep (this game made the host) the same item chosen. The restart's name by the mode; where the
+   page has no restart the name goes to the index -1 the original computes: the page's own +0x04, its
+   title. (0x402c40 first builds a one-item page, 0x529ce8, that nothing in the port shows.) */
+static void build_main(bool keep)
+{
+    gw16(0x52a0b8, 0);
+    int16_t chosen = keep ? pg_main.items[pg_main.sel].id : 0;
+    Menu_Init(&pg_main, NULL, 0, NULL, false, NULL, 1, 0, 1);
+    Menu_AddPage(&pg_main, NULL, 9, Gs_SelBits14() == 1 ? &pg_gfx : &pg_gfx_pick, NULL, 0);
+    Menu_AddPage(&pg_main, NULL, 0xb, &pg_sound, NULL, 1);
+    Menu_AddPage(&pg_main, NULL, 0xd, &pg_ctrl, NULL, 2);
+    if (!Gs_ModeBit19()) Menu_AddPage(&pg_main, NULL, 0xf, &pg_restart, NULL, 3);
+    else {
+        bool host = Net_IsHost() != 0;   /* 0x4a15a0 */
+        if ((host && Gs_Mode() != 12) || (!host && Gs_Mode() == 10)) Menu_AddPage(&pg_main, NULL, 0xf, &pg_restart, NULL, 3);
+        if (host) Menu_AddPage(&pg_main, NULL, 0xf6, &pg_quit_net, NULL, 5);
+    }
+    Menu_AddPage(&pg_main, NULL, 0x11, &pg_exit, NULL, 6);
+    Menu_AddAction(&pg_main, NULL, 0x13, continue_fn, 7);
+    Menu_SetCallbacks(&pg_main, main_enter, main_frame, draw_main, NULL);
+    if (keep) Menu_SelectId(&pg_main, chosen);   /* 0x4a0410 */
+    else Menu_Reset(&pg_main);
+    int16_t t;
+    switch (mode()) {
+    case 0: case 1: case 8: t = 0x25; break;
+    case 2: case 3: case 9: case 10: t = 0x23; break;
+    case 4: t = 0x27; break;
+    case 5: t = 0x2b; break;
+    default: t = 0x29; break;
+    }
+    int k = Menu_IndexOf(&pg_main, 3);
+    if (k >= 0) pg_main.items[k].text = t;
+    else pg_main.text = t;
+    pg_restart.items[Menu_IndexOf(&pg_restart, 3)].text = t;
+}
+
+void Pause_NewHost(void) { build_main(true); }
+
 void Pause_Build(void)
 {
     paused = false;
@@ -704,28 +744,7 @@ void Pause_Build(void)
     Menu_AddBack(&pg_exit, NULL, 0xaa, NULL, -1);
     Menu_SetCallbacks(&pg_exit, last_enter, NULL, draw_confirm, NULL);
     Menu_Reset(&pg_exit);
-    /* 0x402c90: the main page */
-    Menu_Init(&pg_main, NULL, 0, NULL, false, NULL, 1, 0, 1);
-    Menu_AddPage(&pg_main, NULL, 9, Gs_SelBits14() == 1 ? &pg_gfx : &pg_gfx_pick, NULL, 0);
-    Menu_AddPage(&pg_main, NULL, 0xb, &pg_sound, NULL, 1);
-    Menu_AddPage(&pg_main, NULL, 0xd, &pg_ctrl, NULL, 2);
-    if (!Gs_ModeBit19()) Menu_AddPage(&pg_main, NULL, 0xf, &pg_restart, NULL, 3);
-    else PENDING_NOTE(0x402c90, "the network game's pause pages");
-    Menu_AddPage(&pg_main, NULL, 0x11, &pg_exit, NULL, 6);
-    Menu_AddAction(&pg_main, NULL, 0x13, continue_fn, 7);
-    Menu_SetCallbacks(&pg_main, main_enter, main_frame, draw_main, NULL);
-    Menu_Reset(&pg_main);
-    /* the restart's name by the mode: stage, rally, challenge, championship or race */
-    int16_t t;
-    switch (mode()) {
-    case 0: case 1: case 8: t = 0x25; break;
-    case 2: case 3: case 9: case 10: t = 0x23; break;
-    case 4: t = 0x27; break;
-    case 5: t = 0x2b; break;
-    default: t = 0x29; break;
-    }
-    pg_main.items[Menu_IndexOf(&pg_main, 3)].text = t;
-    pg_restart.items[Menu_IndexOf(&pg_restart, 3)].text = t;
+    build_main(false);
     /* 0x4032a0: the volumes (0 to 100 in tens) */
     Menu_Init(&pg_sound, NULL, 0, &pg_main, false, NULL, 1, 0, 1);
     Menu_AddList(&pg_sound, NULL, 0x19, 0xb, 10, false, NULL, 0);
