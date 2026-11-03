@@ -1,4 +1,5 @@
 /* The race started by the game (see play.h). */
+#include "prof.h"
 #include "pending.h"
 #include "game/effects.h"
 #include "game/gstate.h"
@@ -149,7 +150,9 @@ static void draw(int player, int state)
         if (g_render_opts & 0x80) {
             Obj_MaskTree(c->main, 0);   /* 0x4addd0 */
             Obj_MaskTree(model, 0);
+            PROF_BEGIN(PROF_CUBE);
             World_RenderCube(model, camera, (uint32_t)player, cars, ncars);   /* 0x49e1f0 */
+            PROF_END(PROF_CUBE);
         }
         Obj *glass = model ? Obj_FindType(model, 0x14) : NULL;   /* 0x4ad890 */
         bool mode = World_Mode() != 0;
@@ -198,10 +201,16 @@ static void draw(int player, int state)
     if (Fireworks_On()) Fireworks_Draw();   /* 0x47f740 */
     Race_DrawOverlays(player);
     Camera_Projection(player);   /* 0x422d40 */
+    PROF_BEGIN(PROF_WORLD);
     World_Render(camera, view, (uint32_t)player, true);
+    PROF_END(PROF_WORLD);
     /* after the world, as Race_DrawView 0x40f0c0: the ghost's see-through level (0x466100); the marks'
        triangles (drawn with the next frame's) */
-    if (Ghost_On()) Ghost_Fade(player, camera);
+    if (Ghost_On()) {
+        PROF_BEGIN(PROF_GHOST);
+        Ghost_Fade(player, camera);
+        PROF_END(PROF_GHOST);
+    }
     if (!gm8(0x52af40)) {
         Skids_Centres(player);   /* 0x4657d0 */
         Skids_Add(player);       /* 0x464cb0 */

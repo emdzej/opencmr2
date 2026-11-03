@@ -6,6 +6,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#include "prof.h"
+bool g_prof_on;
+double g_prof[PROF_N];
+unsigned g_prof_count[PROF_N];
+
+double plat_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
+}
 
 void plat_log(const char *msg) { fprintf(stderr, "%s\n", msg); }
 uint32_t plat_pad(int player) { return 0; }

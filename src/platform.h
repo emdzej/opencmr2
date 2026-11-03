@@ -18,6 +18,7 @@ enum {
 enum { KEY_COUNT = 256 };
 
 void plat_log(const char *msg);
+double plat_ms(void);                  /* a monotonic clock in ms (real only in a window under gasm) */
 uint32_t plat_pad(int player);          /* stable within a frame */
 /* A raw game controller in slot 0-3 (connection order), stable within a frame: buttons 0-1 and axes
    -1..1 (y > 0 down); with standard, the W3C order (buttons 0 south, 1 east, 2 west, 3 north, 4/5

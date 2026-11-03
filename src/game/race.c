@@ -1,5 +1,6 @@
 /* The race (see race.h). The original keeps the race's variables at 0x537dd0-0x538124; they are the
    fields of R, named by address where the meaning is open. */
+#include "prof.h"
 #include "net/session.h"
 #include "net/records.h"
 #include "net/race_msg.h"
@@ -167,6 +168,7 @@ static void Race_Update(uint8_t state, bool flag)
     if (one) gw32(0x53cdbc, 0);
     Frame_RateStep();   /* 0x42b790 */
     R.steps = Sim_StepCount(&R.frac);
+    PROF_BEGIN(PROF_SIM);
     for (uint32_t k = 0; k < R.steps; k++) {
         bool car0 = Car_Get(0)->s[0xb43] != 0;
         Input_PollAll();   /* 0x49eab0 */
@@ -337,6 +339,7 @@ static void Race_Update(uint8_t state, bool flag)
         }
         Sim_StepDone(&g_all);
     }
+    PROF_END(PROF_SIM);
     /* Race_PoseInterp 0x41d060 */
     Car_PoseInterp();           /* 0x42bf70 */
     Parts_Interp(R.frac);       /* 0x484d30 */

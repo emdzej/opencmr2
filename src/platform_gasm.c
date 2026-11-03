@@ -10,6 +10,7 @@
    The original opens paths like "Game\BigFiles\Common.bfl": '\' -> '/', ".." resolved. */
 #include "app.h"
 #include "platform.h"
+#include "prof.h"
 #include "vfs.h"
 #include "vfs_cab.h"
 #include <gasm.h>
@@ -379,8 +380,10 @@ static double audio_acc;   /* fractional audio frames carried between frames */
 /* --param frametime=1 (as OpenNFSPU's): the frames slower than the frame rate (the time in the game's
    frame, the time since the previous one), to see where a window run stalls. The clock is real only in
    a window: headless both clocks are the frames' own. */
-static bool frametime_on;
-static double wall_ms(void)
+bool g_prof_on;
+double g_prof[PROF_N];
+unsigned g_prof_count[PROF_N];
+double plat_ms(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -390,14 +393,19 @@ static void frametime_log(double t0)
 {
     static double last;
     static uint32_t n;
-    double t1 = wall_ms(), gap = last ? t1 - last : 0;
+    double t1 = plat_ms(), gap = last ? t1 - last : 0;
     last = t1;
     n++;
     if (t1 - t0 > 1000.0 / frame_hz || gap > 2000.0 / frame_hz) {
-        char m[96];
-        snprintf(m, sizeof m, "frametime: frame %u game %.1f ms, since the last %.1f ms", n, t1 - t0, gap);
+        static const char *name[PROF_N] = {"sim", "world", "cube", "ghost", "queue", "vbup", "texup", "present"};
+        char m[400];
+        int k = snprintf(m, sizeof m, "frametime: frame %u game %.1f ms, since the last %.1f ms |", n, t1 - t0, gap);
+        for (int i = 0; i < PROF_N && k < (int)sizeof m; i++)
+            if (g_prof_count[i]) k += snprintf(m + k, sizeof m - (size_t)k, " %s %.1f/%u", name[i], g_prof[i], g_prof_count[i]);
         plat_log(m);
     }
+    memset(g_prof, 0, sizeof g_prof);
+    memset(g_prof_count, 0, sizeof g_prof_count);
 }
 
 GASM_EXPORT("gasm_abi_version") int32_t cmr2_gasm_abi_version(void) { return GASM_ABI_VERSION; }
@@ -418,7 +426,7 @@ GASM_EXPORT("gasm_init") int32_t cmr2_gasm_init(void)
     plat_log(m);
     if (!app_init()) return 1;
     char ft[8];
-    frametime_on = plat_param("frametime", ft, sizeof ft) && ft[0] == '1';
+    g_prof_on = plat_param("frametime", ft, sizeof ft) && ft[0] == '1';
     running = true;
     return 0;
 }
@@ -429,7 +437,7 @@ GASM_EXPORT("gasm_frame") void cmr2_gasm_frame(void)
     if (!running) return;
     for (uint32_t p = 0; p < 4; p++) pads[p] = gasm_input_pad(p);
     poll_key_events();
-    double t0 = frametime_on ? wall_ms() : 0;
+    double t0 = g_prof_on ? plat_ms() : 0;
     if (!app_frame()) {
         running = false;
         app_exit();
@@ -448,7 +456,7 @@ GASM_EXPORT("gasm_frame") void cmr2_gasm_frame(void)
     audio_acc -= n;
     app_audio(audio_buf, n);
     gasm_audio_push(audio_buf, n);
-    if (frametime_on) frametime_log(t0);
+    if (g_prof_on) frametime_log(t0);
 }
 
 GASM_EXPORT("gasm_exit") void cmr2_gasm_exit(void)

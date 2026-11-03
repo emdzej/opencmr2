@@ -8,6 +8,7 @@
    Direct3D's viewport mapping to the same screen coordinates as a pre-transformed one, in a form linear
    in clip space so that GL's clipping stays exact. The mode is drawn at its own size, as the original's
    display, and scaled to the drawable (the mode chosen is the player's trade of detail for speed). */
+#include "prof.h"
 #include "render/d3d7.h"
 #include "platform.h"
 #include <GLES3/gl3.h>
@@ -833,6 +834,7 @@ static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts
         if (!vb->gl) glGenBuffers(1, &vb->gl), vb->sized = false, vb->dirty = true;
         bind_buffer(GL_ARRAY_BUFFER, vb->gl);
         if (vb->dirty) {
+            PROF_BEGIN(PROF_VBUP);
             /* the whole buffer once, then only the vertices changed since (a mesh's colours: the
                ghost's fade rewrote whole pool buffers each frame) */
             if (vb->stream) {
@@ -845,6 +847,7 @@ static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts
                 glBufferSubData(GL_ARRAY_BUFFER, (GLintptr)vb->lo * stride, (GLsizeiptr)(vb->hi - vb->lo) * stride,
                                 vb->data + (size_t)vb->lo * stride);
             vb->dirty = false;
+            PROF_END(PROF_VBUP);
         }
         attribs(fvf, stride, (uintptr_t)first * stride);
     } else {
@@ -892,6 +895,7 @@ static void gl_clear(const D3dState *s, int x0, int y0, int x1, int y1, uint32_t
 /* The flip: back to front, then the front letterboxed onto the drawable (rows flipped there). */
 static void gl_present(void)
 {
+    PROF_BEGIN(PROF_PRESENT);
     if (!fbo[1]) return;
     glDisable(GL_SCISSOR_TEST);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo[1]);
@@ -920,10 +924,12 @@ static void gl_present(void)
     glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     shadow_reset();
+    PROF_END(PROF_PRESENT);
 }
 
 static void gl_texture_upload(D3dTexture *t)
 {
+    PROF_BEGIN(PROF_TEXUP);
     if (!t->gl) glGenTextures(1, &t->gl);
     glBindTexture(GL_TEXTURE_2D, t->gl);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -938,6 +944,7 @@ static void gl_texture_upload(D3dTexture *t)
     }
     t->dirty = false;
     shadow_reset();
+    PROF_END(PROF_TEXUP);
 }
 
 /* a cube's six faces (the mode's colour format, as the original's surfaces take the primary's) each

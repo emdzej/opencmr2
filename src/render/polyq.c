@@ -1,4 +1,5 @@
 /* The world-space triangle queues (see polyq.h). */
+#include "prof.h"
 #include "render/polyq.h"
 #include "render/d3d7.h"
 #include "render/rstate.h"
@@ -111,6 +112,7 @@ void Poly_Flush(uint32_t bucket)
     else if (bucket & 0x10) { q = q10; n = n10; n10 = 0; }
     else if (bucket & 0x20) { q = q20; n = n20; n20 = 0; }
     else { q = q40; n = n40; n40 = 0; }
+    PROF_BEGIN(PROF_POLY);
     if (vb && n) {
         float *dst = D3dVB_Lock(vb);
         for (uint32_t i = 0; i < n; i++) memcpy(dst + (size_t)i * 36, q[i].v, sizeof q[i].v);
@@ -134,6 +136,7 @@ void Poly_Flush(uint32_t bucket)
         set_flags(q[n - 1].flags);
         D3d_DrawPrimitiveVB(D3DPT_TRIANGLELIST, vb, start, 3 * n - start, 0);
     }
+    PROF_END(PROF_POLY);
     Tex_Bind(0, NULL);
     Render_ZEnable(1);
     Render_ZWrite(1);
