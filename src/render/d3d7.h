@@ -96,6 +96,8 @@ typedef struct {
     uint8_t *data;
     unsigned gl;            /* the back end's buffer */
     bool dirty;
+    bool sized;             /* the back end's buffer holds `count` (later uploads are ranges) */
+    uint32_t lo, hi;        /* the vertices changed since the upload (D3dVB_UnlockRange; all on Unlock) */
 } D3dVB;
 
 /* The device's state, as the back end reads it. */
@@ -176,6 +178,8 @@ void D3d_LightEnable(uint32_t i, bool on);                          /* 0xb0 */
 
 /* IDirect3DVertexBuffer7 (created by IDirect3D7::CreateVertexBuffer) */
 D3dVB *D3dVB_Create(uint32_t fvf, uint32_t count);
+/* the port: an Unlock that changed only vertices first .. first + n - 1 (the back end uploads that range) */
+void D3dVB_UnlockRange(D3dVB *vb, uint32_t first, uint32_t n);
 void *D3dVB_Lock(D3dVB *vb);                                         /* 0x0c */
 void D3dVB_Unlock(D3dVB *vb);                                        /* 0x10 */
 void D3dVB_Free(D3dVB *vb);

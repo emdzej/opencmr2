@@ -830,10 +830,17 @@ static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts
     if (sh.vao != vao + 1) glBindVertexArray(vao), sh.vao = vao + 1, sh.ibuf = 0;
     if (vb) {
         /* a vertex buffer lives in its GL buffer, re-uploaded after an Unlock */
-        if (!vb->gl) glGenBuffers(1, &vb->gl);
+        if (!vb->gl) glGenBuffers(1, &vb->gl), vb->sized = false, vb->dirty = true;
         bind_buffer(GL_ARRAY_BUFFER, vb->gl);
         if (vb->dirty) {
-            glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)vb->count * stride, vb->data, GL_STATIC_DRAW);
+            /* the whole buffer once, then only the vertices changed since (a mesh's colours: the
+               ghost's fade rewrote whole pool buffers each frame) */
+            if (!vb->sized) {
+                glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)vb->count * stride, vb->data, GL_STATIC_DRAW);
+                vb->sized = true;
+            } else if (vb->hi > vb->lo)
+                glBufferSubData(GL_ARRAY_BUFFER, (GLintptr)vb->lo * stride, (GLsizeiptr)(vb->hi - vb->lo) * stride,
+                                vb->data + (size_t)vb->lo * stride);
             vb->dirty = false;
         }
         attribs(fvf, stride, (uintptr_t)first * stride);
@@ -967,6 +974,7 @@ static void gl_vb_free(D3dVB *vb)
 {
     if (vb->gl) glDeleteBuffers(1, &vb->gl);
     vb->gl = 0;
+    vb->sized = false;
 }
 
 /* each mode pixel the back buffer's pixel at its corner (the buffer is the mode times scale) */

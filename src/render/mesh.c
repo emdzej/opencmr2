@@ -59,7 +59,7 @@ void Mesh_UploadVerts(const C3d *m, uint8_t *part)
     if (b >= VB_POOL || !g_vb[b] || !v) return;
     uint8_t *dst = D3dVB_Lock(g_vb[b]);
     memcpy(dst + (size_t)rd32(part + 0x18) * C3D_VERTEX, v, (size_t)n * C3D_VERTEX);
-    D3dVB_Unlock(g_vb[b]);
+    D3dVB_UnlockRange(g_vb[b], rd32(part + 0x18), n);
 }
 
 /* 0x4b2090: every vertex's colour (+0x18), then the upload */

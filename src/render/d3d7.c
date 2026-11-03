@@ -239,14 +239,33 @@ D3dVB *D3dVB_Create(uint32_t fvf, uint32_t count)
         return NULL;
     }
     vb->dirty = true;
+    vb->lo = 0, vb->hi = count;
     return vb;
 }
 
 void *D3dVB_Lock(D3dVB *vb) { return vb ? vb->data : NULL; }
 
+static void mark(D3dVB *vb, uint32_t lo, uint32_t hi)
+{
+    if (!vb->dirty) vb->lo = lo, vb->hi = hi;
+    else {
+        if (lo < vb->lo) vb->lo = lo;
+        if (hi > vb->hi) vb->hi = hi;
+    }
+    vb->dirty = true;
+}
+
 void D3dVB_Unlock(D3dVB *vb)
 {
-    if (vb) vb->dirty = true;
+    if (vb) mark(vb, 0, vb->count);
+}
+
+void D3dVB_UnlockRange(D3dVB *vb, uint32_t first, uint32_t n)
+{
+    if (!vb) return;
+    if (first > vb->count) first = vb->count;
+    if (n > vb->count - first) n = vb->count - first;
+    mark(vb, first, first + n);
 }
 
 void D3dVB_Free(D3dVB *vb)
