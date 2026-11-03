@@ -16,6 +16,12 @@
 #include "game/ai.h"
 #include "game/sectors.h"
 #include "sim/car.h"
+#include "audio/crash.h"
+#include "game/camera.h"
+#include "net/carsync.h"
+#include "net/records.h"
+#include "world/section.h"
+#include "fixmath.h"
 #include "sim/damage.h"
 #include "sim/drive.h"
 #include "sim/knock.h"
@@ -25,6 +31,7 @@
 #include "bfl.h"
 #include "exe.h"
 #include "pending.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -261,6 +268,101 @@ static void snap1_restore(const uint8_t *s, int car)
     Knock_Restore();
 }
 
+/* ---- kind 2, the network game's (16-byte frames, one every third step: the car's pose) ---- */
+static uint32_t rdw(const uint8_t *p) { return (uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24; }
+static void wrw(uint8_t *p, uint32_t v) { p[0] = (uint8_t)v, p[1] = (uint8_t)(v >> 8), p[2] = (uint8_t)(v >> 16), p[3] = (uint8_t)(v >> 24); }
+
+/* 0x46d8d0: car c's pose into frame e: +0 the height (the frame's y), +4 and +6 x and z from the cell's
+   centre (as the network state's), +8 the cell, +0xa and +0xc rows 0 and 2's angles, +0xe bits 0-4 the
+   steering's share in 31sts, 5 the brake (+0xb54), 6 a part showing (the far body's or the second
+   model's mask, +0x17c), 7 the throttle (+0x79c, as a bit 9 of the word), 3 the snap (+0xc14, then
+   cleared), bits 5-7 of the high byte's low three the crash (+0xb46, then cleared) */
+static void encode(Car *c, uint8_t *e)
+{
+    int cell = CI16(c, 0xb00);
+    const Section *sec = &g_sec[cell];
+    uint32_t w1 = (uint32_t)(uint16_t)Net_Q16(CI32(c, 0x30) - sec->x, Net_Kf(0x511338)) |
+                  (uint32_t)(uint16_t)Net_Q16(CI32(c, 0x38) - sec->z, Net_Kf(0x511338)) << 16;
+    int32_t r0[3] = {CI32(c, 0), CI32(c, 4), CI32(c, 8)}, r2[3] = {CI32(c, 0x20), CI32(c, 0x24), CI32(c, 0x28)};
+    uint32_t w2 = (uint32_t)(uint16_t)cell | (uint32_t)Net_RowAngles(r0) << 16;   /* 0x4bac60 */
+    uint32_t w3 = rdw(e + 0xc) & 0xffff0000u;
+    w3 = (w3 & ~0xffffu) | Net_RowAngles(r2);                                    /* 0x4baca0 */
+    int32_t den = CI16(c, 0xb16) * 0x1680, q = 0;
+    if (den) q = (int32_t)(((int64_t)(CI16(c, 0xb10) * 0x1680) << 16) / den);   /* (the original divides by zero) */
+    q = fx_mul(q + 0x10000, 0xf8000);
+    if (q < 0) q = 0;
+    else if (q > 0x1f0000) q = 0x1f0000;
+    w3 = (w3 & 0xffe0ffffu) | (uint32_t)((q >> 16) & 0x1f) << 16;
+    w3 = CI32(c, 0x79c) ? w3 | 0x2000000u : w3 & 0xfdffffffu;
+    w3 = (w3 & 0xfeffffffu) | (uint32_t)(CI32(c, 0xb54) & 1) << 24;
+    w3 = (w3 & 0xf7ffffffu) | (uint32_t)(CI32(c, 0xc14) & 1) << 27;
+    CW32(c, 0xc14, 0);
+    w3 = (w3 & 0xff1fffffu) | (uint32_t)(c->s[0xb46] & 7) << 21;
+    c->s[0xb46] = 0;
+    bool part = (c->far[0] && c->far[0]->mask) || (c->second && c->second->mask);
+    w3 = (w3 & 0xfbffffffu) | (uint32_t)part << 26;
+    wrw(e, (uint32_t)CI32(c, 0x34));
+    wrw(e + 4, w1);
+    wrw(e + 8, w2);
+    wrw(e + 0xc, w3);
+}
+
+/* 0x46de20: frame e into a matrix (the place from the cell, the rows from their angles, row 1 their
+   cross, unit) and the fields: the steering (-1..1), the throttle, the brake, the snap, the crash and
+   the part */
+static void decode(const uint8_t *e, int32_t m[16], int32_t *steer, int32_t *throttle, int32_t *brake, int32_t *snap,
+                   int32_t *crash, int32_t *part)
+{
+    uint32_t w0 = rdw(e), w1 = rdw(e + 4), w2 = rdw(e + 8), w3 = rdw(e + 0xc);
+    const Section *sec = &g_sec[(int16_t)w2];
+    float fx = (float)((int16_t)w1 * Net_Kf(0x51137c) * Net_Kf(0x511368));
+    float fz = (float)((int16_t)(w1 >> 16) * Net_Kf(0x51137c) * Net_Kf(0x511368));
+    m[12] = (int32_t)llrint((double)fx * 65536.0) + sec->x;   /* 0x4bacc0 */
+    m[13] = (int32_t)w0;
+    m[14] = (int32_t)llrint((double)fz * 65536.0) + sec->z;
+    int32_t r0[3], r2[3], r1[3];
+    Net_RowFromAngles((uint8_t)(w2 >> 16), (uint8_t)(w2 >> 24), r0);
+    Net_RowFromAngles(e[0xc], e[0xd], r2);
+    r1[0] = fx_mul(r2[1], r0[2]) - fx_mul(r2[2], r0[1]);
+    r1[1] = fx_mul(r2[2], r0[0]) - fx_mul(r2[0], r0[2]);
+    r1[2] = fx_mul(r2[0], r0[1]) - fx_mul(r2[1], r0[0]);
+    Vec_Unit(r1);
+    for (int k = 0; k < 3; k++) m[k] = r0[k], m[4 + k] = r1[k], m[8 + k] = r2[k];   /* 0x4bace0-0x4bad20 */
+    *steer = fx_mul((int32_t)((w3 >> 16 & 0x1f) << 16), 0x1083) - 0x10000;
+    *throttle = (int32_t)(w3 >> 9 & 0x10000);
+    *brake = (int32_t)(w3 >> 24 & 1);
+    *snap = (int32_t)(w3 >> 27 & 1);
+    *crash = (int32_t)((w3 >> 21 & 7) << 13);
+    *part = (int32_t)(w3 >> 26 & 1);
+}
+
+/* the header's kind 2 fields: +0x44 the frame from, +0x84 the frame to, +0xc4 the change of velocity,
+   +0xd0/+0xd4 the steering, +0xd8/+0xdc the throttle, +0xe0/+0xe4 the crash, +0xe8 the part, +0xec the
+   brake, +0xf0/+0xf4 the snap (each from and to), +0xf8 the step of three */
+static void get_m(const Replay *r, uint32_t o, int32_t m[16]) { for (uint32_t i = 0; i < 16; i++) m[i] = h32(r, o + 4 * i); }
+static void put_m(Replay *r, uint32_t o, const int32_t m[16]) { for (uint32_t i = 0; i < 16; i++) w32(r, o + 4 * i, m[i]); }
+
+static void decode_to(Replay *r, const uint8_t *e, uint32_t mo, uint32_t steer, uint32_t thr, uint32_t snap, uint32_t crash)
+{
+    int32_t m[16], a, b, c, d, f, g;
+    get_m(r, mo, m);
+    decode(e, m, &a, &b, &c, &d, &f, &g);
+    put_m(r, mo, m);
+    w32(r, steer, a), w32(r, thr, b), w32(r, 0xec, c), w32(r, snap, d), w32(r, crash, f), w32(r, 0xe8, g);
+}
+
+/* 0x46e340: the change of velocity that takes the car from the frame from to the frame to in three
+   steps: (to - from - 3 v) / 6 */
+static void velocity_step(Replay *r, const Car *c)
+{
+    for (uint32_t k = 0; k < 3; k++) {
+        int32_t d = h32(r, 0x84 + 0x30 + 4 * k) - h32(r, 0x44 + 0x30 + 4 * k) - fx_mul(CI32(c, 0x408 + 4 * k), 0x30000);
+        w32(r, 0xc4 + 4 * k, fx_mul(d, 0x2aaa));
+    }
+}
+
+static const uint8_t *frame2(const Replay *r, int seg, int k) { return r->frames + ((size_t)per_seg(r) * seg + k) * 0x10; }
+
 /* 0x40be60: the player's profile word the playing's +0xb88 is told from */
 static int32_t profile_word(int p) { return gms32(0x532374 + gm16(0x5168f4 + 2 * (uint32_t)(p & 0xffff)) * 0x2f0); }
 
@@ -289,7 +391,13 @@ bool Replay_Start(Replay *r, int car)
         s[NCHG1] = 1;
         snap1_save(s, (uint8_t)car);
     } else {
-        PENDING_NOTE(0x46c750, "Replay_Start (kind 2: the network game's poses)");
+        /* kind 2: the change list as kind 1's; the car stepped again by itself (but the network game's
+           others, whose poses come from outside) */
+        uint8_t *s = snap_of(r, 0);
+        s[CHG1 + 4] = (uint8_t)(Race_ProcWord(Gs_ModeBit19() ? 0 : (uint8_t)car) >> 16);
+        w16(s + CHG1, 0), w16(s + CHG1 + 2, 0);
+        s[NCHG1] = 1;
+        if (!Gs_ModeBit19() || (uint8_t)car == 0) CW32(Car_Get((uint8_t)car), 0xc18, 0);
     }
     w32(r, 0x18, 0);
     r->b[0xf8] = 0;
@@ -329,7 +437,15 @@ bool Replay_Play(Replay *r, int seg, int pre, int car)
     r->b[0x21] = 0;
     if (kind(r) == 0) snap_restore(snap_of(r, seg), (uint8_t)car);
     else if (kind(r) == 1) snap1_restore(snap_of(r, seg), (uint8_t)car);
-    else PENDING_NOTE(0x46c390, "Replay_Play (kind 2: the network game's poses)");
+    else {
+        /* 0x46c410: the damage again, the progress started again, the weather's records, the knocked
+           scenery */
+        Car *c = Car_Get((uint8_t)car);
+        Damage_Reset(c);
+        Progress_Reset((uint8_t)car);
+        Weather_Restart();
+        Knock_Restore();
+    }
     Mud_Reset();   /* 0x46ef20 */
     w32(r, 0x14, 0);
     r->b[0x10c] = kind(r) == 0 ? snap_of(r, seg)[CHG0 + 4] : snap_of(r, seg)[0x20];
@@ -347,7 +463,17 @@ bool Replay_Play(Replay *r, int seg, int pre, int car)
         Sectors_Start(false);
     }
     r->b[0xf8] = 0;
-    if (kind(r) == 2) PENDING_NOTE(0x46de20, "Replay_Play (kind 2: the network game's poses)");
+    if (kind(r) == 2) {
+        /* the first two frames (from and to), the car moved from outside (in the network game only
+           car 0's: the others already are), still, its velocity's change, a snap */
+        decode_to(r, frame2(r, seg, 0), 0x44, 0xd0, 0xd8, 0xf0, 0xe0);
+        decode_to(r, frame2(r, seg, 1), 0x84, 0xd4, 0xdc, 0xf4, 0xe4);
+        Car *c = Car_Get((uint8_t)car);
+        if (!Gs_ModeBit19() || (uint8_t)car == 0) CW32(c, 0xc18, 1);
+        for (uint32_t k = 0; k < 6; k++) CW32(c, 0x408 + 4 * k, 0);
+        velocity_step(r, c);
+        CW32(c, 0xbf8, 1);
+    }
     return true;
 }
 
@@ -460,6 +586,80 @@ void Replay_PlayStep(void)
     }
 }
 
+/* 0x46d510: each kind 2 recording's car (in the race) every third step: its pose into the segment's
+   next frame, the recording stopped when the segment is full (0x46cc60) */
+void Replay_RecordStep2(void)
+{
+    for (int i = 0; i < 16; i++) {
+        Replay *r = i < 8 ? made[i] : loaded[i - 8];
+        if (!r || !h32(r, 0xc) || kind(r) != 2) continue;
+        Car *c = Car_Get(r->b[0x20]);
+        if (!c->s[0xb43]) continue;
+        if (r->b[0xf8] == 0) {
+            int seg = h16(r->b + 0x100);
+            uint8_t *cnt = count_of(r, seg);
+            if (h16(cnt) < per_seg(r)) {
+                encode(c, (uint8_t *)frame2(r, seg, h16(cnt)));
+                w16(cnt, h16(cnt) + 1);
+            } else
+                Replay_Stop(r);
+        }
+        if (++r->b[0xf8] > 2) r->b[0xf8] = 0;
+    }
+}
+
+/* 0x46d610: a kind 2 playing's step: every third step the frame to becomes the frame from (its crash
+   sounded, 0x418ba0), the next frame decoded (at the segment's end the playing ended), the change of
+   velocity again, a snap noted (+0xbf8); each step the car's frame blended between them by the third
+   (none after a snap), the steering and the throttle likewise, the velocity changed, the brake */
+static void play2(Replay *r)
+{
+    Car *c = Car_Get(r->b[0x20]);
+    if (!h32(r, 4) || kind(r) != 2 || !c->s[0xb43]) return;
+    if (r->b[0xf8] > 2) {
+        for (uint32_t i = 0; i < 16; i++) w32(r, 0x44 + 4 * i, h32(r, 0x84 + 4 * i));
+        w32(r, 0xd8, h32(r, 0xdc));
+        w32(r, 0xd0, h32(r, 0xd4));
+        w32(r, 0xe0, h32(r, 0xe4));
+        w32(r, 0xf0, h32(r, 0xf4));
+        if (h32(r, 0xe0) > 0) Crash_Hit(CI8(c, 0xb1a), h32(r, 0xe0), CI8(c, 0xb1a));
+        w16(r->b + 0x10a, h16(r->b + 0x10a) + 1);
+        int seg = h16(r->b + 0x108);
+        if (h16(r->b + 0x10a) < h16(count_of(r, seg))) decode_to(r, frame2(r, seg, h16(r->b + 0x10a)), 0x84, 0xd4, 0xdc, 0xf4, 0xe4);
+        else Replay_End(r);
+        velocity_step(r, c);
+        r->b[0xf8] = 0;
+        if (h32(r, 0xf0)) CW32(c, 0xbf8, 1);
+    }
+    int32_t k = h32(r, 0xf4) ? 0 : (int32_t)(((int64_t)r->b[0xf8] << 32) / 0x30000);
+    int32_t a[16], b[16], o[16];
+    get_m(r, 0x44, a);
+    get_m(r, 0x84, b);
+    for (uint32_t i = 0; i < 16; i++) o[i] = CI32(c, 4 * i);
+    Frame_Blend(o, a, b, k, k, k, 1);   /* 0x4224e0 on +0x750 */
+    for (uint32_t i = 0; i < 16; i++) CW32(c, 4 * i, o[i]);
+    int32_t st = fx_mul(fx_mul(h32(r, 0xd4) - h32(r, 0xd0), k) + h32(r, 0xd0), CI16(c, 0xb16) * 0x1680);
+    CW32(c, 0x7a4, 0);
+    CW16(c, 0xb10, (uint16_t)(int16_t)X87_MulRound((double)st, Net_Kd(0x511300)));
+    int32_t th = fx_mul(h32(r, 0xdc) - h32(r, 0xd8), k) + h32(r, 0xd8);
+    CW32(c, 0x79c, fx_mul(CI32(c, 0x788), th));
+    for (uint32_t q = 0; q < 3; q++) {
+        CW32(c, 0x414 + 4 * q, CI32(c, 0x408 + 4 * q));
+        CW32(c, 0x408 + 4 * q, CI32(c, 0x408 + 4 * q) + h32(r, 0xc4 + 4 * q));
+    }
+    CW32(c, 0xb54, h32(r, 0xec));
+    r->b[0xf8]++;
+}
+
+/* 0x46d5e0: each kind 2 playing's step, but in the demo's state 6 */
+void Replay_PlayStep2(void)
+{
+    for (int i = 0; i < 16; i++) {
+        Replay *r = i < 8 ? made[i] : loaded[i - 8];
+        if (r && !(gm8(0x52ea52) && Gs_Mode() == 6)) play2(r);
+    }
+}
+
 Replay *Replay_Slot(int i) { return i < 0 || i >= 16 ? NULL : i < 8 ? made[i] : loaded[i - 8]; }
 
 void Replay_Layout(const Replay *r, uint32_t *snap, uint32_t *frames, uint32_t *counts)
@@ -530,12 +730,15 @@ void Replay_LoadDemo(void)
    a recording for each other player: 7,500 frames for one player alone (6,250 with two, in the
    championship or with the CPU runs; with the ghost, bit 28, 7,500 for one). The championship's final
    stage (0x407270) loads champend.rpl as car 0's (kind 1, 6,250 frames), which the go then records
-   over. The network game's (kind 2) is not ported. */
+   over. The network game's: kind 2 for car 0 and each other player. */
 void Replay_Setup(void)
 {
     memset(race, 0, sizeof race);
     if (Gs_ModeBit19()) {
-        PENDING_NOTE(0x41c260, "Replay_Setup (the network game's, kind 2)");
+        /* the network game: kind 2 recordings of 7,500 frames, car 0's and each player record's (not in
+           the time trial, mode 10) */
+        race[0] = Replay_New(1, 0x1d4c, 2);
+        for (int i = 0; i < 7; i++) race[1 + i] = NetRec_Used(i) && Gs_Mode() != 10 ? Replay_New(1, 0x1d4c, 2) : NULL;
         return;
     }
     if (Gs_SuperSpecial()) {

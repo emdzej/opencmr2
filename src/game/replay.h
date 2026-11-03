@@ -42,3 +42,5 @@ void Replay_Setup(void);   /* 0x41c260 (the line's set-up 0x424c50; Stage_Load i
    replay's snapshots, frames and counts are */
 Replay *Replay_Slot(int i);
 void Replay_Layout(const Replay *r, uint32_t *snap, uint32_t *frames, uint32_t *counts);
+void Replay_RecordStep2(void);   /* 0x46d510: the kind 2 recordings (the network game's poses) */
+void Replay_PlayStep2(void);     /* 0x46d5e0: the kind 2 playings */

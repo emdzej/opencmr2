@@ -728,8 +728,13 @@ static void s7_countdown(ProcGroup *g, uint32_t slot)
         /* the replays from the go: the player's records; with the CPU runs for one player the run of
            each car that is a computer driver's (0x408500; in mode 4 each without a pad, 0x42b710; with
            bit 17 car 1's) plays from its start (0x46d2a0, 0x46cce0), the others' record (0x46c750, as
-           the original, into the slot's car). The network game's are not ported. */
-        if (Gs_ModeBit19()) PENDING_NOTE(0x41d2b0, "the replays' start (network)");
+           the original, into the slot's car). The network game's: car 0's and each other player's. */
+        if (Gs_ModeBit19()) {
+            /* the network game: car 0's recording and each player record's, into its car slot */
+            Replay_Start(Race_Replay(0), 0);
+            for (int i = 0; i < 7; i++)
+                if (NetRec_Used(i)) Replay_Start(Race_Replay(1 + i), (int)NetRec_Slot(i));   /* 0x40b010 */
+        }
         else if (players() == 1 && Gs_SelBit25()) {
             int n = Gs_Mode() == 4 ? 2 : 2 - (int)Gs_SelBit28();
             for (int i = 0; i < n; i++) {
@@ -826,7 +831,8 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
     if (400 <= Timer_Centis() - R.finish_at[slot] && !R.shown[slot]) {
         R.shown[slot] = 1;
         R.done++;
-        Replay_Stop(Race_Replay((int)slot));   /* 0x46cc60 (the network game's every replay) */
+        if (!Gs_ModeBit19()) Replay_Stop(Race_Replay((int)slot));   /* 0x46cc60 */
+        else for (int i = 0; i < 8; i++) Replay_Stop(Race_Replay(i));   /* (the network game's every one) */
         /* the time trial, once a player (0x537ff8): a time at or under the stage's best (0x52c308,
            with the low-detail clouds 0x52d5cc; +0x658, 8 bytes a stage) is the best, with the player
            base's car (flagged at 0x538128, the stage and rally at 0x519228, 0x51922c), its run saved
@@ -901,12 +907,16 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
 
 /* 0x41e220, a player's replay fade's call: the replay from its start; the challenge's cars without a
    pad, or with the CPU runs (not networked) the computer drivers' cars (with bit 17 car 1), theirs
-   again; the camera put back at the car (0x421d80); the ghost's from its start. The network game's
-   others are not ported. */
+   again; the network game's others, each into its slot's car; the camera put back at the car
+   (0x421d80); the ghost's from its start. */
 static void replay_again(int p)
 {
     Replay_Play(Race_Replay(p), 0, 0, p);   /* 0x46cce0 */
-    if (Gs_ModeBit19()) PENDING_NOTE(0x41e220, "the network game's other cars' replays");
+    if (Gs_ModeBit19())
+        for (int i = 0; i < 7; i++) {
+            Replay_End(Race_Replay(1 + i));
+            Replay_Play(Race_Replay(1 + i), 0, 0, (int)NetRec_Slot(i));   /* 0x40b010 */
+        }
     if (Gs_Mode() == 4) {
         for (int i = 0; i < 2; i++)
             if ((int8_t)gm8(0x53acc8 + (uint32_t)i) == -1) {   /* 0x42b710 */
@@ -1075,6 +1085,8 @@ static void restart_line(ProcGroup *g)
        player's run named to become it does (0x4660a0) */
     for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
         Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
+    if (Gs_ModeBit19())   /* the network game's others */
+        for (int i = 1; i < 8; i++) Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
     if (Ghost_On()) {
         Ghost_End();
         for (int i = 0; i < (int)players(); i++) Ghost_Take(i, Race_Base() + i);
@@ -1142,6 +1154,8 @@ static void s11_results(ProcGroup *g, uint32_t slot)
     /* the players' replays ended (0x41e8d0 on each way out; nothing steps them here) */
     for (int i = 0; i < (Gs_Mode() == 4 || Gs_SelBit25() ? 2 : (int)players()); i++)
         Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
+    if (Gs_ModeBit19())   /* the network game's others */
+        for (int i = 1; i < 8; i++) Replay_End(Race_Replay(i)), Replay_Stop(Race_Replay(i));
     if (Gs_Mode() == 4) {
         challenge_out(g);
         return;

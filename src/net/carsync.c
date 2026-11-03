@@ -50,14 +50,14 @@ static void W32(uint32_t p, uint32_t o, int32_t v) { gw32(p + o, (uint32_t)v); }
 static bool on(void) { return gm8(SPLITS_ON) != 0; }
 
 /* the float (and the double) constants of 0x511300-0x511390 */
-static double kf(uint32_t va)
+double Net_Kf(uint32_t va)
 {
     uint32_t u = exe_u32(va);
     float f;
     memcpy(&f, &u, 4);
     return f;
 }
-static double kd(uint32_t va)
+double Net_Kd(uint32_t va)
 {
     uint64_t u = exe_u32(va) | (uint64_t)exe_u32(va + 4) << 32;
     double d;
@@ -69,26 +69,26 @@ static void put16(uint32_t va, int v) { gw16(va, (uint16_t)v); }
 static void bits8(uint32_t va, uint8_t mask, bool set) { gw8(va, set ? gm8(va) | mask : gm8(va) & (uint8_t)~mask); }
 
 /* a 16.16 value times k (as a float), at least 1 0x7ffd, at most -1 0x8003, else in 32,765ths */
-static int q16(int32_t v, double k)
+int Net_Q16(int32_t v, double k)
 {
     float f = (float)((double)v / 65536.0 * k);
-    if (f >= kf(0x511350)) return 0x7ffd;
-    if (f <= kf(0x51134c)) return 0x8003;
-    return (int)(int16_t)llrint((double)f * kf(0x511348));
+    if (f >= Net_Kf(0x511350)) return 0x7ffd;
+    if (f <= Net_Kf(0x51134c)) return 0x8003;
+    return (int)(int16_t)llrint((double)f * Net_Kf(0x511348));
 }
 /* the same in 127ths of a byte (0x7f, 0x81) */
 static uint8_t q8(int32_t v, double k)
 {
     float f = (float)((double)v / 65536.0 * k);
-    if (f >= kf(0x511350)) return 0x7f;
-    if (f <= kf(0x51134c)) return 0x81;
-    return (uint8_t)llrint((double)f * kf(0x51133c));
+    if (f >= Net_Kf(0x511350)) return 0x7f;
+    if (f <= Net_Kf(0x51134c)) return 0x81;
+    return (uint8_t)llrint((double)f * Net_Kf(0x51133c));
 }
 
 /* a row's two angles (0x425400-0x425623): its turn about y from the x and z magnitudes (the arctangent
    table, then the quadrant from the signs) and its angle from y (the arcsine table on |y|, from the
    pole; past the equator when y is not above it), each in 255ths, clamped to 0..255 */
-static uint16_t row_angles(const int32_t r[3])
+uint16_t Net_RowAngles(const int32_t r[3])
 {
     uint32_t ax = (uint32_t)abs(r[0]), ay = (uint32_t)abs(r[1]), az = (uint32_t)abs(r[2]);
     int32_t yaw;
@@ -108,7 +108,7 @@ static uint16_t row_angles(const int32_t r[3])
     }
     int16_t s;
     if ((int32_t)ay > 0x10000) s = (int16_t)g_asin[4095];
-    else s = (int16_t)g_asin[llrint((double)(int32_t)ay / 65536.0 * kd(0x511330)) * -1];
+    else s = (int16_t)g_asin[llrint((double)(int32_t)ay / 65536.0 * Net_Kd(0x511330)) * -1];
     int32_t pitch = (0x400 - s) * 0x1680;
     int32_t x = r[0], z = r[2];
     if (x >= 0 && z <= 0) yaw = 0x1680000 - yaw;
@@ -117,8 +117,8 @@ static uint16_t row_angles(const int32_t r[3])
         else if (x <= 0) yaw += 0xb40000;
     }
     if (r[1] <= 0) pitch = 0xb40000 - pitch;
-    float fy = (float)((double)yaw / 65536.0 * kf(0x511328) * kf(0x511324));
-    double fp = (double)pitch / 65536.0 * kf(0x511320) * kf(0x511324);
+    float fy = (float)((double)yaw / 65536.0 * Net_Kf(0x511328) * Net_Kf(0x511324));
+    double fp = (double)pitch / 65536.0 * Net_Kf(0x511320) * Net_Kf(0x511324);
     if (fy < 0) fy = 0;
     else if (fy > 255) fy = 255;
     if (fp < 0) fp = 0;
@@ -136,23 +136,23 @@ static void pack(Car *c)
         b += CI32(c, 0x1a8 + 12 * i) + CI32(c, 0x8c + 0x24 * i);
     }
     a = fx_mul(a, 0x4000), b = fx_mul(b, 0x4000);   /* (times 2^32 / 0x40000: a quarter) */
-    put16(PK + 2, q16(CI32(c, 0x2dc) - CI32(c, 0x2e8), kf(0x511354)));
-    put16(PK + 4, q16(CI32(c, 0x2e4) - CI32(c, 0x2f0), kf(0x511354)));
+    put16(PK + 2, Net_Q16(CI32(c, 0x2dc) - CI32(c, 0x2e8), Net_Kf(0x511354)));
+    put16(PK + 4, Net_Q16(CI32(c, 0x2e4) - CI32(c, 0x2f0), Net_Kf(0x511354)));
     double ab = (double)fx_mul(a, b) / 65536.0;
-    put16(PK + 6, ab >= kf(0x511350) ? 0xfffa : (int)(uint16_t)llrint(ab * kf(0x511344)));
-    gw8(PK + 0x14, q8(CI32(c, 0x420), kf(0x511340)));
-    gw8(PK + 0x15, q8(CI32(c, 0x424), kf(0x511340)));
-    gw8(PK + 0x16, q8(CI32(c, 0x428), kf(0x511340)));
+    put16(PK + 6, ab >= Net_Kf(0x511350) ? 0xfffa : (int)(uint16_t)llrint(ab * Net_Kf(0x511344)));
+    gw8(PK + 0x14, q8(CI32(c, 0x420), Net_Kf(0x511340)));
+    gw8(PK + 0x15, q8(CI32(c, 0x424), Net_Kf(0x511340)));
+    gw8(PK + 0x16, q8(CI32(c, 0x428), Net_Kf(0x511340)));
     bits8(PK + 0x17, 1, c->s[0xb35] & 1);
     bits8(PK + 0x1b, 1, c->s[0xc00] & 1);
     int cell = CI16(c, 0xb00);
     put16(PK + 0xc, cell);
     const Section *sec = &g_sec[cell];
-    put16(PK + 8, q16(CI32(c, 0x30) - sec->x, kf(0x511338)));
-    put16(PK + 0xa, q16(CI32(c, 0x38) - sec->z, kf(0x511338)));
+    put16(PK + 8, Net_Q16(CI32(c, 0x30) - sec->x, Net_Kf(0x511338)));
+    put16(PK + 0xa, Net_Q16(CI32(c, 0x38) - sec->z, Net_Kf(0x511338)));
     int32_t r0[3] = {CI32(c, 0), CI32(c, 4), CI32(c, 8)}, r2[3] = {CI32(c, 0x20), CI32(c, 0x24), CI32(c, 0x28)};
-    put16(PK + 0x10, row_angles(r0));   /* 0x4bac60 */
-    put16(PK + 0x12, row_angles(r2));   /* 0x4baca0 */
+    put16(PK + 0x10, Net_RowAngles(r0));   /* 0x4bac60 */
+    put16(PK + 0x12, Net_RowAngles(r2));   /* 0x4baca0 */
     /* the steering's share, 0..126 */
     int32_t den = CI16(c, 0xb16) * 0x1680, q = 0;
     if (den) q = (int32_t)(((int64_t)(CI16(c, 0xb10) * 0x1680) << 16) / den);   /* (the original divides by zero) */
@@ -161,9 +161,9 @@ static void pack(Car *c)
     gw8(PK + 0x1a, (uint8_t)((gm8(PK + 0x1a) & 0x80) | ((q >> 16) & 0x7f)));
     bits8(PK + 0x1a, 0x80, CI32(c, 0x79c) != 0);
     bits8(PK + 0x17, 2, c->s[0xb54] & 1);
-    float rv = (float)((double)CI32(c, 0x960) / 65536.0 * kf(0x511318));
-    gw8(PK + 0xe, rv >= kf(0x511350) ? 0xff : rv <= 0 ? 0 : (uint8_t)llrint((double)rv * kf(0x511324)));
-    gw8(PK + 0xf, q8(CI32(c, 0x960) - CI32(c, 0x964), kf(0x511354)));
+    float rv = (float)((double)CI32(c, 0x960) / 65536.0 * Net_Kf(0x511318));
+    gw8(PK + 0xe, rv >= Net_Kf(0x511350) ? 0xff : rv <= 0 ? 0 : (uint8_t)llrint((double)rv * Net_Kf(0x511324)));
+    gw8(PK + 0xf, q8(CI32(c, 0x960) - CI32(c, 0x964), Net_Kf(0x511354)));
     if (c->s[0xb45]) {
         bits8(PK + 0x1b, 2, true);
         c->s[0xb45]--;
@@ -192,9 +192,9 @@ void Net_SetRate(int bytes, int bits, int players)
     float per = (float)(players * 0xc0 + 0x230);
     float a = (float)bytes / per, b = (float)bits / ((float)players * per);
     if (a <= b) b = a;
-    if (b > kf(0x511390)) b = (float)kf(0x511390);
+    if (b > Net_Kf(0x511390)) b = (float)Net_Kf(0x511390);
     gw32(0x5393d4, 0x28);
-    if (0 < kf(0x511350) / b * kf(0x51138c) - kf(0x511388)) gw32(0x5393d4, 0x29);
+    if (0 < Net_Kf(0x511350) / b * Net_Kf(0x51138c) - Net_Kf(0x511388)) gw32(0x5393d4, 0x29);
 }
 
 void Net_CarsReset(void)
@@ -251,6 +251,20 @@ static void unit_at(uint32_t va)
     for (uint32_t k = 0; k < 3; k++) gw32(va + 4 * k, (uint32_t)v[k]);
 }
 
+/* a row from its two angles (255ths of 360 about y, of 180 from y): (sin b cos a, cos b, sin b sin a),
+   unit (0x425c40's and 0x46de20's) */
+void Net_RowFromAngles(uint8_t yaw, uint8_t pitch, int32_t r[3])
+{
+    double u = 65536.0;
+    float fy = (float)(yaw * Net_Kf(0x51135c)), fp = (float)(pitch * Net_Kf(0x511358));
+    uint32_t a = (uint32_t)(uint16_t)X87_MulRound((double)llrint((double)fy * u), Net_Kd(0x511300));
+    uint32_t b = (uint32_t)(uint16_t)X87_MulRound((double)llrint((double)fp * u), Net_Kd(0x511300));
+    r[0] = fx_mul(g_sin[b & 0xfff], g_sin[(a + 0x400) & 0xfff]);
+    r[1] = g_sin[(b + 0x400) & 0xfff];
+    r[2] = fx_mul(g_sin[b & 0xfff], g_sin[a & 0xfff]);
+    Vec_Unit(r);
+}
+
 /* the x-z unit of (x, z), zero for a zero length */
 static void unit2(int32_t x, int32_t z, int32_t *ux, int32_t *uz)
 {
@@ -289,28 +303,28 @@ static bool unpack(uint32_t p, int32_t *steer)
     if (!(dt > 0 && on() && dt < 100 && gm16(PK + 0xc) < g_nsec)) return false;
     W32(p, 0xe0, 1);
     gw16(p + 0xc8, gm16(PK)), gw16(p + 0xca, gm16(PK));
-    double k7c = kf(0x51137c), u = 65536.0;
-    W32(p, 0x70, (int32_t)llrint(gms16(PK + 2) * k7c * kf(0x511378) * u));
+    double k7c = Net_Kf(0x51137c), u = 65536.0;
+    W32(p, 0x70, (int32_t)llrint(gms16(PK + 2) * k7c * Net_Kf(0x511378) * u));
     W32(p, 0x74, 0);
-    W32(p, 0x78, (int32_t)llrint(gms16(PK + 4) * k7c * kf(0x511378) * u));
-    int32_t s = (int32_t)llrint(gm16(PK + 6) * kf(0x511374) * u);
+    W32(p, 0x78, (int32_t)llrint(gms16(PK + 4) * k7c * Net_Kf(0x511378) * u));
+    int32_t s = (int32_t)llrint(gm16(PK + 6) * Net_Kf(0x511374) * u);
     W32(p, 0xac, s);
     W32(p, 0xb0, s ? (int32_t)(((int64_t)1 << 32) / s) : 0);
-    for (uint32_t k = 0; k < 3; k++) W32(p, 0x7c + 4 * k, (int32_t)llrint(gms8(PK + 0x14 + k) * kf(0x511370) * kf(0x51136c) * u));
+    for (uint32_t k = 0; k < 3; k++) W32(p, 0x7c + 4 * k, (int32_t)llrint(gms8(PK + 0x14 + k) * Net_Kf(0x511370) * Net_Kf(0x51136c) * u));
     gw8(p + 0xcc, gm8(PK + 0x17) & 1);
     W32(p, 0xd4, (gm16(PK + 0x1a) & 0x100) >> 8);
     const Section *sec = &g_sec[gm16(PK + 0xc)];
-    W32(p, 0x64, (int32_t)llrint(gms16(PK + 8) * k7c * kf(0x511368) * u) + sec->x);
+    W32(p, 0x64, (int32_t)llrint(gms16(PK + 8) * k7c * Net_Kf(0x511368) * u) + sec->x);
     W32(p, 0x68, sec->y);
-    W32(p, 0x6c, (int32_t)llrint(gms16(PK + 0xa) * k7c * kf(0x511368) * u) + sec->z);
-    W32(p, 0xbc, (int32_t)llrint(gm8(PK + 0xe) * kf(0x511364) * kf(0x511360) * u));
-    W32(p, 0xc0, (int32_t)llrint(gms8(PK + 0xf) * kf(0x511370) * kf(0x511378) * u));
+    W32(p, 0x6c, (int32_t)llrint(gms16(PK + 0xa) * k7c * Net_Kf(0x511368) * u) + sec->z);
+    W32(p, 0xbc, (int32_t)llrint(gm8(PK + 0xe) * Net_Kf(0x511364) * Net_Kf(0x511360) * u));
+    W32(p, 0xc0, (int32_t)llrint(gms8(PK + 0xf) * Net_Kf(0x511370) * Net_Kf(0x511378) * u));
     /* rows 0 and 2 from their angles: (sin b cos a, cos b, sin b sin a), unit; row 1 their cross */
     for (uint32_t i = 0; i < 2; i++) {
-        float yaw = (float)(gm8(PK + 0x10 + 2 * i) * kf(0x51135c));
-        float pitch = (float)(gm8(PK + 0x11 + 2 * i) * kf(0x511358));
-        uint32_t a = (uint32_t)(uint16_t)X87_MulRound((double)llrint((double)yaw * u), kd(0x511300));
-        uint32_t b = (uint32_t)(uint16_t)X87_MulRound((double)llrint((double)pitch * u), kd(0x511300));
+        float yaw = (float)(gm8(PK + 0x10 + 2 * i) * Net_Kf(0x51135c));
+        float pitch = (float)(gm8(PK + 0x11 + 2 * i) * Net_Kf(0x511358));
+        uint32_t a = (uint32_t)(uint16_t)X87_MulRound((double)llrint((double)yaw * u), Net_Kd(0x511300));
+        uint32_t b = (uint32_t)(uint16_t)X87_MulRound((double)llrint((double)pitch * u), Net_Kd(0x511300));
         uint32_t r = p + 0x40 + 0x18 * i;
         gw32(r, (uint32_t)fx_mul(g_sin[b & 0xfff], g_sin[(a + 0x400) & 0xfff]));
         gw32(r + 4, (uint32_t)g_sin[(b + 0x400) & 0xfff]);
@@ -351,7 +365,7 @@ static void take(void)
         int32_t steer;
         if (unpack(p, &steer)) {
             int32_t a = fx_mul(steer, CI16(c, 0xb16) * 0x1680);
-            gw16(p + 0xc4, (uint16_t)X87_MulRound((double)a, kd(0x511300)));
+            gw16(p + 0xc4, (uint16_t)X87_MulRound((double)a, Net_Kd(0x511300)));
             W32(p, 0xb8, fx_mul(CI32(c, 0x788), P32(p, 0xb8)));
         }
         uint32_t frame = gm16(at);
@@ -400,7 +414,7 @@ static void predict(uint32_t p, uint32_t est)
     for (uint32_t k = 0; k < 3; k++) W32(p, 0x70 + 4 * k, P32(p, 0x70 + 4 * k) + fx_mul(P32(p, 0x88 + 4 * k), dt));
     for (uint32_t k = 0; k < 3; k++) d[k] = fx_mul(P32(p, 0x7c + 4 * k), dt);
     uint16_t ang[3];
-    for (int k = 0; k < 3; k++) ang[k] = (uint16_t)X87_MulRound((double)d[k], kd(0x511380));
+    for (int k = 0; k < 3; k++) ang[k] = (uint16_t)X87_MulRound((double)d[k], Net_Kd(0x511380));
     int32_t rows[9];
     for (uint32_t k = 0; k < 9; k++) rows[k] = P32(p, 0x40 + 4 * k);
     Rows_Turn3(rows, 3, ang);   /* 0x429f20 */

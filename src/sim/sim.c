@@ -186,7 +186,7 @@ void Sim_Step(void)
     if (g_sim_probe) g_sim_probe(4, g_stepped.car, g_stepped.n);
     Net_CarsAfter(&g_simple);   /* 0x426fc0 */
     /* 0x46d5e0: the network game's kind 2 replays' playing */
-    if (g_simple.n) PENDING_NOTE(0x46d5e0, "Sim_Step 0x46d5e0 (the network game's replays)");
+    Replay_PlayStep2();   /* 0x46d5e0 */
     Sim_SimpleStep(&g_simple);   /* 0x444c10 */
     Pose_Spin(&g_listA);
     Pose_Spin(&g_simple);
@@ -194,7 +194,7 @@ void Sim_Step(void)
     Pose_Capture(&g_simple);
     if (g_sim_probe) g_sim_probe(5, g_stepped.car, g_stepped.n);
     /* 0x46d510: the kind 2 replays' poses recorded (the network game's) */
-    if (Gs_ModeBit19()) PENDING_NOTE(0x46d510, "Sim_Step 0x46d510 (the network game's replay poses)");
+    Replay_RecordStep2();   /* 0x46d510 */
     Parts_Step(&g_listA);   /* 0x480bb0 */
     if (g_sim_probe) g_sim_probe(6, g_stepped.car, g_stepped.n);
     Damage_Scrapes(g_stepped.car, g_stepped.n);   /* 0x469e40 */
