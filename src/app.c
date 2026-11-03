@@ -77,7 +77,30 @@ bool app_frame(void)
     return true;
 }
 
-void app_audio(float *stereo, unsigned frames) { Dsb_Mix(stereo, frames); }
+/* the mix; with --param audiolog=1 (the port's, for checking the sound) its peak every five seconds,
+   and the first frames of anything not finite, to the log */
+void app_audio(float *stereo, unsigned frames)
+{
+    Dsb_Mix(stereo, frames);
+    static int on = -1, n, bad;
+    static float peak;
+    if (on < 0) {
+        char b[8];
+        on = plat_param("audiolog", b, sizeof b) && b[0] != '0';
+    }
+    if (!on) return;
+    for (unsigned i = 0; i < frames * 2; i++) {
+        float a = stereo[i] < 0 ? -stereo[i] : stereo[i];
+        if (!(a <= 1e30f) && bad++ < 5) plat_log("audio: a sample not finite");
+        if (a > peak) peak = a;
+    }
+    if (++n % 300 == 0) {
+        char m[64];
+        snprintf(m, sizeof m, "audio: frame %d, peak %.3f", n, (double)peak);
+        plat_log(m);
+        peak = 0;
+    }
+}
 
 void app_exit(void)
 {
