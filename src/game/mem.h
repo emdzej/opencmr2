@@ -13,6 +13,7 @@ enum { MEM_BASE = 0x516000, MEM_SIZE = 0x31bc7c };
 bool Mem_Init(void);   /* after exe_init; again to reset the state */
 void Mem_Free(void);
 uint8_t *gm(uint32_t va);   /* the byte at va (an address outside the range is fatal) */
+uint32_t Mem_Va(const void *p);   /* the address of a byte in the game state (0 for one outside it) */
 static inline uint8_t gm8(uint32_t va) { return *gm(va); }
 static inline int8_t gms8(uint32_t va) { return (int8_t)*gm(va); }
 static inline uint16_t gm16(uint32_t va) { const uint8_t *p = gm(va); return (uint16_t)(p[0] | p[1] << 8); }

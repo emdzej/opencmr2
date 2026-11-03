@@ -33,10 +33,10 @@ int Net_Sessions(void);                       /* 0x4a1480 */
 uint32_t Net_SessionName(void);               /* 0x4a14c0: the address of the session's name */
 uint32_t Net_SessionPassword(void);           /* 0x4a14d0 */
 bool Net_SetSessionDesc(void);                /* 0x4a14e0 */
-void Net_SetSessionName(uint32_t name);       /* 0x4a1510 */
-void Net_SetPassword(uint32_t password);      /* 0x4a1530 */
-void Net_SetMaxPlayers(uint32_t n);           /* 0x4a1550 */
-void Net_SetJoinable(bool on);                /* 0x4a1570 */
+bool Net_SetSessionName(uint32_t name);       /* 0x4a1510 */
+bool Net_SetPassword(uint32_t password);      /* 0x4a1530 */
+bool Net_SetMaxPlayers(uint32_t n);           /* 0x4a1550 */
+bool Net_SetJoinable(bool on);                /* 0x4a1570 */
 uint32_t Net_IsHost(void);                    /* 0x4a15a0 */
 void Net_SetHost(uint32_t v);                 /* 0x4a15b0 */
 bool Net_SessionInstance(int i, uint32_t out[4]);   /* 0x4a15c0 */
@@ -54,7 +54,7 @@ void Net_AddPlayer(const char *short_name, const char *long_name, uint32_t id); 
 void Net_RemovePlayer(uint32_t id);           /* 0x4a1940 */
 bool Net_PlayerSlot(uint32_t id, uint8_t *slot);   /* 0x4a19c0 */
 uint32_t Net_LocalPlayer(void);               /* 0x4a1a00 */
-bool Net_CreatePlayer(uint32_t short_name, uint32_t long_name, const void *data, uint32_t len);   /* 0x4a1a10 */
+bool Net_CreatePlayer(const char *short_name, const char *long_name, const void *data, uint32_t len);   /* 0x4a1a10 */
 bool Net_DestroyPlayer(void);                 /* 0x4a1a90 */
 bool Net_EnumPlayers(void);                   /* 0x4a1af0 */
 const char *Net_PlayerShortName(int slot);    /* 0x4a1b30 */

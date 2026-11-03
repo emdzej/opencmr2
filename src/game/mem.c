@@ -24,6 +24,13 @@ void Mem_Free(void)
     ram = NULL;
 }
 
+uint32_t Mem_Va(const void *p)
+{
+    const uint8_t *b = p;
+    if (!ram || !b || b < ram || b >= ram + MEM_SIZE) return 0;
+    return MEM_BASE + (uint32_t)(b - ram);
+}
+
 uint8_t *gm(uint32_t va)
 {
     if (!ram || va < MEM_BASE || va >= MEM_BASE + MEM_SIZE) {

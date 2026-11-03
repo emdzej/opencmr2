@@ -34,6 +34,7 @@
 #include "world/frame.h"
 #include "world/obj.h"
 #include "world/relight.h"
+#include "fe/fe_net.h"
 #include "net/session.h"
 #include <math.h>
 #include <stdio.h>
@@ -263,9 +264,13 @@ static void st_startup(ProcGroup *g, uint32_t s)
     if ((mw >> 3 & 0x7f) == 4) Fe_ClearGuests();
     gw8(0x52ea59, 0);
     if (!gm8(0x52ea58)) {
-        if (mw >> 19 & 1) PENDING_NOTE(0x4a15a0, "the network game's return");
-        gw32(0x818ce4, 0);
-        /* 0x4ec2b0: the network's player record */
+        if (mw >> 19 & 1) {
+            uint32_t m = mw >> 3 & 0x7f;
+            if (m == 10 || m == 12) gw8(0x52ea59, 1);   /* 0x406810: the network's waiting page */
+        }
+        if (Net_IsHost()) Net_SetJoinable(true);
+        gw8(0x818ce4, 0);
+        Fe_NetSendMe();   /* 0x4ec2b0 */
     } else {
         gw8(0x52ea58, 0);
         gw32(0x52afb4, gm32(0x52afb4) & ~0x80000u);

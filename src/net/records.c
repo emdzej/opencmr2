@@ -247,7 +247,7 @@ void NetRec_LocalTimes(int n)
 }
 
 /* 0x40a330: the local player's lap time k (mode 12: the best lap, held by the local player) */
-void NetRec_LocalLap(uint32_t t, int k)
+void Lap_Best(uint32_t t, int k)
 {
     if (mode() != 12) {
         uint32_t b = 0x531c94 + 4u * (uint32_t)k;
@@ -266,7 +266,7 @@ void NetRec_LocalLap(uint32_t t, int k)
 
 uint32_t NetRec_LocalBest(void) { return gm32(0x531ce4); }    /* 0x40a3c0 */
 uint32_t NetRec_BestTotal(void) { return gm32(0x5320a8); }    /* 0x40a3d0 */
-void NetRec_OfferTotal(uint32_t t) { if (t < gm32(0x5320a8) || gm32(0x5320a8) == 0) gw32(0x5320a8, t); }   /* 0x40a3e0 */
+void Trial_BestLap(uint32_t t) { if (t < gm32(0x5320a8) || gm32(0x5320a8) == 0) gw32(0x5320a8, t); }   /* 0x40a3e0 */
 const char *NetRec_BestName(void) { return (const char *)gm(BEST_NAME); }   /* 0x40a400 */
 uint32_t NetRec_BestSplit(int k) { return gm32(0x531f80 + 4u * (uint32_t)k); }   /* 0x40a410 */
 uint32_t NetRec_BestLap(int k) { return mode() == 12 ? gm32(0x531c98) : gm32(0x531c94 + 4u * (uint32_t)k); }   /* 0x40a420 */

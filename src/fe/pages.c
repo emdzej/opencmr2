@@ -2,6 +2,7 @@
    and callbacks, and Pages_Build 0x4e9f70, which runs them. */
 #include "game/ctlcfg.h"
 #include "fe/pages.h"
+#include "net/session.h"
 #include "fe/fe.h"
 #include "fe/fe_page.h"
 #include "game/mem.h"
@@ -1262,7 +1263,21 @@ void Pages_Build(bool first, bool full)
     uint32_t mw = gm32(0x52afb4);
     uint32_t players = mw >> 13 & 0xf, mode2 = mw >> 10 & 7, bit17 = mw >> 17 & 1;
     if (mw >> 19 & 1) {
-        PENDING_NOTE(0x4e9f70, "Pages_Build for a network game");
+        /* back from a network race: the pages kept, the lobby's parent the host's mode page (the
+           sessions for a guest), then the lobby not ready, or (0x52ea59, 0x406800) the page that
+           waits (0x824df8, 0x4f89a0) */
+        static Menu *const pages[5] = {&pg_824fd8, &pg_81fc58, &pg_81b338, &pg_81e998, &pg_81d138};
+        uint32_t m = mw >> 3 & 0x7f;
+        if (!Net_IsHost()) pg_81e218.parent = &pg_824c18;
+        else if (m >= 8 && m <= 12) pg_81e218.parent = pages[m - 8];
+        Fe_SetPage(NULL);
+        if (!gm8(0x52ea59)) {
+            Fe_SetNextPage(&pg_81e218);
+            pg_81e218.items[Menu_IndexOf(&pg_81e218, 3)].value = 1;
+        } else
+            Fe_SetNextPage(&pg_824df8);
+        Input_FlushChars();
+        Text_Select((int)(mw & 7));
         return;
     }
     /* the first page: the languages the first time (not in Japan or Poland), else the main menu */

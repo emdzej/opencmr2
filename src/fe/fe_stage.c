@@ -307,9 +307,9 @@ void Fe_ArcadeLocation(Menu *m)
 /* 0x4efe60: the weather page (0x81f4d8) from the rally's weathers (0x4081d0: the distinct ones of
    the rally's 30, 0x52ea74, their count 0x52eab8): "random" and up to three (with four or more the
    first, middle and last); none at night or on stage 11 (straight to the start then) */
-static void weather_page(bool shown)
+/* 0x4081d0 */
+int Fe_RallyWeathers(void)
 {
-    /* 0x4081d0 */
     uint32_t src = 0x51627c + (gm32(0x52f2ac) & 0x1f) * 0x78;
     int n = 1;
     gw32(0x52ea74, gm32(src));
@@ -326,6 +326,12 @@ static void weather_page(bool shown)
         }
     }
     gw32(0x52eab8, (uint32_t)n);
+    return n;
+}
+
+static void weather_page(bool shown)
+{
+    int n = Fe_RallyWeathers();
     Menu *w = &pg_81f4d8;
     gw32(0x52f290, 0), gw32(0x52f0fc, 0);   /* 0x40df60 */
     w->items[0].text = 0x156;

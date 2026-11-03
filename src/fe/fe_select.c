@@ -55,6 +55,9 @@ static bool mode_names(const char *names[2], bool champ_e)
     return true;
 }
 
+void Fe_SetPlayersPage(Menu *m) { players_page = m; }   /* 0x4f1bc0 */
+void Fe_SetToSet(int n) { to_set = (uint8_t)n; }           /* 0x4f1bb0 */
+
 /* 0x4ef5f0: one lap (the selection's bits 16-19) */
 void fe_4ef5f0(Menu *m, bool back)
 {

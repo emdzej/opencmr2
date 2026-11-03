@@ -204,15 +204,15 @@ bool Net_SetSessionDesc(void)
 }
 
 /* 0x4a1510, 0x4a1530, 0x4a1550, 0x4a1570: a field changed, the description read first and set after */
-void Net_SetSessionName(uint32_t name) { Net_GetSessionDesc(); gw32(DESC + 0x30, name); Net_SetSessionDesc(); }
-void Net_SetPassword(uint32_t password) { Net_GetSessionDesc(); gw32(DESC + 0x34, password); Net_SetSessionDesc(); }
-void Net_SetMaxPlayers(uint32_t n) { Net_GetSessionDesc(); gw32(DESC + 0x28, n); Net_SetSessionDesc(); }
-void Net_SetJoinable(bool on)
+bool Net_SetSessionName(uint32_t name) { Net_GetSessionDesc(); gw32(DESC + 0x30, name); return Net_SetSessionDesc(); }
+bool Net_SetPassword(uint32_t password) { Net_GetSessionDesc(); gw32(DESC + 0x34, password); return Net_SetSessionDesc(); }
+bool Net_SetMaxPlayers(uint32_t n) { Net_GetSessionDesc(); gw32(DESC + 0x28, n); return Net_SetSessionDesc(); }
+bool Net_SetJoinable(bool on)
 {
     Net_GetSessionDesc();
     if (on) gw32(DESC + 4, gm32(DESC + 4) & ~DPSESSION_JOINDISABLED);
     else gw32(DESC + 4, gm32(DESC + 4) | DPSESSION_JOINDISABLED);
-    Net_SetSessionDesc();
+    return Net_SetSessionDesc();
 }
 
 uint32_t Net_IsHost(void) { return gm32(HOST); }       /* 0x4a15a0 */
@@ -324,12 +324,12 @@ bool Net_PlayerSlot(uint32_t id, uint8_t *slot)
 uint32_t Net_LocalPlayer(void) { return gm32(LOCAL); }   /* 0x4a1a00 */
 
 /* 0x4a1a10: the local player (its DPNAME at 0x5a1fa8) */
-bool Net_CreatePlayer(uint32_t short_name, uint32_t long_name, const void *data, uint32_t len)
+bool Net_CreatePlayer(const char *short_name, const char *long_name, const void *data, uint32_t len)
 {
-    gw32(DPNAME, 0x10), gw32(DPNAME + 4, 0), gw32(DPNAME + 8, short_name), gw32(DPNAME + 12, long_name);
+    gw32(DPNAME, 0x10), gw32(DPNAME + 4, 0), gw32(DPNAME + 8, Mem_Va(short_name)), gw32(DPNAME + 12, Mem_Va(long_name));
     if (!gm32(DPLAY)) return false;
     uint32_t id = 0;
-    if (Dp_CreatePlayer(&id, gs(short_name), gs(long_name), data, len) != DP_OK) return false;
+    if (Dp_CreatePlayer(&id, short_name, long_name, data, len) != DP_OK) return false;
     gw32(LOCAL, id);
     gw8(CREATED, 1);
     return true;

@@ -1761,10 +1761,8 @@
 00409fd0	NetRec_StageTime	net	high	Message 8: a player's split time; the bests and the last's holder
 0040a0e0	NetRec_LapTime	net	high	Message 9: a player's lap time (mode 12: the best lap, its holder, the second)
 0040a230	NetRec_LocalTimes	net	high	The local player's splits against the network bests
-0040a330	NetRec_LocalLap	net	high	The local player's lap time against the network bests
 0040a3c0	NetRec_LocalBest	net	high	The local player holds the best lap (0x531ce4)
 0040a3d0	NetRec_BestTotal	net	high	The best total (0x5320a8)
-0040a3e0	NetRec_OfferTotal	net	high	A total kept if better (0x5320a8)
 0040a400	NetRec_BestName	net	high	The best's holder's name (0x531cf0)
 0040a410	NetRec_BestSplit	net	high	The best split k (0x531f80)
 0040a420	NetRec_BestLap	net	high	The best lap k (mode 12: the best lap)
@@ -1870,3 +1868,16 @@
 004aad40	Net_DirectPlay	net	high	The IDirectPlay4 pointer (0x66521c)
 004aad70	Net_Alloc	net	high	GlobalAlloc + GlobalLock
 004aade0	Net_Free	net	high	GlobalUnlock + GlobalFree
+004ec2b0	Fe_NetSendMe	fe	high	The local player's network data: id, car, car flag, ready, in use
+004ec320	Fe_NetPack	fe	high	The host's settings' tail: the weather, the profile block's stage records
+004ec3c0	Fe_NetUnpack	fe	high	The host's settings' tail into the profile block
+004ec460	Fe_NetSendSettings	fe	high	Message 3: the host's settings (0x1c4 bytes)
+004ec560	Fe_NetSysMessage	fe	high	DirectPlay's system messages in the front end
+004ec6f0	Fe_NetMessage	fe	high	The players' messages in the front end: chat, settings (2, 3), leaderboard
+004ec8d0	Fe_NetMessages	fe	high	The front end's network receive loop
+004eca10	Fe_NetCreatePlayer	fe	high	The local DirectPlay player made with its data
+004edb50	Fe_NetChatLine	fe	high	The lobby's chat line being typed (0x818f14)
+004d05f0	Fe_NetChatClear	fe	high	The chat lines emptied
+004d0620	Fe_NetChat	fe	high	A chat line "name> text" into the five lines
+004d0700	Fe_NetSay	fe	high	Message 0: the local chat line sent and shown
+004081d0	Fe_RallyWeathers	fe	high	The rally's distinct weathers (0x52ea74) and their count (0x52eab8)

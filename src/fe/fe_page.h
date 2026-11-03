@@ -32,6 +32,9 @@ int Rows_Top(const Menu *m);
 int Rows_ArrowDy(void);
 /* 0x4d3fa0: n titles in a row, the last lit */
 void Fe_TitleRow(int x, int y, const char *const *names, int n);
+void Fe_SetPlayersPage(Menu *m);          /* 0x4f1bc0: DAT_00819870 */
+void Fe_SetToSet(int n);                  /* 0x4f1bb0 */
+int Fe_RallyWeathers(void);               /* 0x4081d0: the rally's distinct weathers (0x52ea74), their count */
 int Fe_ToSet(void);                       /* DAT_00819048: the players still to set up */
 int Fe_SetupPlayer(void);                 /* players - DAT_00819048 - 1: the one being set up */
 void Fe_PlayerTitle(char *dst, size_t cap);   /* "Player n" for that player */
