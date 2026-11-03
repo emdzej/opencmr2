@@ -1963,3 +1963,5 @@
 00449ce0	Results_NetEndFrame	game	high	The network choices' typing
 00449b60	Results_NetEndStage	game	high	The host ends the stage for all
 004017e0	Pause_QuitNet	game	high	Quit to the waiting room (host: boards and the go)
+00444c10	Sim_SimpleStep	sim	high	The cars moved from outside: records, pose, contacts, suspension
+004458d0	Car_CornerLift	sim	high	The body lifted onto the ground by its corners
