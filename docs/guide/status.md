@@ -18,7 +18,7 @@ championship. The network game is being finished.
 | Sound | Engines, gearbox, surfaces, collisions, the co-driver's pace notes, the menu music and sounds |
 | Front end | Every menu, the options, controller set-up (keyboard and game controllers), driver profiles, high scores, the movies |
 | Replays | Watch a stage again after the finish |
-| Display | 640 x 480 to 2048 x 1536 at 16 or 32 bits, with the original's 1024 artwork from 1024 x 768 up |
+| Display | 640 x 480 to 2048 x 1536 at 16 or 32 bits, with the original's 1024 artwork from 1024 x 768 up; 16:9 and 16:10 modes (1280 x 720 to 2560 x 1440) with a wider view of the stage |
 
 ## Not yet
 
@@ -31,10 +31,8 @@ championship. The network game is being finished.
 
 ## Planned
 
-- **True 16:9.** The original's widescreen option letterboxes a 4:3 picture. The plan: 16:9 display
-  modes with a wider view of the stage, the menus and movies kept 4:3 in the middle of the screen, then
-  the race HUD moved out to the edges. It will be an option, off by default, since it departs from the
-  original.
+- **The HUD at the edges of a wide screen.** On the 16:9 and 16:10 modes the race's view fills the
+  screen, but the HUD stays where it is on a 4:3 screen, in the middle.
 
 ## Known issues
 

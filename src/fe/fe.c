@@ -197,6 +197,7 @@ static void sprite(Tex *t, int16_t x, int16_t y, const uint8_t rgba[4])
 /* the end of each draw: the frame, the scene and the 2D queues (0x49de40, the flip, is the app's) */
 static void draw_scene(void)
 {
+    D3d_SetWide(false);   /* (the port's wide modes: the menus pillarboxed) */
     int w, h;
     screen(&w, &h);
     int16_t view[4] = {0, 0, (int16_t)w, (int16_t)h};

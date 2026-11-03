@@ -1356,6 +1356,9 @@ void View_Rect(int p, int16_t r[4])
 
 static void draw(ProcGroup *g, uint32_t slot)
 {
+    /* the port's wide modes: the view across the whole screen, but for the service area's and the
+       loading screens' state 11 (pillarboxed, as the menus) */
+    D3d_SetWide(Proc_State(g, slot) != 11);
     /* state 10's draw 0x411020: the results' page with the view (0x44b330 queues it first) */
     if (Proc_State(g, slot) == 10 && slot == (uint32_t)g->n - 1) Results_Draw();
     if (H->draw) H->draw((int)slot, Proc_State(g, slot));
@@ -1368,6 +1371,7 @@ static void draw(ProcGroup *g, uint32_t slot)
    0x410c80 (Intro_Loading). Only the 2D queues are drawn. */
 static void load_draw(ProcGroup *g, uint32_t slot)
 {
+    D3d_SetWide(false);   /* (the port's wide modes: the loading screen pillarboxed) */
     if (Proc_State(g, slot) == 2) {
         if (slot) return;
         Intro_Loading();

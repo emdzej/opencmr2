@@ -27,7 +27,7 @@ static struct {
     GLint mode, tl, stage_op, stage_arg, tfactor, alphatest, alpharef, alphafunc, fog, fogmode, fogcolour,
         fogparams, specular, lodbias, tci, texflags, texm0, texm1, tex0, tex1, pointsize, wv, nrm, proj, vp, vpz,
         lighting, colorvertex, has_colour, src, ambient, mat, power, localviewer, normalize, vfog, rangefog,
-        nlights, ltype, ldiff, lspec, lamb, lpos, ldir, lp1, lp2, texc, cube0, bumpmat, bumplum;
+        nlights, ltype, ldiff, lspec, lamb, lpos, ldir, lp1, lp2, texc, cube0, bumpmat, bumplum, shift;
 } u;
 static struct { GLint tex, gamma, rect; } up;
 
@@ -214,6 +214,7 @@ static const char *VS =
     "layout(location=5) in vec2 a_uv1;\n"
     "uniform vec2 u_mode;\n"
     "uniform int u_tl;\n"
+    "uniform vec3 u_shift;\n"                   /* the 4:3 screen's offset in a wide mode, its width, wide */
     "uniform mat4 u_wv, u_proj; uniform mat3 u_nrm;\n"   /* D3D row-vector matrices, as uploaded */
     "uniform vec4 u_vp; uniform vec2 u_vpz;\n"
     "uniform int u_tci[2], u_texflags[2];\n"
@@ -249,7 +250,12 @@ static const char *VS =
     "void main() {\n"
     "  if (u_tl == 0) {\n"
     "    float w = a_pos.w > 0.0 ? 1.0 / a_pos.w : 1.0;\n"
-    "    vec2 ndc = (a_pos.xy + 0.5) / u_mode * 2.0 - 1.0;\n"
+    /* the port's wide modes: the 4:3 screen moved to the middle; in the wide race, a vertex on its
+       left or right edge on the whole screen's (the fills over the view, the pause's) */
+    "    vec2 p = vec2(a_pos.x + u_shift.x, a_pos.y);\n"
+    "    if (u_shift.z != 0.0 && abs(a_pos.x) <= 1.0) p.x = a_pos.x;\n"
+    "    else if (u_shift.z != 0.0 && abs(a_pos.x - u_shift.y) <= 1.0) p.x = a_pos.x + 2.0 * u_shift.x;\n"
+    "    vec2 ndc = (p + 0.5) / u_mode * 2.0 - 1.0;\n"
     "    gl_Position = vec4(ndc * w, (a_pos.z * 2.0 - 1.0) * w, w);\n"
     "    v_diffuse = a_diffuse.bgra; v_specular = a_specular.bgra;\n"
     "    v_uv[0] = vec3(u_tci[0] == 1 ? a_uv1 : a_uv0, 0.0);\n"
@@ -463,7 +469,7 @@ static bool gl_open(int width, int height, int bpp)
         LOC(nrm); LOC(proj); LOC(vp); LOC(vpz); LOC(lighting); LOC(colorvertex); LOC(has_colour); LOC(src);
         LOC(ambient); LOC(mat); LOC(power); LOC(localviewer); LOC(normalize); LOC(vfog); LOC(rangefog);
         LOC(nlights); LOC(ltype); LOC(ldiff); LOC(lspec); LOC(lamb); LOC(lpos); LOC(ldir); LOC(lp1); LOC(lp2);
-        LOC(texc); LOC(cube0); LOC(bumpmat); LOC(bumplum);
+        LOC(texc); LOC(cube0); LOC(bumpmat); LOC(bumplum); LOC(shift);
         up.tex = glGetUniformLocation(present_prog, "u_tex");
         up.gamma = glGetUniformLocation(present_prog, "u_gamma");
         up.rect = glGetUniformLocation(present_prog, "u_rect");
@@ -577,6 +583,10 @@ static void colour4(uint32_t c, float *f)
 
 /* the target being drawn: the back buffer (the mode at its scale) or a cube's face (its size, 1:1) */
 static int tw, th, tscale;
+/* the port's wide modes: the game's 4:3 screen at ox in the back buffer, lw wide; wide: the race's
+   view across the whole (D3d_SetWide); none on a cube's face */
+static int ox, lw;
+static bool wide;
 
 static void cube_alloc(D3dTexture *t);
 
@@ -586,15 +596,28 @@ static void bind_target(const D3dState *s)
     if (c && (c->gl || (cube_alloc(c), c->gl))) {
         bind_fb(c->fbo[s->target_face]);
         tw = th = c->width, tscale = 1;
+        ox = 0, lw = tw, wide = false;
     } else {
         bind_fb(fbo[1]);
         tw = mw, th = mh, tscale = scale;
+        lw = s->width < mw ? s->width : mw, ox = (mw - lw) / 2, wide = s->wide && ox > 0;
     }
     viewport(0, 0, tw * tscale, th * tscale);
 }
 
+/* a left or right edge of the game's screen in the back buffer's: moved to the middle, with the wide
+   race's view the edges of the 4:3 screen the whole one's */
+static int edge(int x)
+{
+    if (wide && x <= 0) return x;
+    if (wide && x >= lw) return x + 2 * ox;
+    x += ox;
+    return x < ox ? ox : x > ox + lw ? ox + lw : x;
+}
+
 static void scissor(int x0, int y0, int x1, int y1)
 {
+    x0 = edge(x0), x1 = edge(x1);
     if (x0 < 0) x0 = 0;
     if (y0 < 0) y0 = 0;
     if (x1 > tw) x1 = tw;
@@ -753,6 +776,7 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
     u4iv(u.stage_arg, 2, args);
     u1fv(u.lodbias, 2, bias);
     u2f(u.mode, (float)tw, (float)th);
+    u3f(u.shift, (float)ox, (float)lw, wide ? 1.0f : 0.0f);
     u1f(u.pointsize, (float)tscale);
     float tf[4], fc[4];
     colour4(rs[D3DRS_TEXTUREFACTOR], tf);
@@ -786,7 +810,7 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
     float nm[9];
     normal_matrix(&wv, nm);
     um3(u.nrm, nm);
-    u4f(u.vp, (float)v->x, (float)v->y, (float)v->width, (float)v->height);
+    u4f(u.vp, (float)v->x + (float)ox, (float)v->y, (float)v->width, (float)v->height);
     u2f(u.vpz, v->minz, v->maxz);
     /* without normals the lighting still runs (on a zero normal: ambient and emissive only) */
     u1i(u.lighting, rs[D3DRS_LIGHTING] != 0);
@@ -967,6 +991,19 @@ static void gl_present(void)
 {
     PROF_BEGIN(PROF_PRESENT);
     if (!fbo[1]) return;
+    /* the port's wide modes: the sides black around the 4:3 screen (but with the wide race's view) */
+    const D3dState *st = D3d_State();
+    int lw0 = st->width < mw ? st->width : mw, ox0 = (mw - lw0) / 2;
+    if (ox0 > 0 && !st->wide) {
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo[1]);
+        glEnable(GL_SCISSOR_TEST);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glClearColor(0, 0, 0, 1);
+        glScissor(0, 0, ox0 * scale, mh * scale);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glScissor((ox0 + lw0) * scale, 0, (mw - ox0 - lw0) * scale, mh * scale);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
     glDisable(GL_SCISSOR_TEST);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo[1]);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo[0]);
@@ -1089,6 +1126,8 @@ static void gl_read(int x, int y, int w, int h, uint8_t *rgba)
     }
     glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo[1]);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    const D3dState *st = D3d_State();
+    x += (mw - (st->width < mw ? st->width : mw)) / 2;   /* (the 4:3 screen of a wide mode) */
     glReadPixels(x * scale, y * scale, w * scale, h * scale, GL_RGBA, GL_UNSIGNED_BYTE, buf);
     for (int j = 0; j < h; j++)
         for (int i = 0; i < w; i++)

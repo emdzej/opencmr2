@@ -360,6 +360,7 @@ static void new_display(int w, int h, int bpp)
 {
     Disp_Open(w, h, bpp);
     screen(&w, &h);
+    w = D3d_State()->full_width;   /* (the mode's: a wide mode's game screen is narrower) */
     gw32(0x52afc4, (uint32_t)w), gw32(0x52afc8, (uint32_t)h), gw32(0x52afcc, (uint32_t)D3d_State()->bpp);
     Fe_MountRes();      /* 0x4d21e0 */
     Tex_ReloadAll();    /* 0x4a4c40 */
@@ -383,6 +384,7 @@ void fe_4f2210(Menu *m, MenuItem *it)
     gw32(0x52afd0, (gm32(0x52afd0) & 0xfffffe1fu) | ((uint32_t)m->sel & 0xf) << 5);
     int w, h;
     screen(&w, &h);
+    w = D3d_State()->full_width;   /* (the mode's, as above) */
     new_display(w, h, D3d_State()->bpp);   /* (0x4a8bd0: the device chosen, the port's one) */
     graphics_defaults();
     Menu_Goto(m->parent);

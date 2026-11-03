@@ -319,6 +319,23 @@ and 32 bits, and applies the same rules with 64 MB, which leaves 640 x 480 to 20
 bits. The back end draws the back buffer at the mode's own size and scales it to the drawable. The
 mode is the player's trade of detail for speed, as on the original's display.
 
+The port adds 16:9 and 16:10 sizes (1280 x 720 to 2560 x 1440). On a mode wider than 4:3:
+- `D3d_ScreenSize` reports the 4:3 screen of its height (1280 x 720: 960 x 720). Everything the game
+  lays out by the screen's size (menus, HUD, 2D, viewports, `Camera_Projection`'s aspect,
+  `Disp_HiRes`) sees an ordinary 4:3 mode. The settings (`0x52afc4`) keep the mode's own width.
+- The GL back end puts that screen in the middle of the back buffer, `ox = (W - w) / 2`:
+  pre-transformed x, the viewport's x (`u_vp`), scissors, clears and the read-back move by `ox`.
+- `D3d_SetWide` (on in the race's draws, off in the front end's, the loading screens' and state
+  11's) chooses how the sides are filled:
+  - Off: the scissor is clamped to the 4:3 screen and the sides are cleared black before the
+    present (pillarbox).
+  - On: an edge at 0 or at w (scissors, clears, and pre-transformed vertices within a pixel of
+    one) goes to the whole screen's edge. A full-screen viewport is then clipped to the whole width
+    while its mapping stays the 4:3 one: the projection is unchanged, the vertical field of view
+    stays, and the sides show more of the stage (Hor+). The fades and the pause's dimming stretch
+    across. The HUD, the mirror and the 3D-to-2D projections (`Obj_ToScreen`) stay in place,
+    because the 3D and the 4:3 screen share one mapping. On a left and right split screen each half reaches out to its own side.
+
 Changing the mode on the display page (`0x4f2430`) or the card (`0x4f2210`) does the following:
 - makes the device again (`0x4a78a0`);
 - stores what it took in the settings (`0x405c20`-`0x405c60`);

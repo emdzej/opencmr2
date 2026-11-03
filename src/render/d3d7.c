@@ -87,15 +87,21 @@ static void defaults(void)
 
 void D3d_ScreenSize(int *width, int *height) { *width = st.width, *height = st.height; }
 
+void D3d_SetWide(bool on) { st.wide = on; }
+
 bool D3d_Open(int width, int height, int bpp)
 {
+    st.full_width = width;
+    /* the port's wide modes: the game lays out a 4:3 screen (its menus, HUD and 2D are placed by the
+       width and height, and stretched otherwise), the back end puts it in the middle */
+    if (width * 3 > height * 4) width = height * 4 / 3;
     st.width = width;
     st.height = height;
     st.bpp = bpp;
     st.in_scene = false;
     memset(&stats, 0, sizeof stats);
     defaults();
-    return !be || be->open(width, height, bpp);
+    return !be || be->open(st.full_width, height, bpp);
 }
 
 void D3d_Close(void) { st.in_scene = false; }

@@ -54,7 +54,11 @@ Game controllers work through the browser's gamepad support. The keys and contro
 game's own options, as in the original. The game draws at the display mode chosen in Options,
 Graphics, Advanced Graphics, Display Mode (640 x 480 to 2048 x 1536, 640 x 480 by default, as the
 original). The picture is scaled to the size it is shown at: a larger mode is sharper, a smaller one
-faster. From 1024 x 768 the game uses its high-resolution menus and dash. Use **Fullscreen** (or
+faster. From 1024 x 768 the game uses its high-resolution menus and dash. The list also has 16:9 and
+16:10 modes, which the original doesn't have (1280 x 720, 1366 x 768, 1600 x 900, 1920 x 1080, 2560 x
+1440; 1280 x 800, 1440 x 900, 1680 x 1050, 1920 x 1200). On them the race fills the whole width with a
+wider view of the stage, and the menus, the movies and the HUD stay 4:3 in the middle, with black
+sides around the menus. All of them but 1280 x 720 use the high-resolution menus. Use **Fullscreen** (or
 double-click) for the largest picture. Holding <kbd>Esc</kbd> for a second stops the
 game; in fullscreen the browser takes <kbd>Esc</kbd> to leave fullscreen first. The line under the game
 shows the frames per second.

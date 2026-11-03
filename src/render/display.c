@@ -1,7 +1,8 @@
 /* The display adapter: the modes and the device on one of them (0x4a78a0, 0x4a8da0-0x4a8f60).
    The original asks DirectDraw for the device's modes and keeps those its callback 0x4a8da0 accepts. The
-   port's adapter offers the 4:3 and 5:4 modes of a card of the time in 16 and 32 bits, and the same
-   callback's rules choose among them. */
+   port's adapter offers the 4:3 and 5:4 modes of a card of the time in 16 and 32 bits and, the port's
+   addition, today's 16:9 and 16:10 ones (the game drawn on a 4:3 screen in their middle, the race's
+   view across the whole: D3d_Open, D3d_SetWide), and the same callback's rules choose among them. */
 #include "render/display.h"
 #include "game/mem.h"
 #include "render/d3d7.h"
@@ -12,7 +13,9 @@ enum { MODES = 0x6631f8, NMODES = 0x663b28, CURRENT = 0x663b2c };
 
 /* the adapter's modes, in the order a driver of the time lists them: by size, then by depth */
 static const int sizes[][2] = {{320, 240}, {512, 384}, {640, 480}, {800, 600}, {1024, 768}, {1152, 864},
-                               {1280, 960}, {1280, 1024}, {1600, 1200}, {1920, 1440}, {2048, 1536}};
+                               {1280, 720}, {1280, 800}, {1280, 960}, {1280, 1024}, {1366, 768}, {1440, 900},
+                               {1600, 900}, {1600, 1200}, {1680, 1050}, {1920, 1080}, {1920, 1200},
+                               {1920, 1440}, {2048, 1536}, {2560, 1440}};
 static const int depths[] = {8, 16, 32};
 /* the video memory the callback measures the modes against (DDSCAPS_VIDEOMEMORY less the textures'
    share, 0x4bdd00): a 64 MB card's */
@@ -79,4 +82,5 @@ bool Disp_Open(int width, int height, int bpp)
 bool Caps_TexWidth(int n) { return n <= 0x800; }
 bool Caps_TexHeight(int n) { return n <= 0x800; }
 
-bool Disp_HiRes(void) { return gm32(0x52afc4) > 0x3ff && Caps_TexWidth(0x400) && Caps_TexHeight(0x400); }
+/* (the port: on a wide mode the width of its 4:3 game screen, what the menus are laid out on) */
+bool Disp_HiRes(void) { return D3d_State()->width > 0x3ff && Caps_TexWidth(0x400) && Caps_TexHeight(0x400); }

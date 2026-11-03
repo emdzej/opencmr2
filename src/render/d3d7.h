@@ -129,7 +129,9 @@ typedef struct {
     bool light_on[D3D_LIGHTS];
     D3DMATERIAL7 material;
     D3DVIEWPORT7 viewport;
-    int width, height, bpp;  /* the mode */
+    int width, height, bpp;  /* the mode as the game sees it (a wider mode: 4:3 of its height, see D3d_Open) */
+    int full_width;          /* the port: the mode's own width (the back buffer's) */
+    bool wide;               /* the port: the race's view across the whole of a wide mode (D3d_SetWide) */
     bool in_scene;
     D3dTexture *target;      /* the render target: NULL the back buffer, else a cube's face */
     int target_face;         /* 0-5: +x, -x, +y, -y, +z, -z */
@@ -167,8 +169,14 @@ uint32_t D3d_FvfStride(uint32_t fvf);
 
 /* The device on a mode (DirectDraw's SetDisplayMode and CreateDevice reduced to this): defaults set. */
 bool D3d_Open(int width, int height, int bpp);
-/* The display mode's size (PTR_DAT_00520b74 +0x00, +0x04). */
+/* The display mode's size (PTR_DAT_00520b74 +0x00, +0x04). On a mode wider than 4:3 (the port's
+   16:9 and 16:10 modes) the 4:3 screen of its height, centred in the back buffer. */
 void D3d_ScreenSize(int *width, int *height);
+/* The port, on a wide mode: off, the 4:3 screen pillarboxed (the menus, the loading and service
+   screens, the movies); on, the race's view and what reaches the screen's edges stretched across the
+   whole width (the 3D clipped to the wider screen shows more at the sides; the HUD stays in the 4:3
+   middle). */
+void D3d_SetWide(bool on);
 /* The back buffer read back (the original blits it to an offscreen surface and locks that): RGBA rows
    from the top; zeros without a back end. */
 void D3d_ReadBack(int x, int y, int w, int h, uint8_t *rgba);
