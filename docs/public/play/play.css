@@ -1,5 +1,5 @@
 /* The site's theme (docs/.vitepress/theme/cmr2.css): the game's menus. Sage screen, mint panels, white
-   separators, the language flag's red; dark ink on the sage (white on it is 2.2:1). */
+   separators (and the links underlined in them), the flag's red only on its dots; dark ink on the sage (white on it is 2.2:1). */
 :root {
   --sage: #9cb4ac;
   --sage-light: #a9bfb7;
@@ -8,6 +8,7 @@
   --ink-2: #2d3f39;
   --red: #c80000;
   --red-dark: #8a0000;
+  --link: #173a2f;
   --line: rgba(255, 255, 255, 0.85);
   --ok: #173a2f;
   --warn: #6b4a00;
@@ -19,8 +20,8 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; color: var(--ink); font: 15px/1.6 var(--font); }
 html, body { background: var(--sage); }
-a { color: var(--red-dark); text-decoration: underline; text-underline-offset: 3px; }
-a:hover { color: var(--red); }
+a { color: var(--link); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+a:hover { color: var(--ink); text-decoration-color: currentColor; }
 code { font-family: var(--mono); font-size: .88em; background: rgba(215, 235, 218, 0.7); padding: .1em .35em; border-radius: 3px; }
 kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid #7f978f; border-bottom-width: 2px;
   border-radius: 3px; background: var(--mint); font-family: var(--mono); font-size: .85em; line-height: 1.6; text-align: center; }
@@ -36,7 +37,7 @@ h2 { font-size: 1.25rem; margin: 0 0 .6rem; font-weight: 400; text-transform: lo
 .bar nav { display: flex; font-size: 15px; }
 .bar nav a { color: var(--ink); text-decoration: none; padding: 0 12px; }
 .bar nav a + a { border-left: 1px solid var(--line); }
-.bar nav a[aria-current] { color: var(--red-dark); }
+.bar nav a[aria-current] { color: var(--link); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 6px; }
 
 main { max-width: 1100px; margin: 0 auto; padding: 8px 24px 32px; }
 .lead { color: var(--ink-2); max-width: 60rem; }
@@ -47,15 +48,16 @@ main { max-width: 1100px; margin: 0 auto; padding: 8px 24px 32px; }
 .card li { margin: .35rem 0; }
 .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .8rem 0; }
 
-/* Buttons: mint, the primary one in the flag's red. */
+/* Buttons: the menu's items: outlined in the separators' white, mint under the pointer; the primary one
+   white (the selection). Red is kept for the links. */
 button { font: inherit; font-size: 15px; font-weight: 700; text-transform: lowercase; cursor: pointer; border-radius: 2px;
-  padding: .45rem 1.15rem; border: 1px solid transparent; background: var(--mint); color: var(--ink); }
-button:hover { background: #fff; }
-button.primary { background: var(--red); color: #fff; }
-button.primary:hover { background: #b00000; }
-button.link { background: none; border: none; padding: .45rem .2rem; color: var(--red-dark); font-weight: 400; text-decoration: underline; }
-button.link:hover { background: none; color: var(--red); }
-button:disabled { opacity: .5; cursor: default; }
+  padding: .45rem 1.15rem; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+button:hover { background: var(--mint); border-color: var(--mint); }
+button.primary { background: #fff; border-color: #fff; }
+button.primary:hover { background: var(--mint); border-color: var(--mint); }
+button.link { background: none; border: none; padding: .45rem .2rem; color: var(--link); font-weight: 400; text-decoration: underline; text-decoration-color: var(--line); }
+button.link:hover { background: none; color: var(--ink); text-decoration-color: currentColor; }
+button:disabled, button:disabled:hover { opacity: .5; cursor: default; background: transparent; border-color: var(--line); }
 button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 .checks { list-style: none; padding: 0 !important; margin: .8rem 0 0 !important; }
@@ -64,7 +66,7 @@ button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 2px solid
 .checks li.ok::before { content: "+"; color: var(--ok); }
 .checks li.bad { color: var(--bad); }
 .checks li.bad::before { content: "x"; }
-progress { width: 100%; height: 10px; accent-color: var(--red); margin-top: .8rem; }
+progress { width: 100%; height: 10px; accent-color: var(--ink-2); margin-top: .8rem; }
 
 .message { max-width: 60rem; padding: .6rem 1rem; border-left: 4px solid #fff; background: rgba(215, 235, 218, 0.6); }
 .message.warn { border-color: var(--warn); }
