@@ -15,6 +15,7 @@
 #include "sim/car_internal.h"
 #include "world/stage.h"
 #include "world/tod.h"
+#include "net/carsync.h"
 #include <string.h>
 
 static Car cars[CAR_MAX];   /* the block at *0x53c9a4 */
@@ -578,7 +579,7 @@ void Car_Settle(Car *c)
 }
 
 /* Car_Place 0x457e50: both models to the start angles and position, Car_Init, Car_Settle (with mode
-   bit 19, 0x424dc0 after it: not ported). */
+   bit 19, Net_CarStart 0x424dc0 after it). */
 void Car_Place(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3], const int32_t pos[3])
 {
     Car_PlaceKeep(main, second, n, cls, ang, pos, false);
@@ -593,7 +594,7 @@ void Car_PlaceKeep(Obj *main, Obj *second, int n, int cls, const uint16_t ang[3]
     Car *c = Car_Get(n);
     Car_Init(c, main, cls, pos, n, keep);
     Car_Settle(c);
-    if (Gs_ModeBit19()) PENDING_NOTE(0x424dc0, "Net_CarStart (the network game's car states, 0x5393d8)");
+    if (Gs_ModeBit19()) Net_CarStart(c);   /* 0x424dc0 */
 }
 
 void Mat_AxisAngleRows(int32_t m[16], const int32_t a[3], int32_t ang)

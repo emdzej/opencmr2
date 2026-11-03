@@ -25,6 +25,7 @@ bool Replay_End(Replay *r);                           /* 0x46d2a0: the playing e
 bool Replay_Save(const Replay *r, const char *path);  /* 0x46d3f0 */
 void Replay_RecordStep(void);                         /* 0x46c8e0 (Sim_Step) */
 void Replay_PlayStep(void);                           /* 0x46d270 (Sim_Step) */
+int32_t Replay_Word(const Replay *r, uint32_t o);    /* a word of the control block (the original's struct) */
 bool Replay_Playing(const Replay *r);                 /* +0x04 */
 bool Replay_Recording(const Replay *r);               /* +0x0c */
 uint8_t Replay_State(const Replay *r);                /* +0x10c: the recorded race state now */

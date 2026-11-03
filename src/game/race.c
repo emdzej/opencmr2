@@ -3,6 +3,7 @@
 #include "net/session.h"
 #include "net/records.h"
 #include "net/race_msg.h"
+#include "net/carsync.h"
 #include "game/balls.h"
 #include "game/shadow.h"
 #include "game/race.h"
@@ -113,6 +114,7 @@ void Race_Skip(void) { R.skip = true; }
 int Race_State(int p) { return p < R.group.n ? Proc_State(&R.group, (uint32_t)p) : -1; }
 uint32_t Race_ProcWord(int p) { return p >= 0 && p < R.group.n ? R.group.slots[p].word : 0; }
 int32_t Race_Clock(void) { return R.clock << 2; }
+int32_t Race_Steps(void) { return R.clock; }
 int32_t Race_StageTime(int p) { return R.t_elapsed[p]; }
 int32_t Race_Countdown(void) { return R.countdown; }
 bool Race_Finished(int p) { return Sectors_Finished(p); }
@@ -525,6 +527,7 @@ static void s5_line(ProcGroup *g, uint32_t slot)
     gw8(0x537fd4, 0);
     if (slot == 0) {
         if (R.place) {
+            Net_CarsReset();   /* 0x424ed0 */
             if (H->place_cars) H->place_cars();
             Glow_Clear();      /* 0x4ae260, the first of 0x424c50 */
             Skids_Load();      /* 0x465600 */

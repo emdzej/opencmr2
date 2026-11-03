@@ -15,6 +15,8 @@
 #include "game/replay.h"
 #include "game/mem.h"
 #include "game/timer.h"
+#include "net/carsync.h"
+#include "net/records.h"
 #include "net/race_msg.h"
 #include "pending.h"
 #include "exe.h"
@@ -131,12 +133,20 @@ static void out_of_view(Car *c)
     if (out == np) CW32(c, 0xb70, 1);
 }
 
-/* 0x428810: the step's lists from each car's steps due; the network modes' list of the players (8, 9,
-   11, 12) is not ported */
+/* 0x428810: the step's lists from each car's steps due; in the network modes (8, 9, 11, 12) every car
+   first made again: car 0, then the car slot of each record in use or each playing replay with +0xe8
+   (0x41f350 from 1) */
 static void build_lists(void)
 {
     uint32_t m = Gs_Mode();
-    if (m == 8 || m == 9 || m == 11 || m == 12) PENDING_NOTE(0x428810, "Sim_BuildLists (network)");
+    if (m == 8 || m == 9 || m == 11 || m == 12) {
+        g_all.car[0] = 0, g_all.n = 1;
+        for (int i = 0; i < 7; i++) {
+            const Replay *r = Race_Replay(i + 1);
+            bool ghost = r && Replay_Playing(r) && Replay_Word(r, 0xe8);
+            if (NetRec_Used(i) || ghost) g_all.car[g_all.n++] = (int16_t)NetRec_Slot(i);   /* 0x409cb0, 0x40b010 */
+        }
+    }
     g_second.n = g_stepped.n = g_listA.n = g_simple.n = g_collide.n = 0;
     for (int i = 0; i < g_all.n; i++) {
         int16_t k = g_all.car[i];
@@ -167,15 +177,16 @@ void Sim_Step(void)
     Sim_StepCars(g_stepped.car, g_stepped.n);
     if (g_sim_probe) g_sim_probe(1, g_stepped.car, g_stepped.n);
     /* 0x43f630 and 0x443bf0 step a list (0x53a364) that Sim_BuildLists empties and nothing fills */
-    if (g_simple.n) PENDING_NOTE(0x425950, "Sim_SimpleCars (the network game's remote cars, +0xc18)");
+    Sim_SimpleCars(&g_simple);   /* 0x425950 */
     Sim_Collide(g_collide.car, g_collide.n);
     if (g_sim_probe) g_sim_probe(2, g_stepped.car, g_stepped.n);
     Knock_Step();   /* 0x470580 */
     if (g_sim_probe) g_sim_probe(3, g_stepped.car, g_stepped.n);
     Sim_CarsPost(g_stepped.car, g_stepped.n);
     if (g_sim_probe) g_sim_probe(4, g_stepped.car, g_stepped.n);
-    /* 0x426fc0, 0x46d5e0 and 0x444c10: the network game's remote cars (+0xc18) and its kind 2 replays */
-    if (g_simple.n) PENDING_NOTE(0x426fc0, "Sim_Step 0x426fc0, 0x46d5e0, 0x444c10 (the network game's)");
+    Net_CarsAfter(&g_simple);   /* 0x426fc0 */
+    /* 0x46d5e0 and 0x444c10: the network game's kind 2 replays */
+    if (g_simple.n) PENDING_NOTE(0x46d5e0, "Sim_Step 0x46d5e0, 0x444c10 (the network game's replays)");
     Pose_Spin(&g_listA);
     Pose_Spin(&g_simple);
     Pose_Capture(&g_listA);
@@ -188,5 +199,5 @@ void Sim_Step(void)
     Damage_Scrapes(g_stepped.car, g_stepped.n);   /* 0x469e40 */
     if (g_sim_probe) g_sim_probe(7, g_stepped.car, g_stepped.n);
     /* 0x424710: the steering wheel's force feedback (DirectInput effects; gasm has none, left out) */
-    PENDING_NOTE(0x4258e0, "Net_SendCars (the network game's car states, with 0x539cc8 set by 0x427640)");
+    Net_SendCars(&g_all);   /* 0x4258e0 */
 }

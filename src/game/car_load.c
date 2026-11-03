@@ -16,6 +16,7 @@
 #include "bfl.h"
 #include "c3d.h"
 #include "exe.h"
+#include "net/records.h"
 #include "pending.h"
 #include "sim/car.h"
 #include "sim/damage.h"
@@ -363,13 +364,14 @@ int Cars_Racing(void)
     return (int)Gs_SelBits14();
 }
 
-/* 0x456ca0: the cars loaded: Cars_Racing, one more for the ghost (bit 28 with 0x406310); the network's
-   others open */
+/* 0x456ca0: the cars loaded: Cars_Racing, one more for the ghost (bit 28 with 0x406310); in the network
+   modes but 10, one more for each record in use (0x409cb0: the other players) */
 int Cars_Count(void)
 {
     int n = Cars_Racing();
     if (Gs_SelBit28() && Gs_Bit30()) n++;
-    if (Gs_ModeBit19()) PENDING_NOTE(0x456ca0, "Cars_Count (the network's cars)");
+    if (Gs_ModeBit19() && Gs_Mode() != 10)
+        for (int i = 0; i < 7; i++) n += NetRec_Used(i);
     return n < 1 ? 1 : n > CAR_MAX ? CAR_MAX : n;
 }
 

@@ -1912,3 +1912,16 @@
 00449090	Results_NetDone	results	high	The network results fade end: to the results, the host the leaderboards, the exit00413520	Hud_NetSplit	hud	high	Modes 8-10: a split kept, sent and against the network best
 00413610	Hud_NetLap	hud	high	Modes 11, 12: a lap kept, sent and against the network best
 0040af00	NetRec_LocalBestTake	net	high	The local best (0x531df8) kept the lower
+00424ed0	Net_CarsReset	net	high	The line: the frame estimates, the steps' sum table 0x539b38, the send rate
+00424f20	Net_PackCar	net	high	A car's state quantised into the 30 bytes at 0x539388
+004258e0	Net_SendCars	net	high	Each local car (+0xc1c clear) packed and sent (type 0xb)
+00425950	Sim_SimpleCars	sim	high	The network states taken, the places (0x40a580), the other cars predicted and posed
+00425a90	Net_TakeCars	net	high	Each record's new state into its car's predictor; the frame estimates 0x5393ac
+00425c40	Net_UnpackCar	net	high	The state at 0x539388 into a predictor record (0x5393d8 + 0xec slot)
+004263d0	Net_Drag	net	high	A predictor's drag along the car's way
+00426810	Net_Predict	net	high	A predictor run to the frame estimated; the shown frame blended halfway
+00426b90	Net_Bounce	net	high	A predictor's velocity kept after a change of velocity
+00426d80	Net_PoseCar	net	high	A remote car posed from its predictor
+00426fc0	Net_CarsAfter	net	high	After the collisions: the remote cars' velocity and spin back into the predictors
+00427580	Net_SetRate	net	med	The send rate (0x5393d4, 40 or 41) from the link's bytes, bits and players
+0041d2a0	Race_Steps	race	high	The race's steps since the start (DAT_00537f24)
