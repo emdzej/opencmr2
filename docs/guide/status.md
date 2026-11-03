@@ -1,7 +1,7 @@
 # Status
 
 OpenCMR2 plays Colin McRae Rally 2.0 from your own CD, offline, from the start-up movies to the end of a
-championship. The network game is being ported: it is not playable yet.
+championship. The network game is being finished.
 
 ## What works
 
@@ -22,8 +22,16 @@ championship. The network game is being ported: it is not playable yet.
 
 ## Not yet
 
-- **The network game.** The menus, the lobby and the race messages are in; the other players' cars on
-  the stage are being finished.
+- **The network game.** Players can meet in the waiting room, start a stage together and see each
+  other's cars on it, and the results, leaderboards and service area are in. It hasn't been played
+  through a whole rally yet, and the network game's replays and ghosts are still missing.
+
+## Planned
+
+- **True 16:9.** The original's widescreen option letterboxes a 4:3 picture. The plan: 16:9 display
+  modes with a wider view of the stage, the menus and movies kept 4:3 in the middle of the screen, then
+  the race HUD moved out to the edges. It will be an option, off by default, since it departs from the
+  original.
 
 ## Known issues
 

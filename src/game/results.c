@@ -4,6 +4,7 @@
 #include "net/race_msg.h"
 #include "game/results.h"
 #include "fe/menu.h"
+#include "fe/fe_net.h"
 #include "exe.h"
 #include "font.h"
 #include "render/tex.h"
@@ -24,6 +25,7 @@
 #include "game/standings.h"
 #include "game/challenge.h"
 #include "game/tween.h"
+#include "game/timer.h"
 #include "world/tod.h"
 #include "pending.h"
 #include "render/d3d7.h"
@@ -257,12 +259,13 @@ static void draw_record(Menu *m)
 
 /* 0x44ec30: a box around row k's place, dy lower (the row's drop 0x53e698 and the caller's), less
    the scroll (nothing passes the closer rows of its third argument) */
-static void place_box(int k, int dy)
+static void place_box2(int k, int dy, bool tight)
 {
     int w, h;
     screen(&w, &h);
-    int x0 = w * 0x20 / 0x280, x1 = w * 0x41 / 0x280, y0 = h * 0x82 / 0x1e0 + k * (h * 0x34 / 0x1e0) + dy - scroll_off,
-        y1 = h * 0xa3 / 0x1e0 + k * (h * 0x34 / 0x1e0) + dy - scroll_off;
+    int step = h * (tight ? 0x2d : 0x34) / 0x1e0;   /* the network pages' rows (third argument 1) */
+    int x0 = w * 0x20 / 0x280, x1 = w * 0x41 / 0x280, y0 = h * 0x82 / 0x1e0 + k * step + dy - scroll_off,
+        y1 = h * 0xa3 / 0x1e0 + k * step + dy - scroll_off;
     int16_t a[4] = {(int16_t)(x0 + 2), (int16_t)y0, (int16_t)(x1 - x0 - 4), 2};
     Rect_Fill(a, C(0x519ecc), 2);
     int16_t b[4] = {(int16_t)(x0 + 2), (int16_t)(y1 - 2), (int16_t)(x1 - x0 - 4), 2};
@@ -272,6 +275,7 @@ static void place_box(int k, int dy)
     int16_t d[4] = {(int16_t)x0, (int16_t)y0, 2, (int16_t)(y1 - y0)};
     Rect_Fill(d, C(0x519ecc), 2);
 }
+static void place_box(int k, int dy) { place_box2(k, dy, false); }
 
 /* 0x40ede0: a car's name in the race's text */
 static const char *car_name(int car) { return Text_Get(car + 0xc2); }
@@ -979,6 +983,8 @@ static void rally_enter(Menu *m, bool back)
     if (m->items[0].value > 10) m->items[0].value = 10;
 }
 
+static void end_items(Menu *m, int first);
+
 /* 0x453c50: the choices: each item's name (with the next player's for id 0x3ea) and its description,
    the pause menu's arrows */
 static void draw_end(Menu *m)
@@ -987,8 +993,16 @@ static void draw_end(Menu *m)
     screen(&w, &h);
     dim();
     Font_Print(2, Text_Get(0x56), w * 0x1e / 0x280, h * 0x43 / 0x1e0, C(0x519ecc), 0x11);
+    end_items(m, 0);
+}
+
+/* 0x453c50's (and 0x4541c0's) items from `first`: the name, the description, the arrow */
+static void end_items(Menu *m, int first)
+{
+    int w, h;
+    screen(&w, &h);
     Tex *on = Pause_ArrowOn(), *off = Pause_ArrowOff();
-    for (int i = 0; i < m->n; i++) {
+    for (int i = first; i < m->n; i++) {
         MenuItem *it = &m->items[i];
         bool lit = m->sel == i;
         uint32_t c = lit ? 0x519ecc : 0x519ed0;
@@ -1006,6 +1020,246 @@ static void draw_end(Menu *m)
         }
     }
     Font_SetLayer(2);
+}
+
+/* ---- the network game's pages (0x449100: 0x540c68, 0x5406b8, 0x53fd58, 0x541030, 0x53e2d8; the
+   choices 0x5416e0 by 0x44b0d0 and the host's question 0x5408a0) ---- */
+static Menu pg_net, pg_trial, pg_nrally, pg_npoints, pg_ncirc, pg_nend, pg_nquit;
+static bool typing;                 /* DAT_00540e48: the chat line chosen */
+static int8_t typed_sel = -1;       /* DAT_00519ee4 (-1 in the exe): the choice last seen */
+static char chat[0x100];            /* DAT_00541cf8 */
+static int chat_len;                /* DAT_00541df8 */
+
+/* the stage's titles: in a rally the rally, the day and the stage, else the rally and the stage */
+static void net_titles(bool day)
+{
+    int w, h;
+    screen(&w, &h);
+    char stage[64], d[64];
+    uint32_t st = Tod_Stage();
+    if (st == 10) snprintf(stage, sizeof stage, "%s", Text_Get(0xba));
+    else snprintf(stage, sizeof stage, exe_str(0x516098), Text_Get(0x40), (int)st + 1);
+    snprintf(d, sizeof d, exe_str(0x516098), Text_Get(0x44), (int)(st >> 2) + 1);
+    const char *t3[3] = {Text_Get((int)Tod_Rally()), d, stage}, *t2[2] = {Text_Get((int)Tod_Rally()), stage};
+    if (day) titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t3, 3);
+    else titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t2, 2);
+}
+
+/* the network results' rows (0x44e130, 0x4505b0, 0x44f8a0, 0x452430; 45 of 480 apart, 20 higher than
+   the board's): the name, the time (or the points), the car (the local player's place filled, the
+   others' boxed), the place ("=" for a tie with the row before) */
+static void net_rows(bool rally, bool points)
+{
+    int w, h;
+    screen(&w, &h);
+    for (int i = 0; i < (int)NetRec_Results(); i++) {
+        char b[96];
+        int row = h * 0x82 / 0x1e0 + (h * 0x2d / 0x1e0) * i - h * 0x14 / 0x1e0;
+        Font_Print(1, NetRec_ResultName(i, rally), w * 0x5c / 0x280, h * 3 / 0x1e0 + row - h * 8 / 0x1e0, C(0x519ecc), 9);
+        if (points) snprintf(b, sizeof b, exe_str(0x517dd0), (int)NetRec_ResultPoints(i));
+        else print_time(b, sizeof b, (int32_t)NetRec_ResultTime(i, rally));
+        Font_Print(1, b, w * 0x21e / 0x280, row - h * 8 / 0x1e0, C(0x519ecc), 9);
+        snprintf(b, sizeof b, "%s", car_name((int)NetRec_ResultCar(i, rally)));
+        Text_ToFontCase(b);
+        if ((int32_t)NetRec_ResultIndex(i, rally) == -2) {
+            int16_t r[4] = {(int16_t)(w * 0x20 / 0x280), (int16_t)(row - 1),
+                            (int16_t)(w * 0x41 / 0x280 - w * 0x20 / 0x280), (int16_t)(h * 0xa3 / 0x1e0 - h * 0x82 / 0x1e0 + 1)};
+            Rect_Fill(r, C(0x519ed8), 2);
+        } else
+            place_box2(i, -(h * 0x14 / 0x1e0), true);
+        Font_Print(0, b, w * 0x5c / 0x280, h * 0xa3 / 0x1e0 + (h * 0x2d / 0x1e0) * i - h * 0x14 / 0x1e0, C(0x519ecc), 0x21);
+        if (i == 0 || NetRec_ResultPlace(i, rally) != NetRec_ResultPlace(i - 1, rally))
+            snprintf(b, sizeof b, exe_str(0x517dd0), (int)NetRec_ResultPlace(i, rally));
+        else
+            snprintf(b, sizeof b, "%s", exe_str(0x519f70));
+        int x0 = w * 0x20 / 0x280, y0 = h * 0x82 / 0x1e0;
+        Font_Print(1, b, (w * 0x41 / 0x280 - x0) / 2 + x0,
+                   h * 8 / 0x1e0 + y0 + ((h * 0xa3 / 0x1e0 - y0) / 2 + (h * 0x2d / 0x1e0) * i - h * 0x14 / 0x1e0), C(0x519ecc), 0x12);
+    }
+    Font_SetLayer(2);
+}
+
+/* 0x44e130: the stage's results (mode 8 with the day) */
+static void draw_net(Menu *m)
+{
+    (void)m;
+    dim();
+    net_titles(mode() == 8);
+    net_rows(false, false);
+}
+
+/* 0x4505b0: the rally's results so far: the rally and "rally" (0x41), "final" (0xef) after the last
+   stage once every player has driven */
+static void draw_nrally(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    dim();
+    const char *t[3] = {Text_Get((int)Tod_Rally()), Text_Get(0x41), Text_Get(0xef)};
+    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, last_stage && last_player ? 3 : 2);
+    net_rows(true, false);
+}
+
+/* 0x44f8a0: the rally's points: the rally, "rally", "points" (0x8d) */
+static void draw_npoints(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    dim();
+    const char *t[3] = {Text_Get((int)Tod_Rally()), Text_Get(0x41), Text_Get(0x8d)};
+    titles(w * 0x1e / 0x280, h * 0x43 / 0x1e0, t, 3);
+    net_rows(true, true);
+}
+
+/* 0x452430: round a circuit: the arcade's title (0x451890), the race's results */
+static void draw_ncirc(Menu *m)
+{
+    dim();
+    arcade_title(m);
+    net_rows(false, false);
+}
+
+/* 0x44e830: the time trial: the lobby's rows: the name, its state (none, 0xff-0x101) and its best (or
+   dashes, 0x516e30) */
+static void draw_trial(Menu *m)
+{
+    (void)m;
+    int w, h;
+    screen(&w, &h);
+    dim();
+    net_titles(false);
+    const char *state[4] = {exe_str(0x52ea5c), Text_Get(0xff), Text_Get(0x100), Text_Get(0x101)};
+    for (int i = 0; i < (int)NetRec_LobbyCount(); i++) {
+        int y = h * 3 / 0x1e0 + h * 0x82 / 0x1e0 + (h * 0x2d / 0x1e0) * i - h * 0x14 / 0x1e0 - h * 8 / 0x1e0;
+        Font_Print(1, NetRec_LobbyName(i), w * 0x5c / 0x280, y, C(0x519ecc), 9);
+        uint32_t st = NetRec_LobbyState(i);
+        Font_Print(1, st < 4 ? state[st] : "", w * 0x5c / 0x280 + w * 100 / 0x280, y, C(0x519ecc), 9);
+        char b[32];
+        if (NetRec_LobbyBest(i) == 0xffffffffu) snprintf(b, sizeof b, "%s", exe_str(0x516e30));
+        else print_time(b, sizeof b, (int32_t)NetRec_LobbyBest(i));
+        Font_Print(1, b, w * 0x5c / 0x280 + w * 0xfa / 0x280, y, C(0x519ecc), 9);
+    }
+    Font_SetLayer(2);
+}
+
+/* 0x449ca0: the list from the top, its length the results less five (at least 1) */
+static void net_enter(Menu *m, bool back)
+{
+    (void)back;
+    m->items[0].value = 0;
+    m->items[0].count = (uint8_t)(NetRec_Results() > 6 ? NetRec_Results() - 5 : 1);
+}
+
+/* 0x449cd0 */
+static void nend_enter(Menu *m, bool back) { (void)m, (void)back; Input_FlushChars(); }
+
+/* 0x449ce0: the choices' frame: while typing, down goes to the second item and up to the last; the
+   chat line (id 0x3eb) chosen starts the typing (the menu's keys off), leaving it ends it; the players
+   enumerated; typed characters: backspace, return (the line said, 0x4d0700), escape (back to the
+   parent), or one of the set (0x519ee8) while it fits */
+static void nend_frame(Menu *m)
+{
+    if (typing) {
+        InputRecord *in = Input_Record(0);
+        if (in->pressed & MB_DOWN) m->sel = 1;
+        else if (in->pressed & MB_UP) m->sel = (int8_t)(m->n - 1);
+    }
+    if (typed_sel != m->sel) {
+        if (m->items[m->sel].id == 0x3eb) {
+            Input_FlushChars();
+            chat[0] = 0;
+            chat_len = 0;
+            typing = true;
+            Menu_SetFlags(m, false, false, false, false);
+        } else {
+            if (typed_sel >= 0 && m->items[typed_sel].id == 0x3eb) Menu_SetFlags(m, true, true, true, true);
+            typing = false;
+        }
+        typed_sel = m->sel;
+    }
+    Net_EnumPlayers();
+    int c;
+    if (!typing || !Input_NextChar(&c)) return;
+    if (c == 8) {
+        size_t n = strlen(chat);
+        if (n > 0) chat[n - 1] = 0, chat_len--;
+    } else if (c == 0xd) {
+        if (chat[0]) {
+            Fe_NetSay(chat);
+            chat_len = 0;
+            chat[0] = 0;
+        }
+    } else if (c == 0x1b) {
+        Menu_Goto(m->parent);
+    } else if (c && strchr(exe_str(0x519ee8), c)) {
+        int w, h;
+        screen(&w, &h);
+        if (chat_len < 0xff && Font_TextWidth(0, chat) < (w < 0x400 ? 0x14a : 0x210)) {
+            chat[chat_len] = (char)c;
+            chat[chat_len + 1] = 0;
+            chat_len++;
+        }
+    }
+}
+
+/* 0x4541c0: the choices with the chat: three panels (brighter while typing), the five chat lines and
+   the line being typed (its cursor blinking), outside modes 10 and 12 the network leaderboard (0xfe;
+   ten names and totals, "-" and "0" for a blank, or 0xfb without one), the title, the items after the
+   chat line */
+static void draw_nend(Menu *m)
+{
+    int w, h;
+    screen(&w, &h);
+    int16_t r[4] = {(int16_t)(w * 0x6c / 0x280 - w * 0x46 / 0x280), (int16_t)(h * 0x55 / 0x1e0),
+                    (int16_t)(w * 0x1a9 / 0x280), (int16_t)(h * 0x6e / 0x1e0)};
+    uint8_t panel[4] = {0xff, 0xff, 0xff, 0x20};
+    dim();
+    const uint8_t *tc;
+    if (!typing) panel[3] = 0x10, tc = C(0x519ed0);
+    else tc = C(0x519ecc);
+    Rect_Fill(r, panel, 1);
+    r[1] = (int16_t)(r[1] + h * 10 / 0x1e0 + r[3]);
+    r[3] = (int16_t)(h * 0x1e / 0x1e0);
+    Rect_Fill(r, panel, 1);
+    r[0] = (int16_t)(w * 0x6c / 0x280 + w * 0x1b3 / 0x280 - w * 0x46 / 0x280);
+    r[1] = (int16_t)(h * 0x55 / 0x1e0);
+    r[2] = (int16_t)(w * 0x82 / 0x280);
+    r[3] = (int16_t)(h * 0x10e / 0x1e0);
+    Rect_Fill(r, panel, 1);
+    for (int k = 4, y = 0x5a; y < 0xbe; y += 0x14, k--)
+        Font_Print(0, Fe_NetChatRow(k), w * 0x76 / 0x280 - w * 0x46 / 0x280, h * y / 0x1e0, tc, 9);
+    char b[0x120];
+    if (typing) {
+        snprintf(b, sizeof b, exe_str(Timer_Centis() % 0x14 < 10 ? 0x516180 : 0x519fb8), chat);
+        Font_Print(0, b, w * 0x76 / 0x280 - w * 0x46 / 0x280, h * 0xd2 / 0x1e0, C(0x519ecc), 9);
+    }
+    if (mode() != 10 && mode() != 12) {
+        int cx = r[2] / 2 + r[0];
+        Font_Print(0, Text_Get(0xfe), cx, h * 10 / 0x1e0 + h * 100 / 0x1e0, C(0x519ecc), 0x12);
+        if (!gm8(0x535b8c))   /* 0x40e8c0: the network board, 0x533900 */
+            Font_Print(0, Text_Get(0xfb), cx, h * 0x3c / 0x1e0 + h * 100 / 0x1e0, C(0x519ecc), 0x12);
+        else
+            for (int i = 0; i < 10; i++) {
+                uint32_t e = 0x533900 + 4 + 8u * (uint32_t)i;
+                int y = h * 100 / 0x1e0 + (h * 0x14 / 0x1e0) * (i + 3);
+                const char *name = (const char *)gm(e), *v = exe_str(0x519fb0);
+                if (!name[0]) name = exe_str(0x519fb4);
+                else snprintf(b, sizeof b, exe_str(0x517dd0), (int)gm32(e + 4)), v = b;
+                Font_Print(0, name, w * 0x1fe / 0x280, y, C(0x519ecc), 0x12);
+                Font_Print(0, v, w * 0x23a / 0x280, y, C(0x519ecc), 0x12);
+            }
+    }
+    Font_Print(2, Text_Get(0x56), w * 0x1e / 0x280, h * 0x43 / 0x1e0, C(0x519ecc), 0x11);
+    end_items(m, 1);
+}
+
+/* 0x449b60: the host ends the stage for everyone (the results' fade, 0x449090) */
+static void nquit_fn(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    Fade_OutIn(0, Results_NetDone, 1, 0, (int32_t)gm32(0x519ec8), true);
 }
 
 /* the fades' ends (0x449ea0, 0x449ee0, 0x449020): the race to the results state with the flag */
@@ -1107,17 +1361,51 @@ static void build_end(int param, Menu *parent, int16_t restart_text)
    time trial, back) and quit (0x5418d8: quit, back), each from its last item */
 static void build_questions(int16_t restart_text)
 {
-    Menu_Init(&pg_restart, NULL, 0, &pg_end, false, NULL, 1, 0, 1);
+    Menu *back = Gs_ModeBit19() ? &pg_nend : &pg_end;
+    Menu_Init(&pg_restart, NULL, 0, back, false, NULL, 1, 0, 1);
     Menu_AddPage(&pg_restart, NULL, restart_text, NULL, restart_fn, 1000);
     if (mode() == 2 || mode() == 3) Menu_AddPage(&pg_restart, NULL, 0x8b, NULL, service_fn, 0x3e9);
     Menu_AddBack(&pg_restart, NULL, 0xa6, NULL, -1);
     Menu_SetCallbacks(&pg_restart, last_enter, NULL, draw_end, NULL);
     Menu_Reset(&pg_restart);
-    Menu_Init(&pg_quit, NULL, 0, &pg_end, false, NULL, 1, 0, 1);
+    Menu_Init(&pg_quit, NULL, 0, back, false, NULL, 1, 0, 1);
     Menu_AddPage(&pg_quit, NULL, 0xa8, NULL, quit_fn, 1000);
     Menu_AddBack(&pg_quit, NULL, 0xaa, NULL, -1);
     Menu_SetCallbacks(&pg_quit, last_enter, NULL, draw_end, NULL);
     Menu_Reset(&pg_quit);
+}
+
+/* 0x44b0d0: the network game's choices after `parent`: the chat line (id 0x3eb) first. Param 1 (a
+   rally before its end): the host's on (0x1f), restart (the question) and the stage ended for all
+   (0xf6, its question 0x5408a0); everyone's quit (the question). Else the host's restart (not in mode
+   12), at the service area (modes 9 and 10) and the stage ended for all; a guest's in mode 10 restart
+   and at the service area; everyone's quit. The restart items' text is the mode's. */
+static void build_nend(int param, Menu *parent, int16_t restart_text)
+{
+    Menu_Init(&pg_nend, NULL, 0, parent, false, NULL, 1, 0, 1);
+    Menu_AddAction(&pg_nend, NULL, -1, NULL, 0x3eb);
+    if (param) {
+        if (Net_IsHost()) {
+            Menu_AddAction(&pg_nend, NULL, 0x1f, continue_fn, -1);
+            Menu_AddPage(&pg_nend, NULL, restart_text, &pg_restart, NULL, 1000);
+            Menu_AddPage(&pg_nend, NULL, 0xf6, &pg_nquit, NULL, -1);
+        }
+        Menu_AddPage(&pg_nend, NULL, 0x2d, &pg_quit, NULL, -1);
+    } else {
+        if (!Net_IsHost()) {
+            if (mode() == 10) {
+                Menu_AddPage(&pg_nend, NULL, restart_text, NULL, restart_fn, 1000);
+                Menu_AddPage(&pg_nend, NULL, 0x8b, NULL, service_fn, 0x3e9);
+            }
+        } else {
+            if (mode() != 12) Menu_AddPage(&pg_nend, NULL, restart_text, NULL, restart_fn, 1000);
+            if (mode() == 9 || mode() == 10) Menu_AddPage(&pg_nend, NULL, 0x8b, NULL, service_fn, 0x3e9);
+            Menu_AddPage(&pg_nend, NULL, 0xf6, NULL, nquit_fn, -1);
+        }
+        Menu_AddPage(&pg_nend, NULL, 0xa8, NULL, quit_fn, -1);
+    }
+    Menu_SetCallbacks(&pg_nend, nend_enter, nend_frame, draw_nend, NULL);
+    Menu_Reset(&pg_nend);
 }
 
 /* 0x449100's end-of-rally pages and 0x44a1b0's way through them in a rally: at a stage before the
@@ -1320,7 +1608,29 @@ void Results_Start(bool again)
         Menu_SetCallbacks(&pg_chal, NULL, NULL, draw_chal, NULL);
         Menu_Reset(&pg_chal);
     }
-    if (mode() >= 8) PENDING_NOTE(0x44a1b0, "the results' pages of the other modes");
+    /* the network game's pages (0x449100) */
+    Menu_Init(&pg_net, NULL, 0, NULL, false, NULL, 1, 0, 0);
+    Menu_AddList(&pg_net, NULL, 0, 8, 0, false, to_target, 0);
+    Menu_SetCallbacks(&pg_net, net_enter, NULL, draw_net, NULL);
+    Menu_Init(&pg_trial, NULL, 0, NULL, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_trial, NULL, 0, NULL, NULL, 0);
+    Menu_SetCallbacks(&pg_trial, NULL, NULL, draw_trial, NULL);
+    Menu_Init(&pg_nrally, NULL, 0, &pg_net, false, NULL, 1, 0, 0);
+    Menu_AddList(&pg_nrally, NULL, 0, 0xb, 0, false, to_target, 0);
+    Menu_SetCallbacks(&pg_nrally, net_enter, NULL, draw_nrally, NULL);
+    Menu_Init(&pg_npoints, NULL, 0, &pg_nrally, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_npoints, NULL, 0, NULL, NULL, 0);
+    Menu_SetCallbacks(&pg_npoints, NULL, NULL, draw_npoints, NULL);
+    Menu_Init(&pg_ncirc, NULL, 0, NULL, false, NULL, 1, 0, 0);
+    Menu_AddPage(&pg_ncirc, NULL, 0, NULL, NULL, 0);
+    Menu_SetCallbacks(&pg_ncirc, NULL, NULL, draw_ncirc, NULL);
+    Menu *pages[] = {&pg_net, &pg_trial, &pg_nrally, &pg_npoints, &pg_ncirc};
+    for (size_t i = 0; i < sizeof pages / sizeof *pages; i++) Menu_Reset(pages[i]);
+    Menu_Init(&pg_nquit, NULL, 0, &pg_nend, false, NULL, 1, 0, 1);
+    Menu_AddPage(&pg_nquit, NULL, 0xf6, NULL, nquit_fn, 1000);
+    Menu_AddBack(&pg_nquit, NULL, 0xaa, NULL, -1);
+    Menu_SetCallbacks(&pg_nquit, last_enter, NULL, draw_end, NULL);
+    Menu_Reset(&pg_nquit);
     last_player = !Gs_ModeBit17() || Race_Base() == (int)Gs_Players() - 1;
     bool best, record = take_records(&best);
     if (Gs_SelBit28() && Gs_Bit30() && best) Ghost_TakeFrom(0);   /* the session's best into the ghost */
@@ -1334,8 +1644,41 @@ void Results_Start(bool again)
         if (ch_kind() == 1 || ch_kind() == 2) pg_title.items[0].target = &pg_order, pg_order.parent = &pg_title;
         else pg_times.items[0].target = &pg_order, pg_order.parent = &pg_times;
     }
+    /* the network game: the times (or the record's page) on to the stage's results (round a circuit
+       its own, in mode 10 the lobby's) */
+    if (Gs_ModeBit19()) {
+        Menu *x = Gs_SelBit24() ? &pg_ncirc : mode() == 10 ? &pg_trial : &pg_net;
+        Menu *from = record ? &pg_splits : &pg_times;
+        from->items[0].target = x;
+        x->parent = from;
+    }
     last_stage = false;
-    if (mode() == 0 || mode() == 1) {
+    if (mode() >= 8) {
+        /* 0x44a1b0's network cases: mode 8 the stage's results on to the rally's (at the last stage
+           its points), then the choices; mode 9 the results, 10 the lobby's, 11 and 12 the circuit's
+           on to the choices */
+        if (mode() == 8) {
+            pg_nrally.parent = &pg_net;
+            pg_net.items[0].target = &pg_nrally;
+            last_stage = (int)Tod_Stage() == Rally_LastStage(Tod_Rally(), 2);
+            if (last_stage) {
+                pg_nrally.items[0].target = &pg_npoints;
+                pg_npoints.parent = &pg_nrally;
+                pg_npoints.items[0].target = &pg_nend;
+                build_nend(0, &pg_npoints, 0x25);
+            } else {
+                pg_nrally.items[0].target = &pg_nend;
+                build_nend(1, &pg_nrally, 0x25);
+            }
+            build_questions(0x25);
+        } else {
+            Menu *x = mode() == 9 ? &pg_net : mode() == 10 ? &pg_trial : &pg_ncirc;
+            build_nend(0, x, 0x23);
+            x->items[0].target = &pg_nend;
+            if (mode() == 10) pg_trial.parent = &pg_times;
+            build_questions(0x23);
+        }
+    } else if (mode() == 0 || mode() == 1) {
         /* a rally: the board on to the rally's times (0x53e4d8), then the choices (0x53f028) */
         Menu_Init(&pg_rally, NULL, 0, &pg_board, false, NULL, 1, 0, 0);
         Menu_AddList(&pg_rally, NULL, 0, 0xb, 0, false, to_target, 0);
@@ -1422,7 +1765,7 @@ void Results_Start(bool again)
 }
 
 bool Results_Active(void) { return active; }
-bool Results_AtChoices(void) { return active && page == &pg_end; }
+bool Results_AtChoices(void) { return active && (page == &pg_end || page == &pg_nend); }
 void Results_Stop(void) { active = false; }
 
 /* 0x448e70: not while a fade runs; the select only in the super special; no back on the first page */

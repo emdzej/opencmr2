@@ -287,6 +287,8 @@ static void say(const char *text)
     Net_Send(0, false, msg, sizeof msg);
     Fe_NetChat(0, text, true);
 }
+void Fe_NetSay(const char *text) { say(text); }
+const char *Fe_NetChatRow(int i) { return (const char *)gm(gm32(0x817c84 + 4u * (uint32_t)i)); }   /* 0x4d06f0 */
 
 /* ---- the connection and session pages ---- */
 

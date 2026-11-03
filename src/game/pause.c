@@ -279,6 +279,18 @@ static void quit_fn(Menu *m, MenuItem *it)
     for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : quit_done, 1, 0, (int32_t)gm32(0x516090), true);
 }
 
+/* 0x4017e0: quit to the waiting room: each car's fade (the first's end 0x401720, as the exit's), the
+   host's leaderboard points and the results' go to the others (0x41b3a0, 0x427a10) */
+static void quit_net_fn(Menu *m, MenuItem *it)
+{
+    (void)m, (void)it;
+    for (int i = 0; i < Race_Cars(); i++) Fade_OutIn(i, i ? NULL : quit_done, 1, 0, (int32_t)gm32(0x516090), true);
+    if (Gs_ModeBit19() && Net_IsHost()) {
+        Net_StageBoards();
+        Net_SendResultsGo();
+    }
+}
+
 static void last_enter(Menu *m, bool back) { (void)back; m->sel = (int8_t)(m->n - 1); }   /* 0x403360 */
 
 /* the volumes (0x52afb8: music bits 0-6, effects 7-13, speech 14-20) */
@@ -734,7 +746,7 @@ void Pause_Build(void)
     Menu_Reset(&pg_restart);
     /* 0x403420: quit to the waiting room (network) */
     Menu_Init(&pg_quit_net, NULL, 0, &pg_main, false, NULL, 1, 0, 1);
-    Menu_AddAction(&pg_quit_net, NULL, 0xf6, NULL, 3);
+    Menu_AddAction(&pg_quit_net, NULL, 0xf6, quit_net_fn, 3);
     Menu_AddBack(&pg_quit_net, NULL, 0xa6, NULL, -1);
     Menu_SetCallbacks(&pg_quit_net, last_enter, NULL, draw_confirm, NULL);
     Menu_Reset(&pg_quit_net);

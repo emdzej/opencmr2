@@ -99,7 +99,7 @@ void Net_SendService(void)
 /* 0x41b3a0: the stage's leaderboard points (the host's, when a board is in use): the lobby's list again
    (0x40ad20); with a best time in the first row, a point to that row and to every row with the same
    best, none to the others; then every row with none (so each is on the board), and the board sent */
-static void stage_boards(void)
+void Net_StageBoards(void)
 {
     NetRec_Lobby();
     int k = Fe_BoardCurrent();
@@ -122,7 +122,7 @@ void Results_NetDone(int ch)
     if (Pause_Active()) Pause_End();   /* 0x404f20, 0x404ef0 */
     Race_EventAll(1, 3);
     if (Net_IsHost()) {
-        stage_boards();
+        Net_StageBoards();
         Net_SendResultsGo();
     }
     NetRec_Lobby();   /* 0x40ad20 */

@@ -13,6 +13,7 @@ void Net_SendReady(void);                        /* 0x427930: type 7 */
 void Net_SendFinished(int32_t time);             /* 0x427950: type 10, the time and the total with it */
 void Net_SendStageTime(int32_t k, int32_t t);    /* 0x427990: type 8 */
 void Net_SendLapTime(int32_t k, int32_t t);      /* 0x4279d0: type 9 */
+void Net_StageBoards(void);                      /* 0x41b3a0: the stage's leaderboard points, sent */
 void Net_SendResultsGo(void);                    /* 0x427a10: type 0xc */
 void Net_SendContinue(void);                     /* 0x427a30: type 0xd */
 void Net_SendRestart(void);                      /* 0x427a50: type 0xe */

@@ -1951,3 +1951,15 @@
 00500ba0	Sv_NetMessages	game	high	The service area's network messages
 00500a70	Sv_NetSysMessage	game	high	The service area's system messages
 00500aa0	Sv_NetMessage	game	high	The service area's player messages
+0044a1b0	Results_Start	game	high	The results pages by mode (the network game: 0x540c68, 0x5406b8, 0x53fd58, 0x541030, 0x53e2d8)
+0044b0d0	Results_BuildNetEnd	game	high	The network game's choices with the chat line (0x5416e0)
+0044e130	Results_DrawNet	game	high	The network stage results
+0044e830	Results_DrawNetTrial	game	high	The network time trial's lobby rows
+004505b0	Results_DrawNetRally	game	high	The network rally's results
+0044f8a0	Results_DrawNetPoints	game	high	The network rally's points
+00452430	Results_DrawNetCircuit	game	high	The network circuit results
+004541c0	Results_DrawNetEnd	game	high	The network choices: chat, leaderboard, items
+00449ca0	Results_NetListEnter	game	high	The network lists from the top
+00449ce0	Results_NetEndFrame	game	high	The network choices' typing
+00449b60	Results_NetEndStage	game	high	The host ends the stage for all
+004017e0	Pause_QuitNet	game	high	Quit to the waiting room (host: boards and the go)
