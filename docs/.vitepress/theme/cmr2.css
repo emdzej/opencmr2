@@ -274,3 +274,18 @@ a.VPLink:hover > .VPFeature {
 .shots figure { margin: 0; }
 .shots img { width: 100%; height: auto; border-radius: 6px; display: block; }
 .shots figcaption { font-size: 0.85em; color: var(--vp-c-text-2); margin-top: 6px; }
+
+/* The hero: the main menu's ribbon of letters (docs/public/hero.svg, made by tools/hero-svg.py); white
+   letters need no background. Still for reduced motion. */
+.VPHero .image-bg { display: none; }
+.VPHero .image-container { width: 340px; height: 255px; }
+.VPHero .image-src { max-width: 100% !important; max-height: 100% !important; }
+@media (min-width: 640px) {
+  .VPHero .image-container { width: 480px; height: 360px; }
+}
+@media (min-width: 960px) {
+  .VPHero .image-container { width: 560px; height: 420px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .VPHero .image-src { content: url("/hero-still.svg"); }
+}

@@ -4,7 +4,10 @@ layout: home
 hero:
   name: OpenCMR2
   text: Colin McRae Rally 2.0, reimplemented
-  tagline: "A faithful reimplementation of Colin McRae Rally 2.0 (Codemasters, 2000) in C11, ported function by function from the Windows game. It runs the game from your own CD, as one WebAssembly module for the gasm runtime, natively and in the browser. Every offline mode plays; the network game is next."
+  image:
+    src: /hero.svg
+    alt: "opencmr2: colin mcrae rally 2.0 reimplemented, the letters running round a curve as in the game's main menu"
+  tagline: "A faithful reimplementation of Colin McRae Rally 2.0 (Codemasters, 2000) in C11, ported function by function from the Windows game. It runs the game from your own CD, as one WebAssembly module for the gasm runtime, natively and in the browser. Every offline mode plays; the network game is being finished."
   actions:
     - theme: brand
       text: Play in the browser
