@@ -36,7 +36,7 @@
       Rally 2.0 CD</strong>. Nothing from the game is on this site, and nothing you pick leaves your
       computer.</p>
     <p class="lead small">Every offline mode plays: single stages, rallies and championships, the arcade,
-      time trials, the challenge and two players. The network game is not ported yet. See
+      time trials, the challenge and two players. The network game is not finished yet. See
       <a href="/guide/status">Status</a>.</p>
 
     <div class="cols">
@@ -92,6 +92,20 @@
           <p class="small" id="progress-text"></p>
         </div>
       </div>
+    </div>
+
+    <div class="card" id="saves">
+      <h2>Your saves</h2>
+      <p class="small" id="saves-desc">The options, driver profiles and replays are kept in this browser.</p>
+      <div class="row">
+        <button id="export-saves">Export saves (.zip)</button>
+        <button id="import-saves">Import saves</button>
+      </div>
+      <p class="small">To move them to another browser or computer. The zip holds one file per save, as
+        the desktop version keeps them (<code>&lt;data folder&gt;/gasm/opencmr2</code>, e.g.
+        <code>~/Library/Application Support/gasm/opencmr2</code> on macOS), so it works both ways.
+        Importing replaces the saves with the same names and keeps the others.</p>
+      <input id="saves-input" type="file" accept=".zip,.rcf,.pps,.grp,.dat,application/zip" multiple hidden>
     </div>
   </section>
 

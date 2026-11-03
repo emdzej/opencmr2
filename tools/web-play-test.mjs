@@ -192,6 +192,32 @@ try {
   await sleep(2000); // let a fresh profile settle
   const shot = await page.send('Page.captureScreenshot', { format: 'png' });   // the page as Chrome renders it
   writeFileSync(join(OUT, 'page.png'), Buffer.from(shot.result.data, 'base64'));
+  // Saves: import a zip made by the system's zip (deflated, in a folder, with a stray file), then export
+  // them again: the same bytes back, under the same names (made-up contents, not the game's).
+  {
+    const dir = mkdtempSync(join(tmpdir(), 'opencmr2-saves-'));
+    const driver = Buffer.alloc(3000); for (let i = 0; i < driver.length; i++) driver[i] = (i * 7) & 0xff;
+    const options = Buffer.alloc(300, 5);
+    mkdirSync(join(dir, 'opencmr2'));
+    writeFileSync(join(dir, 'opencmr2/pps_tester01020304.pps'), driver);
+    writeFileSync(join(dir, 'opencmr2/Configuration_GameInfo.rcf'), options);
+    writeFileSync(join(dir, 'opencmr2/not a save.txt'), 'x');
+    execFileSync('zip', ['-qr', 'saves.zip', 'opencmr2'], { cwd: dir });
+    await page.setFiles('#saves-input', [join(dir, 'saves.zip')]);
+    await page.until('/Kept in this browser: 1 driver profile and 2 files/.test(document.getElementById("saves-desc").textContent)', 10000);
+    const back = await page.evaluate(`(async () => {
+      const { saves } = globalThis.opencmr2Play;
+      const { blob } = await saves.exportSaves();
+      const files = await saves.unzip(await blob.arrayBuffer());
+      return JSON.stringify(files.map(([k, v]) => [k, Array.from(v)]));
+    })()`);
+    const got = new Map(JSON.parse(back));
+    const same = (k, b) => got.has(k) && Buffer.from(got.get(k)).equals(b);
+    const msg = await page.evaluate('document.getElementById("message").textContent');
+    report(got.size === 2 && same('pps_tester01020304.pps', driver) && same('Configuration_GameInfo.rcf', options) && /Skipped.*not a save\.txt/.test(msg),
+      'saves: import a zip, export it back', `${[...got.keys()].join(', ')}; ${msg}`);
+    rmSync(dir, { recursive: true, force: true });
+  }
 
   let imported = false;
   for (const c of CASES) {

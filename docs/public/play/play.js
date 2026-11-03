@@ -18,6 +18,7 @@ import { BrowserInput, ProcExit, Resampler } from './vendor/gasm/gasm-host.js';
 import { GasmWorker } from './vendor/gasm/gasm-worker.js';
 import { InputScript } from './vendor/gasm/input-script.js';
 import * as data from './data.js';
+import * as saves from './saves.js';
 
 const $ = (id) => document.getElementById(id);
 const query = new URLSearchParams(location.search);
@@ -208,6 +209,7 @@ function endGameView() {
   show('game', false);
   show('setup', true);
   refreshImported();
+  refreshSaves();
 }
 
 /** Start the game from 'opfs' (the imported data) or a checked source (read in place). */
@@ -430,12 +432,56 @@ async function refreshImported() {
   return info;
 }
 
+// ---- the saves: export / import (only from this page: it is hidden while a game runs) -------------
+async function refreshSaves() {
+  try {
+    const files = await saves.listSaves();
+    const drivers = files.filter(([k]) => /\.pps$/i.test(k)).length;
+    const replays = files.filter(([k]) => /\.grp$/i.test(k)).length;
+    const what = [`${drivers} driver profile${drivers === 1 ? '' : 's'}`];
+    if (replays) what.push(`${replays} replay${replays === 1 ? '' : 's'}`);
+    $('saves-desc').textContent = files.length
+      ? `Kept in this browser: ${what.join(', ')} and ${files.length} file${files.length === 1 ? '' : 's'} in all.`
+      : 'Nothing saved in this browser yet.';
+    $('export-saves').disabled = !files.length;
+  } catch (e) {
+    $('saves-desc').textContent = `The browser's storage can't be read: ${e.message}`;
+    $('export-saves').disabled = $('import-saves').disabled = true;
+  }
+}
+$('export-saves').onclick = async () => {
+  try {
+    const { blob, files } = await saves.exportSaves();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `opencmr2-saves-${new Date().toISOString().slice(0, 10)}.zip`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    message(`Exported ${files} file${files === 1 ? '' : 's'} as ${a.download}.`);
+  } catch (e) { message(`Could not export the saves: ${e.message}`, 'error'); }
+};
+$('import-saves').onclick = () => { message(''); $('saves-input').click(); };
+$('saves-input').onchange = async () => {
+  const picked = [...$('saves-input').files];
+  $('saves-input').value = '';
+  if (!picked.length) return;
+  if (running) return message('Stop the game before importing saves.', 'warn');
+  try {
+    const r = await saves.importSaves(picked);
+    const skip = r.skipped.length ? ` Skipped (not a save): ${r.skipped.join(', ')}.` : '';
+    if (r.imported.length) message(`Imported ${r.imported.join(', ')}.${skip}`);
+    else message(`Nothing to import.${skip}`, 'warn');
+  } catch (e) { message(`Could not import the saves: ${e.message}`, 'error'); }
+  refreshSaves();
+};
+
 if (!hasOpfs) message('This browser has no private file storage (OPFS), so the game data can\'t be imported. Play without importing works.', 'warn');
 if (typeof Worker === 'undefined' || typeof WebAssembly === 'undefined') message('This browser can\'t run OpenCMR2 (it needs WebAssembly and Web Workers).', 'error');
 else if (!hasGl || !hasOffscreen) message('This browser can\'t run OpenCMR2: it needs WebGL 2 and OffscreenCanvas.', 'error');
+refreshSaves();
 const ready = refreshImported();
 ready.then((info) => {
   globalThis.__opencmr2Ready = true;
   if (info && query.has('autoplay')) play('opfs');
 });
-globalThis.opencmr2Play = { play, stopGame, refreshImported, framePng, data };
+globalThis.opencmr2Play = { play, stopGame, refreshImported, refreshSaves, framePng, data, saves };

@@ -29,6 +29,12 @@ what is inside. Then:
 Nothing is uploaded: the files are read in your browser. Options and saves are kept in the browser's
 storage for this site (IndexedDB).
 
+The desktop version keeps the options, the controller set-up, the driver profiles and the replays as one
+file each in `<data folder>/gasm/opencmr2` (`~/Library/Application Support/gasm/opencmr2` on macOS).
+**Export saves** on the [play page](/play/) gives a zip of the same files, and **Import saves** takes
+such a zip (or the files themselves), so saves move between browsers and to or from the desktop
+version. Importing replaces the saves with the same names and keeps the others.
+
 ## While playing
 
 The game reads the keyboard with the original's default keys: the cursor keys and <kbd>Enter</kbd> in the
