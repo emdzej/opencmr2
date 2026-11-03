@@ -74,7 +74,7 @@ Every data file is gzip + `CMPR` + payload, and most payloads are archives with 
 
 VitePress in `docs/` (pnpm: `cd docs && pnpm install && pnpm build`), published to
 https://opencmr2.emdzej.pl by `.github/workflows/pages.yml` (CNAME in `docs/public/CNAME`). Theme
-`docs/.vitepress/theme/cmr2.css` (the game's menus: sage, mint, white, red). **No emojis**, no
+`docs/.vitepress/theme/cmr2.css` (the game's menus: sage, mint, white; red only on the logo's dots and warnings, not links or buttons). **No emojis**, no
 version menu. The site is the product's: the guide, the how-tos and the player. `docs/re/` (the
 reverse-engineering notes), `docs/formats/` and `docs/internals/` are internal, excluded from the site
 (`srcExclude`): don't link to them from published pages. Don't overstate the state (`docs/guide/status.md`); don't host or link copies of the game. The
