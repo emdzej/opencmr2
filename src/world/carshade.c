@@ -240,7 +240,7 @@ void CarShade_Mark(const Obj *o, const uint8_t *mesh)
 void CarShade_Begin(void)
 {
     if (!g_tre_have) return;
-    if (!vb) vb = D3dVB_Create(FVF_MODEL, VB_VERTS);
+    if (!vb && (vb = D3dVB_Create(FVF_MODEL, VB_VERTS))) vb->stream = true;
     vbp = vb ? D3dVB_Lock(vb) : NULL;   /* (flags 0x21) */
     nverts = 0, nruns = 0;
     last_tex = last_pass = 0xffffffffu;

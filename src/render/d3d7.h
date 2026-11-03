@@ -98,6 +98,8 @@ typedef struct {
     bool dirty;
     bool sized;             /* the back end's buffer holds `count` (later uploads are ranges) */
     uint32_t lo, hi;        /* the vertices changed since the upload (D3dVB_UnlockRange; all on Unlock) */
+    bool stream;            /* written anew each frame: an upload replaces the back end's buffer with
+                               the vertices up to `hi` (a port setting; D3D's DISCARD lock in effect) */
 } D3dVB;
 
 /* The device's state, as the back end reads it. */

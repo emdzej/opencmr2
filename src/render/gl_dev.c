@@ -835,7 +835,10 @@ static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts
         if (vb->dirty) {
             /* the whole buffer once, then only the vertices changed since (a mesh's colours: the
                ghost's fade rewrote whole pool buffers each frame) */
-            if (!vb->sized) {
+            if (vb->stream) {
+                /* new storage, so no wait for the frames still drawing from the old */
+                if (vb->hi) glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)vb->hi * stride, vb->data, GL_STREAM_DRAW);
+            } else if (!vb->sized) {
                 glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)vb->count * stride, vb->data, GL_STATIC_DRAW);
                 vb->sized = true;
             } else if (vb->hi > vb->lo)

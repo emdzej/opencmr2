@@ -27,6 +27,7 @@ void Poly_Init(void)
 void Poly_CreateVB(void)
 {
     if (!vb) vb = D3dVB_Create(FVF_MODEL, POLY_VERTS);
+    if (vb) vb->stream = true;
 }
 
 void Poly_FreeVB(void)
@@ -95,10 +96,13 @@ static void set_flags(uint32_t f)
     Render_SetCull(f & POLY_NOCULL ? 1 : Render_DefaultCull());
 }
 
-/* The buffer is locked at the start and the runs written from its start; a change of texture or flags
-   unlocks, draws the run so far, locks again (without discarding) and sets the new state. The state
-   starts as texture "1" and flags -1, so the first triangle always sets it. The last run is drawn with
-   the last triangle's state set again. */
+/* The original locks the buffer at the start and writes the runs from its start; a change of texture
+   or flags unlocks, draws the run so far, locks again (without discarding) and sets the new state. The
+   state starts as texture "1" and flags -1, so the first triangle always sets it. The last run is drawn
+   with the last triangle's state set again. The port writes the whole bucket once, one run after the
+   other, and draws each run from where it lies: rewriting the start of a buffer that the frame's earlier
+   draws still read made the GL driver wait at every change of state (the skid marks on grass, their
+   textures alternating, stalled the frame). The draws, their states and their order are the same. */
 void Poly_Flush(uint32_t bucket)
 {
     Poly *q;
@@ -107,35 +111,28 @@ void Poly_Flush(uint32_t bucket)
     else if (bucket & 0x10) { q = q10; n = n10; n10 = 0; }
     else if (bucket & 0x20) { q = q20; n = n20; n20 = 0; }
     else { q = q40; n = n40; n40 = 0; }
-    if (vb) {
+    if (vb && n) {
         float *dst = D3dVB_Lock(vb);
-        uint32_t nv = 0;
+        for (uint32_t i = 0; i < n; i++) memcpy(dst + (size_t)i * 36, q[i].v, sizeof q[i].v);
+        D3dVB_UnlockRange(vb, 0, 3 * n);
+        uint32_t start = 0;
         const Tex *tex = (const Tex *)(uintptr_t)1;
         uint32_t flags = 0xffffffffu;
         for (uint32_t i = 0; i < n; i++) {
             const Poly *p = &q[i];
             if (p->tex != tex || p->flags != flags) {
-                D3dVB_UnlockRange(vb, 0, nv);
-                if (nv) {
-                    D3d_DrawPrimitiveVB(D3DPT_TRIANGLELIST, vb, 0, nv, 0);
-                    nv = 0;
-                }
-                dst = D3dVB_Lock(vb);
+                if (3 * i > start) D3d_DrawPrimitiveVB(D3DPT_TRIANGLELIST, vb, start, 3 * i - start, 0);
+                start = 3 * i;
                 if (p->tex != tex) set_state(p);
                 if (p->flags != flags) set_flags(p->flags);
                 tex = p->tex;
                 flags = p->flags;
             }
-            memcpy(dst + (size_t)nv * 12, p->v, sizeof p->v);
-            nv += 3;
             Twod_CountPrims(1);
         }
-        D3dVB_UnlockRange(vb, 0, nv);
-        if (nv) {
-            set_state(&q[n - 1]);
-            set_flags(q[n - 1].flags);
-            D3d_DrawPrimitiveVB(D3DPT_TRIANGLELIST, vb, 0, nv, 0);
-        }
+        set_state(&q[n - 1]);
+        set_flags(q[n - 1].flags);
+        D3d_DrawPrimitiveVB(D3DPT_TRIANGLELIST, vb, start, 3 * n - start, 0);
     }
     Tex_Bind(0, NULL);
     Render_ZEnable(1);
