@@ -9,6 +9,7 @@
 #include "fixmath.h"
 #include "font.h"
 #include "bfl.h"
+#include "render/display.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
 #include "sim/car.h"
@@ -33,9 +34,9 @@ static int16_t dial_w, dial_h;            /* 0x519d0c, 0x519d0e (0x519d08 the so
 static int32_t seen_w, seen_h = -1;       /* 0x53ce5c, 0x519dec */
 static int32_t aspect;                    /* DAT_0053ce40 */
 
-/* the original's tests for a 1,024-wide mode with the texture memory (0x405c10, 0x4b7560, 0x4b7590);
-   the port mounts Com640 (Bfl_MountCommon), so the 640 sizes */
-static bool hires(void) { return false; }
+/* the original's tests for a 1,024-wide mode with the texture memory (0x405c10, 0x4b7560, 0x4b7590),
+   the Com1024 art's sizes */
+static bool hires(void) { return Disp_HiRes(); }
 
 static const uint8_t *col(uint32_t a)
 {

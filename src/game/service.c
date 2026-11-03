@@ -19,6 +19,7 @@
 #include "game/proc.h"
 #include "game/timer.h"
 #include "game/weather.h"
+#include "render/display.h"
 #include "render/mesh.h"
 #include "pending.h"
 #include "render/d3d7.h"
@@ -213,7 +214,7 @@ static void fade_clear(bool in)
 static void mount(void)
 {
     char p[260];
-    uint32_t res = 0x280;   /* 1,024 with the texture memory: the port's device stays at 640 */
+    uint32_t res = Disp_HiRes() ? 0x400 : 0x280;
     snprintf(p, sizeof p, exe_str(0x529794), Path_SetupRep(), res);
     Bfl_Mount(&common, p);
     uint32_t day_n = stage() >> 2;

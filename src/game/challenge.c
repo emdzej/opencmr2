@@ -17,6 +17,7 @@
 #include "game/select.h"
 #include "fe/fe.h"
 #include "game/tween.h"
+#include "render/display.h"
 #include "render/d3d7.h"
 #include "render/rstate.h"
 #include "render/tex.h"
@@ -63,9 +64,8 @@ static bool player(uint32_t d) { return Player_Driver((int)(d & 0x1f)) == -1; } 
 static uint32_t side_a(uint32_t m) { return gm32(m) & 0x1f; }
 static uint32_t side_b(uint32_t m) { return gm32(m) >> 5 & 0x1f; }
 
-/* the original's tests for a 1,024-wide mode with the texture memory (0x405c10, 0x4b7560, 0x4b7590):
-   the port's device has one mode */
-static bool hires(void) { return false; }
+/* the original's tests for a 1,024-wide mode with the texture memory (0x405c10, 0x4b7560, 0x4b7590) */
+static bool hires(void) { return Disp_HiRes(); }
 
 /* a round's matches and their count */
 static uint32_t round_at(uint32_t k, int *n)

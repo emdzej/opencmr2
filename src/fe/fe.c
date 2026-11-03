@@ -23,7 +23,9 @@
 #include "game/weather.h"
 #include "game/timer.h"
 #include "pending.h"
+#include "platform.h"
 #include "render/d3d7.h"
+#include "render/display.h"
 #include "render/mesh.h"
 #include "render/rstate.h"
 #include "render/twod.h"
@@ -80,21 +82,19 @@ Tex *Fe_Texture(const BflSlot *arc, uint32_t fmt, const char *arg)
 
 static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }
 
-/* 0x4d21e0: the 640 (or 1,024) resolution archives: FrontEnd\Res640.bfl, and the language's
-   CountrySpecific\<region>\FERes640<E or P>.bfl */
-static void mount_res(void)
+/* 0x4d21e0: the resolution's archives: FrontEnd\Res640.bfl, and the language's
+   CountrySpecific\<region>\FERes640<E or P>.bfl (Res1024 and FERes1024 for a 1,024 mode) */
+void Fe_MountRes(void)
 {
-    int w, h;
-    screen(&w, &h);
-    if (w > 0x3ff) PENDING_NOTE(0x4b7560, "0x4d21e0 (the 1,024 archives with the texture memory)");
+    bool hi = Disp_HiRes();
     char p[260];
     Bfl_Unmount(&res);
-    Path_Format(p, sizeof p, 0x523e24, Path_FrontEnd());   /* 0x4a9700: no compressed textures */
+    Path_Format(p, sizeof p, hi ? 0x523e44 : 0x523e24, Path_FrontEnd());   /* 0x4a9700: no compressed textures */
     Bfl_Mount(&res, p);
     Bfl_Unmount(&res_lang);
     uint32_t lang = gm32(0x52ea54);
     int c = lang <= 2 ? 'E' : 'P';
-    Path_Format(p, sizeof p, 0x523dd0, Path_Country(), exe_str(exe_u32(0x516124 + 4 * lang)), c);
+    Path_Format(p, sizeof p, hi ? 0x523df8 : 0x523dd0, Path_Country(), exe_str(exe_u32(0x516124 + 4 * lang)), c);
     Bfl_Mount(&res_lang, p);
 }
 
@@ -105,7 +105,7 @@ static void mount_all(void)
     char p[260];
     Path_Format(p, sizeof p, 0x51a0f0, Path_FrontEnd());
     Bfl_Mount(&common, p);
-    mount_res();
+    Fe_MountRes();
     const char *region = exe_str(exe_u32(0x516124 + 4 * gm32(0x52ea54)));
     static const uint32_t europe[5] = {0x523ec8, 0x523ea0, 0x523e78, 0x523e8c, 0x523e64};
     static const int europe_slot[5] = {0, 1, 4, 2, 3};   /* 0x818200, 0x81820c, 0x818230, 0x818218, 0x818224 */
@@ -149,13 +149,20 @@ static void make_scene(void)
 static bool game_init(bool first)
 {
     if (first) {
+        /* the device on the settings' mode (0x405c00-0x405c60; 0x4a78a0); the port's --param
+           mode=<w>x<h>x<bits> sets them first */
+        char md[32];
+        int mw, mh, mb;
+        if (plat_param("mode", md, sizeof md) && sscanf(md, "%dx%dx%d", &mw, &mh, &mb) == 3)
+            gw32(0x52afc4, (uint32_t)mw), gw32(0x52afc8, (uint32_t)mh), gw32(0x52afcc, (uint32_t)mb);
+        Disp_Open((int)gm32(0x52afc4), (int)gm32(0x52afc8), (int)gm32(0x52afcc));
         Sprite_Init();
         Tri_Init();
     }
     mount_all();
     int w, h;
     screen(&w, &h);
-    ncopyright = 3;   /* 4 at 1,024 with the texture memory */
+    ncopyright = Disp_HiRes() ? 4 : 3;
     make_scene();
     Render_SetDefaultCull(3);
     static const uint8_t white[4] = {0xff, 0xff, 0xff, 0xff};

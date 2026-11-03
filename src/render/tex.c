@@ -472,6 +472,23 @@ void Tex_Reload(Tex *t)
     }
 }
 
+/* 0x4a4c40: after a new device, every record that is no copy made again from its archive under its
+   name, .DDS first then .TGA (0x520b3c, 0x520b44), so the front end's take the resolution's archive.
+   (The original then restores the vertex buffers, 0x4a76d0; the port's survive the device.) The port's
+   surfaces survive it too: a record whose archive no longer has it keeps its surface, where the
+   original's would be lost. */
+void Tex_ReloadAll(void)
+{
+    for (int i = 0; i < g_tex_count && i < TEX_MAX; i++) {
+        Tex *t = g_tex[i];
+        if (!t || t->index != i || !t->archive || !t->archive->loaded) continue;
+        uint32_t size = 0;
+        put_ext(t->name, 0x520b3c);
+        if (!Bfl_FindTextureMember(t->archive, t->name, &size)) put_ext(t->name, 0x520b44);
+        if (Bfl_FindTextureMember(t->archive, t->name, &size)) Tex_Reload(t);
+    }
+}
+
 void Tex_FreeAll(void)
 {
     Tex_FreeCopies();

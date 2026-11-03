@@ -1506,7 +1506,7 @@ void fe_4d50a0(Menu *m)
     int w, h;
     screen(&w, &h);
     int16_t fw = 0x12, fh = 0xc;
-    if (gm32(0x52afc4) > 0x3ff) fw = 0x1c, fh = 0x12;   /* 0x405c10; the port's textures allow 1,024 */
+    if (gm32(0x52afc4) > 0x3ff) fw = 0x1c, fh = 0x12;   /* 0x405c10 */
     const char *names[4] = {Text_Get(0xb), Text_Get(0x59), Player_Name(0), Text_Get(m->text)};
     Fe_TitleRow(title_x(), title_y(), names, 4);
     Fe_Header();

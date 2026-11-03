@@ -44,8 +44,11 @@ menus, <kbd>Esc</kbd> to go back, and to pause on a stage.
 | Look back | <kbd>R</kbd> | keypad <kbd>7</kbd> |
 
 Game controllers work through the browser's gamepad support. The keys and controllers are set up in the
-game's own options, as in the original. The game draws at the size it is shown: use
-**Fullscreen** (or double-click) for the full resolution. Holding <kbd>Esc</kbd> for a second stops the
+game's own options, as in the original. The game draws at the display mode chosen in Options,
+Graphics, Advanced Graphics, Display Mode (640 x 480 to 2048 x 1536, 640 x 480 by default, as the
+original). The picture is scaled to the size it is shown at: a larger mode is sharper, a smaller one
+faster. From 1024 x 768 the game uses its high-resolution menus and dash. Use **Fullscreen** (or
+double-click) for the largest picture. Holding <kbd>Esc</kbd> for a second stops the
 game; in fullscreen the browser takes <kbd>Esc</kbd> to leave fullscreen first. The line under the game
 shows the frames per second.
 

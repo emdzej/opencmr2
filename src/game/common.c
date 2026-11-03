@@ -5,6 +5,7 @@
 #include "exe.h"
 #include "font.h"
 #include "text.h"
+#include "render/display.h"
 #include "render/d3d7.h"
 #include "pending.h"
 #include <stdio.h>
@@ -30,10 +31,7 @@ void Bfl_MountCommon(void)
        one per mode-word low bits 0x4057f0), the region's directory (0x516124) */
     uint32_t lang = gm32(0x52ea54), slot = gm32(0x52afb4) & 7;
     static const uint32_t sp[4] = {0x519fbc, 0x519fd0, 0x519fdc, 0x519fe0}, tx[4] = {0x519fe4, 0x519ff8, 0x51a004, 0x51a008};
-    int w, h;
-    D3d_ScreenSize(&w, &h);
-    uint32_t res = 0x280;
-    if (w > 0x3ff) PENDING_NOTE(0x4b7560, "Bfl_MountCommon (Com1024 with the texture memory)");
+    uint32_t res = Disp_HiRes() ? 0x400 : 0x280;
     /* 0x4a9700: compressed textures in use, not in the port's device */
     char p[160];
     snprintf(p, sizeof p, "Game\\Bigfiles\\Com%u.bfl", res);

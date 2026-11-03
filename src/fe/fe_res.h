@@ -23,6 +23,7 @@ void Fe_LoadTextures(void);      /* 0x4e2e50 */
 bool Fe_LoadSounds(void);        /* 0x4f3b50 */
 void Fe_MenuSounds(void);        /* 0x4f3bb0 */
 bool Fe_LoadFonts(void);         /* 0x4f4d20 */
+void Fe_ReloadFonts(void);       /* 0x4f4d80 */
 bool Fe_LoadText(void);          /* 0x4f4b90 */
 void Fe_LoadCredits(void);       /* 0x4f4910 */
 int Fe_Credits(const FeCredit **lines);

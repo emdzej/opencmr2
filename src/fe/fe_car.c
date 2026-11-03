@@ -11,6 +11,7 @@
 #include "game/mem.h"
 #include "game/profile.h"
 #include "game/select.h"
+#include "render/display.h"
 #include "render/d3d7.h"
 #include "render/twod.h"
 #include "text.h"
@@ -170,7 +171,7 @@ void fe_4d7db0(Menu *m)
 {
     int w, h;
     screen(&w, &h);
-    uint32_t rects = 0x524a28;   /* 0x524ad8 at 1,024 with the texture memory */
+    uint32_t rects = Disp_HiRes() ? 0x524ad8 : 0x524a28;
     Fe_Header();
     char who[64], name[16] = "";
     Fe_PlayerTitle(who, sizeof who);

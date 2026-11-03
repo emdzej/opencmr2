@@ -21,6 +21,7 @@ FeScroll *Fe_Scroll(int k);   /* 0x4f24f0 (0), 0x4f2500 (2), 0x4f2510 (3), 0x4f2
    lower case, the slide at rest on the selection */
 void Scroll_Measure(FeScroll *s, Menu *m);
 uint32_t Scroll_Update(FeScroll *s);   /* 0x4f37c0 */
+void Fe_ScrollWidths(void);                        /* 0x4ef190 */
 void Strip_Draw(FeScroll *s, bool lit);            /* 0x4d2cd0 */
 void Strip_DrawMain(Menu *m, bool lit, const char *hint);   /* 0x4d45b0 (scroller 0) */
 void Fe_Hint(const char *s, bool steady);          /* 0x4d4460 */

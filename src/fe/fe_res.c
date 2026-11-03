@@ -84,9 +84,8 @@ void Fe_MenuSounds(void)
 
 /* 0x4f4d20: four slots, general\hel_12pt, hel_15pt, hel_36pt and dot (20 bytes apart from 0x525b9c),
    from Res640.bfl */
-bool Fe_LoadFonts(void)
+static void load_fonts(void)
 {
-    Font_InitSlots(4);
     for (int i = 0; i < 4; i++) {
         const char *n = exe_str(0x525b9c + 0x14u * (uint32_t)i);
         const char *b = strrchr(n, '\\');
@@ -94,8 +93,17 @@ bool Fe_LoadFonts(void)
         if (b && (size_t)(b - n) < sizeof dir) memcpy(dir, n, (size_t)(b - n)), dir[b - n] = 0;
         Font_LoadSlot(dir, b ? b + 1 : n, Fe_Res(), i);
     }
+}
+
+bool Fe_LoadFonts(void)
+{
+    Font_InitSlots(4);
+    load_fonts();
     return true;
 }
+
+/* 0x4f4d80: the same four again into their slots, from the archive mounted now */
+void Fe_ReloadFonts(void) { load_fonts(); }
 
 /* 0x4f4b90: f<language>.txt from each language's text archive, one table of 533 strings each */
 bool Fe_LoadText(void)

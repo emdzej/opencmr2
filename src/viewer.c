@@ -12,6 +12,7 @@
 #include "c3d.h"
 #include "image.h"
 #include "platform.h"
+#include "render/display.h"
 #include "render/d3d7.h"
 #include "render/light.h"
 #include "render/mesh.h"
@@ -196,7 +197,9 @@ static void host_draw(int player, int state)
                  CI32(c, 0x778) / 65536.0 * 25.0 * 3.6, state < 14 ? what[state] : "");
     Render_SetClearColour(0x30, 0x40, 0x58);
     Render_ClearTarget();
-    int32_t r[4] = {0, 0, 640, 480};
+    int sw, sh;
+    D3d_ScreenSize(&sw, &sh);
+    int32_t r[4] = {0, 0, sw, sh};
     D3d_Clear(1, r, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
     /* the race camera (game/camera.c) sets the camera object's matrix; it hangs under nothing */
     V.camera.world = V.camera.local;
@@ -212,7 +215,9 @@ static void host_draw(int player, int state)
     Weather_Draw(player);   /* 0x460330, as play.c */
     title();
     Race_DrawOverlays(player);
-    static const int16_t full[4] = {0, 0, 640, 480};
+    int fw, fh;
+    D3d_ScreenSize(&fw, &fh);
+    const int16_t full[4] = {0, 0, (int16_t)fw, (int16_t)fh};
     World_Render(&V.camera, full, 0, true);
 }
 static Obj *host_camera(int player)
@@ -226,8 +231,12 @@ bool viewer_init(const char *car, const char *stage)
 {
     char path[128], tex[128];
     /* the device and the vertex buffers first: loading a model fills the buffers (C3d_Build) */
-    if (!D3d_Open(640, 480, 32)) return false;
-    Render_InitStates();
+    /* --param mode=<w>x<h>x<bits>: the display mode, as the game's settings */
+    char md[32];
+    int mw = 640, mh = 480, mb = 32;
+    if (plat_param("mode", md, sizeof md)) sscanf(md, "%dx%dx%d", &mw, &mh, &mb);
+    gw32(0x52afc4, (uint32_t)mw), gw32(0x52afc8, (uint32_t)mh), gw32(0x52afcc, (uint32_t)mb);
+    if (!Disp_Open(mw, mh, mb)) return false;
     VB_CreatePool();
     if (stage) {
         /* Game\Tracks\<country>\<stage>Hi.bfl, the country's textures in <ccc>hit.bfl beside it */
@@ -271,6 +280,8 @@ bool viewer_init(const char *car, const char *stage)
             if (id >= 0) gw32(0x531350, (gm32(0x531350) & ~0x3fu) | (uint32_t)id);
             char g[16];
             if (plat_param("gears", g, sizeof g) && !strcmp(g, "manual")) gw32(0x52fa5c, gm32(0x52fa5c) & ~0x20u);
+            char o[16];   /* --param gfx=<hex>: the render options (g_render_opts), for timing them */
+            if (plat_param("gfx", o, sizeof o)) g_render_opts = (uint32_t)strtoul(o, NULL, 16);
             Race_Begin(&race_host);
         }
     }
@@ -358,10 +369,12 @@ static void invert_rigid(const D3DMATRIX *v, D3DMATRIX *o)
 static void title(void)
 {
     static const uint8_t band[4] = {0, 0, 0, 0x90}, white[4] = {255, 255, 255, 255};
-    int32_t a0[2] = {0, 8 << 16}, a1[2] = {640 << 16, 8 << 16}, a2[2] = {0, 34 << 16}, a3[2] = {640 << 16, 34 << 16};
+    int sw, sh;
+    D3d_ScreenSize(&sw, &sh);
+    int32_t a0[2] = {0, 8 << 16}, a1[2] = {sw << 16, 8 << 16}, a2[2] = {0, 34 << 16}, a3[2] = {sw << 16, 34 << 16};
     Tri_Add(a0, a1, a2, band, 1);
     Tri_Add(a1, a3, a2, band, 1);
-    Font_Print(0, V.title, 320, 12, white, 2);
+    Font_Print(0, V.title, sw / 2, 12, white, 2);
     if (V.car) {
         Render_AlphaBlend(1);
         Tri_Flush(1);
@@ -412,7 +425,9 @@ void viewer_frame(void)
     D3d_SetTransform(D3DTS_VIEW, &view);
     Render_SetClearColour(0x30, 0x40, 0x58);
     Render_ClearTarget();
-    int32_t r[4] = {0, 0, 640, 480};
+    int sw, sh;
+    D3d_ScreenSize(&sw, &sh);
+    int32_t r[4] = {0, 0, sw, sh};
     D3d_Clear(1, r, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
     if (V.car) {
         D3d_BeginScene();
@@ -472,7 +487,9 @@ void viewer_frame(void)
         Obj_Frame(&g_world, &V.camera);
         if (!V.parked) snprintf(V.title, sizeof V.title, "%s  %d of %d cells in view", V.name, g_nvisible, g_nsec);
         title();
-        static const int16_t full[4] = {0, 0, 640, 480};
+        int fw, fh;
+        D3d_ScreenSize(&fw, &fh);
+        const int16_t full[4] = {0, 0, (int16_t)fw, (int16_t)fh};
         World_Render(&V.camera, full, 0, true);
     }
     D3d_Present();

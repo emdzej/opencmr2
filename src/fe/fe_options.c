@@ -2,11 +2,13 @@
    advanced graphics. */
 #include "fe/fe.h"
 #include "fe/fe_page.h"
+#include "fe/fe_res.h"
 #include "fe/fe_strip.h"
 #include "fe/pages.h"
 #include "font.h"
 #include "game/mem.h"
 #include "render/d3d7.h"
+#include "render/display.h"
 #include "render/tex.h"
 #include "render/twod.h"
 #include "exe.h"
@@ -326,21 +328,12 @@ void fe_4e1890(Menu *m)
 
 /* ---- the graphics card (0x81c7d8) and the display mode (0x81cb98) ----
    The original lists DirectDraw's devices (0x663b18 of them, names at 0x6634d8, 0xa0 apart) and the
-   chosen one's modes (0x663b28, at 0x6631f8, 12 bytes each). The port has one device and one mode,
-   its 640x480 at 32 bits; choosing either re-opens the same, so the display's reset and the
-   textures' reload (0x4a9a50, 0x4a78a0, 0x4d21e0, 0x4a4c40, 0x4f4d80, 0x4ef190) change nothing and
-   are left out. */
+   chosen one's modes (render/display.c). The port has one device. */
 
 static const char *device_name(int i) { (void)i; return "OpenGL ES 3"; }   /* 0x4a8bf0 */
-static int modes_count(void) { return 1; }                                 /* 0x4a8f10 */
-static int mode_current(void) { return 0; }                                /* 0x4a8eb0 */
-static void mode_get(int i, int *w, int *h, int *bpp)                      /* 0x4a8f20 */
-{
-    (void)i;
-    screen(w, h);
-    const D3dState *st = D3d_State();
-    *bpp = st ? st->bpp : 32;
-}
+static int modes_count(void) { return Disp_Modes(); }                       /* 0x4a8f10 */
+static int mode_current(void) { return Disp_CurrentMode(); }                /* 0x4a8eb0 */
+static void mode_get(int i, int *w, int *h, int *bpp) { Disp_Mode(i, w, h, bpp); }   /* 0x4a8f20 */
 
 /* the graphics settings back to their defaults after a new device or mode (the end of 0x4f2210) */
 static void graphics_defaults(void)
@@ -359,6 +352,21 @@ static void graphics_defaults(void)
     draw_dist_kept = 1;
 }
 
+/* the new device's part of 0x4f2210 and 0x4f2430: 0x4a9a50(1), the display lost (input and sounds
+   held, the clock stopped; the port's display changes between two frames, so nothing is held), the
+   device on the mode (0x4a78a0, on the device chosen: 0x4a8d80, 0x405bd0), the settings what it took
+   (0x405c20-0x405c60), the resolution's archives, textures and fonts again, the scrollers' widths */
+static void new_display(int w, int h, int bpp)
+{
+    Disp_Open(w, h, bpp);
+    screen(&w, &h);
+    gw32(0x52afc4, (uint32_t)w), gw32(0x52afc8, (uint32_t)h), gw32(0x52afcc, (uint32_t)D3d_State()->bpp);
+    Fe_MountRes();      /* 0x4d21e0 */
+    Tex_ReloadAll();    /* 0x4a4c40 */
+    Fe_ReloadFonts();   /* 0x4f4d80 */
+    Fe_ScrollWidths();  /* 0x4ef190 */
+}
+
 /* 0x4f21c0: a row per device, the current one (0x52afd0 bits 5-8) chosen; those not hardware off */
 void fe_4f21c0(Menu *m, bool back)
 {
@@ -373,9 +381,9 @@ void fe_4f2210(Menu *m, MenuItem *it)
 {
     (void)it;
     gw32(0x52afd0, (gm32(0x52afd0) & 0xfffffe1fu) | ((uint32_t)m->sel & 0xf) << 5);
-    int w, h, bpp;
-    mode_get(mode_current(), &w, &h, &bpp);
-    gw32(0x52afc4, (uint32_t)w), gw32(0x52afc8, (uint32_t)h), gw32(0x52afcc, (uint32_t)bpp);   /* 0x405c20-0x405c60 */
+    int w, h;
+    screen(&w, &h);
+    new_display(w, h, D3d_State()->bpp);   /* (0x4a8bd0: the device chosen, the port's one) */
     graphics_defaults();
     Menu_Goto(m->parent);
 }
@@ -429,7 +437,8 @@ void fe_4f2430(Menu *m, MenuItem *it)
     int w, h, bpp;
     mode_get(m->items[0].value, &w, &h, &bpp);
     gw32(0x52afc4, (uint32_t)w), gw32(0x52afc8, (uint32_t)h), gw32(0x52afcc, (uint32_t)bpp);
-    Menu_Goto(m->parent);
+    new_display(w, h, bpp);
+    Menu_Goto(m->parent);   /* (0x4a9a50(0): the display back; 0x4a0ad0) */
 }
 
 /* 0x4e1d70: the scroll bar (a faint track, the visible part brighter) and up to ten modes

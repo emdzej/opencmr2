@@ -19,6 +19,7 @@
 #include "game/timer.h"
 #include "render/dlight.h"
 #include "render/d3d7.h"
+#include "render/display.h"
 #include "render/mesh.h"
 #include "render/rstate.h"
 #include <stdio.h>
@@ -54,9 +55,7 @@ bool app_init(void)
     }
     /* the display (WinMain 0x4a9720's set-up: 640 x 480, the render states, the vertex buffers) */
     gl_dev_register();
-    if (!D3d_Open(640, 480, 32)) return false;
-    Render_InitStates();
-    Dlight_Restore();   /* 0x4b2e50, in the device's set-up 0x4a78a0 */
+    if (!Disp_Open(640, 480, 32)) return false;   /* 0x4a78a0 */
     VB_CreatePool();
     playing = true;
     return true;

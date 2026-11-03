@@ -1882,3 +1882,14 @@
 004d0700	Fe_NetSay	fe	high	Message 0: the local chat line sent and shown
 004081d0	Fe_RallyWeathers	fe	high	The rally's distinct weathers (0x52ea74) and their count (0x52eab8)
 004a1490	Net_FoundName	net	high	A found session's name
+004a78a0	Disp_Open	render	high	The modes listed, the device made on the one asked for (640x480 when not listed), the states and lights
+004a8da0	Disp_EnumMode	render	high	DirectDraw's mode callback: at least 640x480, 16 or 32 bits, three buffers in video memory
+004a8ec0	Disp_SelectMode	render	high	The current mode the one matching width, height and bits
+004a8eb0	Disp_CurrentMode	render	high	DAT_00663b2c
+004a8f10	Disp_Modes	render	high	DAT_00663b28: the modes listed
+004a8f20	Disp_Mode	render	high	A mode's width, height and bits (0x6631f8, 12 bytes each)
+004a8f60	Disp_HasMode	render	high	Whether a mode is listed
+004a4c40	Tex_ReloadAll	render	high	Every record (not the copies) from its archive again, .DDS then .TGA; the vertex buffers restored
+004f4d80	Fe_ReloadFonts	fe	high	The four front-end fonts into their slots again
+004d21e0	Fe_MountRes	fe	high	Res640 or Res1024 and the language's FERes archive
+004ef190	Fe_ScrollWidths	fe	high	Every scroller's widths again

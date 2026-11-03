@@ -16,6 +16,7 @@ void Game_SetMode(uint32_t m);   /* 0x4057e0 */
 
 /* the front end's archives: Res640.bfl (0x818250, 0x4d21a0), sFERes640_c.bfl (0x818260, 0x4d21b0),
    Common.bfl (0x818240, 0x4d2190), the languages' text archives (0x818200, 12 bytes apart, 0x4d21c0) */
+void Fe_MountRes(void);   /* 0x4d21e0: Res640 or Res1024 and the language's FERes */
 BflSlot *Fe_Res(void);
 BflSlot *Fe_ResLang(void);
 BflSlot *Fe_Common(void);

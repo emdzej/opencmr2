@@ -24,7 +24,7 @@ static uint32_t idle_since;   /* DAT_0081904c */
 static void screen(int *w, int *h) { D3d_ScreenSize(w, h); }
 
 /* 0x4ef190: every scroller's widths again (after a language change) */
-static void remeasure_all(void)
+void Fe_ScrollWidths(void)
 {
     for (int k = 0; k < 12; k++) {
         FeScroll *s = Fe_Scroll(k);
@@ -76,7 +76,7 @@ void fe_4ef270(Menu *m, bool back)
     Fe_LoadCredits();
     gw32(0x52afb8, (gm32(0x52afb8) & 0x7fffffffu) | (uint32_t)((gm32(0x52afb4) & 7) == 0) << 31);   /* 0x405ec0 */
     Fe_DifficultyNames();
-    remeasure_all();
+    Fe_ScrollWidths();
     if (!m->parent) Fe_BuildControllers();
     Menu_SetParent(m, &pg_81f118);
     for (int i = 0; i < m->n; i++) Menu_SetTarget(m, (int16_t)i, &pg_81f118);

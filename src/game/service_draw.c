@@ -12,6 +12,7 @@
 #include "game/profile.h"
 #include "game/timer.h"
 #include "pending.h"
+#include "render/display.h"
 #include "render/d3d7.h"
 #include "render/tex.h"
 #include "render/twod.h"
@@ -255,10 +256,10 @@ static void list_panel(int n, int sel, int kind, int x, int y, bool lit)
     int p = Sv_Player(), cls = Sv_CarClass();
     for (int i = 0; i < n; i++) {
         if (t_arrow) {
-            /* the 640 textures (the 1,024 ones with the texture memory and both 0x4b7560 and 0x4b7590:
-               10, 14, 13) */
+            /* the 1,024 textures' offsets, or the 640's */
             int16_t base = (int16_t)(sh * 0x18 / 0x3c0 + r[1]);
-            arrow[1] = (int16_t)(base - 6), tick[1] = (int16_t)(base - 9), mark[1] = (int16_t)(base - 8);
+            bool hi = Disp_HiRes();
+            arrow[1] = (int16_t)(base - (hi ? 10 : 6)), tick[1] = (int16_t)(base - (hi ? 14 : 9)), mark[1] = (int16_t)(base - (hi ? 13 : 8));
         }
         bool off = false;
         char b[160];

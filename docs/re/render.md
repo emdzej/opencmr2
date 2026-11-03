@@ -302,6 +302,41 @@ When `0x5210c0` is 0, lights 1 and 2 are then switched off again.
   `Mesh_Draw` (without the reflection pass, off by default), `Light_SetMode`. The batch pointers the
   original keeps in the mesh record are indices into the port's pool there.
 
+### Display
+
+`render/display.c` is the adapter. The original asks DirectDraw for the chosen device's modes
+(`0x4a78a0`). Its callback `0x4a8da0` keeps a mode when:
+- it is at least 640 x 480;
+- it has 16 or 32 bits (32 only on a hardware device; windowed, any depth, else only the desktop's);
+- three buffers of it fit the video memory less the textures' share.
+
+The modes are kept at `0x6631f8` (width, height, bits; 12 bytes each), with the count at `0x663b28`
+and the current one at `0x663b2c`. A mode that is not listed falls back to 640 x 480 at the desktop's
+depth.
+
+The port's adapter offers a card of the time's 4:3 and 5:4 sizes, from 320 x 240 to 2048 x 1536, in 8, 16
+and 32 bits, and applies the same rules with 64 MB, which leaves 640 x 480 to 2048 x 1536 in 16 and 32
+bits. The back end draws the back buffer at the mode's own size and scales it to the drawable. The
+mode is the player's trade of detail for speed, as on the original's display.
+
+Changing the mode on the display page (`0x4f2430`) or the card (`0x4f2210`) does the following:
+- makes the device again (`0x4a78a0`);
+- stores what it took in the settings (`0x405c20`-`0x405c60`);
+- remounts the resolution's front-end archives (`0x4d21e0`);
+- reloads every texture from its archive (`0x4a4c40`) and the four fonts (`0x4f4d80`);
+- measures the scrollers again (`0x4ef190`).
+
+`Game_Init` (`0x4d08d0`) opens the settings' mode at start-up.
+
+Over 1,023 pixels across, with 1,024-texel textures in the caps (`0x405c10`, `0x4b7560`,
+`0x4b7590`; `Disp_HiRes`), the game takes its 1,024 art:
+- the archives Res1024, FERes1024, Com1024 and the service area's 1024 set;
+- the dash's sizes and lit table, and the challenge tree's offsets;
+- the co-driver arrows' rectangles at `0x517e70`, the car page's at `0x524ad8`;
+- the service list's arrow offsets, and four copyright screens.
+
+`--param mode=<w>x<h>x<bits>` sets the settings' mode before start-up (and the viewer's).
+
 ### Caps
 
 The game branches on the device caps it reads at start. The port emulates one hardware T&L card. So far

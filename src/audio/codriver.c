@@ -15,6 +15,7 @@
 #include "game/hud.h"
 #include "game/sectors.h"
 #include "game/pause.h"
+#include "render/display.h"
 #include "render/d3d7.h"
 #include "render/tex.h"
 #include "render/twod.h"
@@ -304,10 +305,7 @@ void Codriver_LoadArrows(void)
     snprintf(b, sizeof b, "%s%s", exe_str(0x516a50), exe_str(0x517eb0));   /* 0x40ed50, "%s%s" 0x517d98 */
     uint8_t found;
     arrows = Bfl_FindTexture(Bfl_Com(), b, &found, false, 0);   /* 0x4552a0 */
-    int w, h;
-    D3d_ScreenSize(&w, &h);
-    if (w > 0x3ff) PENDING_NOTE(0x4b7560, "Codriver_LoadArrows (the 1,024 rectangles with the texture memory)");
-    arrow_rects = 0x517e30;
+    arrow_rects = Disp_HiRes() ? 0x517e70 : 0x517e30;
 }
 
 /* Notes_Arrow 0x418580: a call's arrow, the rectangle by the severity (8 the first, 7, 5 and 6, 4,

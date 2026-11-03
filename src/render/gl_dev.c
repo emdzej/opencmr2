@@ -6,8 +6,8 @@
    Conventions (as OpenNFSPU's): the render target keeps Direct3D's rows (top first) and is flipped at
    present; pixel centres are on integer coordinates (+0.5); a transformed-and-lit vertex goes through
    Direct3D's viewport mapping to the same screen coordinates as a pre-transformed one, in a form linear
-   in clip space so that GL's clipping stays exact. The mode is drawn at an integer multiple and scaled to
-   the drawable. */
+   in clip space so that GL's clipping stays exact. The mode is drawn at its own size, as the original's
+   display, and scaled to the drawable (the mode chosen is the player's trade of detail for speed). */
 #include "render/d3d7.h"
 #include "platform.h"
 #include <GLES3/gl3.h>
@@ -279,13 +279,10 @@ static GLuint program(const char *vs, const char *fs)
 
 static bool gl_open(int width, int height, int bpp)
 {
-    int dw, dh;
-    plat_display_size(&dw, &dh);
     mw = width;
     mh = height;
     mbpp = bpp;
-    scale = dw > 0 && dh > 0 ? (dw / width < dh / height ? dw / width : dh / height) : 1;
-    if (scale < 1) scale = 1;
+    scale = 1;   /* (the back buffer at a multiple of the mode: kept as a factor, the mode itself) */
     if (!prog) {
         prog = program(VS, FS);
         present_prog = program(PVS, PFS);

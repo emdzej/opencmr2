@@ -53,5 +53,6 @@ void Tex_FreeCopies(void);             /* 0x4a5ba0 */
 uint32_t Tex_LastBlend(void);   /* DAT_00520b18: the last blend type set up (-1: none) */
 uint32_t Tex_Binds(void);       /* DAT_0065fa24: texture binds (statistics) */
 void Tex_Reload(Tex *t);         /* 0x4a5da0 */
+void Tex_ReloadAll(void);        /* 0x4a4c40: every record (not the copies) from its archive again */
 void Tex_SetKeepBodf(bool on);  /* 0x4a3dc0: DAT_00520b14 */
 void Tex_ForgetBlend(void);     /* 0x4a3dd0: the last blend type back to -1 */
