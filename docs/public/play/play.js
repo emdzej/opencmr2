@@ -70,6 +70,7 @@ const browserKey = (e) => e.metaKey || (e.ctrlKey && !/^(Control|Shift)/.test(e.
 let escDown = 0;
 addEventListener('keydown', (e) => {
   if (!running || typing(e)) return;
+  resumeAudio();
   if (e.code === 'Escape') { if (!e.repeat) escDown = performance.now(); return; }
   if (!browserKey(e)) e.preventDefault();
 });
@@ -137,6 +138,12 @@ function startAudio() {
   }
   audioCtx?.resume();
 }
+// A browser may suspend the context later (Safari "interrupts" it when another app or tab takes the
+// audio device, or after the page was hidden): resume it when the page is shown again or on the next
+// key or click, which count as the user gesture it needs.
+function resumeAudio() { if (audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {}); }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resumeAudio(); });
+addEventListener('pointerdown', resumeAudio);
 function onAudio(samples, rate, channels) {
   if (!audioNode) return;
   const out = resampler.process(samples, rate, channels);

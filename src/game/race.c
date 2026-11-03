@@ -242,6 +242,21 @@ static void Race_Update(uint8_t state, bool flag)
                 }
             }
         }
+        /* the demo's way out: in its state (13), a key or button held (0x49e940) or a character typed
+           (0x4b7cd0; the queue emptied once first, 0x537f8c, 0x4b7c80) ends car 0's run (0x46d2a0)
+           and sends every process to the results with the exit asked (0x41f2a0) */
+        if (gm8(0x52ea52) && car0 && state == 13) {
+            if (gm32(0x537f8c)) {
+                Input_FlushChars();
+                gw32(0x537f8c, 0);
+            }
+            int ch;
+            if (Input_HeldAll() || Input_NextChar(&ch)) {
+                Replay_End(Race_Replay(0));
+                for (uint32_t i = 0; i < R.group.n; i++) Proc_Event(&R.group, i, 1, 3);
+                Pause_Ask(false, false, true);
+            }
+        }
         for (uint32_t i = 0; i < np; i++) {
             if (!Car_Get((int)i)->s[0xb43]) continue;
             if (flag) player_step((int)i);   /* 0x41d0c0 */
