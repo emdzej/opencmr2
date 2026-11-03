@@ -43,7 +43,7 @@ void VB_FreePool(void)
         g_vb_fill[i] = 0;
     }
     Poly_FreeVB();
-    for (uint32_t i = 0; i < npool; i++) free(pool[i].idx);
+    for (uint32_t i = 0; i < npool; i++) D3dIndexList_Free(&pool[i].list), free(pool[i].idx);
     free(pool);
     pool = NULL;
     npool = cap = 0;
@@ -231,8 +231,9 @@ static void draw_batches(uint8_t *part, bool tex10)
         Batch *x = batch(part, k);
         if (tex10) Tex_SetBlend(tex_at(x->tex), 10);
         Tex_Bind(0, tex_at(x->tex));
-        D3d_DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, part_vb(part), rd32(part + 0x18) + x->min,
-                                   rd32(part + 0x10) - x->min, x->idx, x->count, 0);
+        if (!x->list.idx) x->list.idx = x->idx, x->list.count = x->count;
+        D3d_DrawIndexedPrimitiveVBList(D3DPT_TRIANGLELIST, part_vb(part), rd32(part + 0x18) + x->min,
+                                       rd32(part + 0x10) - x->min, &x->list, 0);
         g_polys_drawn += x->count / 3;
     }
 }

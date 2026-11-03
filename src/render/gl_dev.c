@@ -822,7 +822,7 @@ static void attribs(uint32_t fvf, uint32_t stride, uintptr_t base)
 }
 
 static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts, uint32_t nverts,
-                    const uint16_t *indices, uint32_t nindices, D3dVB *vb, uint32_t first)
+                    const uint16_t *indices, uint32_t nindices, D3dVB *vb, uint32_t first, D3dIndexList *list)
 {
     if (!fbo[1]) return;
     static const GLenum mode[7] = {GL_POINTS, GL_POINTS, GL_LINES, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN};
@@ -855,7 +855,15 @@ static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts
         glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)nverts * stride, verts, GL_STREAM_DRAW);
         attribs(fvf, stride, 0);
     }
-    if (indices && nindices) {
+    if (list && nindices) {
+        /* a fixed list: its own buffer, filled once */
+        if (!list->gl) {
+            glGenBuffers(1, &list->gl);
+            bind_buffer(GL_ELEMENT_ARRAY_BUFFER, list->gl);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)nindices * 2, indices, GL_STATIC_DRAW);
+        } else bind_buffer(GL_ELEMENT_ARRAY_BUFFER, list->gl);
+        glDrawElements(mode[prim], (GLsizei)nindices, GL_UNSIGNED_SHORT, (const void *)0);
+    } else if (indices && nindices) {
         bind_buffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)nindices * 2, indices, GL_STREAM_DRAW);
         glDrawElements(mode[prim], (GLsizei)nindices, GL_UNSIGNED_SHORT, (const void *)0);
@@ -988,6 +996,12 @@ static void gl_texture_free(D3dTexture *t)
     t->glw = t->glh = 0;
 }
 
+static void gl_list_free(D3dIndexList *l)
+{
+    if (sh.ibuf == l->gl + 1) sh.ibuf = 0;
+    glDeleteBuffers(1, &l->gl);
+}
+
 static void gl_vb_free(D3dVB *vb)
 {
     if (vb->gl) glDeleteBuffers(1, &vb->gl);
@@ -1016,6 +1030,6 @@ static void gl_read(int x, int y, int w, int h, uint8_t *rgba)
 }
 
 static const D3dBackend gl_backend = {gl_open, gl_draw, gl_clear, gl_present, gl_texture_upload,
-                                      gl_texture_free, gl_vb_free, gl_read};
+                                      gl_texture_free, gl_vb_free, gl_read, gl_list_free};
 
 void gl_dev_register(void) { D3d_SetBackend(&gl_backend); }

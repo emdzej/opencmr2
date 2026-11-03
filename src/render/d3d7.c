@@ -194,13 +194,19 @@ static uint32_t prims(uint32_t prim, uint32_t n)
     }
 }
 
-static void draw(uint32_t prim, uint32_t fvf, const void *v, uint32_t nv, const uint16_t *idx, uint32_t ni,
-                 D3dVB *vb, uint32_t first)
+static void draw_list(uint32_t prim, uint32_t fvf, const void *v, uint32_t nv, const uint16_t *idx, uint32_t ni,
+                      D3dVB *vb, uint32_t first, D3dIndexList *list)
 {
     if (prim < D3DPT_POINTLIST || prim > D3DPT_TRIANGLEFAN || !nv) return;
     stats.draws++;
     stats.prims += prims(prim, idx ? ni : nv);
-    if (be) be->draw(&st, (int)prim, fvf, v, nv, idx, ni, vb, first);
+    if (be) be->draw(&st, (int)prim, fvf, v, nv, idx, ni, vb, first, list);
+}
+
+static void draw(uint32_t prim, uint32_t fvf, const void *v, uint32_t nv, const uint16_t *idx, uint32_t ni,
+                 D3dVB *vb, uint32_t first)
+{
+    draw_list(prim, fvf, v, nv, idx, ni, vb, first, NULL);
 }
 
 void D3d_DrawPrimitive(uint32_t prim, uint32_t fvf, const void *verts, uint32_t n, uint32_t flags)
@@ -224,6 +230,19 @@ void D3d_DrawIndexedPrimitiveVB(uint32_t prim, D3dVB *vb, uint32_t first, uint32
                                 const uint16_t *indices, uint32_t nindices, uint32_t flags)
 {
     if (vb && first + nverts <= vb->count) draw(prim, vb->fvf, vb->data, nverts, indices, nindices, vb, first);
+}
+
+void D3d_DrawIndexedPrimitiveVBList(uint32_t prim, D3dVB *vb, uint32_t first, uint32_t nverts, D3dIndexList *l,
+                                    uint32_t flags)
+{
+    (void)flags;
+    if (vb && l && first + nverts <= vb->count) draw_list(prim, vb->fvf, vb->data, nverts, l->idx, l->count, vb, first, l);
+}
+
+void D3dIndexList_Free(D3dIndexList *l)
+{
+    if (l && l->gl && be && be->list_free) be->list_free(l);
+    if (l) l->gl = 0;
 }
 
 D3dVB *D3dVB_Create(uint32_t fvf, uint32_t count)

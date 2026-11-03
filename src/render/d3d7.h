@@ -102,6 +102,15 @@ typedef struct {
                                the vertices up to `hi` (a port setting; D3D's DISCARD lock in effect) */
 } D3dVB;
 
+/* A list of indices that never changes (a port setting: Direct3D 7 takes the indices with each draw):
+   the back end keeps it in a buffer of its own, made at its first draw, instead of uploading it each
+   time (the cars' cube maps drew some 850 mesh batches a frame, each a new upload). */
+typedef struct {
+    const uint16_t *idx;
+    uint32_t count;
+    unsigned gl;            /* the back end's buffer */
+} D3dIndexList;
+
 /* The device's state, as the back end reads it. */
 typedef struct {
     uint32_t rs[D3DRS_COUNT];
@@ -122,7 +131,7 @@ typedef struct {
 typedef struct {
     bool (*open)(int width, int height, int bpp);
     void (*draw)(const D3dState *s, int prim, uint32_t fvf, const void *verts, uint32_t nverts,
-                 const uint16_t *indices, uint32_t nindices, D3dVB *vb, uint32_t first);
+                 const uint16_t *indices, uint32_t nindices, D3dVB *vb, uint32_t first, D3dIndexList *list);
     void (*clear)(const D3dState *s, int x0, int y0, int x1, int y1, uint32_t flags, uint32_t colour,
                   float z, uint32_t stencil);
     void (*present)(void);
@@ -131,6 +140,7 @@ typedef struct {
     void (*vb_free)(D3dVB *vb);
     /* the back buffer's pixels in x, y, w, h of the mode (rows from the top), RGBA */
     void (*read)(int x, int y, int w, int h, uint8_t *rgba);
+    void (*list_free)(D3dIndexList *l);
 } D3dBackend;
 
 struct D3dTexture {
@@ -175,6 +185,10 @@ void D3d_DrawIndexedPrimitive(uint32_t prim, uint32_t fvf, const void *verts, ui
 void D3d_DrawPrimitiveVB(uint32_t prim, D3dVB *vb, uint32_t first, uint32_t n, uint32_t flags);       /* 0x7c */
 void D3d_DrawIndexedPrimitiveVB(uint32_t prim, D3dVB *vb, uint32_t first, uint32_t nverts,
                                 const uint16_t *indices, uint32_t nindices, uint32_t flags);          /* 0x80 */
+/* D3d_DrawIndexedPrimitiveVB with a fixed index list (see D3dIndexList) */
+void D3d_DrawIndexedPrimitiveVBList(uint32_t prim, D3dVB *vb, uint32_t first, uint32_t nverts, D3dIndexList *l,
+                                    uint32_t flags);
+void D3dIndexList_Free(D3dIndexList *l);   /* the back end's buffer (the indices stay the owner's) */
 void D3d_SetTexture(uint32_t stage, D3dTexture *t);                 /* 0x8c */
 void D3d_SetTextureStageState(uint32_t stage, uint32_t tss, uint32_t value);   /* 0x94 */
 void D3d_LightEnable(uint32_t i, bool on);                          /* 0xb0 */

@@ -18,6 +18,7 @@ typedef struct {
     uint32_t min, max;       /* +0x08, +0x0c: their vertex range */
     uint32_t count;          /* +0x10: indices */
     uint16_t *idx;           /* +0x14: rebased by min */
+    D3dIndexList list;       /* (the port's: idx kept on the device, made at the first draw) */
 } Batch;
 
 extern D3dVB *g_vb[VB_POOL];       /* PTR_DAT_00520b78 + 0x18 */
