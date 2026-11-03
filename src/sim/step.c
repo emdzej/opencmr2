@@ -11,6 +11,8 @@
 #include "sim/drivetrain.h"
 #include "sim/gearbox.h"
 #include "sim/grip.h"
+#include "sim/pose.h"
+#include "sim/aerials.h"
 #include "sim/damage.h"
 #include "sim/sim.h"
 #include "fixmath.h"
@@ -264,4 +266,152 @@ void Sim_StepCars(const int16_t *list, int n)
         for (uint32_t o = 0x5c4; o < 0x5dc; o += 4) CW32(c, o, 0);
     }
     for (int i = n - 1; i >= 0; i--) car_cell(Car_Get(list[i]));
+}
+
+/* 0x4458d0: the body lifted out of (or dropped onto) the ground by its corners: the largest gap of a
+   corner below its ground (+0x8dc.. less +0x274..), else the smallest of those above it, none when
+   all sit on it; the body's height and the eight corners' moved by it */
+static int32_t corner_lift(const Car *c)
+{
+    int32_t up = 0, down = -0x3e80000;
+    bool any_up = false, any_down = false;
+    for (int k = 7; k >= 0; k--) {
+        int32_t d = CI32(c, 0x8dc + 4 * (uint32_t)k) - CI32(c, 0x274 + 12 * (uint32_t)k);
+        if (d >= 0 && up < d) any_up = true, up = d;
+        if (d < 1 && down < d) any_down = true, down = d;
+    }
+    return any_up ? up : any_down ? down : 0;
+}
+
+static void lift_by(Car *c, int32_t d)
+{
+    CW32(c, 0x2d4, CI32(c, 0x2d4) + d);
+    for (uint32_t k = 0; k < 8; k++) CW32(c, 0x274 + 12 * k, CI32(c, 0x274 + 12 * k) + d);
+}
+
+/* the wheels' and the body's last steps moved on (as Net_PoseCar's): with `snap` every record from the
+   present (+0x270, +0x2d0), else from the one before */
+static void shift_records(Car *c, bool snap)
+{
+    for (uint32_t w = 0; w < 4; w++) {
+        for (uint32_t k = 0; k < 3; k++) {
+            uint32_t o = 12 * w + 4 * k;
+            CW32(c, 0x330 + o, CI32(c, (snap ? 0x270 : 0x300) + o));
+            CW32(c, 0x300 + o, CI32(c, 0x270 + o));
+        }
+        CW16(c, 0xabe + 2 * w, (uint16_t)CI16(c, 0xaae + 2 * w));
+    }
+    for (uint32_t w = 0; w < 8; w++) {
+        for (uint32_t k = 0; k < 3; k++) CW32(c, 0x504 + 12 * w + 4 * k, CI32(c, 0x4a4 + 12 * w + 4 * k));
+        CW32(c, 0xbbc + 4 * w, 0);
+    }
+    CW32(c, 0x7a8, CI32(c, 0x7a4));
+    for (uint32_t k = 0; k < 3; k++) {
+        CW32(c, 0x2f4 + 4 * k, CI32(c, (snap ? 0x2d0 : 0x2e8) + 4 * k));
+        CW32(c, 0x2e8 + 4 * k, CI32(c, 0x2d0 + 4 * k));
+        CW32(c, 0x498 + 4 * k, CI32(c, 0x48c + 4 * k));
+    }
+    for (uint32_t k = 0; k < 9; k++) CW32(c, 0x384 + 4 * k, CI32(c, 0x360 + 4 * k));
+}
+
+/* 0x444c10: the step of the cars moved from outside (the network game's others, +0xc18), last to
+   first: without a new pose this step (+0xc20) their records moved on and the pose taken from the
+   frame; the engine speed the velocity's length, the corners' velocities the body's, the steering
+   held, the drive speed the velocity along the car times 4, the gear the highest whose revs are
+   within the limit; the corners on the ground, the contacts and the wheels' load. With a new pose: on
+   the ground (not loose, +0xc00) the car set upright on the ground's normal (row 0 square to it, row
+   2 their cross), else as it is; lifted onto the ground by its corners plus +0x960 (at least 0), and
+   the frame put at the place. After a snap (+0xbf8) every record from the present and the corner
+   impulses (+0x6e4) cleared. Then upright or not (+0xb74), the wheels' spin cleared, the grip, the
+   travel, the suspension, the body's pose and the cell. Last, the aerials (0x484e00). */
+void Sim_SimpleStep(const CarList *l)
+{
+    for (int i = l->n - 1; i >= 0; i--) {
+        Car *c = Car_Get(l->car[i]);
+        int32_t extra = CI32(c, 0x960) < 0 ? 0 : CI32(c, 0x960);
+        if (!CI32(c, 0xc20)) {
+            shift_records(c, false);
+            for (uint32_t k = 0; k < 3; k++) {
+                CW32(c, 0x2d0 + 4 * k, CI32(c, 0x30 + 4 * k));   /* 0x4bac40 */
+                CW32(c, 0x360 + 4 * k, CI32(c, 4 * k));          /* 0x4bac60 */
+                CW32(c, 0x36c + 4 * k, CI32(c, 0x10 + 4 * k));   /* 0x4bac80 */
+                CW32(c, 0x378 + 4 * k, CI32(c, 0x20 + 4 * k));   /* 0x4baca0 */
+            }
+            Car_BoxCorners(c);
+        }
+        int32_t v[3] = {CI32(c, 0x408), CI32(c, 0x40c), CI32(c, 0x410)};
+        CW32(c, 0x778, Fx_Sqrt((uint32_t)fx_mul(v[0], v[0]) + (uint32_t)fx_mul(v[1], v[1]) + (uint32_t)fx_mul(v[2], v[2])));
+        for (uint32_t o = 0x42c; o < 0x48c; o += 0xc)
+            for (uint32_t k = 0; k < 3; k++) CW32(c, o + 4 * k, v[k]);
+        CW16(c, 0xb14, (uint16_t)CI16(c, 0xb10));
+        CW16(c, 0xb12, (uint16_t)CI16(c, 0xb14));
+        CW32(c, 0x958, 0);
+        CW32(c, 0xb5c, 0);
+        int32_t along = (fx_mul(CI32(c, 0x368), v[2]) + fx_mul(CI32(c, 0x360), v[0]) + fx_mul(CI32(c, 0x364), v[1])) * 4;
+        for (uint32_t k = 0; k < 4; k++) CW32(c, 0x860 + 4 * k, along);
+        CW32(c, 0x7a4, 0);
+        CW8(c, 0xb1e, 0);
+        for (uint32_t g = 0; g < 8; g++) {
+            int32_t t = fx_mul(CI32(c, 0x860), CI32(c, 0x7bc + 4 * g));
+            if (CI32(c, 0x7a4) < t && t <= CI32(c, 0x794)) CW32(c, 0x7a4, t), CW8(c, 0xb1e, (uint8_t)g);
+        }
+        CW32(c, 0x7ac, CI32(c, 0x7a4));
+        CW32(c, 0xb60, 0);
+        Car_CornerGround(c, 8);
+        Car_Contacts(c);
+        Car_WheelLoad(c);
+        Car_GroundNormal(c);
+        if (CI32(c, 0xc20)) {
+            if (!CI32(c, 0xc00)) {
+                int32_t up[3] = {CI32(c, 0x48c), CI32(c, 0x490), CI32(c, 0x494)};
+                for (uint32_t k = 0; k < 3; k++) CW32(c, 0x36c + 4 * k, up[k]);
+                int32_t f[3] = {CI32(c, 0x360), CI32(c, 0x364), CI32(c, 0x368)};
+                int32_t dot = fx_mul(f[2], up[2]) + fx_mul(f[0], up[0]) + fx_mul(f[1], up[1]);
+                for (int k = 0; k < 3; k++) f[k] -= fx_mul(up[k], dot);
+                Vec_Unit(f);
+                for (uint32_t k = 0; k < 3; k++) CW32(c, 0x360 + 4 * k, f[k]);
+                int32_t s[3] = {fx_mul(f[1], up[2]) - fx_mul(f[2], up[1]), fx_mul(f[2], up[0]) - fx_mul(f[0], up[2]),
+                                fx_mul(f[0], up[1]) - fx_mul(f[1], up[0])};
+                Vec_Unit(s);
+                for (uint32_t k = 0; k < 3; k++) CW32(c, 0x378 + 4 * k, s[k]);
+                for (uint32_t k = 0; k < 3; k++) {   /* 0x4bace0, 0x4bad00, 0x4bad20 */
+                    CW32(c, 4 * k, f[k]);
+                    CW32(c, 0x10 + 4 * k, up[k]);
+                    CW32(c, 0x20 + 4 * k, s[k]);
+                }
+                Car_BoxCorners(c);
+                Car_CornerGround(c, 8);
+                lift_by(c, corner_lift(c));
+                lift_by(c, extra);
+                Car_Contacts(c);
+                Car_WheelLoad(c);
+                Car_GroundNormal(c);
+            } else {
+                lift_by(c, corner_lift(c));
+                lift_by(c, extra);
+                Car_Contacts(c);
+                Car_WheelLoad(c);
+            }
+            for (uint32_t k = 0; k < 3; k++) CW32(c, 0x30 + 4 * k, CI32(c, 0x2d0 + 4 * k));   /* 0x4bacc0 */
+        }
+        if (CI32(c, 0xbf8)) {
+            shift_records(c, true);
+            for (uint32_t k = 0; k < 6; k++) CW32(c, 0x6e4 + 4 * k, 0);
+        }
+        CW32(c, 0xbf8, 0);
+        CW32(c, 0xc20, 0);
+        upright(c);
+        for (uint32_t k = 0; k < 8; k++) CW32(c, 0x890 + 4 * k, 0);
+        Car_SurfaceGrip(c, 0);
+        Car_Travel(c);
+        CW8(c, 0xb1d, 0);
+        Car_Suspension(c);
+        Car_BodyPose(c);
+        int32_t p[3] = {CI32(c, 0x2d0), CI32(c, 0x2d4), CI32(c, 0x2d8)};
+        int16_t near[3];
+        CW16(c, 0xb00, (uint16_t)(int16_t)Section_Find(p));
+        Section_Neighbours(p, near);
+        for (uint32_t k = 0; k < 3; k++) CW16(c, 0xb02 + 2 * k, (uint16_t)near[k]);
+    }
+    Aerials_Step(l);   /* 0x484e00 */
 }

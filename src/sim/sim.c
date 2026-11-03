@@ -185,8 +185,9 @@ void Sim_Step(void)
     Sim_CarsPost(g_stepped.car, g_stepped.n);
     if (g_sim_probe) g_sim_probe(4, g_stepped.car, g_stepped.n);
     Net_CarsAfter(&g_simple);   /* 0x426fc0 */
-    /* 0x46d5e0 and 0x444c10: the network game's kind 2 replays */
-    if (g_simple.n) PENDING_NOTE(0x46d5e0, "Sim_Step 0x46d5e0, 0x444c10 (the network game's replays)");
+    /* 0x46d5e0: the network game's kind 2 replays' playing */
+    if (g_simple.n) PENDING_NOTE(0x46d5e0, "Sim_Step 0x46d5e0 (the network game's replays)");
+    Sim_SimpleStep(&g_simple);   /* 0x444c10 */
     Pose_Spin(&g_listA);
     Pose_Spin(&g_simple);
     Pose_Capture(&g_listA);
