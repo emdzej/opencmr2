@@ -226,6 +226,10 @@ async function play(source) {
   show('setup', HASH_FRAMES > 0);      // keep the page visible in test runs
   $('status').textContent = 'Starting...';
   const params = Object.fromEntries([...query].filter(([k]) => !PAGE_PARAMS.has(k)));
+  // the network game: a relay (gasm-relay) and a room from the page's fields, unless the URL names them
+  const relay = $('net-relay').value.trim(), room = $('net-room').value.trim();
+  if (relay && !params.relay) params.relay = relay;
+  if (room && !params.room) params.room = room;
   const c = freshCanvas();
   try {
     await audioReady;
@@ -233,6 +237,7 @@ async function play(source) {
       wasm: await loadWasm(), assets: data.assetSpecs(source), params,
       storage: HASH_FRAMES > 0 ? null : STORAGE,     // hash runs: in memory, like gasm-run --headless
       hashing: HASH_FRAMES > 0, virtualTime: HASH_FRAMES > 0, onLog, onAudio, keyboard: true,
+      allowNet: !!params.relay,                      // only the relay the player gave
       glCanvas: c.transferControlToOffscreen(), size: displaySize(),
       onTitle: (t) => { document.title = `${t ?? TITLE} | OpenCMR2`; },
       onFullscreen: gameFullscreen,
@@ -478,6 +483,11 @@ $('saves-input').onchange = async () => {
 if (!hasOpfs) message('This browser has no private file storage (OPFS), so the game data can\'t be imported. Play without importing works.', 'warn');
 if (typeof Worker === 'undefined' || typeof WebAssembly === 'undefined') message('This browser can\'t run OpenCMR2 (it needs WebAssembly and Web Workers).', 'error');
 else if (!hasGl || !hasOffscreen) message('This browser can\'t run OpenCMR2: it needs WebGL 2 and OffscreenCanvas.', 'error');
+// the network game's relay and room, kept in this browser
+for (const id of ['net-relay', 'net-room']) {
+  $(id).value = localStorage.getItem(`opencmr2.${id}`) ?? '';
+  $(id).onchange = () => localStorage.setItem(`opencmr2.${id}`, $(id).value.trim());
+}
 refreshSaves();
 const ready = refreshImported();
 ready.then((info) => {

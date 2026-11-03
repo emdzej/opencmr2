@@ -27,6 +27,7 @@ championship. The network game is being finished.
   shows every player's car, and a player who leaves disappears from the stage. A network rally runs from
   stage to stage to its end, with the stage's and the rally's results and points. It has been tested
   with two players on a relay, the finishes simulated; it hasn't been raced through a whole rally yet.
+  How to set it up: [Network play](/guide/network).
 
 ## Planned
 

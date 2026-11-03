@@ -91,3 +91,8 @@ progress { width: 100%; height: 10px; accent-color: var(--ink-2); margin-top: .8
 
 [hidden] { display: none !important; }
 @media (max-width: 640px) { .bar nav a:not([aria-current]):not(:last-child) { display: none; } }
+
+.field { display: inline-flex; align-items: center; gap: .5rem; font-size: .9rem; }
+.field input { font: inherit; font-family: var(--mono); font-size: .85rem; padding: .35rem .5rem; border: 1px solid var(--line);
+  border-radius: 2px; background: rgba(215, 235, 218, 0.6); color: var(--ink); }
+.field input:focus { outline: 2px solid #fff; outline-offset: 1px; background: var(--mint); }

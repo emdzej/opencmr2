@@ -10,7 +10,8 @@ Web Worker. You need:
 - about 610 MB of browser storage to import the data once, or none to play without importing.
 
 Every offline mode plays: single stages, rallies and championships, the arcade, time trials, the
-challenge and the two-player modes. The network game is not ported yet ([Status](/guide/status)).
+challenge and the two-player modes. The network game plays too, over a relay ([Network play](/guide/network)); it is still being tested
+([Status](/guide/status)).
 
 ## Choosing the game
 

@@ -107,6 +107,17 @@
         Importing replaces the saves with the same names and keeps the others.</p>
       <input id="saves-input" type="file" accept=".zip,.rcf,.pps,.grp,.dat,application/zip" multiple hidden>
     </div>
+
+    <div class="card" id="network">
+      <h2>network game</h2>
+      <p class="small">To race others: the address of a <code>gasm-relay</code> and a room name, the same for
+        every player (desktop or browser). Then choose network in the game's main menu. Leave the relay
+        empty to play offline. See <a href="/guide/network">Network play</a>.</p>
+      <div class="row">
+        <label class="field">relay <input id="net-relay" type="text" placeholder="wss://relay.example.com" size="34" spellcheck="false" autocomplete="off"></label>
+        <label class="field">room <input id="net-room" type="text" placeholder="opencmr2" size="14" spellcheck="false" autocomplete="off"></label>
+      </div>
+    </div>
   </section>
 
   <section id="game" hidden>
