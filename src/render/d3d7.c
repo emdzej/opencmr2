@@ -241,8 +241,7 @@ void D3d_DrawIndexedPrimitiveVBList(uint32_t prim, D3dVB *vb, uint32_t first, ui
 
 void D3dIndexList_Free(D3dIndexList *l)
 {
-    if (l && l->gl && be && be->list_free) be->list_free(l);
-    if (l) l->gl = 0;
+    if (l) l->owner = NULL;
 }
 
 D3dVB *D3dVB_Create(uint32_t fvf, uint32_t count)
@@ -291,6 +290,7 @@ void D3dVB_Free(D3dVB *vb)
 {
     if (!vb) return;
     if (be && be->vb_free) be->vb_free(vb);
+    free(vb->ix);
     free(vb->data);
     free(vb);
 }

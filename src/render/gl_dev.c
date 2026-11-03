@@ -171,6 +171,17 @@ static void bind_buffer(GLenum target, GLuint b)
     if (*c != b + 1) glBindBuffer(target, b), *c = b + 1;
 }
 
+/* an attribute's value where its array is off (the context's, not a vertex array object's) */
+static void attr_const(GLuint i, const float v[4])
+{
+    uint8_t b = (uint8_t)(1u << i);
+    if (!(sh.attr_const_known & b) || memcmp(sh.attr_const[i], v, 16)) {
+        glVertexAttrib4f(i, v[0], v[1], v[2], v[3]);
+        memcpy(sh.attr_const[i], v, 16);
+        sh.attr_const_known |= b;
+    }
+}
+
 /* attribute i from the bound array buffer, or (size 0) off with the constant v */
 static void attr(GLuint i, GLint size, GLenum type, GLboolean norm, GLsizei stride, uintptr_t off, const float v[4])
 {
@@ -187,11 +198,7 @@ static void attr(GLuint i, GLint size, GLenum type, GLboolean norm, GLsizei stri
         return;
     }
     if (sh.attr_on & b || !(sh.attr_const_known & b)) glDisableVertexAttribArray(i), sh.attr_on &= (uint8_t)~b;
-    if (!(sh.attr_const_known & b) || memcmp(sh.attr_const[i], v, 16)) {
-        glVertexAttrib4f(i, v[0], v[1], v[2], v[3]);
-        memcpy(sh.attr_const[i], v, 16);
-        sh.attr_const_known |= b;
-    }
+    attr_const(i, v);
 }
 
 /* ---------------------------------------------------------------- shaders */
@@ -821,6 +828,41 @@ static void attribs(uint32_t fvf, uint32_t stride, uintptr_t base)
     attr(5, 2, GL_FLOAT, GL_FALSE, st, o + (ntex >= 2 ? 8 : 0), NULL);
 }
 
+/* A vertex buffer's own vertex array object, its attributes from the buffer's start (the draws with
+   fixed index lists, whose indices hold their first vertex): one bind from one buffer to the next
+   instead of six pointer calls. Made with the buffer bound. */
+static void vb_vao(D3dVB *vb, uint32_t fvf, uint32_t stride)
+{
+    static const float zero3[4] = {0, 0, 0, 1}, one[4] = {1, 1, 1, 1}, zero[4] = {0, 0, 0, 0}, zero2[4] = {0, 0, 0, 1};
+    int ntex = (int)(fvf >> 8 & 15);
+    if (vb->vao && vb->vao_fvf == fvf) {
+        if (sh.vao != vb->vao + 1) glBindVertexArray(vb->vao), sh.vao = vb->vao + 1, sh.ibuf = vb->ibuf + 1;
+    } else {
+        if (!vb->vao) glGenVertexArrays(1, &vb->vao);
+        if (!vb->ibuf) glGenBuffers(1, &vb->ibuf), vb->ix_sent = 0;
+        glBindVertexArray(vb->vao);
+        sh.vao = vb->vao + 1, sh.ibuf = 0;
+        bind_buffer(GL_ELEMENT_ARRAY_BUFFER, vb->ibuf);
+        GLsizei st = (GLsizei)stride;
+        uintptr_t o = 0;
+        int npos = fvf & D3DFVF_XYZRHW ? 4 : 3;
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, npos, GL_FLOAT, GL_FALSE, st, (const void *)o);
+        o += (uintptr_t)npos * 4;
+        if (fvf & D3DFVF_NORMAL) glEnableVertexAttribArray(1), glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, st, (const void *)o), o += 12;
+        if (fvf & D3DFVF_DIFFUSE) glEnableVertexAttribArray(2), glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, st, (const void *)o), o += 4;
+        if (fvf & D3DFVF_SPECULAR) glEnableVertexAttribArray(3), glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, st, (const void *)o), o += 4;
+        if (ntex >= 1) glEnableVertexAttribArray(4), glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, st, (const void *)o);
+        glEnableVertexAttribArray(5);
+        glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, st, (const void *)(o + (ntex >= 2 ? 8 : 0)));
+        vb->vao_fvf = fvf;
+    }
+    if (!(fvf & D3DFVF_NORMAL)) attr_const(1, zero3);
+    if (!(fvf & D3DFVF_DIFFUSE)) attr_const(2, one);
+    if (!(fvf & D3DFVF_SPECULAR)) attr_const(3, zero);
+    if (ntex < 1) attr_const(4, zero2);
+}
+
 static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts, uint32_t nverts,
                     const uint16_t *indices, uint32_t nindices, D3dVB *vb, uint32_t first, D3dIndexList *list)
 {
@@ -828,7 +870,8 @@ static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts
     static const GLenum mode[7] = {GL_POINTS, GL_POINTS, GL_LINES, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN};
     uint32_t stride = D3d_FvfStride(fvf);
     apply_state(s, prim, fvf);
-    if (sh.vao != vao + 1) glBindVertexArray(vao), sh.vao = vao + 1, sh.ibuf = 0;
+    bool own = vb && list && nindices;   /* drawn through the buffer's own vertex array object */
+    if (!own && sh.vao != vao + 1) glBindVertexArray(vao), sh.vao = vao + 1, sh.ibuf = 0;
     if (vb) {
         /* a vertex buffer lives in its GL buffer, re-uploaded after an Unlock */
         if (!vb->gl) glGenBuffers(1, &vb->gl), vb->sized = false, vb->dirty = true;
@@ -847,22 +890,41 @@ static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts
                 glBufferSubData(GL_ARRAY_BUFFER, (GLintptr)vb->lo * stride, (GLsizeiptr)(vb->hi - vb->lo) * stride,
                                 vb->data + (size_t)vb->lo * stride);
             vb->dirty = false;
+            /* its vertex array object bound again: bound across the upload, it may keep drawing from
+               the buffer's old storage (ANGLE gives a buffer in use new storage) */
+            if (vb->vao && sh.vao == vb->vao + 1) sh.vao = 0;
             PROF_END(PROF_VBUP);
         }
-        attribs(fvf, stride, (uintptr_t)first * stride);
+        /* a fixed list holds its first vertex in its indices, so the attributes stay put from one
+           mesh batch to the next in the same buffer (else six pointer calls a draw) */
+        if (own) vb_vao(vb, fvf, stride);
+        else attribs(fvf, stride, (uintptr_t)first * stride);
     } else {
         bind_buffer(GL_ARRAY_BUFFER, vbo);
         glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)nverts * stride, verts, GL_STREAM_DRAW);
         attribs(fvf, stride, 0);
     }
-    if (list && nindices) {
-        /* a fixed list: its own buffer, filled once */
-        if (!list->gl) {
-            glGenBuffers(1, &list->gl);
-            bind_buffer(GL_ELEMENT_ARRAY_BUFFER, list->gl);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)nindices * 2, indices, GL_STATIC_DRAW);
-        } else bind_buffer(GL_ELEMENT_ARRAY_BUFFER, list->gl);
-        glDrawElements(mode[prim], (GLsizei)nindices, GL_UNSIGNED_SHORT, (const void *)0);
+    if (own) {
+        /* a fixed list: once into the buffer's index store, with its first vertex added; the store
+           uploaded when it has grown, its vertex array object bound again after (see the vertices') */
+        if (list->owner != vb || list->base != first || list->at + nindices > vb->ix_n) {
+            if (vb->ix_n + nindices > vb->ix_cap) {
+                uint32_t cap = (vb->ix_n + nindices) * 2 + 1024;
+                uint16_t *ix = realloc(vb->ix, cap * sizeof *ix);
+                if (!ix) return;
+                vb->ix = ix, vb->ix_cap = cap;
+            }
+            for (uint32_t k = 0; k < nindices; k++) vb->ix[vb->ix_n + k] = (uint16_t)(indices[k] + first);
+            list->owner = vb, list->at = vb->ix_n, list->base = first;
+            vb->ix_n += nindices;
+        }
+        if (vb->ix_sent != vb->ix_n) {
+            bind_buffer(GL_ELEMENT_ARRAY_BUFFER, vb->ibuf);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)vb->ix_n * 2, vb->ix, GL_STATIC_DRAW);
+            vb->ix_sent = vb->ix_n;
+            glBindVertexArray(vb->vao);
+        }
+        glDrawElements(mode[prim], (GLsizei)nindices, GL_UNSIGNED_SHORT, (const void *)((uintptr_t)list->at * 2));
     } else if (indices && nindices) {
         bind_buffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)nindices * 2, indices, GL_STREAM_DRAW);
@@ -996,14 +1058,19 @@ static void gl_texture_free(D3dTexture *t)
     t->glw = t->glh = 0;
 }
 
-static void gl_list_free(D3dIndexList *l)
-{
-    if (sh.ibuf == l->gl + 1) sh.ibuf = 0;
-    glDeleteBuffers(1, &l->gl);
-}
-
 static void gl_vb_free(D3dVB *vb)
 {
+    if (vb->vao) {
+        if (sh.vao == vb->vao + 1) sh.vao = 0;
+        glDeleteVertexArrays(1, &vb->vao);
+        vb->vao = 0;
+    }
+    if (vb->ibuf) {
+        if (sh.ibuf == vb->ibuf + 1) sh.ibuf = 0;
+        glDeleteBuffers(1, &vb->ibuf);
+        vb->ibuf = 0;
+    }
+    vb->ix_sent = 0;
     if (vb->gl) glDeleteBuffers(1, &vb->gl);
     vb->gl = 0;
     vb->sized = false;
@@ -1030,6 +1097,6 @@ static void gl_read(int x, int y, int w, int h, uint8_t *rgba)
 }
 
 static const D3dBackend gl_backend = {gl_open, gl_draw, gl_clear, gl_present, gl_texture_upload,
-                                      gl_texture_free, gl_vb_free, gl_read, gl_list_free};
+                                      gl_texture_free, gl_vb_free, gl_read};
 
 void gl_dev_register(void) { D3d_SetBackend(&gl_backend); }
