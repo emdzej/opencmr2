@@ -24,8 +24,9 @@ championship. The network game is being finished.
 
 - **The network game.** Players can meet in the waiting room, start a stage together and see each
   other's cars on it, and the results, leaderboards and service area are in. The stage's replay
-  shows every player's car, and a player who leaves disappears from the stage. A network rally goes on to
-  its next stage; it hasn't been played through to its end yet.
+  shows every player's car, and a player who leaves disappears from the stage. A network rally runs from
+  stage to stage to its end, with the stage's and the rally's results and points. It has been tested
+  with two players on a relay, the finishes simulated; it hasn't been raced through a whole rally yet.
 
 ## Planned
 
