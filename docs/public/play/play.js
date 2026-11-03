@@ -230,6 +230,8 @@ async function play(source) {
   const relay = $('net-relay').value.trim(), room = $('net-room').value.trim();
   if (relay && !params.relay) params.relay = relay;
   if (room && !params.room) params.room = room;
+  const mode = $('display-mode').value;
+  if (mode && !params.mode) params.mode = `${mode}x32`;   // the game's --param mode=<w>x<h>x<bits>
   const c = freshCanvas();
   try {
     await audioReady;
@@ -484,6 +486,16 @@ if (!hasOpfs) message('This browser has no private file storage (OPFS), so the g
 if (typeof Worker === 'undefined' || typeof WebAssembly === 'undefined') message('This browser can\'t run OpenCMR2 (it needs WebAssembly and Web Workers).', 'error');
 else if (!hasGl || !hasOffscreen) message('This browser can\'t run OpenCMR2: it needs WebGL 2 and OffscreenCanvas.', 'error');
 // the network game's relay and room, kept in this browser
+// the display: the stage in the chosen mode's shape (4:3 when the game's own setting is kept)
+const shapeStage = () => {
+  const m = /^(\d+)x(\d+)$/.exec($('display-mode').value);
+  $('stage').style.setProperty('--ar', m ? `${m[1]} / ${m[2]}` : '4 / 3');
+};
+$('display-mode').value = localStorage.getItem('opencmr2.display-mode') ?? '';
+if ($('display-mode').selectedIndex < 0) $('display-mode').value = '';
+$('display-mode').onchange = () => { localStorage.setItem('opencmr2.display-mode', $('display-mode').value); shapeStage(); };
+shapeStage();
+
 for (const id of ['net-relay', 'net-room']) {
   $(id).value = localStorage.getItem(`opencmr2.${id}`) ?? '';
   $(id).onchange = () => localStorage.setItem(`opencmr2.${id}`, $(id).value.trim());

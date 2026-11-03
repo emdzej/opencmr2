@@ -39,6 +39,10 @@ features:
     details: Rallies and championships with the service area, the arcade, time trials, the challenge and two players on a split screen.
     link: /guide/status
     linkText: Status
+  - title: Beyond the original
+    details: "Additions that leave the game itself alone: 16:9 and 16:10 display modes with a wider view of the stage, network play over a relay in place of DirectPlay, desktop and browser players in the same race, and saves you can export and import."
+    link: /guide/status#beyond-the-original
+    linkText: What's added
 ---
 
 <div class="vp-doc" style="max-width: 1152px; margin: 48px auto 0; padding: 0 24px;">
@@ -58,6 +62,16 @@ Renders of OpenCMR2 itself (headless runs of `opencmr2.wasm` on the game's CD at
   <figure><img src="/screenshots/demo-3.jpg" alt="A demo run on tarmac from a trackside camera" loading="lazy"><figcaption>A demo run on tarmac</figcaption></figure>
 </div>
 
+### Widescreen
+
+Not in the original: on the 16:9 and 16:10 modes the race fills the screen with a wider view of the
+stage, the HUD where it is at 4:3 (1280 x 720).
+
+<div class="shots">
+  <figure><img src="/screenshots/wide-stage.jpg" alt="The start line in Finland at 16:9, the forest wider at both sides" loading="lazy"><figcaption>16:9: the start line, Finland</figcaption></figure>
+  <figure><img src="/screenshots/wide-demo.jpg" alt="A demo run on gravel at 16:9" loading="lazy"><figcaption>16:9: a demo run on gravel</figcaption></figure>
+</div>
+
 ## Built for gasm
 
 <p><a class="gasm-badge" href="https://gasm.emdzej.pl"><img class="gasm-badge-light" src="https://gasm.emdzej.pl/badge/built-for-gasm-light.svg" alt="Built for gasm" width="120" height="44"><img class="gasm-badge-dark" src="https://gasm.emdzej.pl/badge/built-for-gasm-dark.svg" alt="Built for gasm" width="120" height="44"></a></p>
@@ -70,8 +84,8 @@ portable game runtime: the same module natively (`gasm-run`) and in the browser.
 
 The game runs from your CD or its image, through its own menus, into every offline mode: single stages,
 rallies and championships, the arcade, time trials, the challenge and two players on a split screen, with
-the replays, the service area, the saves and the movies. The network game is being ported. Details in
-[Status](/guide/status).
+the replays, the service area, the saves and the movies. The network game runs a rally from start to
+end and is being play-tested. Details in [Status](/guide/status).
 
 ## Sibling projects
 

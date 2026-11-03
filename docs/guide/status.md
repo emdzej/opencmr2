@@ -20,6 +20,20 @@ championship. The network game is being finished.
 | Replays | Watch a stage again after the finish |
 | Display | 640 x 480 to 2048 x 1536 at 16 or 32 bits, with the original's 1024 artwork from 1024 x 768 up; 16:9 and 16:10 modes (1280 x 720 to 2560 x 1440) with a wider view of the stage |
 
+## Beyond the original
+
+OpenCMR2 reproduces the game as it was. Where the world around it has changed, the port adds a few
+things, each outside the game's own behaviour:
+
+- **Widescreen.** 16:9 and 16:10 display modes (1280 x 720 to 2560 x 1440) beside the original's 4:3
+  ones. The race fills the width with a wider view of the stage; the menus, movies and HUD stay 4:3 in
+  the middle. Pick one in the game's Display Mode, or on the [play page](/play/) under *display*.
+  640 x 480, 4:3, stays the default.
+- **Network play over a relay.** DirectPlay is gone; the network game runs over a `gasm-relay`, over
+  the internet or a local network ([Network play](/guide/network)).
+- **Desktop and browser players together**, in the same race.
+- **The browser.** The whole game in a web page, its saves exported and imported as a zip.
+
 ## Not yet
 
 - **The network game.** Players can meet in the waiting room, start a stage together and see each

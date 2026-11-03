@@ -32,6 +32,14 @@ shot() {   # name frames input [gasm-run options...]
   echo "-> $OUT/$name.jpg ($(($(wc -c < "$OUT/$name.jpg") / 1024)) KB)"
 }
 
+wide() {   # name frames input: a 16:9 mode (the port's addition), the whole headless drawable
+  local name=$1 frames=$2 input=$3
+  "$RUN" "$tmp/opencmr2.wasm" "${ASSET[@]}" --headless "$frames" --window 1280x720 --param mode=1280x720x32 \
+    --input "$input" --screenshot "$tmp/$name.png" >/dev/null 2>&1
+  sips -s format jpeg -s formatOptions 82 "$tmp/$name.png" --out "$OUT/$name.jpg" >/dev/null
+  echo "-> $OUT/$name.jpg ($(($(wc -c < "$OUT/$name.jpg") / 1024)) KB)"
+}
+
 # the way in: the two logo movies skipped, the language chosen, the main menu
 IN='1900:KEY(Enter),2100:KEY(Enter),2700:KEY(Enter)'
 # Rally, Time Trial, the defaults through to the service area, then Race
@@ -47,3 +55,6 @@ shot stage-start 7900 "$RACE"
 shot demo-1 7200 "$IN"
 shot demo-2 13500 "$IN"
 shot demo-3 25500 "$IN"
+# 16:9: the wider view of the stage
+wide wide-stage 7900 "$RACE"
+wide wide-demo 7200 "$IN"

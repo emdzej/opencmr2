@@ -108,6 +108,25 @@
       <input id="saves-input" type="file" accept=".zip,.rcf,.pps,.grp,.dat,application/zip" multiple hidden>
     </div>
 
+    <div class="card" id="display">
+      <h2>display</h2>
+      <p class="small">The screen's shape and the game's display mode. The original has only 4:3 modes;
+        OpenCMR2 adds 16:9 and 16:10 ones, where the race fills the whole width with a wider view of the
+        stage (the menus stay 4:3 in the middle). "As set in the game" keeps the mode chosen in the
+        game's options (Graphics, Advanced Graphics, Display Mode); the others start the game in that
+        mode.</p>
+      <div class="row">
+        <label class="field">mode <select id="display-mode">
+          <option value="">4:3, as set in the game</option>
+          <option value="1280x720">16:9, 1280 x 720</option>
+          <option value="1920x1080">16:9, 1920 x 1080</option>
+          <option value="2560x1440">16:9, 2560 x 1440</option>
+          <option value="1440x900">16:10, 1440 x 900</option>
+          <option value="1920x1200">16:10, 1920 x 1200</option>
+        </select></label>
+      </div>
+    </div>
+
     <div class="card" id="network">
       <h2>network game</h2>
       <p class="small">To race others: the address of a <code>gasm-relay</code> and a room name, the same for
