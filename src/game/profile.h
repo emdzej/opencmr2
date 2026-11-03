@@ -19,6 +19,7 @@ void Profile_Create(int player);
 
 /* The front end's player and profile set-up (0x4085a0, 0x4eb000-0x4ec210). A profile is in use when
    its byte at +0x14 (0x52fa18) is set and bit 21 of its first word (0x52fa1c) clear. */
+uint32_t Player_Car(int player);           /* 0x4086b0 (mode 4: the championship record's) */
 uint32_t Player_Word(int player);          /* the player record's first word (0x531350 + 0x30 n) */
 /* 0x408500: the computer driver a player record races as (bits 14-17), -1 for a guest (bit 13); in
    mode 4 -1 for the first eight with a name (0x52f3e0, 0xc4 apart) */

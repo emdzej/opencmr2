@@ -11,20 +11,24 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* DirectPlay's results: 0x88770000 | code (dplay.h's MAKE_DPHRESULT); the game's own checks confirm
+   INVALIDPASSWORD 0x154 (0x4a10b0), CONNECTING 0x15e (0x4a12d0), BUFFERTOOSMALL and NOMESSAGES (0x4a1b90) */
 #define DP_OK 0
 #define DPERR_GENERIC 0x80004005u
 #define DPERR_INVALIDPARAMS 0x80070057u
 #define DPERR_ALREADYINITIALIZED 0x88770005u
+#define DPERR_ACCESSDENIED 0x8877000au
 #define DPERR_BUFFERTOOSMALL 0x8877001eu
+#define DPERR_CANTCREATEPLAYER 0x8877003cu
 #define DPERR_INVALIDPLAYER 0x88770096u
-#define DPERR_NOCONNECTION 0x8877006eu
+#define DPERR_NOCONNECTION 0x887700aau
 #define DPERR_NOMESSAGES 0x887700beu
-#define DPERR_NOSESSIONS 0x887700c8u
-#define DPERR_NOTHOST 0x887700deu
-#define DPERR_UNINITIALIZED 0x887700f0u
-#define DPERR_CONNECTING 0x887700fau
+#define DPERR_NOSESSIONS 0x887700dcu
+#define DPERR_UNINITIALIZED 0x88770140u
+#define DPERR_NONEWPLAYERS 0x8877014au
 #define DPERR_INVALIDPASSWORD 0x88770154u
-#define DPERR_CONNECTIONLOST 0x887701c2u
+#define DPERR_CONNECTING 0x8877015eu
+#define DPERR_CONNECTIONLOST 0x88770168u
 
 #define DPID_SYSMSG 0u
 #define DPID_ALLPLAYERS 0u
@@ -34,7 +38,14 @@
 #define DPSYS_DESTROYPLAYERORGROUP 0x0005u
 #define DPSYS_SESSIONLOST 0x0031u
 #define DPSYS_HOST 0x0101u
+#define DPSYS_SETPLAYERORGROUPDATA 0x0102u
 #define DPSYS_SETSESSIONDESC 0x0104u
+
+/* DPSESSION_ (DirectPlay sets PASSWORDREQUIRED in the sessions it finds) */
+#define DPSESSION_MIGRATEHOST 0x4u
+#define DPSESSION_JOINDISABLED 0x20u
+#define DPSESSION_NODATAMESSAGES 0x80u
+#define DPSESSION_PASSWORDREQUIRED 0x400u
 
 /* DPOPEN_ */
 #define DPOPEN_JOIN 1u
@@ -63,6 +74,9 @@ typedef struct {
     uint32_t type;
     uint32_t player;                         /* the player created or destroyed, the new host's */
     char short_name[DP_NAME], long_name[DP_NAME];
+    uint8_t data[DP_DATA];                   /* the player's data (CREATEPLAYER, SETPLAYERORGROUPDATA) */
+    uint32_t data_len;
+    uint32_t cur_players;                    /* the session's players after it (CREATEPLAYER) */
     DpSession session;                       /* DPSYS_SETSESSIONDESC */
 } DpSysMsg;
 

@@ -34,6 +34,7 @@
 #include "world/frame.h"
 #include "world/obj.h"
 #include "world/relight.h"
+#include "net/session.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -232,6 +233,7 @@ static void st_startup(ProcGroup *g, uint32_t s)
         Ctl_Load();
         Input_SetMenuMode(true);
         gw32(0x81777c, 0);
+        Net_Init();   /* 0x4aaa40 */
         if (!fe_init(true)) return;
         Render_SetClearColour(0, 0, 0);
         Champs_Scan();   /* 0x4f4ef0: the saved championships */

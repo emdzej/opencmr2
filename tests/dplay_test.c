@@ -35,7 +35,7 @@ int main(void)
     CHECK(Dp_EnumSessions(s, DP_SESSIONS, &n) == DP_OK && n == 0);
     DpSession mine;
     memset(&mine, 0, sizeof mine);
-    mine.flags = 0x2064, mine.max_players = 4;
+    mine.flags = 0x2064 & ~DPSESSION_JOINDISABLED, mine.max_players = 4;   /* the game's flags, joining enabled (0x4a1570) */
     snprintf(mine.name, sizeof mine.name, "Rally");
     snprintf(mine.password, sizeof mine.password, "colin");
     mine.user[0] = 0x1234;
@@ -54,7 +54,7 @@ int main(void)
     Dp_Select(1);
     CHECK(Dp_EnumSessions(s, DP_SESSIONS, &n) == DP_OK && n == 1);
     CHECK(n == 1 && !strcmp(s[0].name, "Rally") && s[0].user[0] == 0x1234 && s[0].max_players == 4);
-    CHECK(n == 1 && (s[0].flags & 0x80000000u));   /* a password is needed */
+    CHECK(n == 1 && (s[0].flags & DPSESSION_PASSWORDREQUIRED));   /* a password is needed */
 
     /* a wrong password, then the right one */
     DpSession want = s[0];
@@ -99,8 +99,10 @@ int main(void)
     /* a player's data; the session's description from the host */
     Dp_Select(1);
     CHECK(Dp_SetPlayerData(j1, "car3", 4) == DP_OK);
-    CHECK(Dp_SetSessionDesc(&now) == DPERR_NOTHOST);
+    CHECK(Dp_SetSessionDesc(&now) == DPERR_ACCESSDENIED);
     Dp_Select(0);
+    CHECK(next(&from, &to, buf, &len) == DP_OK && from == DPID_SYSMSG && ((DpSysMsg *)buf)->type == DPSYS_SETPLAYERORGROUPDATA);
+    CHECK(((DpSysMsg *)buf)->player == j1 && ((DpSysMsg *)buf)->data_len == 4);
     CHECK(Dp_Players(pl, DP_PLAYERS) == 2 && pl[1]->data_len == 4 && !memcmp(pl[1]->data, "car3", 4));
     now.user[1] = 77;
     CHECK(Dp_SetSessionDesc(&now) == DP_OK);

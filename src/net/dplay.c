@@ -109,7 +109,8 @@ static void get_session(DpSession *s)
     getb(s->instance, 16);
     s->max_players = get32(), s->cur_players = get32();
     gets_(s->name, sizeof s->name);
-    if (get8()) s->flags |= 0x80000000u;   /* the port's mark: a password is needed (DPSESSION_PASSWORDREQUIRED is 0x400) */
+    s->flags &= ~DPSESSION_PASSWORDREQUIRED;
+    if (get8()) s->flags |= DPSESSION_PASSWORDREQUIRED;   /* DirectPlay's own mark: the host has a password */
     for (int i = 0; i < 4; i++) s->user[i] = get32();
 }
 
@@ -140,7 +141,9 @@ static void sysmsg(uint32_t type, const DpPlayer *p)
         s.player = p->id;
         memcpy(s.short_name, p->short_name, sizeof s.short_name);
         memcpy(s.long_name, p->long_name, sizeof s.long_name);
+        memcpy(s.data, p->data, p->data_len), s.data_len = p->data_len;
     }
+    s.cur_players = D->session.cur_players;
     if (type == DPSYS_SETSESSIONDESC) s.session = D->session;
     queue(DPID_SYSMSG, 0, &s, sizeof s);
 }
@@ -231,12 +234,10 @@ static void handle(int from, const uint8_t *b, uint32_t len)
         if (!D->member) found_session(&s);
         else if (from == D->host_index || D->host_index < 0) {
             D->host_index = from;
-            uint32_t pw = D->session.flags & 0x80000000u;
             char keep[DP_NAME];
             memcpy(keep, D->session.password, sizeof keep);
             D->session = s;
             memcpy(D->session.password, keep, sizeof keep);
-            D->session.flags |= pw;
             sysmsg(DPSYS_SETSESSIONDESC, NULL);
         }
         break;
@@ -247,8 +248,8 @@ static void handle(int from, const uint8_t *b, uint32_t len)
         if (bad || !D->host) break;
         uint32_t r = DP_OK;
         if (D->session.password[0] && strcmp(pw, D->session.password)) r = DPERR_INVALIDPASSWORD;
-        else if (D->session.max_players && (uint32_t)count_players() >= D->session.max_players) r = DPERR_GENERIC;
-        else if (D->session.flags & 0x20000000u) r = DPERR_GENERIC;   /* joining disabled (DPSESSION_JOINDISABLED 0x20 kept here) */
+        else if (D->session.flags & DPSESSION_JOINDISABLED) r = DPERR_NONEWPLAYERS;
+        else if (D->session.max_players && (uint32_t)count_players() >= D->session.max_players) r = DPERR_NONEWPLAYERS;
         if (r != DP_OK) {
             begin(OP_REFUSE), put8((uint8_t)from), put32(r), flush();
             break;
@@ -317,7 +318,8 @@ static void handle(int from, const uint8_t *b, uint32_t len)
         uint8_t d[DP_DATA];
         uint32_t n = getb(d, sizeof d);
         if (bad || !s || s->owner != from) break;
-        memcpy(s->p.data, d, n), s->p.data_len = n;   /* (DPSESSION_NODATAMESSAGES: no message) */
+        memcpy(s->p.data, d, n), s->p.data_len = n;
+        if (D->member && !(D->session.flags & DPSESSION_NODATAMESSAGES)) sysmsg(DPSYS_SETPLAYERORGROUPDATA, &s->p);
         break;
     }
     case OP_MSG: {
@@ -352,7 +354,7 @@ static void pump(void)
             if (D->member) sysmsg(DPSYS_SESSIONLOST, NULL);
             plat_net_close(D->conn);
             D->conn = 0, D->member = D->host = D->joining = false;
-            if (D->join_state == 1) D->join_state = 2, D->join_result = DPERR_CONNECTIONLOST;
+            if (D->join_state == 1) D->join_state = 2, D->join_result = DPERR_NOCONNECTION;
             break;
         }
         if ((uint32_t)n > sizeof in) {   /* too big for us: dropped (the relay's own limit is lower) */
@@ -440,6 +442,7 @@ uint32_t Dp_InitializeConnection(int i)
     while (l && relay[l - 1] == '/') relay[--l] = 0;
     snprintf(D->url, sizeof D->url, "%s/%s", relay, room);
     D->initialized = true;
+    connected();   /* the room opened now, so a session can be hosted when the page asks */
     return DP_OK;
 }
 
@@ -485,7 +488,7 @@ uint32_t Dp_Open(const DpSession *s, uint32_t how)
         bool have = false;
         for (int i = 0; i < D->nfound; i++)
             if (!memcmp(D->found[i].instance, s->instance, 16)) have = true;
-        if (!have) return DPERR_NOSESSIONS;
+        if (!have) return DPERR_NOCONNECTION;   /* (DPERR_NOSESSIONS the original would take as joined) */
         memcpy(D->session.password, s->password, sizeof D->session.password);
         D->joining = true, D->join_state = 1;
         begin(OP_JOIN), puts_(s->password), flush();
@@ -524,7 +527,7 @@ uint32_t Dp_GetSessionDesc(DpSession *s)
 uint32_t Dp_SetSessionDesc(const DpSession *s)
 {
     if (!D->member) return DPERR_NOSESSIONS;
-    if (!D->host) return DPERR_NOTHOST;
+    if (!D->host) return DPERR_ACCESSDENIED;
     uint8_t inst[16];
     memcpy(inst, D->session.instance, 16);
     D->session = *s;

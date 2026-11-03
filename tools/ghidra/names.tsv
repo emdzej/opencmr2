@@ -1739,3 +1739,134 @@
 0046ef20	Mud_Reset	game	high	The body texture reloaded clean when any mud was painted (cars put back, a replay started)
 00423fc0	Camera_TsBehind	camera	high	The current camera is trackside (kind 7) and that camera sits behind on the car (0x48df10)
 0048df10	Ts_Behind	camera	high	A camera record of kind 7 whose trackside camera roll is within 0x3f5-0x40a below 0 (behind on the car)
+00409b60	NetRec_ClearBests	net	high	The network bests (0x531f84, 0x531c98), the best total and the holder's name cleared
+00409bc0	NetRec_ClearReady	net	high	Every network record's ready flag (+4 bit 8) cleared
+00409be0	NetRec_SendData	net	high	The local player's 0x10 bytes of DirectPlay player data (0x4a1cb0)
+00409bf0	NetRec_Take	net	high	A player's data into its network record, or into the last free one
+00409c80	NetRec_Remove	net	high	A network record's in-use flag cleared by id
+00409cb0	NetRec_Used	net	high	A network record in use (+4 bit 7)
+00409cd0	NetRec_Name	net	high	A network record's player's long name (the session's players)
+00409d00	NetRec_Car	net	high	A network record's car (+4 bits 0-4)
+00409d20	NetRec_Id	net	high	A network record's DirectPlay id
+00409d30	NetRec_Bit5	net	med	A network record's +4 bit 5
+00409d50	NetRec_Splits	net	high	Message 0xb: a player's last splits (0x1e bytes) kept if newer
+00409df0	NetRec_SplitsNew	net	high	A network record's splits are new (+0x2e)
+00409e00	NetRec_SplitsSeen	net	high	A network record's splits seen
+00409e20	NetRec_SplitsAt	net	high	A network record's splits (+0x10)
+00409e30	NetRec_ResetRace	net	high	The finished and ready flags and split index cleared (and the totals, the best totals)
+00409e90	NetRec_SetReady	net	high	Message 7: a player ready
+00409ee0	NetRec_Ready	net	high	A network record ready (+4 bit 8)
+00409f00	NetRec_Finished	net	high	Message 10: a player finished with the total and time; the best total kept
+00409f80	NetRec_SetFinished	net	high	A player finished (+4 bit 9)
+00409fd0	NetRec_StageTime	net	high	Message 8: a player's split time; the bests and the last's holder
+0040a0e0	NetRec_LapTime	net	high	Message 9: a player's lap time (mode 12: the best lap, its holder, the second)
+0040a230	NetRec_LocalTimes	net	high	The local player's splits against the network bests
+0040a330	NetRec_LocalLap	net	high	The local player's lap time against the network bests
+0040a3c0	NetRec_LocalBest	net	high	The local player holds the best lap (0x531ce4)
+0040a3d0	NetRec_BestTotal	net	high	The best total (0x5320a8)
+0040a3e0	NetRec_OfferTotal	net	high	A total kept if better (0x5320a8)
+0040a400	NetRec_BestName	net	high	The best's holder's name (0x531cf0)
+0040a410	NetRec_BestSplit	net	high	The best split k (0x531f80)
+0040a420	NetRec_BestLap	net	high	The best lap k (mode 12: the best lap)
+0040a440	NetRec_SecondLap	net	high	The second best lap (0x531ce0)
+0040a450	NetRec_Done	net	high	A network record finished (+4 bit 9)
+0040a470	NetRec_Bit6	net	med	A network record's +4 bit 6
+0040a490	NetRec_ComparePlaces	net	high	qsort compare for the race places
+0040a580	NetRec_Places	net	high	The race places from the records' splits and the local car, sorted
+0040a700	NetRec_PlaceIndex	net	high	A race place's record (-2 the local player)
+0040a720	NetRec_PlaceSector	net	high	A player's race place sector by id
+0040a760	NetRec_PlaceDist	net	high	A player's race place distance by id
+0040a7a0	NetRec_Find	net	high	The network record with an id, or -1
+0040a7d0	NetRec_CompareTimes	net	high	qsort compare for the network results by time
+0040a820	NetRec_StageResults	net	high	The network stage results sorted and numbered
+0040a980	NetRec_RallyResults	net	high	The network rally results (totals) sorted, numbered and scored
+0040ab10	NetRec_Results	net	high	The network results' count (0x531cec)
+0040ab20	NetRec_ResultPlace	net	high	A network results row's place (stage or rally)
+0040ab50	NetRec_ResultIndex	net	high	A network results row's record
+0040ab80	NetRec_ResultTime	net	high	A network results row's time
+0040abb0	NetRec_ResultName	net	high	A network results row's name
+0040abe0	NetRec_ResultCar	net	high	A network results row's car
+0040ac10	NetRec_ResultPoints	net	high	A rally results row's points
+0040ac30	NetRec_Total	net	high	The local rally total (0x531ce8)
+0040ac40	Net_SendState	net	high	Message 6: the local player's state
+0040ac70	NetRec_SetState	net	high	Message 6: a player's state (+4 bits 18-21)
+0040acd0	NetRec_CompareLobby	net	high	qsort compare for the lobby list
+0040ad20	NetRec_Lobby	net	high	The lobby list (0x5320b0): the players, their states and best totals, sorted
+0040ae90	NetRec_LobbyCount	net	high	The lobby list's count
+0040aea0	NetRec_LobbyName	net	high	A lobby row's name
+0040aeb0	NetRec_LobbyState	net	high	A lobby row's state
+0040aec0	NetRec_LobbyBest	net	high	A lobby row's best total
+0040aed0	NetRec_LobbyLocal	net	high	The local player's lobby row
+0040af40	Net_SendStart	net	high	Message 0x10
+0040af60	Net_SendBoard	net	high	Message 0x11: the leaderboard (0x533900)
+0040afb0	NetRec_TakeBoard	net	high	Message 0x11: the leaderboard taken
+0040afd0	NetRec_MarkAll	net	high	Every network record's +4 bit 22 set
+0040aff0	NetRec_SetSlot	net	high	A network record's car slot (+8)
+0040b010	NetRec_Slot	net	high	A network record's car slot
+0040b020	NetRec_BySlot	net	high	The network record in use with a car slot (0 none)
+0040b050	NetRec_HasSlot	net	high	A network record in use has the car slot
+0040b080	NetRec_CompareIds	net	high	qsort compare: ascending ids
+0040b120	NetRec_Order	net	high	The start order: the players' ids sorted (0x531cc0)
+0040b1a0	NetRec_OrderId	net	high	The start order's k-th id
+0040b1b0	NetRec_OrderCount	net	high	The start order's count (0x531770)
+0040b1c0	NetRec_ClearBit23	net	high	Every network record's +4 bit 23 cleared
+004591e0	Net_LapFold	net	high	A circuit place's distance carried over the lap (side 0 cars)
+004a0c60	Net_ClearSessions	net	high	The found sessions cleared, the description's string pointers reset
+004a0ca0	Net_AddSession	net	high	A found session kept (a name, at most twenty)
+004a0d60	Net_GetSessionDesc	net	high	IDirectPlay4::GetSessionDesc into 0x5a0068
+004a0ec0	Net_Host	net	high	Host a session (DPOPEN_CREATE, flags 0x2064)
+004a10b0	Net_Join	net	high	Join found session i (DPOPEN_JOIN); the password flag
+004a1280	Net_Close	net	high	IDirectPlay4::Close
+004a12b0	Net_EnumSessionsCb	net	high	EnumSessions callback: each session into 0x4a0ca0
+004a12d0	Net_EnumSessions	net	high	IDirectPlay4::EnumSessions (async, available, with passwords)
+004a13b0	Net_StopEnumSessions	net	high	IDirectPlay4::EnumSessions with STOPASYNC
+004a1480	Net_Sessions	net	high	The found sessions' count
+004a14c0	Net_SessionName	net	high	The session description's name pointer
+004a14d0	Net_SessionPassword	net	high	The session description's password pointer
+004a14e0	Net_SetSessionDesc	net	high	IDirectPlay4::SetSessionDesc from 0x5a0068
+004a1510	Net_SetSessionName	net	high	The session's name changed
+004a1530	Net_SetPassword	net	high	The session's password changed
+004a1550	Net_SetMaxPlayers	net	high	The session's maximum players changed
+004a1570	Net_SetJoinable	net	high	The session's DPSESSION_JOINDISABLED cleared or set
+004a15a0	Net_IsHost	net	high	The game is the session's host (0x5a0060)
+004a15b0	Net_SetHost	net	high	The host flag set (DPSYS_HOST)
+004a15c0	Net_SessionInstance	net	high	A found session's instance GUID
+004a1610	Net_FoundUser	net	high	A found session's dwUser1-4
+004a1680	Net_User	net	high	The session's dwUser1-4 (the game's settings)
+004a16c0	Net_SetUser	net	high	The session's dwUser1-4 changed
+004a1720	Net_FoundPlayers	net	high	A found session's players (-1: the session's)
+004a1740	Net_FoundMaxPlayers	net	high	A found session's maximum players
+004a1760	Net_TakeSessionDesc	net	high	A DPSYS_SETSESSIONDESC's description into 0x5a0068
+004a1790	Net_FoundPassworded	net	high	A found session needs a password (DPSESSION_PASSWORDREQUIRED)
+004a17b0	Net_FreeReceive	net	high	The receive buffer freed
+004a17f0	Net_ClearPlayers	net	high	The session's players emptied
+004a1850	Net_AddPlayer	net	high	A player into the first free of seven slots (not the local one)
+004a1940	Net_RemovePlayer	net	high	A player's slot emptied
+004a19c0	Net_PlayerSlot	net	high	A player's slot by id
+004a1a00	Net_LocalPlayer	net	high	The local DirectPlay player id (0x5a1ea0)
+004a1a10	Net_CreatePlayer	net	high	IDirectPlay4::CreatePlayer, the local player
+004a1a90	Net_DestroyPlayer	net	high	IDirectPlay4::DestroyPlayer, the local player
+004a1ad0	Net_EnumPlayersCb	net	high	EnumPlayers callback: each player into 0x4a1850
+004a1af0	Net_EnumPlayers	net	high	IDirectPlay4::EnumPlayers into the slots
+004a1b30	Net_PlayerShortName	net	high	A player slot's short name
+004a1b60	Net_PlayerLongName	net	high	A player slot's long name
+004a1b90	Net_Receive	net	high	IDirectPlay4::Receive (DPRECEIVE_ALL), the buffer grown on BUFFERTOOSMALL
+004a1c50	Net_Send	net	high	IDirectPlay4::Send from the local player (DPSEND_GUARANTEED)
+004a1cb0	Net_SetPlayerData	net	high	IDirectPlay4::SetPlayerData, the local player (DPSET_GUARANTEED)
+004aa880	Net_ClearConnections	net	high	The connections table emptied
+004aa8e0	Net_CompareConnections	net	high	qsort compare: the TCP/IP provider (0x511a38) first
+004aa930	Net_AddConnection	net	high	A connection (name, data, provider GUID) into the table
+004aaa10	Net_FreeConnections	net	high	The connections' data freed
+004aaa40	Net_Init	net	high	The network layer's state cleared, CoInitialize, 0x4aaac0 at exit
+004aaac0	Net_Shutdown	net	high	The local player destroyed, the lobby and DirectPlay released
+004aab40	Net_ReleaseDirectPlay	net	high	IDirectPlay4 released
+004aab60	Net_CreateLobby	net	high	CoCreateInstance IDirectPlayLobby3A
+004aabb0	Net_ReleaseLobby	net	high	The lobby released
+004aabd0	Net_EnumConnectionsCb	net	high	EnumConnections callback: into 0x4aa930
+004aac00	Net_EnumConnections	net	high	IDirectPlay4::EnumConnections
+004aac40	Net_InitializeConnection	net	high	IDirectPlay4::InitializeConnection with connection i
+004aacf0	Net_Connections	net	high	The connections' count
+004aad00	Net_ConnectionName	net	high	A connection's name
+004aad40	Net_DirectPlay	net	high	The IDirectPlay4 pointer (0x66521c)
+004aad70	Net_Alloc	net	high	GlobalAlloc + GlobalLock
+004aade0	Net_Free	net	high	GlobalUnlock + GlobalFree

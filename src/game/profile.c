@@ -162,6 +162,12 @@ void Options_Defaults(void)
 }
 
 uint32_t Player_Word(int n) { return gm32(0x531350 + 0x30u * (uint32_t)n); }
+/* 0x4086b0 */
+uint32_t Player_Car(int n)
+{
+    if ((gm32(0x52afb4) >> 3 & 0x7f) == 4) return gm8(0x52f3e8 + 0xc4u * (uint8_t)n);
+    return Player_Word((uint8_t)n) & 0x3f;
+}
 static void set_word(int n, uint32_t v) { gw32(0x531350 + 0x30u * (uint32_t)n, v); }
 static uint32_t prof_word(uint32_t p, uint32_t off) { return gm32(0x52fa1c + p * 0x650 + off); }
 static bool prof_used(uint32_t p) { return gm8(0x52fa18 + p * 0x650) && !(prof_word(p, 0) & 0x200000); }
