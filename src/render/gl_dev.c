@@ -30,6 +30,169 @@ static struct {
 } u;
 static struct { GLint tex, gamma, rect; } up;
 
+/* ---------------------------------------------------------------- the GL state sent
+
+   The draws set the whole Direct3D state again each time; only what changed is sent (in the browser
+   every GL call crosses into JavaScript and WebGL's checks: about 60 a draw, most of them the same as
+   the last). The paths that change GL state outside these (the open, the present, texture uploads,
+   cube faces, read-backs) forget it with shadow_reset(). */
+
+enum { UCACHE = 128, UBYTES = 256 };
+static struct {
+    bool known;
+    uint32_t caps;                      /* bit per cap(): its last state */
+    uint32_t caps_known;
+    GLenum depth_func, front, cull, blend[2];
+    GLboolean depth_mask;
+    GLint stencil[7];                   /* func, ref, mask, fail, zfail, pass, write mask */
+    GLuint program, fb, vbuf, ibuf, vao;
+    GLint viewport[4], scissor[4];
+    GLenum active;
+    GLuint tex2d[3], cube[3], sampler[3];
+    GLint sparam[STAGES][4];
+    uint8_t attr_on;                    /* bit per attribute: enabled */
+    struct { GLuint buf; GLint size; GLenum type; GLboolean norm; GLsizei stride; uintptr_t off; } attr[6];
+    float attr_const[6][4];
+    uint8_t attr_const_known;
+} sh;
+static struct { GLint loc; uint16_t len; uint8_t v[UBYTES]; } ucache[UCACHE];
+
+static void shadow_reset(void)
+{
+    memset(&sh, 0, sizeof sh);
+}
+
+static void uniforms_reset(void)
+{
+    for (int i = 0; i < UCACHE; i++) ucache[i].loc = -1, ucache[i].len = 0;
+}
+
+/* true when uniform loc of the main program is to be sent (its n bytes not the last ones sent) */
+static bool ufresh(GLint loc, const void *v, size_t n)
+{
+    if (loc < 0) return false;
+    if (n > UBYTES) return true;
+    unsigned h = (unsigned)loc * 2654435761u >> 25;   /* 7 bits */
+    for (int k = 0; k < UCACHE; k++) {
+        unsigned i = (h + (unsigned)k) & (UCACHE - 1);
+        if (ucache[i].loc == loc || ucache[i].loc == -1) {
+            if (ucache[i].loc == loc && ucache[i].len == n && !memcmp(ucache[i].v, v, n)) return false;
+            ucache[i].loc = loc, ucache[i].len = (uint16_t)n;
+            memcpy(ucache[i].v, v, n);
+            return true;
+        }
+    }
+    return true;
+}
+
+static void u1i(GLint l, GLint a) { if (ufresh(l, &a, sizeof a)) glUniform1i(l, a); }
+static void u1f(GLint l, GLfloat a) { if (ufresh(l, &a, sizeof a)) glUniform1f(l, a); }
+static void u2f(GLint l, GLfloat a, GLfloat b) { GLfloat v[2] = {a, b}; if (ufresh(l, v, sizeof v)) glUniform2f(l, a, b); }
+static void u3f(GLint l, GLfloat a, GLfloat b, GLfloat c) { GLfloat v[3] = {a, b, c}; if (ufresh(l, v, sizeof v)) glUniform3f(l, a, b, c); }
+static void u4f(GLint l, GLfloat a, GLfloat b, GLfloat c, GLfloat d) { GLfloat v[4] = {a, b, c, d}; if (ufresh(l, v, sizeof v)) glUniform4f(l, a, b, c, d); }
+static void u2i(GLint l, GLint a, GLint b) { GLint v[2] = {a, b}; if (ufresh(l, v, sizeof v)) glUniform2i(l, a, b); }
+static void u4i(GLint l, GLint a, GLint b, GLint c, GLint d) { GLint v[4] = {a, b, c, d}; if (ufresh(l, v, sizeof v)) glUniform4i(l, a, b, c, d); }
+static void u1iv(GLint l, GLsizei n, const GLint *v) { if (ufresh(l, v, (size_t)n * 4)) glUniform1iv(l, n, v); }
+static void u2iv(GLint l, GLsizei n, const GLint *v) { if (ufresh(l, v, (size_t)n * 8)) glUniform2iv(l, n, v); }
+static void u4iv(GLint l, GLsizei n, const GLint *v) { if (ufresh(l, v, (size_t)n * 16)) glUniform4iv(l, n, v); }
+static void u1fv(GLint l, GLsizei n, const GLfloat *v) { if (ufresh(l, v, (size_t)n * 4)) glUniform1fv(l, n, v); }
+static void u3fv(GLint l, GLsizei n, const GLfloat *v) { if (ufresh(l, v, (size_t)n * 12)) glUniform3fv(l, n, v); }
+static void u4fv(GLint l, GLsizei n, const GLfloat *v) { if (ufresh(l, v, (size_t)n * 16)) glUniform4fv(l, n, v); }
+static void um3(GLint l, const GLfloat *v) { if (ufresh(l, v, 36)) glUniformMatrix3fv(l, 1, GL_FALSE, v); }
+static void um4(GLint l, const GLfloat *v) { if (ufresh(l, v, 64)) glUniformMatrix4fv(l, 1, GL_FALSE, v); }
+
+static void cap(GLenum c, bool on)
+{
+    static const GLenum caps[] = {GL_DEPTH_TEST, GL_BLEND, GL_CULL_FACE, GL_STENCIL_TEST, GL_DITHER, GL_SCISSOR_TEST};
+    int i = 0;
+    while (caps[i] != c) i++;
+    uint32_t b = 1u << i;
+    if (sh.caps_known & b && !(sh.caps & b) == !on) return;
+    sh.caps_known |= b;
+    if (on) sh.caps |= b, glEnable(c);
+    else sh.caps &= ~b, glDisable(c);
+}
+
+static void use_program(GLuint p) { if (!sh.known || sh.program != p) glUseProgram(p); sh.program = p, sh.known = true; }
+static void depth_mask(GLboolean m) { if (sh.depth_mask != m + 1) glDepthMask(m), sh.depth_mask = (GLboolean)(m + 1); }
+static void depth_func(GLenum f) { if (sh.depth_func != f) glDepthFunc(f), sh.depth_func = f; }
+static void blend_func(GLenum s, GLenum d) { if (sh.blend[0] != s + 1 || sh.blend[1] != d + 1) glBlendFunc(s, d), sh.blend[0] = s + 1, sh.blend[1] = d + 1; }
+static void front_face(GLenum f) { if (sh.front != f) glFrontFace(f), sh.front = f; }
+static void cull_face(GLenum f) { if (sh.cull != f) glCullFace(f), sh.cull = f; }
+
+/* the stencil's function, reference, masks and operations (+1 so that a zero is not known) */
+static void stencil(GLenum func, GLint ref, GLuint mask, GLenum fail, GLenum zfail, GLenum pass, GLuint wmask)
+{
+    GLint *s = sh.stencil;
+    if (s[0] != (GLint)func + 1 || s[1] != ref || s[2] != (GLint)mask) glStencilFunc(func, ref, mask);
+    if (s[3] != (GLint)fail + 1 || s[4] != (GLint)zfail || s[5] != (GLint)pass) glStencilOp(fail, zfail, pass);
+    if (s[6] != (GLint)wmask + 1) glStencilMask(wmask);
+    s[0] = (GLint)func + 1, s[1] = ref, s[2] = (GLint)mask, s[3] = (GLint)fail + 1, s[4] = (GLint)zfail, s[5] = (GLint)pass;
+    s[6] = (GLint)wmask + 1;
+}
+
+static void bind_fb(GLuint f) { if (sh.fb != f + 1) glBindFramebuffer(GL_FRAMEBUFFER, f), sh.fb = f + 1; }
+static void viewport(GLint x, GLint y, GLint w, GLint h)
+{
+    GLint *v = sh.viewport;
+    if (v[0] != x || v[1] != y || v[2] != w + 1 || v[3] != h) glViewport(x, y, w, h);
+    v[0] = x, v[1] = y, v[2] = w + 1, v[3] = h;
+}
+static void scissor_box(GLint x, GLint y, GLint w, GLint h)
+{
+    GLint *v = sh.scissor;
+    if (v[0] != x || v[1] != y || v[2] != w + 1 || v[3] != h) glScissor(x, y, w, h);
+    v[0] = x, v[1] = y, v[2] = w + 1, v[3] = h;
+}
+static void active(int unit) { if (sh.active != GL_TEXTURE0 + (GLenum)unit + 1) glActiveTexture(GL_TEXTURE0 + (GLenum)unit), sh.active = GL_TEXTURE0 + (GLenum)unit + 1; }
+static void bind_tex(int unit, GLenum target, GLuint t)
+{
+    GLuint *b = target == GL_TEXTURE_2D ? sh.tex2d : sh.cube;
+    if (b[unit] == t + 1) return;
+    active(unit);
+    glBindTexture(target, t);
+    b[unit] = t + 1;
+}
+static void bind_sampler(int unit, GLuint s) { if (sh.sampler[unit] != s + 1) glBindSampler((GLuint)unit, s), sh.sampler[unit] = s + 1; }
+static void sampler_params(int t, GLint min, GLint mag, GLint ws, GLint wt)
+{
+    GLint *p = sh.sparam[t];
+    GLuint s = samplers[t];
+    if (p[0] != min) glSamplerParameteri(s, GL_TEXTURE_MIN_FILTER, min);
+    if (p[1] != mag) glSamplerParameteri(s, GL_TEXTURE_MAG_FILTER, mag);
+    if (p[2] != ws) glSamplerParameteri(s, GL_TEXTURE_WRAP_S, ws);
+    if (p[3] != wt) glSamplerParameteri(s, GL_TEXTURE_WRAP_T, wt);
+    p[0] = min, p[1] = mag, p[2] = ws, p[3] = wt;
+}
+static void bind_buffer(GLenum target, GLuint b)
+{
+    GLuint *c = target == GL_ARRAY_BUFFER ? &sh.vbuf : &sh.ibuf;
+    if (*c != b + 1) glBindBuffer(target, b), *c = b + 1;
+}
+
+/* attribute i from the bound array buffer, or (size 0) off with the constant v */
+static void attr(GLuint i, GLint size, GLenum type, GLboolean norm, GLsizei stride, uintptr_t off, const float v[4])
+{
+    uint8_t b = (uint8_t)(1u << i);
+    if (size) {
+        if (!(sh.attr_on & b)) glEnableVertexAttribArray(i), sh.attr_on |= b;
+        GLuint buf = sh.vbuf;
+        if (sh.attr[i].buf != buf || sh.attr[i].size != size || sh.attr[i].type != type || sh.attr[i].norm != norm ||
+            sh.attr[i].stride != stride || sh.attr[i].off != off) {
+            glVertexAttribPointer(i, size, type, norm, stride, (const void *)off);
+            sh.attr[i].buf = buf, sh.attr[i].size = size, sh.attr[i].type = type, sh.attr[i].norm = norm;
+            sh.attr[i].stride = stride, sh.attr[i].off = off;
+        }
+        return;
+    }
+    if (sh.attr_on & b || !(sh.attr_const_known & b)) glDisableVertexAttribArray(i), sh.attr_on &= (uint8_t)~b;
+    if (!(sh.attr_const_known & b) || memcmp(sh.attr_const[i], v, 16)) {
+        glVertexAttrib4f(i, v[0], v[1], v[2], v[3]);
+        memcpy(sh.attr_const[i], v, 16);
+        sh.attr_const_known |= b;
+    }
+}
+
 /* ---------------------------------------------------------------- shaders */
 
 static const char *VS =
@@ -345,6 +508,8 @@ static bool gl_open(int width, int height, int bpp)
         glClearStencil(0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }
+    shadow_reset();
+    uniforms_reset();
     return true;
 }
 
@@ -411,13 +576,13 @@ static void bind_target(const D3dState *s)
 {
     D3dTexture *c = s->target;
     if (c && (c->gl || (cube_alloc(c), c->gl))) {
-        glBindFramebuffer(GL_FRAMEBUFFER, c->fbo[s->target_face]);
+        bind_fb(c->fbo[s->target_face]);
         tw = th = c->width, tscale = 1;
     } else {
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo[1]);
+        bind_fb(fbo[1]);
         tw = mw, th = mh, tscale = scale;
     }
-    glViewport(0, 0, tw * tscale, th * tscale);
+    viewport(0, 0, tw * tscale, th * tscale);
 }
 
 static void scissor(int x0, int y0, int x1, int y1)
@@ -428,8 +593,8 @@ static void scissor(int x0, int y0, int x1, int y1)
     if (y1 > th) y1 = th;
     if (x1 < x0) x1 = x0;
     if (y1 < y0) y1 = y0;
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(x0 * tscale, y0 * tscale, (x1 - x0) * tscale, (y1 - y0) * tscale);
+    cap(GL_SCISSOR_TEST, true);
+    scissor_box(x0 * tscale, y0 * tscale, (x1 - x0) * tscale, (y1 - y0) * tscale);
 }
 
 static void mul(const D3DMATRIX *a, const D3DMATRIX *b, D3DMATRIX *o)
@@ -489,16 +654,16 @@ static void lights(const D3dState *s)
         p2[4 * n + 3] = 0;
         n++;
     }
-    glUniform1i(u.nlights, n);
+    u1i(u.nlights, n);
     if (!n) return;
-    glUniform1iv(u.ltype, n, type);
-    glUniform4fv(u.ldiff, n, diff);
-    glUniform4fv(u.lspec, n, spec);
-    glUniform4fv(u.lamb, n, amb);
-    glUniform3fv(u.lpos, n, pos);
-    glUniform3fv(u.ldir, n, dir);
-    glUniform4fv(u.lp1, n, p1);
-    glUniform4fv(u.lp2, n, p2);
+    u1iv(u.ltype, n, type);
+    u4fv(u.ldiff, n, diff);
+    u4fv(u.lspec, n, spec);
+    u4fv(u.lamb, n, amb);
+    u3fv(u.lpos, n, pos);
+    u3fv(u.ldir, n, dir);
+    u4fv(u.lp1, n, p1);
+    u4fv(u.lp2, n, p2);
 }
 
 static void apply_state(const D3dState *s, int prim, uint32_t fvf)
@@ -509,45 +674,42 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
     bind_target(s);
     const D3DVIEWPORT7 *v = &s->viewport;
     scissor((int)v->x, (int)v->y, (int)(v->x + v->width), (int)(v->y + v->height));
-    glUseProgram(prog);
+    use_program(prog);
 
     if (rs[D3DRS_ZENABLE]) {
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(cmpfunc(rs[D3DRS_ZFUNC]));
+        cap(GL_DEPTH_TEST, true);
+        depth_func(cmpfunc(rs[D3DRS_ZFUNC]));
     } else {
-        glDisable(GL_DEPTH_TEST);
+        cap(GL_DEPTH_TEST, false);
     }
-    glDepthMask(rs[D3DRS_ZWRITEENABLE] ? GL_TRUE : GL_FALSE);
+    depth_mask(rs[D3DRS_ZWRITEENABLE] ? GL_TRUE : GL_FALSE);
     if (rs[D3DRS_ALPHABLENDENABLE]) {
-        glEnable(GL_BLEND);
-        glBlendFunc(blendfactor(rs[D3DRS_SRCBLEND], true), blendfactor(rs[D3DRS_DESTBLEND], false));
+        cap(GL_BLEND, true);
+        blend_func(blendfactor(rs[D3DRS_SRCBLEND], true), blendfactor(rs[D3DRS_DESTBLEND], false));
     } else {
-        glDisable(GL_BLEND);
+        cap(GL_BLEND, false);
     }
     /* Facing: the target keeps Direct3D's rows, so its clockwise is GL's counter-clockwise. */
     if (prim >= D3DPT_TRIANGLELIST && rs[D3DRS_CULLMODE] != 1) {
-        glEnable(GL_CULL_FACE);
-        glFrontFace(GL_CCW);
-        glCullFace(rs[D3DRS_CULLMODE] == 2 ? GL_FRONT : GL_BACK);
+        cap(GL_CULL_FACE, true);
+        front_face(GL_CCW);
+        cull_face(rs[D3DRS_CULLMODE] == 2 ? GL_FRONT : GL_BACK);
     } else {
-        glDisable(GL_CULL_FACE);
+        cap(GL_CULL_FACE, false);
     }
     if (rs[D3DRS_STENCILENABLE]) {
-        glEnable(GL_STENCIL_TEST);
-        glStencilFunc(cmpfunc(rs[D3DRS_STENCILFUNC]), (GLint)rs[D3DRS_STENCILREF], rs[D3DRS_STENCILMASK]);
-        glStencilOp(stencilop(rs[D3DRS_STENCILFAIL]), stencilop(rs[D3DRS_STENCILZFAIL]), stencilop(rs[D3DRS_STENCILPASS]));
-        glStencilMask(rs[D3DRS_STENCILWRITEMASK]);
+        cap(GL_STENCIL_TEST, true);
+        stencil(cmpfunc(rs[D3DRS_STENCILFUNC]), (GLint)rs[D3DRS_STENCILREF], rs[D3DRS_STENCILMASK], stencilop(rs[D3DRS_STENCILFAIL]),
+                stencilop(rs[D3DRS_STENCILZFAIL]), stencilop(rs[D3DRS_STENCILPASS]), rs[D3DRS_STENCILWRITEMASK]);
     } else {
-        glDisable(GL_STENCIL_TEST);
+        cap(GL_STENCIL_TEST, false);
     }
-    if (rs[D3DRS_DITHERENABLE]) glEnable(GL_DITHER);
-    else glDisable(GL_DITHER);
+    cap(GL_DITHER, rs[D3DRS_DITHERENABLE] != 0);
 
     GLint ops[4], args[8], tci[2], tflags[2];
     D3dTexture *c0 = s->tex[0] && s->tex[0]->cube && s->tex[0] != s->target ? s->tex[0] : NULL;
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, c0 ? c0->gl : white_cube);
-    glBindSampler(2, cube_sampler);
+    bind_tex(2, GL_TEXTURE_CUBE_MAP, c0 ? c0->gl : white_cube);
+    bind_sampler(2, cube_sampler);
     GLfloat bias[2];
     for (int t = 0; t < STAGES; t++) {
         const uint32_t *ts = s->tss[t];
@@ -562,81 +724,77 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
         tflags[t] = (GLint)ts[D3DTSS_TEXTURETRANSFORMFLAGS];
         bias[t] = bits_float(ts[D3DTSS_MIPMAPLODBIAS]);
         if (!isfinite(bias[t])) bias[t] = 0;
-        glActiveTexture(GL_TEXTURE0 + (GLenum)t);
         D3dTexture *tx = s->tex[t];
         if (tx && tx->cube) tx = NULL;   /* a cube on stage 0 is sampled from unit 2 by the direction */
         else if (tx && (tx->dirty || !tx->gl)) gl_texture_upload(tx);
-        glBindTexture(GL_TEXTURE_2D, tx && tx->gl ? tx->gl : white_tex);
-        GLuint sm = samplers[t];
+        bind_tex(t, GL_TEXTURE_2D, tx && tx->gl ? tx->gl : white_tex);
         /* every texture has one level (the files carry no mip chain), so the mip filter has no effect */
-        glSamplerParameteri(sm, GL_TEXTURE_MIN_FILTER, ts[D3DTSS_MINFILTER] >= 2 ? GL_LINEAR : GL_NEAREST);
-        glSamplerParameteri(sm, GL_TEXTURE_MAG_FILTER, ts[D3DTSS_MAGFILTER] >= 2 ? GL_LINEAR : GL_NEAREST);
-        glSamplerParameteri(sm, GL_TEXTURE_WRAP_S, (GLint)wrap(ts[D3DTSS_ADDRESSU]));
-        glSamplerParameteri(sm, GL_TEXTURE_WRAP_T, (GLint)wrap(ts[D3DTSS_ADDRESSV]));
-        glBindSampler((GLuint)t, sm);
+        sampler_params(t, ts[D3DTSS_MINFILTER] >= 2 ? GL_LINEAR : GL_NEAREST, ts[D3DTSS_MAGFILTER] >= 2 ? GL_LINEAR : GL_NEAREST,
+                       (GLint)wrap(ts[D3DTSS_ADDRESSU]), (GLint)wrap(ts[D3DTSS_ADDRESSV]));
+        bind_sampler(t, samplers[t]);
     }
-    glUniform1i(u.tex0, 0);
-    glUniform1i(u.tex1, 1);
-    glUniform1i(u.texc, 2);
-    glUniform1i(u.cube0, c0 != NULL);
+    u1i(u.tex0, 0);
+    u1i(u.tex1, 1);
+    u1i(u.texc, 2);
+    u1i(u.cube0, c0 != NULL);
     const uint32_t *t0 = s->tss[0];
-    glUniform4f(u.bumpmat, bits_float(t0[D3DTSS_BUMPENVMAT00]), bits_float(t0[D3DTSS_BUMPENVMAT01]),
+    u4f(u.bumpmat, bits_float(t0[D3DTSS_BUMPENVMAT00]), bits_float(t0[D3DTSS_BUMPENVMAT01]),
                 bits_float(t0[D3DTSS_BUMPENVMAT10]), bits_float(t0[D3DTSS_BUMPENVMAT11]));
-    glUniform2f(u.bumplum, bits_float(t0[D3DTSS_BUMPENVLSCALE]), bits_float(t0[D3DTSS_BUMPENVLOFFSET]));
-    glUniform2iv(u.stage_op, 2, ops);
-    glUniform4iv(u.stage_arg, 2, args);
-    glUniform1fv(u.lodbias, 2, bias);
-    glUniform2f(u.mode, (float)tw, (float)th);
-    glUniform1f(u.pointsize, (float)tscale);
+    u2f(u.bumplum, bits_float(t0[D3DTSS_BUMPENVLSCALE]), bits_float(t0[D3DTSS_BUMPENVLOFFSET]));
+    u2iv(u.stage_op, 2, ops);
+    u4iv(u.stage_arg, 2, args);
+    u1fv(u.lodbias, 2, bias);
+    u2f(u.mode, (float)tw, (float)th);
+    u1f(u.pointsize, (float)tscale);
     float tf[4], fc[4];
     colour4(rs[D3DRS_TEXTUREFACTOR], tf);
-    glUniform4fv(u.tfactor, 1, tf);
-    glUniform1i(u.alphatest, rs[D3DRS_ALPHATESTENABLE] != 0);
-    glUniform1i(u.alpharef, (GLint)(rs[D3DRS_ALPHAREF] & 0xff));
-    glUniform1i(u.alphafunc, (GLint)rs[D3DRS_ALPHAFUNC]);
-    glUniform1i(u.fog, rs[D3DRS_FOGENABLE] != 0);
-    glUniform1i(u.fogmode, (GLint)rs[D3DRS_FOGTABLEMODE]);
+    u4fv(u.tfactor, 1, tf);
+    u1i(u.alphatest, rs[D3DRS_ALPHATESTENABLE] != 0);
+    u1i(u.alpharef, (GLint)(rs[D3DRS_ALPHAREF] & 0xff));
+    u1i(u.alphafunc, (GLint)rs[D3DRS_ALPHAFUNC]);
+    u1i(u.fog, rs[D3DRS_FOGENABLE] != 0);
+    u1i(u.fogmode, (GLint)rs[D3DRS_FOGTABLEMODE]);
     colour4(rs[D3DRS_FOGCOLOR], fc);
-    glUniform3fv(u.fogcolour, 1, fc);
-    glUniform3f(u.fogparams, bits_float(rs[D3DRS_FOGSTART]), bits_float(rs[D3DRS_FOGEND]), bits_float(rs[D3DRS_FOGDENSITY]));
-    glUniform1i(u.specular, rs[D3DRS_SPECULARENABLE] != 0);
+    u3fv(u.fogcolour, 1, fc);
+    u3f(u.fogparams, bits_float(rs[D3DRS_FOGSTART]), bits_float(rs[D3DRS_FOGEND]), bits_float(rs[D3DRS_FOGDENSITY]));
+    u1i(u.specular, rs[D3DRS_SPECULARENABLE] != 0);
 
     bool tl = !(fvf & D3DFVF_XYZRHW);
-    glUniform1i(u.tl, tl);
+    u1i(u.tl, tl);
     if (!tl) {
         GLint plain[2] = {(GLint)(tci[0] & 0xffff), (GLint)(tci[1] & 0xffff)};
-        glUniform1iv(u.tci, 2, plain);
+        u1iv(u.tci, 2, plain);
         return;
     }
-    glUniform1iv(u.tci, 2, tci);
-    glUniform1iv(u.texflags, 2, tflags);
-    glUniformMatrix4fv(u.texm0, 1, GL_FALSE, &s->texm[0].m[0][0]);
-    glUniformMatrix4fv(u.texm1, 1, GL_FALSE, &s->texm[1].m[0][0]);
+    u1iv(u.tci, 2, tci);
+    u1iv(u.texflags, 2, tflags);
+    um4(u.texm0, &s->texm[0].m[0][0]);
+    um4(u.texm1, &s->texm[1].m[0][0]);
     /* a D3D matrix uploaded as it is (row-major) is its transpose to GLSL: (M * v) there is v M */
     D3DMATRIX wv;
     mul(&s->world, &s->view, &wv);
-    glUniformMatrix4fv(u.wv, 1, GL_FALSE, &wv.m[0][0]);
-    glUniformMatrix4fv(u.proj, 1, GL_FALSE, &s->proj.m[0][0]);
+    um4(u.wv, &wv.m[0][0]);
+    um4(u.proj, &s->proj.m[0][0]);
     float nm[9];
     normal_matrix(&wv, nm);
-    glUniformMatrix3fv(u.nrm, 1, GL_FALSE, nm);
-    glUniform4f(u.vp, (float)v->x, (float)v->y, (float)v->width, (float)v->height);
-    glUniform2f(u.vpz, v->minz, v->maxz);
+    um3(u.nrm, nm);
+    u4f(u.vp, (float)v->x, (float)v->y, (float)v->width, (float)v->height);
+    u2f(u.vpz, v->minz, v->maxz);
     /* without normals the lighting still runs (on a zero normal: ambient and emissive only) */
-    glUniform1i(u.lighting, rs[D3DRS_LIGHTING] != 0);
-    glUniform1i(u.colorvertex, rs[D3DRS_COLORVERTEX] != 0);
-    glUniform2i(u.has_colour, (fvf & D3DFVF_DIFFUSE) != 0, (fvf & D3DFVF_SPECULAR) != 0);
-    glUniform4i(u.src, (GLint)rs[D3DRS_DIFFUSEMATERIALSOURCE], (GLint)rs[D3DRS_SPECULARMATERIALSOURCE],
+    u1i(u.lighting, rs[D3DRS_LIGHTING] != 0);
+    u1i(u.colorvertex, rs[D3DRS_COLORVERTEX] != 0);
+    u2i(u.has_colour, (fvf & D3DFVF_DIFFUSE) != 0, (fvf & D3DFVF_SPECULAR) != 0);
+    u4i(u.src, (GLint)rs[D3DRS_DIFFUSEMATERIALSOURCE], (GLint)rs[D3DRS_SPECULARMATERIALSOURCE],
                 (GLint)rs[D3DRS_AMBIENTMATERIALSOURCE], (GLint)rs[D3DRS_EMISSIVEMATERIALSOURCE]);
     float amb[4];
     colour4(rs[D3DRS_AMBIENT], amb);
-    glUniform4fv(u.ambient, 1, amb);
-    glUniform4fv(u.mat, 4, &s->material.diffuse.r);   /* diffuse, ambient, specular, emissive */
-    glUniform1f(u.power, s->material.power);
-    glUniform1i(u.localviewer, rs[D3DRS_LOCALVIEWER] != 0);
-    glUniform1i(u.normalize, rs[D3DRS_NORMALIZENORMALS] != 0);
-    glUniform1i(u.vfog, rs[D3DRS_FOGENABLE] && !rs[D3DRS_FOGTABLEMODE] ? (GLint)rs[D3DRS_FOGVERTEXMODE] : 0);
-    glUniform1i(u.rangefog, rs[D3DRS_RANGEFOGENABLE] != 0);
+    u4fv(u.ambient, 1, amb);
+    u4fv(u.mat, 4, &s->material.diffuse.r);   /* diffuse, ambient, specular, emissive */
+    u1f(u.power, s->material.power);
+    u1i(u.localviewer, rs[D3DRS_LOCALVIEWER] != 0);
+    u1i(u.normalize, rs[D3DRS_NORMALIZENORMALS] != 0);
+    u1i(u.vfog, rs[D3DRS_FOGENABLE] && !rs[D3DRS_FOGTABLEMODE] ? (GLint)rs[D3DRS_FOGVERTEXMODE] : 0);
+    u1i(u.rangefog, rs[D3DRS_RANGEFOGENABLE] != 0);
     lights(s);
 }
 
@@ -644,45 +802,22 @@ static void apply_state(const D3dState *s, int prim, uint32_t fvf)
 
 static void attribs(uint32_t fvf, uint32_t stride, uintptr_t base)
 {
+    static const float zero3[4] = {0, 0, 0, 1}, one[4] = {1, 1, 1, 1}, zero[4] = {0, 0, 0, 0}, zero2[4] = {0, 0, 0, 1};
+    GLsizei st = (GLsizei)stride;
     uintptr_t o = base;
     int npos = fvf & D3DFVF_XYZRHW ? 4 : 3;
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, npos, GL_FLOAT, GL_FALSE, (GLsizei)stride, (const void *)o);
+    attr(0, npos, GL_FLOAT, GL_FALSE, st, o, NULL);
     o += (uintptr_t)npos * 4;
-    if (fvf & D3DFVF_NORMAL) {
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, (GLsizei)stride, (const void *)o);
-        o += 12;
-    } else {
-        glDisableVertexAttribArray(1);
-        glVertexAttrib3f(1, 0, 0, 0);
-    }
-    if (fvf & D3DFVF_DIFFUSE) {
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, (GLsizei)stride, (const void *)o);
-        o += 4;
-    } else {
-        glDisableVertexAttribArray(2);
-        glVertexAttrib4f(2, 1, 1, 1, 1);
-    }
-    if (fvf & D3DFVF_SPECULAR) {
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, (GLsizei)stride, (const void *)o);
-        o += 4;
-    } else {
-        glDisableVertexAttribArray(3);
-        glVertexAttrib4f(3, 0, 0, 0, 0);
-    }
+    if (fvf & D3DFVF_NORMAL) attr(1, 3, GL_FLOAT, GL_FALSE, st, o, NULL), o += 12;
+    else attr(1, 0, 0, 0, 0, 0, zero3);
+    if (fvf & D3DFVF_DIFFUSE) attr(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, st, o, NULL), o += 4;
+    else attr(2, 0, 0, 0, 0, 0, one);
+    if (fvf & D3DFVF_SPECULAR) attr(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, st, o, NULL), o += 4;
+    else attr(3, 0, 0, 0, 0, 0, zero);
     int ntex = (int)(fvf >> 8 & 15);
-    if (ntex >= 1) {
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, (GLsizei)stride, (const void *)o);
-    } else {
-        glDisableVertexAttribArray(4);
-        glVertexAttrib2f(4, 0, 0);
-    }
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, (GLsizei)stride, (const void *)(o + (ntex >= 2 ? 8 : 0)));
+    if (ntex >= 1) attr(4, 2, GL_FLOAT, GL_FALSE, st, o, NULL);
+    else attr(4, 0, 0, 0, 0, 0, zero2);
+    attr(5, 2, GL_FLOAT, GL_FALSE, st, o + (ntex >= 2 ? 8 : 0), NULL);
 }
 
 static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts, uint32_t nverts,
@@ -692,23 +827,23 @@ static void gl_draw(const D3dState *s, int prim, uint32_t fvf, const void *verts
     static const GLenum mode[7] = {GL_POINTS, GL_POINTS, GL_LINES, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN};
     uint32_t stride = D3d_FvfStride(fvf);
     apply_state(s, prim, fvf);
-    glBindVertexArray(vao);
+    if (sh.vao != vao + 1) glBindVertexArray(vao), sh.vao = vao + 1, sh.ibuf = 0;
     if (vb) {
         /* a vertex buffer lives in its GL buffer, re-uploaded after an Unlock */
         if (!vb->gl) glGenBuffers(1, &vb->gl);
-        glBindBuffer(GL_ARRAY_BUFFER, vb->gl);
+        bind_buffer(GL_ARRAY_BUFFER, vb->gl);
         if (vb->dirty) {
             glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)vb->count * stride, vb->data, GL_STATIC_DRAW);
             vb->dirty = false;
         }
         attribs(fvf, stride, (uintptr_t)first * stride);
     } else {
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        bind_buffer(GL_ARRAY_BUFFER, vbo);
         glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)nverts * stride, verts, GL_STREAM_DRAW);
         attribs(fvf, stride, 0);
     }
     if (indices && nindices) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+        bind_buffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)nindices * 2, indices, GL_STREAM_DRAW);
         glDrawElements(mode[prim], (GLsizei)nindices, GL_UNSIGNED_SHORT, (const void *)0);
     } else {
@@ -731,12 +866,13 @@ static void gl_clear(const D3dState *s, int x0, int y0, int x1, int y1, uint32_t
         m |= GL_COLOR_BUFFER_BIT;
     }
     if (flags & D3DCLEAR_ZBUFFER) {
-        glDepthMask(GL_TRUE);
+        depth_mask(GL_TRUE);
         glClearDepthf(z < 0 ? 0 : z > 1 ? 1 : z);
         m |= GL_DEPTH_BUFFER_BIT;
     }
     if (flags & D3DCLEAR_STENCIL) {
         glStencilMask(0xffffffffu);
+        sh.stencil[6] = 0;   /* (the write mask: not known) */
         glClearStencil((GLint)stencil);
         m |= GL_STENCIL_BUFFER_BIT;
     }
@@ -756,10 +892,10 @@ static void gl_present(void)
     if (dw <= 0 || dh <= 0) return;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, dw, dh);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
-    glDisable(GL_CULL_FACE);
-    glDisable(GL_STENCIL_TEST);
+    cap(GL_DEPTH_TEST, false);
+    cap(GL_BLEND, false);
+    cap(GL_CULL_FACE, false);
+    cap(GL_STENCIL_TEST, false);
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     float sx = (float)dw / (float)mw, sy = (float)dh / (float)mh, k = sx < sy ? sx : sy;
@@ -768,11 +904,12 @@ static void gl_present(void)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, colour[0]);
     glBindSampler(0, 0);
-    glUniform1i(up.tex, 0);
-    glUniform1f(up.gamma, gamma_scale);
-    glUniform4f(up.rect, -w, -h, w, h);
+    u1i(up.tex, 0);
+    u1f(up.gamma, gamma_scale);
+    u4f(up.rect, -w, -h, w, h);
     glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    shadow_reset();
 }
 
 static void gl_texture_upload(D3dTexture *t)
@@ -783,6 +920,7 @@ static void gl_texture_upload(D3dTexture *t)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, t->width, t->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t->rgba);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
     t->dirty = false;
+    shadow_reset();
 }
 
 /* a cube's six faces (the mode's colour format, as the original's surfaces take the primary's) each
@@ -810,6 +948,7 @@ static void cube_alloc(D3dTexture *t)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
     t->dirty = false;
+    shadow_reset();
 }
 
 static void gl_texture_free(D3dTexture *t)
@@ -847,6 +986,7 @@ static void gl_read(int x, int y, int w, int h, uint8_t *rgba)
     for (int j = 0; j < h; j++)
         for (int i = 0; i < w; i++)
             memcpy(rgba + ((size_t)j * w + i) * 4, buf + ((size_t)j * scale * w * scale + (size_t)i * scale) * 4, 4);
+    shadow_reset();
 }
 
 static const D3dBackend gl_backend = {gl_open, gl_draw, gl_clear, gl_present, gl_texture_upload,
