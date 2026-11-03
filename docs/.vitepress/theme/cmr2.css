@@ -246,3 +246,9 @@ a.VPLink:hover > .VPFeature {
   text-align: center;
 }
 .dark .vp-doc kbd { border-color: #3c4e48; background: #24302c; color: var(--cm-mint); }
+
+/* the home page's screenshots */
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin: 16px 0 8px; }
+.shots figure { margin: 0; }
+.shots img { width: 100%; height: auto; border-radius: 6px; display: block; }
+.shots figcaption { font-size: 0.85em; color: var(--vp-c-text-2); margin-top: 6px; }

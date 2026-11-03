@@ -40,6 +40,21 @@ features:
 
 <div class="vp-doc" style="max-width: 1152px; margin: 48px auto 0; padding: 0 24px;">
 
+## Screenshots
+
+Renders of OpenCMR2 itself (headless runs of `opencmr2.wasm` on the game's CD at 1024 x 768, made by
+`tools/screenshots.sh`).
+
+<div class="shots">
+  <figure><img src="/screenshots/menu.jpg" alt="The main menu" loading="lazy"><figcaption>The main menu</figcaption></figure>
+  <figure><img src="/screenshots/service.jpg" alt="The service area's stage information in Finland" loading="lazy"><figcaption>The service area: the stage and its weather</figcaption></figure>
+  <figure><img src="/screenshots/start-lights.jpg" alt="The start gantry's lights counting down in Finland" loading="lazy"><figcaption>The start lights, Finland</figcaption></figure>
+  <figure><img src="/screenshots/stage-start.jpg" alt="Away from the start line" loading="lazy"><figcaption>Green: away from the line</figcaption></figure>
+  <figure><img src="/screenshots/demo-1.jpg" alt="A demo run on gravel with the split times" loading="lazy"><figcaption>A demo run on gravel, with the splits</figcaption></figure>
+  <figure><img src="/screenshots/demo-2.jpg" alt="A demo run on snow" loading="lazy"><figcaption>A demo run on snow</figcaption></figure>
+  <figure><img src="/screenshots/demo-3.jpg" alt="A demo run on tarmac from a trackside camera" loading="lazy"><figcaption>A demo run on tarmac</figcaption></figure>
+</div>
+
 ## Built for gasm
 
 <p><a class="gasm-badge" href="https://gasm.emdzej.pl"><img class="gasm-badge-light" src="https://gasm.emdzej.pl/badge/built-for-gasm-light.svg" alt="Built for gasm" width="120" height="44"><img class="gasm-badge-dark" src="https://gasm.emdzej.pl/badge/built-for-gasm-dark.svg" alt="Built for gasm" width="120" height="44"></a></p>

@@ -37,7 +37,8 @@ png|wav|obj <file[:member]>` exports into `out/`.
 1. **Never commit original data or anything derived from it.** `cd/` (the extracted CD), `game/` (files
    from `data1.cab`), `cmr2.exe` (the Ghidra copy), `re/` (decompiler dumps), `out/` (decoded assets) are
    git-ignored: keep it that way. No `.iso`, `.bfl`, `.c3d`, `.adp`, `.bik`, extracted textures, models,
-   sounds or movies.
+   sounds or movies. The one exception: the site's screenshots (`docs/public/screenshots/`), renders of
+   the port made by `tools/screenshots.sh`, never the game's own files.
 2. **No data copied from the executable in the source tree.** Tables the game needs from `CMR2.exe` are
    loaded at run time (`src/exe.c`, checks size + CRC). Small algorithmic constants and instruction operands
    are fine; tables, geometry and strings are not.
