@@ -1778,6 +1778,7 @@
 0040a7d0	NetRec_CompareTimes	net	high	qsort compare for the network results by time
 0040a820	NetRec_StageResults	net	high	The network stage results sorted and numbered
 0040a980	NetRec_RallyResults	net	high	The network rally results (totals) sorted, numbered and scored
+00408340	Net_RallyLastStage	net	high	No chosen, undriven stage after this one in the network rally (0x52ea68 flags)
 0040ab10	NetRec_Results	net	high	The network results' count (0x531cec)
 0040ab20	NetRec_ResultPlace	net	high	A network results row's place (stage or rally)
 0040ab50	NetRec_ResultIndex	net	high	A network results row's record

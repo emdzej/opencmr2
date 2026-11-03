@@ -1,6 +1,7 @@
 /* The race (see race.h). The original keeps the race's variables at 0x537dd0-0x538124; they are the
    fields of R, named by address where the meaning is open. */
 #include "prof.h"
+#include "fe/fe_net.h"
 #include "net/session.h"
 #include "net/records.h"
 #include "net/race_msg.h"
@@ -828,6 +829,43 @@ int Rally_LastStage(uint32_t rally, uint32_t level)
     return level == 0 ? 3 : level == 1 ? 7 : level == 2 ? 9 : 0;
 }
 
+/* Net_RallyLastStage 0x408340: the network rally's last stage: no stage after this one (0x52f2ac bits 5-9) chosen
+   (0x52ea68 bit 0; with bit 1 only with option 13, 0x406410) and not yet driven (bit 2) */
+static bool net_rally_last(void)
+{
+    for (uint32_t k = (gm32(0x52f2ac) >> 5 & 0x1f) + 1; k < 0xb; k++) {
+        uint8_t f = gm8(0x52ea68 + k);
+        if (!(f & 1) || ((f & 2) && !(gm32(0x52e890) >> 13 & 1))) continue;
+        if (!(f & 4)) return false;
+    }
+    return true;
+}
+
+/* 0x41db10's network game (modes 8, 9 and 11): the stage's and the rally's results (0x40a820,
+   0x40a980) from the local time; the host with a leaderboard in use (0x40e4f0) a point to the
+   stage's winner and every row with the same time, none to the others (so each is on the board),
+   and after a rally's last stage (mode 8) 3 to the rally's winners likewise */
+static void net_results(void)
+{
+    uint32_t m = Gs_Mode();
+    if (m == 8 || m == 9 || m == 11) {
+        NetRec_StageResults((uint32_t)Times_Finish(0));
+        NetRec_RallyResults((uint32_t)Times_Finish(0));
+        int k = Fe_BoardCurrent();
+        if (k != -1 && Net_IsHost()) {
+            for (int rally = 0; rally < 2; rally++) {
+                if (rally && !(m == 8 && net_rally_last())) break;
+                int win = rally ? 3 : 1;
+                Fe_BoardScore(k, NetRec_ResultName(0, rally), win);
+                for (int i = 1; i < (int)NetRec_Results(); i++)
+                    Fe_BoardScore(k, NetRec_ResultName(i, rally),
+                                  NetRec_ResultTime(i, rally) == NetRec_ResultTime(0, rally) ? win : 0);
+            }
+        }
+    }
+    if (Net_IsHost() && Fe_BoardCurrent() != -1) Net_SendBoard();   /* 0x40af60 */
+}
+
 /* state 9, 0x41db10: after the finish, four seconds (by the clock) before the finish is counted shown;
    once every player's is and no fade runs, on to the replay */
 static void s9_finished(ProcGroup *g, uint32_t slot)
@@ -904,8 +942,11 @@ static void s9_finished(ProcGroup *g, uint32_t slot)
             for (uint32_t i = 0; i < Gs_Players(); i++) gw32(0x537f68 + 4 * i, 0), gw32(0x537f78 + 4 * i, 0);
         } else Unlocks_AfterStage();   /* 0x41b460 */
     }
+    if (Gs_ModeBit19()) net_results();
     Results_Start(false);   /* 0x44a1b0 */
+    if (Ghost_On()) Ghost_End();   /* 0x466080 */
     Skids_Reset();          /* 0x465530 */
+    if (Gs_SelBit26()) Music_Update();   /* 0x4a2f50: the arcade's music stopped, filled again, played */
     R.first = true;
 }
 
