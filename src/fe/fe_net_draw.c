@@ -21,6 +21,7 @@
 #include "text.h"
 #include "world/tod.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const uint8_t *C(uint32_t va) { return gm(va); }
@@ -557,6 +558,52 @@ static void board_delete(int k)
     gw32(0x535984, 0);
     gw32(NBOARDS, (uint32_t)(boards() - 1));
 }
+
+/* 0x40e790: qsort's order of two entries: the higher total first, on a tie the name later in strcmp's
+   order first (equal names give -1 both ways round, as the original's does) */
+static int entry_order(const void *a, const void *b)
+{
+    const uint8_t *p = a, *q = b;
+    int32_t ta, tb;
+    memcpy(&ta, p + 4, 4);
+    memcpy(&tb, q + 4, 4);
+    if (tb < ta) return -1;
+    if (ta < tb) return 1;
+    return strcmp((const char *)p, (const char *)q) < 0 ? 1 : -1;
+}
+
+/* 0x40e850: board k's entries sorted, then the board copied to the network game's (0x40e8a0: 0x533900,
+   0x535b8c set) */
+static void board_sort(int k)
+{
+    uint32_t b = BOARDS + BOARD_SIZE * (uint32_t)k;
+    qsort(gm(b + 4), 0x20, 8, entry_order);
+    memcpy(gm(0x533900), gm(b), BOARD_SIZE);
+    gw32(0x535b8c, 1);
+}
+
+/* 0x40e660: add n to the total of board k's entry named name; without one, the first blank entry
+   (0x52ea5c) takes the name (copied whole: a longer one runs into the total, which is written after)
+   with n; sorted either way, also when no entry is free */
+void Fe_BoardScore(int k, const char *name, int n)
+{
+    uint32_t e = BOARDS + BOARD_SIZE * (uint32_t)k + 4;
+    for (int i = 0; i < 0x20; i++)
+        if (strcmp((const char *)gm(e + 8 * (uint32_t)i), name) == 0) {
+            gw32(e + 8 * (uint32_t)i + 4, gm32(e + 8 * (uint32_t)i + 4) + (uint32_t)n);
+            board_sort(k);
+            return;
+        }
+    for (int i = 0; i < 0x20; i++)
+        if (strcmp((const char *)gm(e + 8 * (uint32_t)i), exe_str(0x52ea5c)) == 0) {
+            memcpy(gm(e + 8 * (uint32_t)i), name, strlen(name) + 1);
+            gw32(e + 8 * (uint32_t)i + 4, (uint32_t)n);
+            break;
+        }
+    board_sort(k);
+}
+
+int Fe_BoardCurrent(void) { return cur_board(); }   /* 0x40e4f0 */
 
 /* 0x4e9990: a stored board: which of how many (or text 0x1eb without one), its ten tags and totals, the
    arrows when there are boards, the page's other items under it; lit while its list is chosen */

@@ -1942,3 +1942,8 @@
 0040e540	Boards_Count	net	high	The stored boards (DAT_00535b88)
 0040e550	Boards_Add	net	high	A new board, blank, named after player 0 (over its first entry)
 0040e5e0	Boards_Delete	net	high	Board k out, the later ones moved down
+0041b3a0	Net_StageBoards	net	high	The stage's leaderboard points, the board sent (host)
+0040e660	Boards_Score	net	high	Add to a name's total on a board, or take a blank entry
+0040e790	Boards_EntryOrder	net	high	qsort order: total descending, then name descending
+0040e850	Boards_Sort	net	high	Sort a board's entries, copy it to the network board
+0040e8a0	Boards_ToNet	net	high	Copy a board to 0x533900, 0x535b8c set

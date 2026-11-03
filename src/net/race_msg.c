@@ -96,6 +96,23 @@ void Net_SendService(void)
     NetRec_MarkAll();
 }
 
+/* 0x41b3a0: the stage's leaderboard points (the host's, when a board is in use): the lobby's list again
+   (0x40ad20); with a best time in the first row, a point to that row and to every row with the same
+   best, none to the others; then every row with none (so each is on the board), and the board sent */
+static void stage_boards(void)
+{
+    NetRec_Lobby();
+    int k = Fe_BoardCurrent();
+    if (k == -1) return;
+    if (Net_IsHost() && NetRec_LobbyBest(0) != 0xffffffffu) {
+        Fe_BoardScore(k, NetRec_LobbyName(0), 1);
+        for (int i = 1; i < (int)NetRec_LobbyCount(); i++)
+            Fe_BoardScore(k, NetRec_LobbyName(i), NetRec_LobbyBest(i) == NetRec_LobbyBest(0));
+    }
+    for (int i = 0; i < (int)NetRec_LobbyCount(); i++) Fe_BoardScore(k, NetRec_LobbyName(i), 0);
+    Net_SendBoard();
+}
+
 /* 0x449090, the results' fade's end in the network game (types 0xc and 0x10): the pause left, every
    race process to the results; the host the leaderboards (0x41b3a0) and the go to the others; the
    lobby's records, and the exit asked */
@@ -105,7 +122,7 @@ void Results_NetDone(int ch)
     if (Pause_Active()) Pause_End();   /* 0x404f20, 0x404ef0 */
     Race_EventAll(1, 3);
     if (Net_IsHost()) {
-        PENDING_NOTE(0x41b3a0, "the network game's leaderboards at the stage's end");
+        stage_boards();
         Net_SendResultsGo();
     }
     NetRec_Lobby();   /* 0x40ad20 */
@@ -122,7 +139,7 @@ static void sys_message(const DpSysMsg *s)
         NetRec_Remove(s->player);
     } else if (s->type == 0x101) {
         Net_SetHost(1);
-        PENDING_NOTE(0x402c90, "the pause's pages for the network game's new host");
+        Pause_NewHost();   /* 0x402c90 */
         Results_Start(true);
     }
 }
