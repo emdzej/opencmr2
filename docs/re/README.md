@@ -38,6 +38,20 @@ the original function by function.
   matrices and writes the textures as PNGs; for a stage pass the country's `<country>hit.bfl` as the
   texture archive). Decoded data goes to `out/` (git-ignored).
 
+### The program for the tools
+
+The reverse-engineering tools want `CMR2.exe` as a file; `tools/iscab.py` takes it from the cabinet:
+
+```sh
+mkdir -p game
+python3 tools/iscab.py cd CMR2.exe game/CMR2.exe
+python3 -c "import zlib;d=open('game/CMR2.exe','rb').read();print(len(d),hex(zlib.crc32(d)))"
+# 1228800 0x44c022f4
+cp game/CMR2.exe cmr2.exe                   # the Ghidra copy
+```
+
+`cd/`, `game/` and `cmr2.exe` are git-ignored. Tests and tools read `OPENCMR2_DATA=<dir|image>` (default `./cd`).
+
 ## Rules for the notes
 
 - Describe layouts, formulas and addresses in your own words. No decompiler output in the notes or the

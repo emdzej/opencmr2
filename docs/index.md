@@ -28,12 +28,12 @@ features:
     details: One opencmr2.wasm for macOS, Linux, Windows and the browser on the gasm WebAssembly game runtime. The original's Direct3D 7 rendering goes to OpenGL ES 3.0 (WebGL 2 in the browser).
     link: /guide/gasm
     linkText: Running on gasm
-  - title: Every format, documented
-    details: The gzip/CMPR containers and archives, PP_F models, stages, cars, DXT5 textures, MS ADPCM music, Bink movies, text and fonts.
-    link: /formats/
-    linkText: File formats
-  - title: A plan, step by step
-    details: Eleven steps from the file layer to network play, each ending with a check that runs headless against your data.
+  - title: Native and in the browser
+    details: Play on this site in a recent Chrome, Edge, Firefox or Safari, or natively on macOS, Linux and Windows with gasm-run. Keyboard and game controllers.
+    link: /guide/playing
+    linkText: Playing
+  - title: Every offline mode
+    details: Rallies and championships with the service area, the arcade, time trials, the challenge and two players on a split screen.
     link: /guide/status
     linkText: Status
 ---

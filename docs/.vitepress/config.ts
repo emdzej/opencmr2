@@ -54,7 +54,7 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   // The reverse-engineering notes (docs/re/) stay in the repository and are not published.
-  srcExclude: ["README.md", "AGENTS.md", "CONTEXT.md", "re/**"],
+  srcExclude: ["README.md", "AGENTS.md", "CONTEXT.md", "re/**", "formats/**", "internals/**"],
   sitemap: { hostname: "https://opencmr2.emdzej.pl" },
   // The browser player is a static page in public/play/, not a Markdown page.
   ignoreDeadLinks: [/^\/play\//],
@@ -82,7 +82,6 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/", activeMatch: "/guide/" },
       { text: "How-tos", link: "/howto/extract-cd", activeMatch: "/howto/" },
-      { text: "File formats", link: "/formats/", activeMatch: "/(formats|internals)/" },
       // A static app in docs/public/play/: target _self makes it a full page load, not a VitePress route.
       { text: "Play", link: "/play/", target: "_self" },
     ],
@@ -103,24 +102,10 @@ export default defineConfig({
       "/howto/": [
         {
           text: "How-tos",
-          items: [{ text: "Extract the CD", link: "/howto/extract-cd" }],
-        },
-      ],
-      "/": [
-        {
-          text: "File formats",
           items: [
-            { text: "Overview", link: "/formats/" },
-            { text: "BFL containers", link: "/formats/bfl" },
-            { text: "PP_F models", link: "/formats/c3d" },
-            { text: "Stages", link: "/formats/stage" },
-            { text: "Cars", link: "/formats/cars" },
-            { text: "Textures, sound, text", link: "/formats/media" },
+            { text: "Extract the CD", link: "/howto/extract-cd" },
+            { text: "Build from source", link: "/howto/build" },
           ],
-        },
-        {
-          text: "Internals",
-          items: [{ text: "Porting conventions", link: "/internals/porting" }],
         },
       ],
     },

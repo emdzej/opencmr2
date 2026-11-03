@@ -27,4 +27,3 @@ program is identified by size and checksum; other versions will need their own c
 | `Sounds` | Engines, surfaces, music (`Music/*.adp`) |
 | `CountrySpecific/Europe` | Text and co-driver speech in English, French, German, Italian, Spanish |
 
-Details: [file formats](../formats/index.md).

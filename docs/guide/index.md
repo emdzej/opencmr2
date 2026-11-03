@@ -17,7 +17,7 @@ OpenGL ES 3.0 (WebGL 2 in the browser).
 - [Playing in the browser](playing.md): the player on this site, and the keys.
 - [Running on gasm](gasm.md): how OpenCMR2 is packaged and run.
 
-The [file formats](../formats/index.md) of the disc are documented here.
+To build it yourself: [Build from source](../howto/build.md).
 
 ## Sibling projects
 

@@ -75,8 +75,9 @@ Every data file is gzip + `CMPR` + payload, and most payloads are archives with 
 VitePress in `docs/` (pnpm: `cd docs && pnpm install && pnpm build`), published to
 https://opencmr2.emdzej.pl by `.github/workflows/pages.yml` (CNAME in `docs/public/CNAME`). Theme
 `docs/.vitepress/theme/cmr2.css` (the game's menus: sage, mint, white, red). **No emojis**, no
-version menu. `docs/re/` (the reverse-engineering notes) is excluded from the site (`srcExclude`):
-keep it internal, and don't link to it from published pages. Don't overstate the state (`docs/guide/status.md`); don't host or link copies of the game. The
+version menu. The site is the product's: the guide, the how-tos and the player. `docs/re/` (the
+reverse-engineering notes), `docs/formats/` and `docs/internals/` are internal, excluded from the site
+(`srcExclude`): don't link to them from published pages. Don't overstate the state (`docs/guide/status.md`); don't host or link copies of the game. The
 "Built for gasm" badge is gasm's official one, hotlinked from
 `https://gasm.emdzej.pl/badge/built-for-gasm-{light,dark,flat}.svg` (rules: https://gasm.emdzej.pl/dev/badge;
 don't recolor, stretch or crop). New pages go in the sidebar in `docs/.vitepress/config.ts`; dead links fail
