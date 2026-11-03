@@ -467,7 +467,9 @@ static void s0_setup(ProcGroup *g, uint32_t slot)
 static void s1_loading(ProcGroup *g, uint32_t slot)
 {
     /* 0x538108 is set by Race_Start; only the network game clears it, for its waiting page
-       (0x58cf80). 0x41f410 is always ready in 1.11. */
+       (0x58cf80). 0x41f410 is always ready in 1.11. The input leaves the menus' mode: the race's
+       keys (Escape the pause's 0x400, not the menus' 0x20) */
+    Input_SetMenuMode(false);   /* 0x49ea90 */
     Proc_Event(g, slot, 0, 2);
 }
 
