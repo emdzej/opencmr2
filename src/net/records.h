@@ -10,6 +10,7 @@ void NetRec_SendData(const void *data);
 void NetRec_Take(uint32_t id, const uint8_t *data, bool add);
 void NetRec_Remove(uint32_t id);
 bool NetRec_Used(int i);
+bool NetRec_CarLoaded(int i);   /* 0x40b1e0 */
 const char *NetRec_Name(int i);
 uint32_t NetRec_Car(int i);
 uint32_t NetRec_Id(int i);

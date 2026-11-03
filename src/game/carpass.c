@@ -5,12 +5,12 @@
 #include "game/gstate.h"
 #include "game/hud.h"
 #include "game/race.h"
+#include "net/records.h"
 #include "render/d3d7.h"
 #include "fixmath.h"
 #include "game/mem.h"
 #include "sim/sim.h"
 #include "c3d.h"
-#include "pending.h"
 #include "sim/car.h"
 #include <math.h>
 #include <stdlib.h>
@@ -50,8 +50,9 @@ static void hide_clear_list(Obj *o, uint8_t a)
 /* 0x46bb40 (Race_DrawView, before the cars): per car and view the kind of drawing (0x588cd4): the
    view's own car by its camera (inside 6, 5 the bonnet, 8 the cockpit, else 1), outside the car 1;
    1 becomes 2-4 by the far model (0x588bb4, set by 0x428bf0) and the second model's mesh flag bit 18;
-   another car with two players and no contact between the cars is 7, not drawn. (The network game's
-   ghosts, 0x40b1e0, not ported.) */
+   another car with two players and no contact between the cars is 7, not drawn. In the network game
+   the car of a player who has left (the record no longer in use, its car still loaded: 0x409cb0,
+   0x40b1e0) is 7 in both views. */
 void Cars_ViewKinds(void)
 {
     int own[2];
@@ -82,7 +83,10 @@ void Cars_ViewKinds(void)
             gw32(VIEW_KIND(n, v), (uint32_t)kind);
         }
     }
-    if (Gs_ModeBit19()) PENDING_NOTE(0x46bb40, "the network game's ghosts (0x40b1e0)");
+    if (Gs_ModeBit19())   /* 0x405e00 */
+        for (int i = 0; i < 7; i++)
+            if (!NetRec_Used(i) && NetRec_CarLoaded(i))
+                for (int v = 0; v < 2; v++) gw32(VIEW_KIND((int)NetRec_Slot(i), v), 7);   /* 0x40b010 */
 }
 
 /* 0x46b790: a view's bit into the groups its kind draws: the lamps' and the cockpit's objects (+0),

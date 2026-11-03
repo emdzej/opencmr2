@@ -1808,6 +1808,7 @@
 0040b1a0	NetRec_OrderId	net	high	The start order's k-th id
 0040b1b0	NetRec_OrderCount	net	high	The start order's count (0x531770)
 0040b1c0	NetRec_ClearBit23	net	high	Every network record's +4 bit 23 cleared
+0040b1e0	NetRec_CarLoaded	net	high	A network record's +4 bit 23: its car loaded on the stage
 004591e0	Net_LapFold	net	high	A circuit place's distance carried over the lap (side 0 cars)
 004a0c60	Net_ClearSessions	net	high	The found sessions cleared, the description's string pointers reset
 004a0ca0	Net_AddSession	net	high	A found session kept (a name, at most twenty)

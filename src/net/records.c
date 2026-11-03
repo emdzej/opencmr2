@@ -639,6 +639,10 @@ void NetRec_Order(void)
 uint32_t NetRec_OrderId(int k) { return gm32(0x531cc0 + 4u * (uint32_t)k); }   /* 0x40b1a0 */
 uint32_t NetRec_OrderCount(void) { return gm32(0x531770); }                    /* 0x40b1b0 */
 
+/* 0x40b1e0: the record's bit 23, its car loaded on this stage (set by Car_Load 0x457000 as
+   it gives the record's player a car, 0x40b200) */
+bool NetRec_CarLoaded(int i) { return flags(i) >> 23 & 1; }
+
 /* 0x40b1c0: every record's bit 23 cleared */
 void NetRec_ClearBit23(void)
 {
