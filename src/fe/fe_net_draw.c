@@ -290,16 +290,102 @@ static void rally_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c,
     }
 }
 
-/* 0x4e77c0: the network rally page */
-void fe_4e77c0(Menu *m)
+/* the network set-up pages' frame (0x4e77c0-0x4e90f0 each): "Main Menu | Network | <page>", the rows
+   centred on their own (a pixel off Rows_Top's and Rows_ArrowDy's at some sizes), the strip */
+static void setup_page(Menu *m, int16_t text, RowFn *row_fn)
 {
     int w, h;
     D3d_ScreenSize(&w, &h);
-    const char *names[3] = {Text_Get(0x12), Text_Get(0x1d9), Text_Get(0x1da)};
+    const char *names[3] = {Text_Get(0x12), Text_Get(0x1d9), Text_Get(text)};
     Fe_TitleRow(w * 0x18 / 0x280, h * 0x26 / 0x1e0, names, 3);
-    Fe_Header();
-    /* (its own centring and arrow offset, a pixel off Rows_Top's and Rows_ArrowDy's at some sizes) */
     int top = (h * 8 / 0x1e0 + h * 0x26 / 0x1e0 + h * 0x180 / 0x1e0) / 2 - h * 0x24 / 0x1e0 * m->n / 2;
-    Rows_Draw(m, rally_row, false, true, top, h * 2 / 0x1e0 + h * 0x12 / 0x1e0);
+    Fe_Header();
+    Rows_Draw(m, row_fn, false, true, top, h * 2 / 0x1e0 + h * 0x12 / 0x1e0);
     Strip_DrawMain(&pg_81d6d8, false, NULL);
 }
+
+/* "<label>: <value>" into the buffer (0x524d38) */
+static void pair(int16_t label, const char *value) { snprintf(buf(), 0x100, exe_str(0x524d38), Text_Get(label), value); }
+
+/* the damage row: "Off" alone, or "<Damage>: <n>" (0x1e0 formatting the value + 4) */
+static void damage(uint8_t v)
+{
+    if (v == 0) { snprintf(buf(), 0x100, "%s", Text_Get(0x1e1)); return; }   /* (0x4e8500 formats it, 0x4e90f0 copies it: the same, the text has no %) */
+    char t[0x40];
+    snprintf(t, sizeof t, Text_Get(0x1e0), v + 4);
+    pair(0x1de, t);
+}
+
+static const char *rally_text(uint8_t k) { return Text_Get(k + 0x27); }
+
+/* 0x4e77c0: the network rally page */
+void fe_4e77c0(Menu *m) { setup_page(m, 0x1da, rally_row); }
+
+static void stages_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    (void)two, (void)w;
+    switch (it->id) {
+    case 0: pair(0x30, rally_text(Menu_Item(m, 0)->value)); break;
+    case 1: pair(0x31, (const char *)gm(0x818d84 + 3u * Menu_Item(m, 1)->value)); break;
+    case 2: {
+        MenuItem *i2 = Menu_Item(m, 2);
+        pair(0x1dc, Text_Get(i2->flags & 1 ? (int16_t)gm32(0x818d08 + 4u * i2->value) : 0x156));
+        break;
+    }
+    case 3: case 4: Font_Print(1, Text_Get(it->text), x, y, C(c), 0x11); return;
+    default: return;
+    }
+    Font_Print(1, buf(), x, y, C(c), 0x11);
+}
+
+/* 0x4e7ed0: the network stage page (rally, stage, weather) */
+void fe_4e7ed0(Menu *m) { setup_page(m, 0x1db, stages_row); }
+
+static void damage_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    (void)two, (void)w;
+    switch (it->id) {
+    case 0: pair(0x30, rally_text(Menu_Item(m, 0)->value)); break;
+    case 1: pair(0x31, (const char *)gm(0x818d84 + 3u * Menu_Item(m, 1)->value)); break;
+    case 2: damage(Menu_Item(m, 2)->value); break;
+    case 3: case 4: Font_Print(1, Text_Get(it->text), x, y, C(c), 0x11); return;
+    default: return;
+    }
+    Font_Print(1, buf(), x, y, C(c), 0x11);
+}
+
+/* 0x4e8500: the network stage page with damage */
+void fe_4e8500(Menu *m) { setup_page(m, 0x1dd, damage_row); }
+
+/* the rally of the stage pages below: the unlocked rallies' list (0x818ed4) */
+static const char *open_rally(Menu *m) { return Text_Get((int16_t)gm32(0x818ed4 + 4u * Menu_Item(m, 0)->value) + 0x27); }
+
+static void laps_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    (void)two, (void)w;
+    switch (it->id) {
+    case 0: pair(0x30, open_rally(m)); break;
+    case 1: snprintf(buf(), 0x100, exe_str(0x524d40), Text_Get(0x195), Menu_Item(m, 1)->value + 1); break;
+    case 2: case 3: Font_Print(1, Text_Get(it->text), x, y, C(c), 0x11); return;
+    default: return;
+    }
+    Font_Print(1, buf(), x, y, C(c), 0x11);
+}
+
+/* 0x4e8b60: the network rallycross page (track, laps) */
+void fe_4e8b60(Menu *m) { setup_page(m, 0xd7, laps_row); }
+
+static void rx_damage_row(Menu *m, MenuItem *it, bool two, int x, int y, uint32_t c, int w)
+{
+    (void)two, (void)w;
+    switch (it->id) {
+    case 0: pair(0x30, open_rally(m)); break;
+    case 1: damage(Menu_Item(m, 1)->value); break;
+    case 2: case 3: Font_Print(1, Text_Get(it->text), x, y, C(c), 0x11); return;
+    default: return;
+    }
+    Font_Print(1, buf(), x, y, C(c), 0x11);
+}
+
+/* 0x4e90f0: the network page of 0xd8 (track, damage) */
+void fe_4e90f0(Menu *m) { setup_page(m, 0xd8, rx_damage_row); }
