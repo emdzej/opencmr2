@@ -22,6 +22,7 @@
 #include "render/display.h"
 #include "render/mesh.h"
 #include "render/rstate.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,13 +78,15 @@ bool app_frame(void)
     return true;
 }
 
-/* the mix; with --param audiolog=1 (the port's, for checking the sound) its peak every five seconds,
+/* the mix; with --param audiolog=1 (the port's, for checking the sound) its peak, mean and RMS every five seconds,
    and the first frames of anything not finite, to the log */
 void app_audio(float *stereo, unsigned frames)
 {
     Dsb_Mix(stereo, frames);
     static int on = -1, n, bad;
     static float peak;
+    static double sum, sq;
+    static unsigned cnt;
     if (on < 0) {
         char b[8];
         on = plat_param("audiolog", b, sizeof b) && b[0] != '0';
@@ -93,12 +96,14 @@ void app_audio(float *stereo, unsigned frames)
         float a = stereo[i] < 0 ? -stereo[i] : stereo[i];
         if (!(a <= 1e30f) && bad++ < 5) plat_log("audio: a sample not finite");
         if (a > peak) peak = a;
+        sum += stereo[i], sq += (double)stereo[i] * stereo[i], cnt++;
     }
     if (++n % 300 == 0) {
-        char m[64];
-        snprintf(m, sizeof m, "audio: frame %d, peak %.3f", n, (double)peak);
+        char m[96];
+        snprintf(m, sizeof m, "audio: frame %d, peak %.3f, mean %.3f, rms %.3f", n, (double)peak,
+                 cnt ? sum / cnt : 0.0, cnt ? sqrt(sq / cnt) : 0.0);
         plat_log(m);
-        peak = 0;
+        peak = 0, sum = sq = 0, cnt = 0;
     }
 }
 
