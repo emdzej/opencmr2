@@ -124,7 +124,7 @@ export default defineConfig({
 
     footer: {
       message:
-        "OpenCMR2 is released under the GPL-3.0. Colin McRae Rally 2.0 is © 2000 The Codemasters Software Company Limited. OpenCMR2 contains no original code or assets and is not affiliated with Codemasters: it runs the game from your own copy. It runs on <a href=\"https://gasm.emdzej.pl\">gasm</a>.",
+        "OpenCMR2 is released under the GPL-3.0. Colin McRae Rally 2.0 is © 2000 The Codemasters Software Company Limited. OpenCMR2 contains no original code or assets and is not affiliated with Codemasters: it runs the game from your own copy. It runs on <a href=\"https://gasm.emdzej.pl\">gasm</a>. <a href=\"/credits\">Credits</a>",
     },
   },
 });
