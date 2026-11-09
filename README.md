@@ -15,6 +15,7 @@ rallies, the arcade, time trials, the challenge and two players. The network gam
 Site: [opencmr2.emdzej.pl](https://opencmr2.emdzej.pl) (sources in `docs/`):
 
 - [Status](docs/guide/status.md), [game data](docs/guide/game-data.md) and [network play](docs/guide/network.md)
+- [How the game works](docs/guide/theory.md): the theory of operation
 - [Architecture of CMR2.exe](docs/re/architecture.md), [function inventory](docs/re/inventory.md),
   [port plan](docs/re/port-plan.md)
 - [File formats](docs/formats/index.md)

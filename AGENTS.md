@@ -22,7 +22,7 @@ GLES 3; docs/re/render.md), the world (`src/world/`; docs/re/world.md), the simu
 (`src/sim/`, `src/game/`), the front end (`src/fe/`; docs/re/frontend.md) and the sound. The network
 game (`src/net/`, DirectPlay onto gasm:net and gasm-relay; docs/re/network.md) runs a rally from stage to
 stage to its end with two instances on a relay; what is left is play-testing it in real races.
-`docs/guide/status.md` is the public record.
+`docs/guide/status.md` is the public record; `docs/guide/theory.md` explains how the game works.
 Viewers: `--param car=` / `--param stage=`. Read `docs/re/port-plan.md` (the order of work,
 each step with its check), `docs/re/architecture.md` and `docs/formats/`.
 
@@ -50,6 +50,10 @@ png|wav|obj <file[:member]>` exports into `out/`.
    describe layouts, formulas and addresses.
 5. Community knowledge (CMR2 modding tools and notes) may inform format understanding; the exe is the
    authority and no code is copied.
+6. **Explain the game, not only port it.** Keep `docs/re/` and `docs/formats/` accurate as each subsystem
+   is ported. Keep `docs/guide/theory.md`, the theory of operation, up to date: how the game was designed
+   and how it works, in prose, for someone who wants to build such a game. No decompiler text, no game
+   data, no addresses in the main text.
 
 ## Game data
 

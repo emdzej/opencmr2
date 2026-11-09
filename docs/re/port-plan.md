@@ -259,6 +259,13 @@ deterministic enough, else lockstep on the input like OpenRF's plan.
 [network](network.md)), DirectPlay emulated over a gasm-relay room. Checked with two instances on a
 relay through a rally to its end, the finishes simulated; a real raced rally is still to be played.
 
+## 12. Theory of operation (done 2026-11-09; kept up to date)
+
+`docs/guide/theory.md`, "How the game works": how the game was designed and how it works, in prose,
+for someone who wants to build such a game, drawn from these notes and the port. No decompiler text,
+no game data, no addresses. Check: `pnpm build` passes; `grep -E '0x[0-9a-f]{3,}' docs/guide/theory.md`
+finds nothing.
+
 ## Open questions
 
 Answered (details in the linked pages):
