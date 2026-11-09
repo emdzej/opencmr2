@@ -84,6 +84,7 @@ export default defineConfig({
       { text: "How-tos", link: "/howto/extract-cd", activeMatch: "/howto/" },
       // A static app in docs/public/play/: target _self makes it a full page load, not a VitePress route.
       { text: "Play", link: "/play/", target: "_self" },
+      { text: "ENCORE", link: "https://encore.emdzej.pl" },
     ],
 
     sidebar: {
@@ -125,7 +126,7 @@ export default defineConfig({
 
     footer: {
       message:
-        "OpenCMR2 is released under the GPL-3.0. Colin McRae Rally 2.0 is © 2000 The Codemasters Software Company Limited. OpenCMR2 contains no original code or assets and is not affiliated with Codemasters: it runs the game from your own copy. It runs on <a href=\"https://gasm.emdzej.pl\">gasm</a>. <a href=\"/credits\">Credits</a>",
+        "Part of <a href=\"https://encore.emdzej.pl\">ENCORE</a> — Engines of Nostalgia, Clean Open REimplementations. OpenCMR2 is released under the GPL-3.0. Colin McRae Rally 2.0 is © 2000 The Codemasters Software Company Limited. OpenCMR2 contains no original code or assets and is not affiliated with Codemasters: it runs the game from your own copy. It runs on <a href=\"https://gasm.emdzej.pl\">gasm</a>. <a href=\"/credits\">Credits</a>",
     },
   },
 });
